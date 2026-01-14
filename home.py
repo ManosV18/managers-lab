@@ -2,11 +2,11 @@
 import streamlit as st
 
 def show_home():
-    st.title("🎯 Welcome to Managers’ Club!")
+    st.title("🎯 Welcome to Managers’ Lab!")
     st.subheader("Smart tools for data-driven financial decisions")
 
     st.markdown("""
-**Managers’ Club** is an online platform that helps you make faster, clearer, and better-informed financial decisions for your business.
+**Managers’ Lab** is an online platform that helps you make faster, clearer, and better-informed financial decisions for your business.
 
 No need for complex Excel sheets — all tools are available in a **friendly interface with simple input fields**.
 
