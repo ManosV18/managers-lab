@@ -21,14 +21,14 @@ from credit_days_calculator import show_credit_days_calculator
 from inventory_turnover_calculator import show_inventory_turnover_calculator
 
 # Προαιρετικά άρθρα σαν “tools”
-#from articles import show_article_clv, show_article_banks  # Υποθέτω έχεις άρθρα σε ένα module
+# from articles import show_article_clv, show_article_banks  # Αν έχεις άρθρα σε ένα module
 
 # --- Page config ---
-st.set_page_config(page_title="Managers’ Club", page_icon="📊", layout="centered")
+st.set_page_config(page_title="Managers’ Lab", page_icon="🧪", layout="centered")
 
 # --- Κατηγοριοποίηση ---
 tool_categories = {
-    "🏠 Home": [
+    "🏠 Lab Home": [
         ("Home", show_home),
     ],
     "💡 Getting Started": [
@@ -63,7 +63,7 @@ tool_categories = {
 }
 
 # --- Sidebar ---
-st.sidebar.title("📊 Managers’ Club - Tool Categories")
+st.sidebar.title("🧪 Managers’ Lab - Tool Categories")
 selected_category = st.sidebar.selectbox("Select a Category", list(tool_categories.keys()))
 
 tools_in_category = tool_categories[selected_category]
@@ -75,3 +75,4 @@ for name, func in tools_in_category:
     if name == selected_tool_name:
         func()
         break
+
