@@ -2,45 +2,71 @@
 import streamlit as st
 
 def show_start_here():
-    st.title("💡 Why Small Decisions Are Never Small")
-    st.subheader("The core insight for all your financial tools")
+    st.title("🧭 How to Use the Managers’ Lab")
 
     st.markdown("""
-Every business decision — no matter how small it seems — has a ripple effect.  
-Even tiny price changes, investment choices, or marketing adjustments can shift your break-even point, affect your cash flow, and change your customer lifetime value (CLV).
+### What this Lab is — and what it is not
+
+Managers’ Lab is **not** a dashboard.  
+It does not summarize performance, forecast results, or optimize outcomes.
+
+This is a **decision-testing environment**.
+
+Its purpose is simple:
+to expose what a decision *requires* in order not to fail.
 
 ---
 
-## 🔍 Key Insight
+### The core idea
 
-Most companies focus only on the immediate impact of a decision.  
-**Small decisions accumulate** and influence your business long-term performance. Understanding their effect early is what separates reactive management from proactive strategy.
+Most business decisions look small when viewed in isolation.
 
----
+A price change.  
+A cost adjustment.  
+An investment.  
+A change in payment terms.
 
-## 📊 How this applies to your tools:
+The risk is not the decision itself —  
+but the **structural shift** it creates.
 
-- **Break-Even Calculators:** See exactly how minor cost or price changes shift your survival threshold.  
-- **CLV Analysis:** Understand how small adjustments in retention or acquisition cost amplify over time.  
-- **Credit & Supplier Tools:** Even small changes in payment terms affect your cash cycle and working capital.  
-
----
-
-## 🚀 Quick Takeaways
-
-1. **Think Beyond Today:** Every €1 you invest or save now compounds across months and years.  
-2. **Measure Before You Move:** Use your tools to simulate small changes before implementing them.  
-3. **Decisions Are Not Isolated:** A small shift in one area (price, cost, marketing) can affect multiple KPIs.
+This Lab is built to make those shifts visible.
 
 ---
 
-### 📝 Your Next Step
+### How to think while using the tools
 
-Start by exploring one of the financial tools from the menu — **Break-Even**, **CLV**, or **Cash Cycle** — and see the ripple effect of a “small” decision in real numbers.
+Do not ask:
+> “Is this a good decision?”
+
+Ask instead:
+- What must be true for this decision to work?
+- How much margin, volume, or timing error can I tolerate?
+- Which assumption breaks first?
+
+Break-even is not a target.  
+It is a **survival condition**.
+
+Sensitivity is not analysis.  
+It is **fragility detection**.
 
 ---
 
-📬 **Feedback & Collaboration**  
-We are in beta — your insights help improve the platform! Email us at:  
-✉️ [brokeconomist@gmail.com](mailto:brokeconomist@gmail.com)
+### How to navigate the Lab
+
+- Start with **Break-Even** to anchor survival.
+- Use **Shifts & Sensitivity** to see how structure changes.
+- Use **CLV and Cash tools** to test sustainability, not growth.
+- Treat every output as a constraint — not an answer.
+
+If the numbers feel uncomfortable, the Lab is working.
+
+---
+
+### A final note
+
+Small decisions are never small  
+because systems do not fail gradually —  
+they fail when thresholds are crossed quietly.
+
+This Lab exists to make those thresholds visible.
 """)
