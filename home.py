@@ -7,9 +7,12 @@ def show_home():
     # --- Short description ---
     st.markdown(
         """
-        Welcome to Managers’ Lab — your interactive toolkit for financial analysis, 
-        decision support, and business modeling.  
-        Explore, experiment, and make data-driven decisions with practical tools.
+        Welcome to **Managers’ Lab** — an interactive environment for financial analysis,
+        decision testing, and business modeling.
+
+        This is not a dashboard or a reporting tool.  
+        It is a lab for exploring assumptions, constraints, and breakpoints behind everyday
+        managerial decisions.
         """
     )
 
@@ -17,24 +20,39 @@ def show_home():
     st.subheader("Tool Categories")
     
     st.markdown("""
-    - **Getting Started**: Step-by-step guides to begin using the Lab.  
-    - **Break-Even & Pricing**: Analyze costs, margins, and pricing impact.  
-    - **Customer Value**: Evaluate CLV, substitution, and complementary products.  
-    - **Finance & Cash Flow**: Manage cash cycles, credit policies, and loans.  
-    - **Cost & Profit**: Estimate unit costs, gross profit, and NPV.  
-    - **Inventory & Operations**: Calculate EOQ, turnover, and credit days.
+    - **Getting Started** — Understand the logic behind the Lab  
+    - **Break-Even & Pricing** — Costs, margins, and pricing pressure  
+    - **Customer Value** — CLV, substitution, and complementary products  
+    - **Finance & Cash Flow** — Cash cycles, credit policy, and financing  
+    - **Cost & Profit** — Unit cost, gross profit, and NPV analysis  
+    - **Inventory & Operations** — EOQ, turnover, and working capital
     """)
-    
-    # --- Quick start instruction ---
-    st.subheader("Getting Started")
+
+    # --- How to use ---
+    st.subheader("How to Use the Lab")
     st.markdown(
         """
-        Use the sidebar to select a category and tool.  
-        Each tool comes with step-by-step instructions and examples.  
-        Your data stays local — experiment freely!
+        Use the sidebar to select a category and a tool.  
+        Each tool is designed to test *what must be true* for a decision to work.
+
+        Focus on **tolerance**, not forecasts.  
+        Small changes compound structurally.
         """
     )
 
-    # Optional: add a separator or note
+    # --- Divider ---
     st.markdown("---")
-    st.info("Tip: Start with 'Getting Started' if this is your first visit.")
+
+    # --- Tip ---
+    st.info("Tip: If this is your first visit, start with **Getting Started** to understand the decision logic.")
+
+    # --- Footer / Contact ---
+    st.markdown(
+        """
+        <br><br>
+        **Contact**  
+        For feedback, questions, or collaboration:  
+        ✉️ <a href="mailto:brokeconomist@gmail.com">brokeconomist@gmail.com</a>
+        """,
+        unsafe_allow_html=True
+    )
