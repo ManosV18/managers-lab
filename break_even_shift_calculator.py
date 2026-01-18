@@ -128,8 +128,10 @@ def show_break_even_shift_calculator():
             "0.00"
         )
         st.caption(
-    "All costs you must cover every period, regardless of sales volume "
-    "(rent, salaries, overheads, subscriptions)."
+    "Any new fixed cost required by this decision 
+(equipment, hiring, software, expansion). 
+Enter 0 if this decision requires no new investment."
+
 )
         old_price_input = st.text_input(
             "Current selling price per unit",
