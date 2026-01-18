@@ -78,9 +78,9 @@ def plot_break_even_shift(
     st.pyplot(plt)
 
 # -------------------------------------------------
-# Streamlit UI
+# THIS is what app.py imports
 # -------------------------------------------------
-def show_break_even_calculator():
+def show_break_even_shift_calculator():
     st.header("🟠 Break-Even Decision Tool")
     st.markdown(
         "Answer client questions **immediately**, without spreadsheets. "
@@ -88,19 +88,31 @@ def show_break_even_calculator():
     )
 
     with st.form("break_even_form"):
-        old_price_input = st.text_input("Current selling price ($)", "10.50")
-        new_price_input = st.text_input("New selling price ($)", "11.00")
+        old_price_input = st.text_input(
+            "Τιμή πώλησης ανά μονάδα σήμερα ($)", 
+            "10.50"
+        )
+        new_price_input = st.text_input(
+            "Νέα τιμή πώλησης ανά μονάδα ($)", 
+            "11.00"
+        )
 
-        old_cost_input = st.text_input("Current unit cost ($)", "6.00")
-        new_cost_input = st.text_input("New unit cost ($)", "6.50")
+        old_cost_input = st.text_input(
+            "Κόστος παραγωγής ανά μονάδα σήμερα ($)", 
+            "6.00"
+        )
+        new_cost_input = st.text_input(
+            "Νέο κόστος παραγωγής ανά μονάδα ($)", 
+            "6.50"
+        )
 
         investment_cost_input = st.text_input(
-            "Additional fixed investment ($ – enter 0 if none)",
+            "Επένδυση/επιπλέον σταθερά έξοδα ($ – βάλτε 0 αν δεν υπάρχει)", 
             "0.00"
         )
 
         units_sold_input = st.text_input(
-            "Current sales volume (units)",
+            "Πωλήσεις την προηγούμενη περίοδο (μονάδες)", 
             "500"
         )
 
@@ -133,12 +145,22 @@ def show_break_even_calculator():
                 )
                 return
 
-            st.success(f"Old break-even: {format_number_en(old_bep, 0)} units")
-            st.success(f"New break-even: {format_number_en(new_bep, 0)} units")
-            st.markdown(f"- **Additional units required:** {format_number_en(units_change, 0)}")
-            st.markdown(f"- **Break-even change:** {format_percentage_en(percent_change)}")
+            st.success(
+                f"Old break-even: {format_number_en(old_bep, 0)} units"
+            )
+            st.success(
+                f"New break-even: {format_number_en(new_bep, 0)} units"
+            )
 
-            # Zone messages
+            st.markdown(
+                f"- **Additional units required:** "
+                f"{format_number_en(units_change, 0)}"
+            )
+            st.markdown(
+                f"- **Break-even change:** "
+                f"{format_percentage_en(percent_change)}"
+            )
+
             if percent_change < 0.10:
                 st.success("🟢 Absorbed by current model")
             elif percent_change <= 0.30:
