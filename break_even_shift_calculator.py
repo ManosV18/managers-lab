@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 # -------------------------------------------------
 # Helper functions
 # -------------------------------------------------
-
 def parse_number_en(number_str):
     return float(number_str)
 
@@ -14,11 +13,9 @@ def format_number_en(number, decimals=2):
 def format_percentage_en(number, decimals=1):
     return f"{number*100:.{decimals}f}%"
 
-
 # -------------------------------------------------
 # Core calculations (DO NOT CHANGE LOGIC)
 # -------------------------------------------------
-
 def calculate_break_even_shift_v2(
     old_price,
     new_price,
@@ -44,11 +41,9 @@ def calculate_break_even_shift_v2(
 
     return old_break_even, new_break_even, percent_change, units_change
 
-
 # -------------------------------------------------
 # Plot
 # -------------------------------------------------
-
 def plot_break_even_shift(
     old_price,
     new_price,
@@ -82,12 +77,10 @@ def plot_break_even_shift(
 
     st.pyplot(plt)
 
-
 # -------------------------------------------------
 # THIS is what app.py imports
 # -------------------------------------------------
-
-def show_break_even_shift_calculator():
+def show_break_even_calculator():
     st.header("🟠 Break-Even Decision Tool")
     st.markdown(
         "Answer client questions **immediately**, without spreadsheets. "
