@@ -1,9 +1,9 @@
 import streamlit as st
 
-# --- Import των modules ---
+# --- Import των modules σου ---
 from home import show_home
 from start_here import show_start_here
-from break_even_shift_calculator import show_break_even_calculator
+from break_even_shift_calculator import show_break_even_shift_calculator
 from clv_calculator import show_clv_calculator
 from substitution_analysis import show_substitution_analysis
 from complementary_analysis import show_complementary_analysis
@@ -22,12 +22,16 @@ from inventory_turnover_calculator import show_inventory_turnover_calculator
 # --- Page config ---
 st.set_page_config(page_title="Managers’ Lab", page_icon="🧪", layout="centered")
 
-# --- Tool categories ---
+# --- Κατηγοριοποίηση ---
 tool_categories = {
-    "🏠 Lab Home": [("Home", show_home)],
-    "💡 Getting Started": [("Start Here", show_start_here)],
+    "🏠 Lab Home": [
+        ("Home", show_home),
+    ],
+    "💡 Getting Started": [
+        ("Start Here", show_start_here),
+    ],
     "📈 Break-Even & Pricing": [
-        ("Break-Even Calculator", show_break_even_calculator),
+        ("Break-Even Calculator", show_break_even_shift_calculator),
         ("Loss Threshold Before Price Cut", show_loss_threshold_before_price_cut),
     ],
     "👥 Customer Value": [
