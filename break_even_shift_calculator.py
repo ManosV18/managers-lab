@@ -87,7 +87,7 @@ def plot_break_even_shift(
 # THIS is what app.py imports
 # -------------------------------------------------
 
-def show_break_even_calculator():
+def show_break_even_shift_calculator():
     st.header("🟠 Break-Even Decision Tool")
     st.markdown(
         "Answer client questions **immediately**, without spreadsheets. "
