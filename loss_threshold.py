@@ -1,8 +1,7 @@
 import streamlit as st
 
-# --- Helper functions for English number formatting ---
+# --- Helper functions ---
 def parse_number(number_str):
-    """Convert string with English decimal separator to float."""
     try:
         return float(number_str.replace(',', ''))
     except:
@@ -14,7 +13,7 @@ def format_number(number, decimals=2):
 def format_percentage(number, decimals=1):
     return f"{number:.{decimals}f}%"
 
-# --- Calculation ---
+# --- Calculation (DO NOT CHANGE) ---
 def calculate_sales_loss_threshold(
     competitor_old_price,
     competitor_new_price,
@@ -26,35 +25,57 @@ def calculate_sales_loss_threshold(
         bottom = (unit_cost - our_price) / our_price
         if bottom == 0:
             return None
-        result = top / bottom
-        return result * 100  # return as percentage
+        return (top / bottom) * 100
     except ZeroDivisionError:
         return None
 
 # --- Streamlit UI ---
 def show_loss_threshold_before_price_cut():
-    st.header("📉 Sales Loss Threshold Before Price Reduction")
-    st.title("How much sales can you lose before considering a price cut? ⚖️")
 
-    st.markdown("""
-    🧠 Competitors reduced their prices — should you follow?
+    st.header("📉 Sales Loss Threshold Before Price Cut")
 
-    👉 This tool shows **how much percentage of sales you can afford to lose**
-    before you need to lower your price to stay competitive.
-    """)
+    st.markdown(
+        "Competitors lowered their prices. **Should you react or hold your price?**\n\n"
+        "This tool shows **how much sales volume you can afford to lose (%)** "
+        "before cutting your price becomes unavoidable."
+    )
 
     with st.form("loss_threshold_form"):
-        col1, col2 = st.columns(2)
 
-        with col1:
-            competitor_old_price_input = st.text_input("Competitor's Original Price (€)", value=format_number(8.0))
-            our_price_input = st.text_input("Our Product Price (€)", value=format_number(8.0))
+        competitor_old_price_input = st.text_input(
+            "Competitor price BEFORE the cut",
+            value=format_number(8.0)
+        )
+        st.caption(
+            "The price at which your competitor was selling before the price reduction."
+        )
 
-        with col2:
-            competitor_new_price_input = st.text_input("Competitor's New Price (€)", value=format_number(7.2))
-            unit_cost_input = st.text_input("Unit Cost (€)", value=format_number(4.5))
+        competitor_new_price_input = st.text_input(
+            "Competitor price AFTER the cut",
+            value=format_number(7.2)
+        )
+        st.caption(
+            "The new lower price your competitor is offering after the discount."
+        )
 
-        submitted = st.form_submit_button("Calculate")
+        our_price_input = st.text_input(
+            "Your current selling price",
+            value=format_number(8.0)
+        )
+        st.caption(
+            "The price at which you currently sell your product or service."
+        )
+
+        unit_cost_input = st.text_input(
+            "Your variable cost per unit",
+            value=format_number(4.5)
+        )
+        st.caption(
+            "Your direct cost per unit sold (materials, production, delivery, commissions). "
+            "This is the minimum level that limits how much you can cut prices."
+        )
+
+        submitted = st.form_submit_button("Calculate loss threshold")
 
     if submitted:
         competitor_old_price = parse_number(competitor_old_price_input)
@@ -63,7 +84,7 @@ def show_loss_threshold_before_price_cut():
         unit_cost = parse_number(unit_cost_input)
 
         if None in (competitor_old_price, competitor_new_price, our_price, unit_cost):
-            st.error("⚠️ Please check that all numeric fields are correctly filled.")
+            st.error("⚠️ Please check that all numeric fields are filled correctly.")
             return
 
         result = calculate_sales_loss_threshold(
@@ -76,8 +97,14 @@ def show_loss_threshold_before_price_cut():
         if result is None:
             st.error("⚠️ Cannot calculate. Check the input values.")
         elif result <= 0:
-            st.warning("❗ No sales loss margin. Your price is already less competitive.")
+            st.warning(
+                "❗ You have no sales loss margin.\n\n"
+                "Your current price leaves no room to absorb competitive pressure."
+            )
         else:
-            st.success(f"✅ Maximum % of sales that can be lost before a price cut: {format_percentage(result)}")
+            st.success(
+                f"✅ You can afford to lose up to **{format_percentage(result)}** of sales "
+                "before a price cut becomes necessary."
+            )
 
     st.markdown("---")
