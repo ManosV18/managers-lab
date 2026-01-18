@@ -3,7 +3,7 @@ import streamlit as st
 # --- Import των modules σου ---
 from home import show_home
 from start_here import show_start_here
-from break_even_shift_calculator import break_even_shift_calculator
+from break_even_shift_calculator import show_break_even_shift_calculator
 from clv_calculator import show_clv_calculator
 from substitution_analysis import show_substitution_analysis
 from complementary_analysis import show_complementary_analysis
@@ -34,7 +34,7 @@ tool_categories = {
         ("Start Here", show_start_here),
     ],
     "📈 Break-Even & Pricing": [
-        ("Break-Even Calculator", show_break_even_calculator),
+        ("Break-Even Calculator", show_break_even_shift_calculator),
         ("Loss Threshold Before Price Cut", show_loss_threshold_before_price_cut),
     ],
     "👥 Customer Value": [
