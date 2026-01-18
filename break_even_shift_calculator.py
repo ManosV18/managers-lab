@@ -59,38 +59,47 @@ def plot_break_even_shift(
     new_unit_cost,
     units_sold
 ):
+    # Compute contribution margins
     old_cm = old_price - old_unit_cost
+    new_cm = new_price - new_unit_cost
+
+    # Fixed costs
     total_fixed_old = fixed_costs
     total_fixed_new = fixed_costs + new_investment
 
-    # Υπολογισμός break-even points
-    old_bep = total_fixed_old / old_cm
-    new_bep = total_fixed_new / (new_price - new_unit_cost)
+    # Break-even points
+    bep_old = total_fixed_old / old_cm
+    bep_new = total_fixed_new / new_cm
 
-    x = list(range(0, int(units_sold * 2)))
+    # X-axis for plotting
+    max_units = int(max(bep_old, bep_new) * 2) + 5
+    x = list(range(0, max_units))
 
+    # Costs and revenues
     old_total_cost = [total_fixed_old + old_unit_cost * q for q in x]
     new_total_cost = [total_fixed_new + new_unit_cost * q for q in x]
     old_revenue = [old_price * q for q in x]
     new_revenue = [new_price * q for q in x]
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(x, old_total_cost, 'r--', label="Old Total Cost")
-    plt.plot(x, new_total_cost, 'r-', label="New Total Cost")
-    plt.plot(x, old_revenue, 'g--', label="Old Revenue")
-    plt.plot(x, new_revenue, 'g-', label="New Revenue")
+    # Plot
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(x, old_total_cost, 'r--', label="Old Total Cost")
+    ax.plot(x, new_total_cost, 'r-', label="New Total Cost")
+    ax.plot(x, old_revenue, 'g--', label="Old Revenue")
+    ax.plot(x, new_revenue, 'g-', label="New Revenue")
 
-    # Καθετές γραμμές για break-even
-    plt.axvline(old_bep, color='red', linestyle='--', label="Old Break-Even")
-    plt.axvline(new_bep, color='orange', linestyle='--', label="New Break-Even")
+    # Vertical lines for BEP
+    ax.axvline(bep_old, color='red', linestyle='--', label="Current Break-Even")
+    ax.axvline(bep_new, color='orange', linestyle='--', label="New Break-Even")
 
-    plt.xlabel("Units Sold")
-    plt.ylabel("USD")
-    plt.title("Break-Even Shift Analysis")
-    plt.legend()
-    plt.grid(True)
+    ax.set_xlabel("Units sold")
+    ax.set_ylabel("USD")
+    ax.set_title("Break-Even Shift After Decision")
+    ax.legend()
+    ax.grid(True)
 
-    st.pyplot(plt)
+    st.pyplot(fig)
+    st.markdown("---")
 
 
 
