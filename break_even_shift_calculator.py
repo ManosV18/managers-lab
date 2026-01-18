@@ -19,7 +19,7 @@ def format_percentage_en(number, decimals=1):
 # Core calculations (DO NOT CHANGE LOGIC)
 # -------------------------------------------------
 
-def calculate_break_even_shift_v2(
+def calculate_break_even_shift(
     fixed_costs,
     new_investment,
     old_price,
@@ -98,11 +98,11 @@ def show_break_even_shift_calculator():
 
     with st.form("break_even_form"):
         fixed_costs_input = st.text_input(
-            "Fixed Costs per month (all recurring expenses)",
+            "Existing fixed costs per month (recurring expenses)",
             "10000.00"
         )
         new_investment_input = st.text_input(
-            "New investment in fixed costs (enter 0 if none)",
+            "Additional fixed investment (enter 0 if none)",
             "0.00"
         )
         old_price_input = st.text_input(
@@ -138,7 +138,7 @@ def show_break_even_shift_calculator():
             new_unit_cost = parse_number_en(new_unit_cost_input)
             units_sold = parse_number_en(units_sold_input)
 
-            old_bep, new_bep, percent_change, units_change = calculate_break_even_shift_v2(
+            old_bep, new_bep, percent_change, units_change = calculate_break_even_shift(
                 fixed_costs,
                 new_investment,
                 old_price,
