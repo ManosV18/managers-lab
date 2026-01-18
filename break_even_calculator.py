@@ -63,7 +63,7 @@ def plot_break_even(old_price, new_price, old_cost, new_cost, investment_cost, u
     st.pyplot(plt)
 
 # ---------- UI ----------
-def show_break_even_engine():
+def show_break_even():
 
     st.header("🟢 Can you afford this decision?")
     st.markdown(
