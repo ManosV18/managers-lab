@@ -4,19 +4,25 @@ import matplotlib.pyplot as plt
 # -------------------------------------------------
 # Helper functions
 # -------------------------------------------------
+
 def parse_number_en(number_str):
+    """Convert string to float."""
     return float(number_str)
 
 def format_number_en(number, decimals=2):
+    """Format number with commas and fixed decimals."""
     return f"{number:,.{decimals}f}"
 
 def format_percentage_en(number, decimals=1):
+    """Format number as percentage."""
     return f"{number*100:.{decimals}f}%"
 
+
 # -------------------------------------------------
-# Core calculations (DO NOT CHANGE LOGIC)
+# Core Break-Even calculations
 # -------------------------------------------------
-def calculate_break_even_shift_v2(
+
+def calculate_break_even_shift(
     old_price,
     new_price,
     old_cost,
@@ -24,12 +30,14 @@ def calculate_break_even_shift_v2(
     investment_cost,
     units_sold
 ):
+    """Return old BEP, new BEP, percent change, units change."""
     old_cm = old_price - old_cost
     new_cm = new_price - new_cost
 
     if old_cm <= 0 or new_cm <= 0:
         return None, None, None, None
 
+    # Fixed costs estimated from old contribution margin and units sold
     fixed_costs_old = old_cm * units_sold
     fixed_costs_new = fixed_costs_old + investment_cost
 
@@ -41,9 +49,11 @@ def calculate_break_even_shift_v2(
 
     return old_break_even, new_break_even, percent_change, units_change
 
+
 # -------------------------------------------------
-# Plot
+# Plot function
 # -------------------------------------------------
+
 def plot_break_even_shift(
     old_price,
     new_price,
@@ -56,14 +66,14 @@ def plot_break_even_shift(
     fixed_costs_old = old_cm * units_sold
     fixed_costs_new = fixed_costs_old + investment_cost
 
-    x = list(range(0, int(units_sold * 2)))
+    x = list(range(0, int(units_sold*2)))
 
-    old_total_cost = [fixed_costs_old + old_cost * q for q in x]
-    new_total_cost = [fixed_costs_new + new_cost * q for q in x]
-    old_revenue = [old_price * q for q in x]
-    new_revenue = [new_price * q for q in x]
+    old_total_cost = [fixed_costs_old + old_cost*q for q in x]
+    new_total_cost = [fixed_costs_new + new_cost*q for q in x]
+    old_revenue = [old_price*q for q in x]
+    new_revenue = [new_price*q for q in x]
 
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(8,5))
     plt.plot(x, old_total_cost, 'r--', label="Old Total Cost")
     plt.plot(x, new_total_cost, 'r-', label="New Total Cost")
     plt.plot(x, old_revenue, 'g--', label="Old Revenue")
@@ -77,10 +87,12 @@ def plot_break_even_shift(
 
     st.pyplot(plt)
 
+
 # -------------------------------------------------
-# THIS is what app.py imports
+# Streamlit UI — THIS is what app.py imports
 # -------------------------------------------------
-def show_break_even_shift_calculator():
+
+def show_break_even_calculator():
     st.header("🟠 Break-Even Decision Tool")
     st.markdown(
         "Answer client questions **immediately**, without spreadsheets. "
@@ -116,7 +128,7 @@ def show_break_even_shift_calculator():
             units_sold = parse_number_en(units_sold_input)
 
             old_bep, new_bep, percent_change, units_change = (
-                calculate_break_even_shift_v2(
+                calculate_break_even_shift(
                     old_price,
                     new_price,
                     old_cost,
@@ -134,21 +146,20 @@ def show_break_even_shift_calculator():
                 return
 
             st.success(
-                f"Old break-even: {format_number_en(old_bep, 0)} units"
+                f"Old break-even: {format_number_en(old_bep,0)} units"
             )
             st.success(
-                f"New break-even: {format_number_en(new_bep, 0)} units"
+                f"New break-even: {format_number_en(new_bep,0)} units"
             )
 
             st.markdown(
-                f"- **Additional units required:** "
-                f"{format_number_en(units_change, 0)}"
+                f"- **Additional units required:** {format_number_en(units_change,0)}"
             )
             st.markdown(
-                f"- **Break-even change:** "
-                f"{format_percentage_en(percent_change)}"
+                f"- **Break-even change:** {format_percentage_en(percent_change)}"
             )
 
+            # Decision zones
             if percent_change < 0.10:
                 st.success("🟢 Absorbed by current model")
             elif percent_change <= 0.30:
@@ -156,6 +167,7 @@ def show_break_even_shift_calculator():
             else:
                 st.error("🔴 High-risk decision — survival threshold jumps")
 
+            # Plot
             plot_break_even_shift(
                 old_price,
                 new_price,
