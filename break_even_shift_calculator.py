@@ -116,7 +116,7 @@ def show_break_even_shift_calculator():
 
     with st.form("break_even_form"):
         fixed_costs_input = st.text_input(
-            "Existing fixed costs per month (recurring expenses)",
+            "Existing fixed costs per period (recurring expenses)",
             "10000.00"
         )
         new_investment_input = st.text_input(
