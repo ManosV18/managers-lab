@@ -2,7 +2,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 
 # -------------------------------------------------
-# Helper functions
+# Helper functions for English number formatting
 # -------------------------------------------------
 def parse_number(number_str):
     """Convert string with English decimal separator to float."""
@@ -57,21 +57,23 @@ def calculate_required_sales_increase(
 # -------------------------------------------------
 # Plot
 # -------------------------------------------------
-def plot_required_sales_increase(required_increase, current_sales_pct=0):
-    labels = ["0% Baseline", "Current Sales", "Required Increase"]
-    values = [0, current_sales_pct, required_increase]
-    colors = ["gray", "blue", "orange"]
-
-    fig, ax = plt.subplots(figsize=(5, 6))
-    ax.bar(labels, values, color=colors)
-    ax.set_ylabel("Sales (%)")
-    ax.set_ylim(0, max(values)*1.2)
+def plot_required_sales_increase(required_increase):
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.axvline(x=required_increase, color='orange', linestyle='--', linewidth=2, label="Required Sales Increase")
+    ax.annotate(
+        f"{format_percentage(required_increase)}",
+        xy=(required_increase, 0.5),
+        xytext=(required_increase+1, 0.5),
+        arrowprops=dict(facecolor='orange', shrink=0.05),
+        fontsize=12
+    )
+    ax.set_xlim(0, max(20, required_increase+5))
+    ax.set_ylim(0, 1)
+    ax.set_yticks([])
+    ax.set_xlabel("Required Sales Increase (%)")
     ax.set_title("Required Suit Sales Increase After Discount")
-    
-    # Annotate values on top of bars
-    for i, v in enumerate(values):
-        ax.text(i, v + max(values)*0.02, format_percentage(v), ha='center', fontsize=10)
-
+    ax.legend()
+    ax.grid(axis='x')
     st.pyplot(fig)
     st.markdown("---")
 
@@ -148,5 +150,5 @@ other products (shirts, ties, belts, shoes).
             st.error("❌ Cannot calculate. Try different values.")
         else:
             st.success(f"✅ Required suit sales increase: {format_percentage(result)}")
-            # Show vertical bar plot
+            # Show plot with vertical line
             plot_required_sales_increase(result)
