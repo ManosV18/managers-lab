@@ -116,12 +116,12 @@ def show_break_even_shift_calculator():
 
     with st.form("break_even_form"):
         fixed_costs_input = st.text_input(
-            "Existing fixed costs per period (recurring expenses)",
+            "Existing fixed costs per period",
             "10000.00"
         )
         st.caption(
-            "All costs you must cover every period, regardless of sales volume "
-            "(rent, salaries, overheads, subscriptions)."
+            "All recurring costs you must cover every period, regardless of sales volume.
+                Examples: rent, salaries, utilities, subscriptions, insurance."
         )
 
         new_investment_input = st.text_input(
