@@ -1,24 +1,25 @@
 import streamlit as st
 
+# --- Import your modules ---
 from state import current_state
 from sidebar import scenario_selector
 from engine import run_engine
 
+# --- Page configuration ---
+st.set_page_config(page_title="Managers’ Lab What-If Engine", page_icon="🧪", layout="centered")
 
-st.set_page_config(page_title="What-If Engine", layout="centered")
+st.title("🧪 Managers’ Lab - What-If Engine")
+st.markdown("""
+Welcome! This dashboard lets you test **different business scenarios** and see the impact on your key metrics.  
+Adjust inputs in the **Current State** section and select a scenario from the sidebar.
+""")
 
-st.title("🧠 Business What-If Engine")
-st.caption("Decision support — not calculators")
+# --- 1️⃣ Current Business State ---
+st.sidebar.header("📍 Current State Inputs")
+state = current_state()  # returns dict with price, profit, sales
 
-# 1️⃣ Current business state
-state = current_state()
+# --- 2️⃣ Scenario selection ---
+scenario = scenario_selector()  # radio in sidebar
 
-st.markdown("---")
-
-# 2️⃣ Scenario selection
-scenario = scenario_selector()
-
-st.markdown("---")
-
-# 3️⃣ Run decision engine
+# --- 3️⃣ Run selected scenario ---
 run_engine(scenario, state)
