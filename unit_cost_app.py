@@ -1,98 +1,69 @@
-import streamlit as st
-
-def calculate_unit_costs(
-    sales_regular,
-    sales_overtime,
-    raw_material_cost,
-    operating_cost_regular,
-    operating_cost_overtime,
-    labor_cost_regular,
-    labor_cost_overtime,
-):
-    total_units = sales_regular + sales_overtime
-    total_cost = (
-        raw_material_cost +
-        operating_cost_regular +
-        operating_cost_overtime +
-        labor_cost_regular +
-        labor_cost_overtime
-    )
-
-    avg_cost_total = total_cost / total_units if total_units != 0 else 0
-
-    avg_cost_regular = (
-        (labor_cost_regular / sales_regular) +
-        (operating_cost_regular / sales_regular) +
-        (raw_material_cost / total_units)
-        if sales_regular != 0 else 0
-    )
-
-    avg_cost_overtime = (
-        (labor_cost_overtime / sales_overtime) +
-        (operating_cost_overtime / sales_overtime) +
-        (raw_material_cost / total_units)
-        if sales_overtime != 0 else 0
-    )
-
-    return avg_cost_total, avg_cost_regular, avg_cost_overtime
-
-
 def show_unit_cost_app():
-    st.header("📦 Unit Production Cost Analysis")
+    st.title("📦 Unit Production Cost Calculator")
     st.caption(
-        "Υπολογισμός μοναδιαίου κόστους παραγωγής, με διάκριση "
-        "μεταξύ κανονικού ωραρίου και υπερωριών."
+        "This tool estimates **average unit costs** under normal production "
+        "and overtime conditions, to support **pricing, capacity, and acceptance decisions**."
     )
 
-    # ================= INPUTS =================
-    with st.form("unit_cost_form"):
-        st.subheader("📊 Παραγωγή (μονάδες)")
+    st.header("🔢 Input Data")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            sales_regular = st.number_input(
-                "Παραγωγή σε κανονικό ωράριο (μονάδες / ημέρα)",
-                value=1000
-            )
-        with col2:
-            sales_overtime = st.number_input(
-                "Παραγωγή σε υπερωρίες (μονάδες / ημέρα)",
-                value=100
-            )
+    sales_regular = st.number_input(
+        "Daily Sales (units – regular hours)",
+        value=1000
+    )
+    st.caption(
+        "Units produced and sold during normal operating hours."
+    )
 
-        st.subheader("💸 Κόστος Πρώτων Υλών")
-        raw_material_cost = st.number_input(
-            "Συνολικό ημερήσιο κόστος πρώτων υλών (€)",
-            value=1500.0
-        )
+    sales_overtime = st.number_input(
+        "Daily Sales (units – overtime)",
+        value=100
+    )
+    st.caption(
+        "Additional units produced during overtime or extended shifts."
+    )
 
-        st.subheader("🏭 Λειτουργικό & Εργατικό Κόστος")
+    raw_material_cost = st.number_input(
+        "Daily Raw Material Cost (€)",
+        value=1500.0
+    )
+    st.caption(
+        "Total material cost for all units produced (shared across regular and overtime production)."
+    )
 
-        col3, col4 = st.columns(2)
-        with col3:
-            operating_cost_regular = st.number_input(
-                "Λειτουργικό κόστος (κανονικό ωράριο) (€)",
-                value=4000.0
-            )
-            labor_cost_regular = st.number_input(
-                "Εργατικό κόστος (κανονικό ωράριο) (€)",
-                value=8000.0
-            )
+    operating_cost_regular = st.number_input(
+        "Operating Cost (regular hours) (€)",
+        value=4000.0
+    )
+    st.caption(
+        "Energy, maintenance, and overhead costs incurred during normal operating hours."
+    )
 
-        with col4:
-            operating_cost_overtime = st.number_input(
-                "Λειτουργικό κόστος (υπερωρίες) (€)",
-                value=400.0
-            )
-            labor_cost_overtime = st.number_input(
-                "Εργατικό κόστος (υπερωρίες) (€)",
-                value=1200.0
-            )
+    operating_cost_overtime = st.number_input(
+        "Operating Cost (overtime) (€)",
+        value=400.0
+    )
+    st.caption(
+        "Incremental operating costs caused specifically by overtime production."
+    )
 
-        submitted = st.form_submit_button("📐 Υπολογισμός Κόστους")
+    labor_cost_regular = st.number_input(
+        "Labor Cost (regular hours) (€)",
+        value=8000.0
+    )
+    st.caption(
+        "Wages and salaries paid for regular working hours."
+    )
 
-    # ================= RESULTS =================
-    if submitted:
+    labor_cost_overtime = st.number_input(
+        "Labor Cost (overtime) (€)",
+        value=1200.0
+    )
+    st.caption(
+        "Additional labor cost due to overtime pay or shift premiums."
+    )
+
+    if st.button("Calculate Costs"):
         avg_total, avg_regular, avg_overtime = calculate_unit_costs(
             sales_regular,
             sales_overtime,
@@ -104,24 +75,31 @@ def show_unit_cost_app():
         )
 
         st.markdown("---")
-        st.subheader("🧮 Αποτελέσματα Κόστους")
+        st.subheader("📊 Results")
 
-        r1, r2, r3 = st.columns(3)
-        r1.metric(
-            "Μέσο Μοναδιαίο Κόστος (σύνολο)",
+        st.metric(
+            "🔹 Average Unit Cost (Total)",
             f"{avg_total:.2f} €"
         )
-        r2.metric(
-            "Μοναδιαίο Κόστος – Κανονικό Ωράριο",
-            f"{avg_regular:.2f} €"
-        )
-        r3.metric(
-            "Μοναδιαίο Κόστος – Υπερωρίες",
-            f"{avg_overtime:.2f} €"
+        st.caption(
+            "Average cost per unit across **all production**, useful for profitability benchmarks."
         )
 
-        st.markdown(
-            "ℹ️ **Ερμηνεία:** Το κόστος πρώτων υλών κατανέμεται σε όλες τις μονάδες, "
-            "ενώ το εργατικό και λειτουργικό κόστος επιβαρύνει ξεχωριστά "
-            "την κανονική παραγωγή και τις υπερωρίες."
+        st.metric(
+            "🟢 Unit Cost (Regular Hours)",
+            f"{avg_regular:.2f} €"
+        )
+        st.caption(
+            "Cost per unit produced during normal operations. "
+            "This is the **baseline cost** for pricing and margin analysis."
+        )
+
+        st.metric(
+            "🕐 Unit Cost (Overtime Hours)",
+            f"{avg_overtime:.2f} €"
+        )
+        st.caption(
+            "Cost per unit produced during overtime. "
+            "**Use this metric when deciding whether to accept additional orders, "
+            "run overtime, or quote special prices for extra capacity.**"
         )
