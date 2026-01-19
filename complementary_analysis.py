@@ -1,153 +1,251 @@
+# == FILE: product_mix_logic.py ==
+"""
+Product Mix Optimization logic (PuLP)
+Functions:
+ - optimize_product_mix(products, capacity=None, budget=None)
+
+Product data structure (list of dicts):
+[{
+  'name': 'Prod A',
+  'price': 10.0,
+  'cost': 6.0,
+  'max_demand': 1000.0,
+  'capacity_required': 0.5,
+  'current_qty': 200.0  # optional
+}, ...]
+
+Returns dict with product_mix, total_profit, capacity_usage, status, details (pulp status)
+"""
+
+from typing import List, Dict, Optional
+import pulp
+
+
+def optimize_product_mix(products: List[Dict], capacity: Optional[float] = None, budget: Optional[float] = None):
+    # Create LP problem
+    prob = pulp.LpProblem("Product_Mix_Optimization", pulp.LpMaximize)
+
+    # Decision variables: quantity for each product (continuous, >=0)
+    qty_vars = {}
+    for p in products:
+        name = p.get("name")
+        # upper bound is max_demand
+        ub = None
+        if p.get("max_demand") is not None:
+            try:
+                ub = float(p.get("max_demand"))
+            except Exception:
+                ub = None
+        var = pulp.LpVariable(f"qty_{name}", lowBound=0, upBound=ub)
+        qty_vars[name] = var
+
+    # Objective: maximize profit = sum((price-cost) * qty)
+    profit_terms = []
+    for p in products:
+        name = p["name"]
+        margin = float(p.get("price", 0.0)) - float(p.get("cost", 0.0))
+        profit_terms.append(margin * qty_vars[name])
+    prob += pulp.lpSum(profit_terms)
+
+    # Capacity constraint: sum(qty * capacity_required) <= capacity
+    if capacity is not None:
+        cap_terms = []
+        for p in products:
+            name = p["name"]
+            cap_req = float(p.get("capacity_required", 0.0))
+            cap_terms.append(cap_req * qty_vars[name])
+        prob += pulp.lpSum(cap_terms) <= float(capacity)
+
+    # Budget constraint: sum(qty * cost) <= budget
+    if budget is not None:
+        cost_terms = []
+        for p in products:
+            name = p["name"]
+            cost = float(p.get("cost", 0.0))
+            cost_terms.append(cost * qty_vars[name])
+        prob += pulp.lpSum(cost_terms) <= float(budget)
+
+    # Solve
+    prob.solve(pulp.PULP_CBC_CMD(msg=False))
+
+    # Prepare results
+    product_mix = {}
+    for p in products:
+        name = p["name"]
+        qty = qty_vars[name].varValue if qty_vars[name].varValue is not None else 0.0
+        product_mix[name] = float(qty)
+
+    total_profit = 0.0
+    total_capacity_used = 0.0
+    total_cost_used = 0.0
+    for p in products:
+        name = p["name"]
+        qty = product_mix[name]
+        margin = float(p.get("price", 0.0)) - float(p.get("cost", 0.0))
+        total_profit += margin * qty
+        total_capacity_used += float(p.get("capacity_required", 0.0)) * qty
+        total_cost_used += float(p.get("cost", 0.0)) * qty
+
+    capacity_usage = None
+    if capacity is not None and float(capacity) > 0:
+        capacity_usage = total_capacity_used / float(capacity)
+
+    status = pulp.LpStatus.get(pulp.value(prob.status), pulp.LpStatus[prob.status]) if False else pulp.LpStatus[prob.status]
+
+    return {
+        "product_mix": product_mix,
+        "total_profit": float(total_profit),
+        "capacity_used": float(total_capacity_used),
+        "capacity": float(capacity) if capacity is not None else None,
+        "capacity_usage": float(capacity_usage) if capacity_usage is not None else None,
+        "total_cost_used": float(total_cost_used),
+        "status": status,
+        "pulp_status_code": int(prob.status)
+    }
+
+
+# == FILE: product_mix_calculator.py ==
+"""
+Streamlit UI to drive the product mix optimizer.
+This file exposes a function `run()` that you can import from your main `app.py` and call
+or run directly with `streamlit run product_mix_calculator.py`.
+
+Dependencies: streamlit, pandas, numpy, pulp, matplotlib
+"""
+
 import streamlit as st
+import pandas as pd
+import numpy as np
+from product_mix_logic import optimize_product_mix
 
-# --- Helper functions ---
-def parse_number(number_str):
-    """Convert string with English decimal separator to float."""
-    try:
-        return float(number_str.replace(',', ''))
-    except:
-        return None
+# Optional: try to import Greek-format helpers from your utils if present
+try:
+    from utils import format_number_gr
+except Exception:
+    def format_number_gr(x):
+        try:
+            # simple fallback: use comma as decimal separator
+            return f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        except Exception:
+            return str(x)
 
-def format_number(number, decimals=2):
-    return f"{number:,.{decimals}f}"
 
-def format_percentage(number, decimals=1):
-    return f"{number:.{decimals}f}%"
+def run():
+    st.title("Managers' Club — Product Mix Optimization")
+    st.write("Εργαλείο: Βελτιστοποίηση προϊοντικού μείγματος (linear programming)")
 
-# --- Calculation ---
-def calculate_required_sales_increase(
-    old_price,
-    price_decrease_pct,
-    profit_suit,
-    profit_shirt,
-    profit_tie,
-    profit_belt,
-    profit_shoes,
-    percent_shirt,
-    percent_tie,
-    percent_belt,
-    percent_shoes
-):
-    """
-    Calculates minimum % increase in Suit sales to maintain total profit
-    after a price decrease, considering complementary products.
-    """
-    combined_profit = (
-        profit_suit +
-        percent_shirt * profit_shirt +
-        percent_tie * profit_tie +
-        percent_belt * profit_belt +
-        percent_shoes * profit_shoes
-    )
+    st.markdown("**1) Εισαγωγή προϊόντων** — επεξεργάσου τον πίνακα ή κάνε paste από Excel.")
 
-    new_price = old_price * (1 - price_decrease_pct)
-    loss_per_unit = old_price - new_price
-    new_total_profit = combined_profit - loss_per_unit
+    # Default example products
+    default_data = [
+        {"name": "Προϊόν Α", "price": 10.0, "cost": 6.0, "max_demand": 1000.0, "capacity_required": 0.5, "current_qty": 200.0},
+        {"name": "Προϊόν Β", "price": 8.0, "cost": 4.5, "max_demand": 800.0, "capacity_required": 0.3, "current_qty": 150.0},
+        {"name": "Προϊόν Γ", "price": 12.0, "cost": 9.0, "max_demand": 400.0, "capacity_required": 0.8, "current_qty": 80.0},
+    ]
 
-    try:
-        required_increase = loss_per_unit / new_total_profit
-        return required_increase * 100
-    except ZeroDivisionError:
-        return None
+    df = pd.DataFrame(default_data)
 
-# --- Streamlit UI ---
-def show_complementary_analysis():
-    st.header("🧥 Complementary Product Analysis Tool")
-    st.markdown("""
-Estimate the **required sales increase of Suits** after a discount,  
-considering the effect of complementary product purchases (Shirts, Ties, Belts, Shoes).
+    edited = st.data_editor(df, num_rows="dynamic", use_container_width=True)
 
-Use this tool to check **how much you need to sell to maintain total profit**.
-""")
+    st.markdown("**2) Συνολικοί περιορισμοί**")
+    capacity = st.number_input("Συνολική διαθέσιμη capacity (ώρες ή μονάδα) - άφησέ κενό για no-limit", value=100.0, min_value=0.0)
+    budget = st.number_input("Προϋπολογισμός κόστους (προαιρετικό) - άφησέ κενό για no-limit", value=0.0, min_value=0.0)
+    if budget == 0.0:
+        budget = None
 
-    with st.form("discount_impact_form"):
-        st.subheader("Suit Pricing & Profit Data")
+    st.write("---")
+    if st.button("Υπολόγισε Optimal Mix"):
+        # build products list
+        products = []
+        for _, row in edited.iterrows():
+            try:
+                products.append({
+                    "name": str(row.get("name", "")),
+                    "price": float(row.get("price", 0.0)),
+                    "cost": float(row.get("cost", 0.0)),
+                    "max_demand": float(row.get("max_demand", 0.0)),
+                    "capacity_required": float(row.get("capacity_required", 0.0)),
+                    "current_qty": float(row.get("current_qty", 0.0)) if not np.isnan(row.get("current_qty", np.nan)) else 0.0
+                })
+            except Exception as e:
+                st.error(f"Σφάλμα στην ανάγνωση των προϊόντων: {e}")
+                st.stop()
 
-        old_price_input = st.text_input("Suit Price (€)", value=format_number(200))
-        st.caption("The current selling price per Suit before discount.")
+        result = optimize_product_mix(products, capacity=capacity, budget=budget)
 
-        price_decrease_input = st.text_input("Planned Price Decrease (%)", value=format_number(10.0))
-        st.caption("Percentage reduction you plan to apply to the Suit price.")
+        # Show results
+        st.subheader("Αποτέλεσμα — Optimal Mix")
+        mix = result["product_mix"]
+        out_rows = []
+        for p in products:
+            name = p["name"]
+            out_rows.append({
+                "name": name,
+                "optimal_qty": mix.get(name, 0.0),
+                "current_qty": p.get("current_qty", 0.0),
+                "price": p.get("price"),
+                "cost": p.get("cost"),
+                "margin": p.get("price") - p.get("cost")
+            })
+        out_df = pd.DataFrame(out_rows)
+        out_df["optimal_value"] = out_df.optimal_qty * out_df.price
+        out_df["optimal_profit"] = out_df.optimal_qty * out_df.margin
 
-        profit_suit_input = st.text_input("Profit per Suit (€)", value=format_number(60))
-        st.caption("Net profit expected from selling one Suit.")
+        # KPIs
+        st.metric("Συνολικά Προβλεπόμενα Κέρδη", format_number_gr(result["total_profit"]))
+        if result["capacity"] is not None:
+            st.metric("Χρήση capacity", f"{result['capacity_usage']*100:.1f}%")
+        st.write(out_df)
 
-        st.subheader("Complementary Products Profit")
+        # Charts
+        st.markdown("**Γράφημα: Optimal Qty ανά Προϊόν**")
+        chart_df = out_df.set_index("name")[ ["optimal_qty", "current_qty"] ]
+        st.bar_chart(chart_df)
 
-        profit_shirt_input = st.text_input("Profit per Shirt (€)", value=format_number(13))
-        st.caption("Net profit from selling one Shirt, often purchased with a Suit.")
+        st.markdown("**Προτεινόμενη Κατανομή Κέρδους ανά Προϊόν**")
+        profit_chart = out_df.set_index("name")["optimal_profit"]
+        st.area_chart(profit_chart)
 
-        profit_tie_input = st.text_input("Profit per Tie (€)", value=format_number(11))
-        st.caption("Net profit from selling one Tie, often purchased with a Suit.")
+        st.write("---")
+        st.write("Raw solver status:", result.get("status"))
 
-        profit_belt_input = st.text_input("Profit per Belt (€)", value=format_number(11))
-        st.caption("Net profit from selling one Belt, often purchased with a Suit.")
 
-        profit_shoes_input = st.text_input("Profit per Shoes (€)", value=format_number(45))
-        st.caption("Net profit from selling one pair of Shoes, often purchased with a Suit.")
+if __name__ == '__main__':
+    run()
 
-        st.subheader("Complementary Product Purchase Rates")
 
-        percent_shirt = st.slider("Percentage of customers buying Shirt", 0.0, 100.0, 90.0)
-        st.caption("Estimated fraction of Suit buyers who also purchase a Shirt.")
+# == FILE: README INSTRUCTIONS (below as comment) ==
+"""
+Installation / Usage:
+1. Create a folder in your Streamlit app repo, e.g. `product_mix_module/`.
+2. Save the two sections above as separate files:
+   - product_mix_logic.py
+   - product_mix_calculator.py
+3. Install dependencies (recommended in a virtualenv):
+   pip install streamlit pandas numpy pulp matplotlib
 
-        percent_tie = st.slider("Percentage of customers buying Tie", 0.0, 100.0, 70.0)
-        st.caption("Estimated fraction of Suit buyers who also purchase a Tie.")
+4. Run locally for testing:
+   streamlit run product_mix_calculator.py
 
-        percent_belt = st.slider("Percentage of customers buying Belt", 0.0, 100.0, 10.0)
-        st.caption("Estimated fraction of Suit buyers who also purchase a Belt.")
+5. To integrate into your existing `app.py` (Streamlit main), import and add to sidebar:
 
-        percent_shoes = st.slider("Percentage of customers buying Shoes", 0.0, 100.0, 5.0)
-        st.caption("Estimated fraction of Suit buyers who also purchase Shoes.")
+   from product_mix_calculator import run as product_mix_run
 
-        submitted = st.form_submit_button("Calculate")
+   # inside your navigation logic:
+   if page == 'Product Mix':
+       product_mix_run()
 
-    if submitted:
-        old_price = parse_number(old_price_input)
-        price_decrease_pct = parse_number(price_decrease_input) / 100
+Notes / Extensions:
+- You can replace the LP solver (PuLP default CBC) with any solver PuLP supports if you have it installed.
+- To add elasticity-based pricing, create a separate module that uses SciPy minimize and plug into a combined advanced module.
+- I kept the UI simple so you can match style with your other modules (Greek formatting helper used if present in `utils.py`).
 
-        profit_suit = parse_number(profit_suit_input)
-        profit_shirt = parse_number(profit_shirt_input)
-        profit_tie = parse_number(profit_tie_input)
-        profit_belt = parse_number(profit_belt_input)
-        profit_shoes = parse_number(profit_shoes_input)
+If you want, I can now:
+ - adapt the UI to use your exact `utils.format_number_gr` and styling,
+ - export results to Excel (pandas .to_excel) for download,
+ - add a "What-if" slider panel that recomputes on-the-fly for capacity/budget changes,
+ - add sensitivity analysis (shadow prices) using dual values from PuLP.
 
-        if None in (old_price, price_decrease_pct, profit_suit,
-                    profit_shirt, profit_tie, profit_belt, profit_shoes):
-            st.error("❌ Please check that all numeric fields are correctly filled.")
-            return
-
-        result = calculate_required_sales_increase(
-            old_price,
-            price_decrease_pct,
-            profit_suit,
-            profit_shirt,
-            profit_tie,
-            profit_belt,
-            profit_shoes,
-            percent_shirt / 100,
-            percent_tie / 100,
-            percent_belt / 100,
-            percent_shoes / 100
-        )
-
-        if result is None:
-            st.error("❌ Cannot calculate. Try different values.")
-        else:
-            st.success(f"✅ Required suit sales increase: {format_percentage(result)}")
-            st.markdown("""
-ℹ️ **What this means**
-
-This is the **minimum sales growth required** to fully offset the discount,  
-taking into account the **additional profit generated by complementary products**
-(Shirts, Ties, Belts, Shoes).
-""")
-
-            # Traffic-light interpretation
-            if result < 10:
-                st.success("🟢 **Low risk** — Required increase is small and usually achievable.")
-            elif result <= 30:
-                st.warning("🟠 **Moderate risk** — Sales must grow significantly to justify the discount.")
-            else:
-                st.error("🔴 **High risk** — The discount requires aggressive sales growth to avoid profit loss.")
+Πες μου ποιο από τα παραπάνω να προσθέσω αμέσως.
+"""
 
