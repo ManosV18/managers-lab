@@ -39,7 +39,7 @@ tool_categories = {
     "👥 Customer Value": [
         ("CLV Analysis", show_clv_calculator),
         ("Substitution Analysis", show_substitution_analysis),
-        ("Substitutes_sensitivity_tool", show_substitutes_sensitivity_tool),
+        ("Substitutes sensitivity tool", show_substitutes_sensitivity_tool),
         ("Complementary Product Analysis", show_complementary_analysis),
     ],
     "💰 Finance & Cash Flow": [
