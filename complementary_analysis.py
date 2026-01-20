@@ -98,3 +98,4 @@ after a price increase, **without reducing total department profit**.
             f"Customers not purchasing anything after the price increase: "
             f"{format_percentage(no_purchase * 100)}"
         )
+
