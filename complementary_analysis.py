@@ -1,23 +1,31 @@
 import streamlit as st
 
-# --- Helper functions for English number formatting ---
+# =========================
+# Helper functions
+# =========================
+
 def parse_number(number_str):
-    """Convert string with English decimal separator to float."""
     try:
-        return float(number_str.replace(',', ''))
+        return float(number_str.replace(",", ""))
     except:
         return None
+
 
 def format_number(number, decimals=2):
     return f"{number:,.{decimals}f}"
 
-def format_percentage(number, decimals=1):
+
+def format_percentage(number, decimals=2):
     return f"{number:.{decimals}f}%"
 
-# --- Calculation ---
+
+# =========================
+# Core calculation (Excel-equivalent)
+# =========================
+
 def calculate_required_sales_increase(
-    old_price,
-    price_decrease_pct,  # decimal, e.g., 0.10 for 10%
+    suit_price,
+    price_decrease_pct,   # negative number e.g. -0.10
     profit_suit,
     profit_shirt,
     profit_tie,
@@ -29,80 +37,106 @@ def calculate_required_sales_increase(
     percent_shoes
 ):
     """
-    Calculates minimum % increase in Suit sales to maintain total profit
-    after a price decrease, considering complementary products.
+    Excel-equivalent formula:
+    = -discount / ( (total_profit_per_suit / price) + discount )
     """
-    combined_profit = (
-        profit_suit +
+
+    expected_complement_profit = (
         percent_shirt * profit_shirt +
         percent_tie * profit_tie +
         percent_belt * profit_belt +
         percent_shoes * profit_shoes
     )
 
-    new_price = old_price * (1 - price_decrease_pct)
-    loss_per_unit = old_price - new_price
-    new_total_profit = combined_profit - loss_per_unit
+    total_profit_per_suit = profit_suit + expected_complement_profit
 
     try:
-        required_increase = loss_per_unit / new_total_profit
+        required_increase = -price_decrease_pct / (
+            (total_profit_per_suit / suit_price) + price_decrease_pct
+        )
         return required_increase * 100
     except ZeroDivisionError:
         return None
 
-# --- Streamlit UI ---
-def show_complementary_analysis():
-    st.write("Complementary Product Analysis")
-    st.header("🧥 Estimate Suit Sales Increase after Discount")
-    st.title("What happens if customers buy accessories too? 👔👞")
-    st.markdown("""
-The manager is considering a price reduction on suits. However, customers also purchase
-other products (e.g., shirts, ties, belts, shoes).
 
-👉 How much must suit sales increase to maintain total profit?
+# =========================
+# Streamlit UI
+# =========================
+
+def show_complementary_analysis():
+
+    st.header("🧥 Complementary Products Analysis")
+    st.markdown("""
+This tool estimates **how much suit sales must increase**
+after a **price reduction**, considering that customers
+also buy **complementary products**.
+
+Typical use cases:
+- Pricing decisions
+- Promotion planning
+- Profit protection analysis
 """)
 
-    with st.form("discount_impact_form"):
+    with st.form("complementary_form"):
+        st.subheader("🔢 Core Product (Suit)")
+
         col1, col2 = st.columns(2)
 
         with col1:
-            old_price_input = st.text_input("Suit Price (€)", value=format_number(200))
-            profit_suit_input = st.text_input("Profit per Suit (€)", value=format_number(60))
-            price_decrease_input = st.text_input("Price Decrease (%)", value=format_number(10.0))
+            suit_price_input = st.text_input(
+                "Suit Price (€)",
+                value=format_number(200)
+            )
+            profit_suit_input = st.text_input(
+                "Profit per Suit (€)",
+                value=format_number(60)
+            )
+            price_decrease_input = st.text_input(
+                "Price Decrease (%)",
+                value=format_number(10)
+            )
 
-            shirt_profit_input = st.text_input("Profit per Shirt (€)", value=format_number(13))
-            tie_profit_input = st.text_input("Profit per Tie (€)", value=format_number(11))
+        st.subheader("👔 Complementary Products – Profit per Unit")
 
-        with col2:
-            belt_profit_input = st.text_input("Profit per Belt (€)", value=format_number(11))
-            shoes_profit_input = st.text_input("Profit per Shoes (€)", value=format_number(45))
+        col3, col4 = st.columns(2)
 
-            percent_shirt = st.slider("Percentage of customers buying Shirt", 0.0, 100.0, 90.0) / 100
-            percent_tie = st.slider("Percentage of customers buying Tie", 0.0, 100.0, 70.0) / 100
-            percent_belt = st.slider("Percentage of customers buying Belt", 0.0, 100.0, 10.0) / 100
-            percent_shoes = st.slider("Percentage of customers buying Shoes", 0.0, 100.0, 5.0) / 100
+        with col3:
+            profit_shirt_input = st.text_input("Shirt (€)", value=format_number(13))
+            profit_tie_input = st.text_input("Tie (€)", value=format_number(11))
 
-        submitted = st.form_submit_button("Calculate")
+        with col4:
+            profit_belt_input = st.text_input("Belt (€)", value=format_number(11))
+            profit_shoes_input = st.text_input("Shoes (€)", value=format_number(45))
+
+        st.subheader("📊 Customer Purchasing Probabilities")
+
+        percent_shirt = st.slider("Customers buying Shirt (%)", 0.0, 100.0, 90.0) / 100
+        percent_tie = st.slider("Customers buying Tie (%)", 0.0, 100.0, 70.0) / 100
+        percent_belt = st.slider("Customers buying Belt (%)", 0.0, 100.0, 10.0) / 100
+        percent_shoes = st.slider("Customers buying Shoes (%)", 0.0, 100.0, 5.0) / 100
+
+        submitted = st.form_submit_button("📈 Calculate")
+
 
     if submitted:
-        old_price = parse_number(old_price_input)
+        suit_price = parse_number(suit_price_input)
         profit_suit = parse_number(profit_suit_input)
-        price_decrease_pct = parse_number(price_decrease_input) / 100  # from % to decimal
+        price_decrease_pct = -abs(parse_number(price_decrease_input) / 100)
 
-        profit_shirt = parse_number(shirt_profit_input)
-        profit_tie = parse_number(tie_profit_input)
-        profit_belt = parse_number(belt_profit_input)
-        profit_shoes = parse_number(shoes_profit_input)
+        profit_shirt = parse_number(profit_shirt_input)
+        profit_tie = parse_number(profit_tie_input)
+        profit_belt = parse_number(profit_belt_input)
+        profit_shoes = parse_number(profit_shoes_input)
 
         if None in (
-            old_price, profit_suit, price_decrease_pct,
+            suit_price, profit_suit, price_decrease_pct,
             profit_shirt, profit_tie, profit_belt, profit_shoes
         ):
-            st.error("❌ Please check that all numeric fields are correctly filled.")
+            st.error("❌ Please check all numeric inputs.")
             return
 
         result = calculate_required_sales_increase(
-            old_price,
+            suit_price,
             price_decrease_pct,
             profit_suit,
             profit_shirt,
@@ -116,7 +150,26 @@ other products (e.g., shirts, ties, belts, shoes).
         )
 
         if result is None:
-            st.error("❌ Cannot calculate. Try different values.")
+            st.error("❌ Calculation not possible with these inputs.")
         else:
-            st.success(f"✅ Required suit sales increase: {format_percentage(result)}")
+            st.subheader("📉 Result")
+            st.metric(
+                "Required Suit Sales Increase",
+                format_percentage(result)
+            )
 
+            st.markdown("""
+### 📘 Interpretation
+
+Each suit sale generates:
+- Profit from the suit itself
+- **Expected profit** from complementary products
+
+A price reduction reduces **profit per suit**.
+To maintain **total profit**, sales volume must increase.
+
+This result shows the **minimum increase in suit sales**
+required to offset the discount.
+""")
+
+            st.caption("Calculation follows marginal profit logic (Excel-equivalent).")
