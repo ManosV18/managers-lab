@@ -7,20 +7,21 @@ def show_home():
     # --- Short description ---
     st.markdown(
         """
-        Welcome to Managers’ Lab — an interactive environment for financial analysis, decision testing, and business modeling.
+        An interactive environment for financial decision testing.
 
-        This is not a dashboard.
-        This is not a reporting or forecasting tool.
+        Not a dashboard.
+        Not a reporting or forecasting tool.
 
         Managers’ Lab is a decision laboratory.
 
-        Here, you test assumptions, constraints, and breakpoints behind everyday managerial choices — pricing, growth, financing, customer value, and cost structure.
+        Here, you test assumptions, constraints, and breakpoints behind managerial choices:
+        pricing, growth, financing, customer value, and cost structure.
 
         The tools are already built.
-        The responsibility for judgment is yours.
+        Judgment is yours.
 
         Managers’ Lab does not tell you what to do.
-        It shows you what must be true for a decision to work — and what breaks when it doesn’t.
+        It shows what must be true for a decision to work — and what breaks when it doesn’t.
         """
     )
 
