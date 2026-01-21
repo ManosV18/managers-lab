@@ -1,15 +1,6 @@
 import streamlit as st
 import pandas as pd
 
-# -------------------------------
-# CONFIG
-# -------------------------------
-
-st.set_page_config(
-    page_title="QSPM – Strategic Choice Tool",
-    page_icon="🧭",
-    layout="centered"
-)
 
 # -------------------------------
 # HELPERS
