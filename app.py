@@ -60,7 +60,7 @@ tool_categories = {
     ],
     ""🧭 Strategy & Decision": [
     ("QSPM – Strategy Comparison", show_qspm_tool),
-    ],"
+    ],
 
 }
 
