@@ -17,7 +17,7 @@ from unit_cost_app import show_unit_cost_app
 from discount_npv_ui import show_discount_npv_ui
 from credit_days_calculator import show_credit_days_calculator
 from inventory_turnover_calculator import show_inventory_turnover_calculator
-from qspm_two_strategies.py import show_qspm_tool
+from qspm_two_strategies import show_qspm_tool
 
 
 # Προαιρετικά άρθρα σαν “tools”
