@@ -109,7 +109,7 @@ if not (st.session_state.selected_category == "🏠 Home" and st.session_state.s
     if st.button("← Back to Lab"):
         st.session_state.selected_category = "🏠 Home"
         st.session_state.selected_tool = "Home"
-        st.experimental_rerun()
+        st.rerun()
 
 # ----------------------------------------
 # Render selected tool
