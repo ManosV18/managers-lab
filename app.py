@@ -66,15 +66,42 @@ tool_categories = {
 
 # --- Sidebar ---
 st.sidebar.title("📊 Managers’ Club - Tool Categories")
-selected_category = st.sidebar.selectbox("Select a Category", list(tool_categories.keys()))
 
+# Initialize state
+if "selected_category" not in st.session_state:
+    st.session_state.selected_category = list(tool_categories.keys())[0]
+
+if "selected_tool" not in st.session_state:
+    st.session_state.selected_tool = tool_categories[
+        st.session_state.selected_category
+    ][0][0]
+
+# Category select
+selected_category = st.sidebar.selectbox(
+    "Select a Category",
+    list(tool_categories.keys()),
+    index=list(tool_categories.keys()).index(st.session_state.selected_category),
+)
+
+st.session_state.selected_category = selected_category
+
+# Tools in category
 tools_in_category = tool_categories[selected_category]
 tool_names = [t[0] for t in tools_in_category]
-selected_tool_name = st.sidebar.radio("Choose a Tool", tool_names)
 
-# --- Show selected tool ---
+# Tool select
+selected_tool_name = st.sidebar.radio(
+    "Choose a Tool",
+    tool_names,
+    index=tool_names.index(st.session_state.selected_tool)
+)
+
+st.session_state.selected_tool = selected_tool_name
+
+# Show selected tool
 for name, func in tools_in_category:
     if name == selected_tool_name:
         func()
         break
+
 
