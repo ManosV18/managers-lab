@@ -133,3 +133,10 @@ for name, func in tools_in_category:
         func()
         break
 
+st.divider()
+
+st.caption(
+    "Managers’ Lab · Decision laboratory\n\n"
+    "Exploration is open. Commitment may not be.\n
+
+
