@@ -1,9 +1,8 @@
 import streamlit as st
 
 # ----------------------------------------
-# Imports
+# Imports of all tools
 # ----------------------------------------
-
 from home import show_home
 from start_here import show_start_here
 from break_even_shift_calculator import show_break_even_shift_calculator
@@ -25,7 +24,6 @@ from qspm_two_strategies import show_qspm_tool
 # ----------------------------------------
 # Page config
 # ----------------------------------------
-
 st.set_page_config(
     page_title="Managers’ Lab",
     page_icon="🧪",
@@ -35,14 +33,9 @@ st.set_page_config(
 # ----------------------------------------
 # Tool registry
 # ----------------------------------------
-
 tool_categories = {
-    "🏠 Home": [
-        ("Home", show_home),
-    ],
-    "💡 Getting Started": [
-        ("Start Here", show_start_here),
-    ],
+    "🏠 Home": [("Home", show_home)],
+    "💡 Getting Started": [("Start Here", show_start_here)],
     "📈 Break-Even & Pricing": [
         ("Break-Even Shift Analysis", show_break_even_shift_calculator),
         ("Loss Threshold Before Price Cut", show_loss_threshold_before_price_cut),
@@ -75,7 +68,6 @@ tool_categories = {
 # ----------------------------------------
 # Session state initialization
 # ----------------------------------------
-
 if "selected_category" not in st.session_state:
     st.session_state.selected_category = "🏠 Home"
 
@@ -85,19 +77,16 @@ if "selected_tool" not in st.session_state:
 # ----------------------------------------
 # Sidebar
 # ----------------------------------------
-
-st.sidebar.title("🧪 Managers’ Lab")
+st.sidebar.title("🧪 Managers’ Lab - Tool Categories")
 
 category_keys = list(tool_categories.keys())
-
 selected_category = st.sidebar.selectbox(
     "Select category",
     category_keys,
     index=category_keys.index(st.session_state.selected_category)
 )
 
-# 👉 CRITICAL PART:
-# If category changed, reset tool to first in category
+# Reset tool to first in category if category changed
 if selected_category != st.session_state.selected_category:
     st.session_state.selected_category = selected_category
     st.session_state.selected_tool = tool_categories[selected_category][0][0]
@@ -114,29 +103,27 @@ selected_tool = st.sidebar.radio(
 st.session_state.selected_tool = selected_tool
 
 # ----------------------------------------
-# Render selected tool
+# Back to Home button
 # ----------------------------------------
-
-# Back to Home button (shown everywhere except Home)
-if not (
-    st.session_state.selected_category == "🏠 Home"
-    and st.session_state.selected_tool == "Home"
-):
+if not (st.session_state.selected_category == "🏠 Home" and st.session_state.selected_tool == "Home"):
     if st.button("← Back to Lab"):
         st.session_state.selected_category = "🏠 Home"
         st.session_state.selected_tool = "Home"
-        st.rerun()
+        st.experimental_rerun()
 
-# Render tool
+# ----------------------------------------
+# Render selected tool
+# ----------------------------------------
 for name, func in tools_in_category:
     if name == st.session_state.selected_tool:
         func()
         break
 
+# ----------------------------------------
+# Footer
+# ----------------------------------------
 st.divider()
-
 st.caption(
-    "Managers’ Lab · Decision laboratory\n\n"
-    "Exploration is open. Commitment may not be.\n
-
-
+    "Managers’ Lab · Decision laboratory\n"
+    "Exploration is open. Commitment may not be.\n"
+)
