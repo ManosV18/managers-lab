@@ -9,48 +9,6 @@ def show_home():
     st.title("🧪 Managers’ Lab")
 
     st.markdown("""
-    A decision laboratory for managers.  
-
-    Not a dashboard. Not a reporting or forecasting tool.  
-
-    Managers’ Lab exists to test what must be true for a decision to work —  
-    and what breaks when it doesn’t.  
-
-    The tools are already built. Judgment is yours.
-    """)
-
-   
-    # -------------------------------------------------
-    # HOW TO USE (AS REQUESTED — UNCHANGED)
-    # -------------------------------------------------
-
-    st.divider()
-
-    st.subheader("How to use the Lab")
-    st.markdown("""
-    Use the sidebar to open a specific tool once you know which decision frame you are operating in.  
-
-    Focus on tolerance, not forecasts. Small changes compound structurally.  
-
-    If you need guidance, Getting Started explains the decision logic behind the Lab.
-    """)
-
-    # -------------------------------------------------
-    # CONTACT (UNCHANGED)
-    # -------------------------------------------------
-
-    st.markdown("""
-    **Contact**  
-    For feedback, questions, or collaboration:  
-    ✉️ brokeconomist@gmail.com
-    """)
-
-import streamlit as st
-
-def show_home():
-    st.title("🧪 Managers’ Lab")
-
-    st.markdown("""
     A decision laboratory for managers.
 
     Not a dashboard.  
@@ -65,15 +23,7 @@ def show_home():
 
     st.divider()
 
-    st.markdown("""
-    **Choose the type of decision you are trying to make.**
-    """)
-
-    # (Εδώ θα μπαίνουν τα grouped tool buttons / sections)
-
-    st.divider()
-
-    st.markdown("### Choose the type of decision you are trying to make.")
+    st.markdown("**Choose the type of decision you are trying to make.**")
 
     # -------------------------------------------------
     # DECISION GROUPS
@@ -91,6 +41,7 @@ def show_home():
         if st.button("Loss Threshold Before Price Cut"):
             st.session_state.selected_category = "📈 Break-Even & Pricing"
             st.session_state.selected_tool = "Loss Threshold Before Price Cut"
+
 
     st.subheader("Customer Economics")
 
@@ -110,6 +61,7 @@ def show_home():
             st.session_state.selected_category = "👥 Customer Value"
             st.session_state.selected_tool = "Complementary Product Analysis"
 
+
     st.subheader("Cash Flow & Financing")
 
     col1, col2, col3 = st.columns(3)
@@ -128,6 +80,7 @@ def show_home():
             st.session_state.selected_category = "💰 Finance & Cash Flow"
             st.session_state.selected_tool = "Supplier Payment Analysis"
 
+
     st.subheader("Cost Structure & Profitability")
 
     col1, col2 = st.columns(2)
@@ -140,6 +93,7 @@ def show_home():
         if st.button("Discount NPV Analysis"):
             st.session_state.selected_category = "📊 Cost & Profit"
             st.session_state.selected_tool = "Discount NPV Analysis"
+
 
     st.subheader("Inventory & Operations")
 
@@ -154,11 +108,15 @@ def show_home():
             st.session_state.selected_category = "📦 Inventory & Operations"
             st.session_state.selected_tool = "Credit Days Calculator"
 
+
     st.subheader("Strategy & Decision")
 
     if st.button("QSPM – Strategy Comparison"):
         st.session_state.selected_category = "🧭 Strategy & Decision"
         st.session_state.selected_tool = "QSPM – Strategy Comparison"
+
+
+    st.divider()
 
     st.markdown("""
     **How to use the Lab**
@@ -174,4 +132,3 @@ def show_home():
     For feedback, questions, or collaboration:  
     ✉️ brokeconomist@gmail.com
     """)
-
