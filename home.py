@@ -120,7 +120,7 @@ def show_home():
 
     Focus on tolerance, not forecasts. Small changes compound structurally.  
 
-    If this is your first visit, start with Getting Started to understand the decision logic.
+    If you need guidance, Getting Started explains the decision logic behind the Lab.
     """)
 
     # -------------------------------------------------
