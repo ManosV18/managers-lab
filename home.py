@@ -9,9 +9,7 @@ def show_home():
     st.title("🧪 Managers’ Lab")
 
     st.markdown("""
-    A decision laboratory for managers.
-
-    Not a dashboard. Not a reporting or forecasting tool.
+    A decision laboratory for managers. Not a dashboard. Not a reporting or forecasting tool.
 
     Managers’ Lab exists to test what must be true for a decision to work —  
     and what breaks when it doesn’t.
