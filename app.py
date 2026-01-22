@@ -117,7 +117,19 @@ st.session_state.selected_tool = selected_tool
 # Render selected tool
 # ----------------------------------------
 
+# Back to Home button (shown everywhere except Home)
+if not (
+    st.session_state.selected_category == "🏠 Home"
+    and st.session_state.selected_tool == "Home"
+):
+    if st.button("← Back to Lab"):
+        st.session_state.selected_category = "🏠 Home"
+        st.session_state.selected_tool = "Home"
+        st.rerun()
+
+# Render tool
 for name, func in tools_in_category:
     if name == st.session_state.selected_tool:
         func()
         break
+
