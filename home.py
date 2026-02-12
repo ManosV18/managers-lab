@@ -127,5 +127,5 @@ Open a tool from the sidebar or main menu once the decision frame is clear. Focu
     st.markdown("""
 **Contact**  
 For feedback, questions, or collaboration:  
-✉️ brokeconomist@gmail.com
+✉️ manosv18@gmail.com
     """)
