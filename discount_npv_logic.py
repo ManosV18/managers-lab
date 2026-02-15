@@ -1,9 +1,7 @@
 import streamlit as st
 from decimal import Decimal, getcontext
 
-# ========================
 # --- CALCULATION LOGIC ---
-# ========================
 def calculate_discount_npv(
     current_sales,
     extra_sales,
@@ -46,10 +44,7 @@ def calculate_discount_npv(
         total_sales * prcnt_new_policy * (1 - discount_trial) /
         ((1 + i) ** new_days_payment_clients_take_disc)
     )
-    inflow += (
-        total_sales * prcnt_old_policy /
-        ((1 + i) ** days_curently_paying_clients_not_take_discount)
-    )
+    inflow += total_sales * prcnt_old_policy / ((1 + i) ** days_curently_paying_clients_not_take_discount)
 
     outflow = (
         (cogs / current_sales) * (extra_sales / current_sales) * current_sales /
@@ -69,9 +64,7 @@ def calculate_discount_npv(
         )
     )
 
-    optimum_discount = (
-        1 - ((1 + i) ** (new_days_payment_clients_take_disc - avg_current_collection_days))
-    ) / 2
+    optimum_discount = (1 - ((1 + i) ** (new_days_payment_clients_take_disc - avg_current_collection_days))) / 2
 
     return {
         "avg_current_collection_days": round(avg_current_collection_days, 2),
@@ -89,70 +82,136 @@ def calculate_discount_npv(
         "optimum_discount": round(optimum_discount * 100, 2),
     }
 
-# ========================
-# --- STREAMLIT UI ---
-# ========================
+# --- UI ---
 def show_discount_npv_ui():
-    st.title("💳 Cash Discount – NPV Analysis")
-    st.caption("Ανάλυση επιπτώσεων έκπτωσης με βάση την **παρούσα αξία (NPV)**.")
+    st.title("💳 Cash Discount – Strategic NPV Analysis")
+
+    # Default values για web
+    master_sales = 1000
+    master_cogs = 800
+    master_wacc = 0.2
 
     with st.form("discount_npv_form"):
-        st.subheader("📈 Sales Data")
-        current_sales = st.number_input("Current Sales (€)", value=1000.0, step=100.0)
-        extra_sales = st.number_input("Extra Sales from Discount (€)", value=250.0, step=50.0)
-        cogs = st.number_input("COGS (€)", value=800.0, step=50.0)
-        wacc = st.number_input("Capital Cost (WACC %)", value=20.0, step=0.1) / 100
+        col1, col2 = st.columns(2)
 
-        st.subheader("🎯 Discount & Customers")
-        discount_trial = st.number_input("Proposed Discount (%)", value=2.0, step=0.1) / 100
-        prc_clients_take_disc = st.number_input("% of Customers Taking Discount", value=40.0, step=1.0) / 100
+        with col1:
+            st.subheader("📈 Sales Data")
+            current_sales = st.number_input("Current Sales ($)", value=float(master_sales))
+            extra_sales = st.number_input("Extra Sales from Discount ($)", value=250.0)
+            cogs = st.number_input("Total COGS ($)", value=float(master_cogs))
+            wacc = st.number_input("Capital Cost (WACC %)", value=master_wacc * 100) / 100
 
-        st.subheader("⏱️ Payment Terms")
-        days_clients_take_discount = st.number_input("Payment Days (with discount)", value=60)
-        days_clients_no_discount = st.number_input("Payment Days (without discount)", value=120)
+        with col2:
+            st.subheader("🎯 Discount Strategy")
+            discount_trial = st.number_input("Proposed Discount (%)", value=2.0) / 100
+            prc_clients_take_disc = st.number_input("% of Revenue Taking Discount", value=40.0) / 100
+            avg_days_pay_suppliers = st.number_input("Supplier Payment Days", value=30)
+
+        st.subheader("📊 Revenue Segmentation")
+        s1, s2, s3 = st.columns(3)
+
+        with s1:
+            fast_pct = st.number_input("Fast Payers (% Revenue)", value=30.0) / 100
+            fast_dso = st.number_input("Fast DSO (days)", value=60)
+        with s2:
+            med_pct = st.number_input("Medium Payers (% Revenue)", value=40.0) / 100
+            med_dso = st.number_input("Medium DSO (days)", value=90)
+        with s3:
+            slow_pct = st.number_input("Slow Payers (% Revenue)", value=30.0) / 100
+            slow_dso = st.number_input("Slow DSO (days)", value=120)
+
+        allocation_mode = st.radio(
+            "Discount Targeting Strategy",
+            ["Proportional", "Slow Payers First", "Fast Payers First"]
+        )
+
         new_days_cash_payment = st.number_input("New Target Payment Days", value=10)
-        avg_days_pay_suppliers = st.number_input("Average Supplier Payment Days", value=30)
-
-        submitted = st.form_submit_button("📊 Calculate")
+        submitted = st.form_submit_button("📊 Calculate Strategic NPV")
 
     if submitted:
+        total_pct = fast_pct + med_pct + slow_pct
+        if abs(total_pct - 1) > 0.01:
+            st.error("Revenue segmentation must sum to 100%.")
+            st.stop()
+
+        uptake = prc_clients_take_disc
+
+        segments = [
+            {"pct": fast_pct, "dso": fast_dso},
+            {"pct": med_pct, "dso": med_dso},
+            {"pct": slow_pct, "dso": slow_dso},
+        ]
+
+        if allocation_mode == "Slow Payers First":
+            segments.sort(key=lambda x: x["dso"], reverse=True)
+        elif allocation_mode == "Fast Payers First":
+            segments.sort(key=lambda x: x["dso"])
+
+        remaining = uptake
+        weighted_take_dso = 0
+        weighted_no_take_dso = 0
+
+        for seg in segments:
+            take_from_seg = min(seg["pct"], remaining)
+            not_take_from_seg = seg["pct"] - take_from_seg
+            weighted_take_dso += take_from_seg * seg["dso"]
+            weighted_no_take_dso += not_take_from_seg * seg["dso"]
+            remaining -= take_from_seg
+
+        effective_days_take = weighted_take_dso / uptake if uptake > 0 else 0
+        effective_days_no_take = weighted_no_take_dso / (1 - uptake) if uptake < 1 else 0
+
         results = calculate_discount_npv(
             current_sales,
             extra_sales,
             discount_trial,
-            prc_clients_take_disc,
-            days_clients_take_discount,
-            days_clients_no_discount,
+            uptake,
+            effective_days_take,
+            effective_days_no_take,
             new_days_cash_payment,
             cogs,
             wacc,
             avg_days_pay_suppliers
         )
 
-        st.markdown("---")
-        st.subheader("📊 Collection Cycle")
+        st.divider()
+        st.subheader("📊 Policy Impact Analysis")
         r1, r2, r3 = st.columns(3)
-        r1.metric("Current Avg Collection Period (days)", results['avg_current_collection_days'])
-        r2.metric("New Avg Collection Period (days)", results['new_avg_collection_period'])
-        r3.metric("Released Capital (€)", f"{results['free_capital']:,.2f}")
+        r1.metric("Current ACP", f"{results['avg_current_collection_days']} days")
+        r2.metric("New ACP", f"{results['new_avg_collection_period']} days")
+        r3.metric("Released Capital", f"${results['free_capital']:,.2f}")
 
-        st.subheader("💰 Financial Impact")
-        r4, r5, r6 = st.columns(3)
-        r4.metric("Profit from Extra Sales (€)", f"{results['profit_from_extra_sales']:,.2f}")
-        r5.metric("Profit from Released Capital (€)", f"{results['profit_from_free_capital']:,.2f}")
-        r6.metric("Cost of Discount (€)", f"{results['discount_cost']:,.2f}")
+        # Financial Impact
+        st.divider()
+        st.subheader("📊 Financial Impact")
+        def colored_metric(label, value):
+            color = "green" if value >= 0 else "red"
+            st.markdown(f"""
+                <div style="text-align:center; padding:10px; border-radius:5px; background-color:#f0f2f6;">
+                    <h4>{label}</h4>
+                    <h3 style="color:{color};">${value:,.2f}</h3>
+                </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown("---")
-        st.subheader("📌 Net Present Value (NPV)")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            colored_metric("Profit from Extra Sales", results['profit_from_extra_sales'])
+        with col2:
+            colored_metric("Profit from Released Capital", results['profit_from_free_capital'])
+        with col3:
+            colored_metric("Cost of Discount", results['discount_cost'])
+
+        # NPV
+        st.divider()
+        st.subheader("💰 Value Creation (NPV)")
         npv_val = results["npv"]
         if npv_val > 0:
-            st.success(f"✅ NPV: €{npv_val:,.2f} – Policy creates value")
+            st.success(f"### Net Present Value: ${npv_val:,.2f}")
+            st.write("✅ The discount policy creates value.")
         else:
-            st.error(f"❌ NPV: €{npv_val:,.2f} – Policy destroys value")
+            st.error(f"### Net Present Value: ${npv_val:,.2f}")
+            st.write("❌ The discount policy destroys value.")
 
-        with st.expander("📉 Limits & Optimization"):
-            st.write(f"Maximum Discount (NPV = 0): {results['max_discount']}%")
-            st.write(f"Optimal Discount: {results['optimum_discount']}%")
-
-if __name__ == "__main__":
-    show_discount_npv_ui()
+        with st.expander("📉 Optimization & Thresholds"):
+            st.write(f"Maximum Sustainable Discount: {results['max_discount']}%")
+            st.write(f"Mathematically Optimal Discount: {results['optimum_discount']}%")
