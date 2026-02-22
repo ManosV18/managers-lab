@@ -25,6 +25,7 @@ def compute_core_metrics():
         "unit_contribution": unit_contribution,
         "revenue": revenue,
         "ebit": ebit,
+        "operating_profit": ebit,
         "interest": interest,
         "net_profit": net_profit,
         "operating_bep": operating_bep,
