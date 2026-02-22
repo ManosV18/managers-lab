@@ -57,15 +57,35 @@ def show_clv_calculator():
         cac_b = st.number_input("CAC (€) (B)", value=180.0, key="cacb")
         churn_b = st.slider("Annual Churn % (B)", 0, 100, 8, key="chb")
 
-    # 3. STRUCTURAL ASSUMPTIONS
-    with st.expander("⚙️ NPV & Risk Assumptions (Advanced)"):
+    # 3. STRUCTURAL ASSUMPTIONS (NPV Logic)
+    with st.expander("⚙️ NPV & Risk-Adjusted WACC (Advanced)"):
+        st.write("---")
+        st.markdown("""
+        **Formula:** $Discount Rate = WACC + Risk Premium$
+        * **WACC:** Your internal cost of capital (from Stage 2).
+        * **Risk Premium:** Extra return required to compensate for the specific customer's risk profile.
+        """)
+        
         c1, c2 = st.columns(2)
-        # Σύνδεση με το Baseline Interest Rate
-        disc = c1.number_input("Base Discount Rate (%)", value=float(base_interest))
-        risk_p = c1.number_input("Customer Risk Premium (%)", value=3.0)
+        # Σύνδεση με το WACC της επιχείρησης (από το Stage 2)
+        wacc_base = st.session_state.get('interest_rate', 0.08) * 100 
+        
+        current_wacc = c1.number_input("Corporate WACC (%)", 
+                                       value=float(wacc_base), 
+                                       help="Your business cost of capital as defined in Stage 2.")
+        
+        risk_premium = c1.number_input("Specific Customer Risk Premium (%)", 
+                                       value=3.0, 
+                                       help="Add 2-5% for average customers, 10%+ for high-risk segments.")
+        
+        # Το τελικό επιτόκιο που χρησιμοποιεί η συνάρτηση get_clv_data
+        total_discount_rate = current_wacc + risk_premium
+        
         real = c2.number_input("Realization Rate (0.0-1.0)", value=0.90)
         horizon = c2.slider("Analysis Horizon (Years)", 1, 15, 5)
-
+        
+        st.info(f"**Total Risk-Adjusted Discount Rate:** {total_discount_rate:.2f}%")
+       
     # 4. EXECUTION
     margin_a = unit_margin * units_a
     margin_b = unit_margin * units_b
