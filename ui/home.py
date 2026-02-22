@@ -1,8 +1,8 @@
 import streamlit as st
+from core.engine import compute_core_metrics
 
 def show_home():
     # PHASE A: Entry Mode (No Baseline Defined)
-    # Ελέγχει αν έχει κλειδώσει η βάση δεδομένων από το Stage 0
     if not st.session_state.get('baseline_locked', False):
         st.title("🧪 Managers’ Lab")
         st.subheader("System Status: Baseline Not Defined")
@@ -24,35 +24,42 @@ def show_home():
         st.caption("Structural Overview — 365-Day Operating Model")
         st.markdown("---")
 
-        # Ανάκτηση δεδομένων από το session_state (αρχικοποιημένα στο core/system_state.py)
-        p = st.session_state.get('price', 0.0)
-        v = st.session_state.get('volume', 0)
-        vc = st.session_state.get('variable_cost', 0.0)
-        fc = st.session_state.get('fixed_cost', 0.0)
-        debt = st.session_state.get('debt', 0.0)
-        rate = st.session_state.get('interest_rate', 0.0)
+        # 1. FETCH DATA VIA ENGINE FOR CONSISTENCY
+        metrics = compute_core_metrics()
         
-        # Αναλυτικοί Υπολογισμοί
-        rev = p * v
-        ebit = ((p - vc) * v) - fc
-        interest_expense = debt * rate
-        net_profit = ebit - interest_expense
-        margin = (p - vc) / p if p > 0 else 0
-
-        # Executive Metrics Display
+        # 2. EXECUTIVE METRICS DISPLAY
+        
         c1, c2, c3 = st.columns(3)
-        c1.metric("Annual Revenue", f"{rev:,.0f} €")
-        c2.metric("Net Profit (Post-Interest)", f"{net_profit:,.0f} €", delta=f"EBIT: {ebit:,.0f} €")
-        c3.metric("Contribution Margin", f"{margin:.1%}")
-
-        st.divider()
         
-        # Navigation Hub
+        # Revenue
+        c1.metric("Annual Revenue", f"{metrics['revenue']:,.0f} €")
+        
+        # Net Economic Profit (The cold truth including liquidity drain)
+        c2.metric(
+            "Net Economic Profit", 
+            f"{metrics['net_profit']:,.0f} €", 
+            help="Final profit after interest AND liquidity drain (working capital friction)."
+        )
+        
+        # Contribution Margin %
+        p = st.session_state.get('price', 0.0)
+        margin_pct = (metrics['unit_contribution'] / p * 100) if p > 0 else 0
+        c3.metric("Contribution Margin", f"{margin_pct:.1f}%")
+
+        # 3. STATUS VERDICT
+        st.divider()
+        if metrics['net_profit'] > 0:
+            st.success(f"✅ **System Status: Functional.** The enterprise is generating a net surplus above its structural obligations.")
+        else:
+            st.error(f"🚨 **System Status: Deficit.** The enterprise is currently consuming capital to maintain operations.")
+
+        # 4. NAVIGATION HUB
         st.subheader("Analysis Environment")
         col_a, col_b = st.columns(2)
         with col_a:
             if st.button("Enter Structured Path", use_container_width=True, type="primary"):
                 st.session_state.mode = "path"
+                # Start from Stage 1 as Baseline is already locked
                 st.session_state.flow_step = 1
                 st.rerun()
         with col_b:
@@ -62,7 +69,7 @@ def show_home():
 
         st.divider()
         
-        # Ρυθμίσεις Συστήματος (Expander)
+        # 5. SYSTEM CONFIGURATION (Expander)
         with st.expander("System Configuration"):
             st.write(
                 "The baseline defines the structural mechanics of the system. "
