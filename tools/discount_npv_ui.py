@@ -1,18 +1,72 @@
+import streamlit as st
+from decimal import Decimal, getcontext
+import pandas as pd
+from core.engine import compute_core_metrics
+
+# --- 1. CALCULATION ENGINE (Internal) ---
+def calculate_discount_npv(current_sales, extra_sales, discount_trial, prc_clients_take_disc,
+                           eff_take, eff_no_take, new_days_payment_clients_take_disc, 
+                           cogs, wacc, avg_days_pay_suppliers):
+    getcontext().prec = 20
+    i = wacc / 365
+
+    avg_current_collection_days = (prc_clients_take_disc * eff_take) + ((1 - prc_clients_take_disc) * eff_no_take)
+    current_receivables = current_sales * avg_current_collection_days / 365
+
+    total_sales = current_sales + extra_sales
+    prcnt_new_policy = ((current_sales * prc_clients_take_disc) + extra_sales) / total_sales
+    prcnt_old_policy = 1 - prcnt_new_policy
+
+    new_avg_collection_period = (prcnt_new_policy * new_days_payment_clients_take_disc +
+                                 prcnt_old_policy * eff_no_take)
+    
+    new_receivables = total_sales * new_avg_collection_period / 365
+    free_capital = current_receivables - new_receivables
+
+    profit_from_extra_sales = extra_sales * (1 - cogs / current_sales)
+    profit_from_free_capital = free_capital * wacc
+    discount_cost = total_sales * prcnt_new_policy * discount_trial
+
+    inflow = (total_sales * prcnt_new_policy * (1 - discount_trial) / ((1 + i) ** new_days_payment_clients_take_disc))
+    inflow += total_sales * prcnt_old_policy / ((1 + i) ** eff_no_take)
+
+    outflow = ((cogs / current_sales) * (extra_sales / current_sales) * current_sales / ((1 + i) ** avg_days_pay_suppliers))
+    outflow += current_sales / ((1 + i) ** avg_current_collection_days)
+
+    npv = inflow - outflow
+
+    # Thresholds
+    max_discount = 1 - ((1 + i) ** (new_days_payment_clients_take_disc - eff_no_take) * (
+        (1 - 1 / prcnt_new_policy) + ((1 + i) ** (eff_no_take - avg_current_collection_days) +
+        (cogs / current_sales) * (extra_sales / current_sales) * (1 + i) ** (eff_no_take - avg_days_pay_suppliers)) / 
+        (prcnt_new_policy * (1 + extra_sales / current_sales))
+    ))
+    optimum_discount = (1 - ((1 + i) ** (new_days_payment_clients_take_disc - avg_current_collection_days))) / 2
+
+    return {
+        "avg_current_collection_days": round(avg_current_collection_days, 2),
+        "free_capital": round(free_capital, 2),
+        "npv": round(npv, 2),
+        "max_discount": round(max_discount * 100, 2),
+        "optimum_discount": round(optimum_discount * 100, 2),
+        "profit_from_free_capital": round(profit_from_free_capital, 2),
+        "profit_from_extra_sales": round(profit_from_extra_sales, 2),
+        "discount_cost": round(discount_cost, 2),
+        "new_avg_collection_period": round(new_avg_collection_period, 2)
+    }
+
+# --- 2. MAIN UI FUNCTION ---
 def show_discount_npv_ui():
     st.header("💳 Cash Discount – Strategic NPV Analysis")
     st.info("Analyze the trade-off between margin loss (discount) and cash acceleration.")
 
-    # 1. FETCH DATA FROM ENGINE & SESSION STATE
+    # Fetch Baseline Data
     metrics = compute_core_metrics()
     base_sales = metrics['revenue']
-    # COGS = Συνολικό Μεταβλητό Κόστος (Variable Cost * Volume)
     base_cogs = st.session_state.get('variable_cost', 0.0) * st.session_state.get('volume', 0)
-    # WACC = Interest Rate + Risk Premium (5%)
     base_wacc = st.session_state.get('interest_rate', 0.10) + 0.05
 
-    # 2. PARAMETERS IN COLUMNS
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("📈 Core Financials")
         current_sales = st.number_input("Current Annual Sales (€)", value=float(base_sales))
@@ -24,12 +78,11 @@ def show_discount_npv_ui():
         st.subheader("🎯 Discount Strategy")
         discount_trial = st.number_input("Proposed Discount (%)", value=2.0) / 100
         prc_clients_take_disc = st.number_input("% Revenue Expected to Take Discount", value=40.0) / 100
-        new_days_cash_payment = st.number_input("Target Discount Days (e.g., 10 days)", value=10)
+        new_days_cash_payment = st.number_input("Target Discount Days", value=10)
         avg_days_pay_suppliers = st.number_input("Supplier Payment Days", value=30)
 
     st.divider()
     
-    # 3. RECEIVABLE SEGMENTATION
     st.subheader("📊 Current Receivable Segmentation")
     s1, s2, s3 = st.columns(3)
     fast_pct = s1.number_input("Fast Payers (%)", value=30.0) / 100
@@ -46,7 +99,6 @@ def show_discount_npv_ui():
             st.error("Segmentation must sum to 100%.")
             return
 
-        # Segmentation Logic
         segments = [{"pct": fast_pct, "dso": fast_dso}, {"pct": med_pct, "dso": med_dso}, {"pct": slow_pct, "dso": slow_dso}]
         if allocation_mode == "Slow Payers First": segments.sort(key=lambda x: x["dso"], reverse=True)
         elif allocation_mode == "Fast Payers First": segments.sort(key=lambda x: x["dso"])
@@ -63,22 +115,18 @@ def show_discount_npv_ui():
         eff_take = weighted_take_dso / prc_clients_take_disc if prc_clients_take_disc > 0 else 0
         eff_no_take = weighted_no_take_dso / (1 - prc_clients_take_disc) if prc_clients_take_disc < 1 else 0
 
-        # CALL CALCULATION ENGINE
         res = calculate_discount_npv(current_sales, extra_sales, discount_trial, prc_clients_take_disc, 
                                      eff_take, eff_no_take, new_days_cash_payment, cogs, wacc, avg_days_pay_suppliers)
 
-        # 4. RESULTS DISPLAY
         st.divider()
         m1, m2, m3 = st.columns(3)
         m1.metric("DSO Shift", f"{res['avg_current_collection_days']} → {res['new_avg_collection_period']}", 
                   f"{res['new_avg_collection_period'] - res['avg_current_collection_days']:.1f} days")
         m2.metric("Cash Released", f"{res['free_capital']:,.2f} €")
-        
-        delta_label = "Value Creation" if res['npv'] > 0 else "Value Loss"
-        m3.metric("NPV Outcome", f"{res['npv']:,.2f} €", delta=delta_label, 
+        m3.metric("NPV Outcome", f"{res['npv']:,.2f} €", 
+                  delta="Value Creation" if res['npv'] > 0 else "Value Loss", 
                   delta_color="normal" if res['npv'] > 0 else "inverse")
 
-        # 5. VISUAL BREAKDOWN (Gains vs Costs)
         st.subheader("💎 Economic Breakdown")
         b1, b2 = st.columns(2)
         with b1:
@@ -91,19 +139,15 @@ def show_discount_npv_ui():
             st.write(f"📊 Net Economic Value: **{res['npv']:,.2f} €**")
 
         st.divider()
-
-        # 6. THRESHOLD & OPTIMUM ANALYSIS
         
         st.subheader("🧠 Strategic Decision Thresholds")
-        
         df_thresholds = pd.DataFrame({
-            "Indicator": ["Maximum Sustainable Discount", "Mathematically Optimal Discount"],
-            "Description": ["The 'Break-even' discount. Beyond this, you lose value.", "The discount that maximizes the Net Present Value."],
+            "Indicator": ["Max Sustainable Discount", "Optimum Discount"],
             "Value": [f"{res['max_discount']}%", f"{res['optimum_discount']}%"]
         })
         st.table(df_thresholds)
         
         if res['npv'] > 0:
-            st.success(f"🏆 **Verdict: APPROVE.** The strategic benefit of cash acceleration and volume growth ({res['profit_from_free_capital'] + res['profit_from_extra_sales']:,.2f} €) outweighs the discount cost ({res['discount_cost']:,.2f} €).")
+            st.success("✅ **Verdict: APPROVE.** The benefit of liquidity and volume outweighs the discount cost.")
         else:
-            st.error(f"🚨 **Verdict: REJECT.** This discount policy is too aggressive. You are paying more for liquidity than it's worth to your cost of capital structure.")
+            st.error("🚨 **Verdict: REJECT.** The discount is too expensive for your current cost of capital.")
