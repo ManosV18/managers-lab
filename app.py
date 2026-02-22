@@ -4,8 +4,8 @@ from core.sidebar import render_sidebar
 from core.library import show_library
 from core.about import show_about
 
-# Εδώ είναι η αλλαγή για το home.py που βρίσκεται στο φάκελο UI
-from UI.home import show_home  
+# Εδώ είναι η αλλαγή για το home.py που βρίσκεται στο φάκελο ui
+from ui.home import show_home  
 
 # Import τα stages
 import path.step0_calibration as stage0
