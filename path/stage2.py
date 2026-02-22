@@ -5,6 +5,7 @@ def run_stage2():
     st.header("💰 Stage 2: Capital & Operational Liquidity")
     st.caption("Strategic Audit: Analyzing debt burden and the cost of trapped inventory.")
 
+    # 1. INITIAL FETCH
     metrics = compute_core_metrics()
     
     col1, col2 = st.columns(2)
@@ -23,7 +24,7 @@ def run_stage2():
         st.subheader("Inventory & Cash Velocity")
         dio = st.number_input("Inventory Days (DIO)", value=st.session_state.get('inventory_days', 60))
         
-        # Εισαγωγή του Slow-Moving Factor που συζητήσαμε
+        # Slow-Moving Factor logic integration
         slow_moving_pct = st.slider(
             "Slow-Moving / Buffer Stock (%)", 
             0, 100, 20,
@@ -35,55 +36,52 @@ def run_stage2():
         dpo = st.number_input("Payable Days (DPO)", value=st.session_state.get('payables_days', 30))
 
     # =====================================================
-    # ADVANCED LIQUIDITY CALCULATION
+    # 2. ADVANCED LIQUIDITY CALCULATION
     # =====================================================
     ccc = dio + dso - dpo
     st.session_state.ccc = ccc
     
     annual_costs = st.session_state.volume * st.session_state.variable_cost
     
-    # Το Working Capital πλέον επιβαρύνεται από το Slow-Moving Factor
-    # Ο τύπος: (Βασικό WC) + (Έξτρα βάρος λόγω στάσιμου αποθέματος)
+    # Calculation: Base WC + Extra friction from slow-moving stock
     base_wc = (ccc / 365) * annual_costs
     inventory_friction = (dio / 365) * annual_costs * st.session_state.slow_moving_factor
     
     st.session_state.liquidity_drain_annual = base_wc + inventory_friction
     
-    # RE-COMPUTE METRICS
+    # RE-COMPUTE METRICS with the new liquidity drain
     metrics = compute_core_metrics()
 
     st.divider()
     
-    # VISUALIZING THE DRAIN
-    
+    # 
     
     c1, c2, c3 = st.columns(3)
-    c1.metric("Survival BEP", f"{metrics['survival_bep']:,.0f} units")
+    c1.metric("Survival BEP", f"{metrics.get('survival_bep', 0):,.0f} units")
     
-    # Το Drain εδώ είναι η "ψυχρή αλήθεια"
+    # The Drain as the "Cold Truth"
     c2.metric("Total Liquidity Friction", f"{st.session_state.liquidity_drain_annual:,.0f} €", 
               delta=f"Incl. {slow_moving_pct}% Slow-Stock", delta_color="inverse")
     
-    c3.metric("Net Economic Profit", f"{metrics['net_profit']:,.0f} €")
+    c3.metric("Net Economic Profit", f"{metrics.get('net_profit', 0):,.0f} €")
 
     # =====================================================
-    # COLD VERDICT (Safe Implementation)
+    # 3. COLD VERDICT (Fixed Indentation)
     # =====================================================
-    # Use .get() to avoid KeyError and provide a 0.0 default
     op_profit = metrics.get('operating_profit', 0.0) 
     drain = st.session_state.get('liquidity_drain_annual', 0.0)
 
     if drain > op_profit and op_profit > 0:
-    st.error(
-        "🚨 **Liquidity Trap:** Your slow-moving inventory and credit terms are consuming "
-        f"{ (drain/op_profit)*100:.1f}% of your operating profit. You are growing yourself into bankruptcy."
-    )
+        st.error(
+            "🚨 **Liquidity Trap:** Your slow-moving inventory and credit terms are consuming "
+            f"{ (drain/op_profit)*100:.1f}% of your operating profit. You are growing yourself into bankruptcy."
+        )
     elif op_profit <= 0:
-    st.error("🚨 **Structural Failure:** Operating profit is zero or negative. The business cannot sustain its own operations.")
+        st.error("🚨 **Structural Failure:** Operating profit is zero or negative. The business cannot sustain its own operations.")
     else:
-    st.success("✅ **Balanced Liquidity:** Your cash cycle is sustainable even with the current inventory buffers.")
+        st.success("✅ **Balanced Liquidity:** Your cash cycle is sustainable even with the current inventory buffers.")
     
-    # NAVIGATION
+    # 4. NAVIGATION
     st.divider()
     nav1, nav2 = st.columns(2)
     with nav1:
