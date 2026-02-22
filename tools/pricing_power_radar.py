@@ -1,119 +1,71 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-
-# -----------------------------------
-# Core Calculations
-# -----------------------------------
-
-def normalize(value, min_val, max_val):
-    if max_val - min_val == 0:
-        return 0
-    return (value - min_val) / (max_val - min_val)
-
-def calculate_pricing_power_score(margin, substitution, elasticity, concentration):
-
-    # Margin strength (higher = better)
-    margin_score = normalize(margin, 0, 0.8)
-
-    # Substitution exposure (lower = better)
-    substitution_score = 1 - normalize(substitution, 0, 1)
-
-    # Elasticity fragility (lower elasticity = stronger power)
-    elasticity_score = 1 - normalize(elasticity, 0, 3)
-
-    # Revenue concentration risk (lower = better)
-    concentration_score = 1 - normalize(concentration, 0, 1)
-
-    final_score = (
-        margin_score * 0.35 +
-        substitution_score * 0.25 +
-        elasticity_score * 0.25 +
-        concentration_score * 0.15
-    )
-
-    return round(final_score * 100, 1)
-
-def classify_power(score):
-    if score < 30:
-        return "Weak Pricing Power", "🔴"
-    elif score < 55:
-        return "Defensive Structure", "🟠"
-    elif score < 75:
-        return "Strong Position", "🟢"
-    else:
-        return "Dominant Pricing Power", "🏆"
-
-# -----------------------------------
-# UI
-# -----------------------------------
+import plotly.express as px
+from core.engine import compute_core_metrics
 
 def show_pricing_power_radar():
+    st.header("🎯 Pricing Power Radar")
+    st.caption("Strategic Audit: Evaluate your structural ability to defend or increase prices.")
 
-    st.header("📊 Pricing Power Radar")
-    st.write("Evaluate structural pricing strength beyond simple elasticity calculations.")
+    # 1. FETCH CONTEXT
+    metrics = compute_core_metrics()
+    p = st.session_state.price
+    vc = st.session_state.variable_cost
+    current_margin = (metrics['unit_contribution'] / p) * 100 if p > 0 else 0
 
-    with st.sidebar:
-        st.subheader("Core Structural Inputs")
+    # 2. EVALUATION PILLARS
+    st.subheader("Structural Assessment")
+    st.write("Rate your position on a scale of 1 (Weak) to 10 (Dominant).")
 
-        margin = st.slider("Contribution Margin (%)", 5.0, 90.0, 40.0) / 100
-        substitution = st.slider("Substitution Exposure (%)", 0.0, 100.0, 40.0) / 100
-        elasticity = st.slider("Estimated Price Elasticity", 0.1, 3.0, 1.2)
-        concentration = st.slider("Revenue Concentration Risk (%)", 0.0, 100.0, 30.0) / 100
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        brand_score = st.slider("Brand Equity & Loyalty", 1, 10, 5, 
+                                help="Do customers choose you for 'who' you are or just for the price?")
+        switching_costs = st.slider("Switching Costs", 1, 10, 5, 
+                                help="How difficult/expensive is it for a customer to move to a competitor?")
+        
+    with col2:
+        scarcity_score = st.slider("Product Scarcity / IP", 1, 10, 5, 
+                                help="Do you have unique features, patents, or limited availability?")
+        market_share = st.slider("Market Concentration", 1, 10, 5, 
+                                help="Are you a leader in a niche or one of many small players?")
 
-        run = st.button("Evaluate Pricing Power")
+    # 3. CALCULATIONS
+    # Προσθέτουμε και το Margin ως 5ο πυλώνα (αυτόματα από το Engine)
+    margin_score = min(int(current_margin / 5), 10) if current_margin > 0 else 1
+    
+    radar_data = pd.DataFrame({
+        'Pillar': ['Brand', 'Switching Costs', 'Scarcity', 'Market Power', 'Margin Strength'],
+        'Score': [brand_score, switching_costs, scarcity_score, market_share, margin_score]
+    })
 
-    if run:
+    # 4. VISUALIZATION
+    
+    
+    fig = px.line_polar(radar_data, r='Score', theta='Pillar', line_close=True,
+                        template="plotly_dark", range_r=[0, 10])
+    fig.update_traces(fill='toself', line_color='#00CC96')
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 10])))
+    
+    st.plotly_chart(fig, use_container_width=True)
 
-        score = calculate_pricing_power_score(
-            margin,
-            substitution,
-            elasticity,
-            concentration
-        )
+    # 5. ANALYST'S SCORE & VERDICT
+    total_score = radar_data['Score'].mean()
+    
+    st.divider()
+    res1, res2 = st.columns(2)
+    res1.metric("Pricing Power Index", f"{total_score:.1f} / 10")
 
-        label, icon = classify_power(score)
+    # 6. COLD ANALYSIS VERDICT
+    if total_score < 4:
+        st.error("🔴 **Price Taker:** Δεν έχετε καμία δύναμη επιβολής τιμής. Οποιαδήποτε αύξηση θα προκαλέσει άμεση φυγή πελατών. Εστιάστε στη μείωση κόστους.")
+    elif total_score < 7:
+        st.warning("🟠 **Defensive Position:** Έχετε κάποια προστασία, αλλά η τιμολόγηση πρέπει να είναι προσεκτική. Χρειάζεστε 'συνοδευτική' αξία για κάθε αύξηση.")
+    else:
+        st.success("🏆 **Price Maker:** Διαθέτετε ισχυρή δομική προστασία. Μπορείτε να δοκιμάσετε αυξήσεις τιμών για τη βελτίωση του Margin με χαμηλό ρίσκο.")
 
-        st.divider()
-        st.subheader("🏁 Structural Pricing Assessment")
-
-        col1, col2 = st.columns(2)
-        col1.metric("Pricing Power Score", f"{score}/100")
-        col2.metric("Classification", f"{icon} {label}")
-
-        st.divider()
-        st.subheader("📌 Strategic Interpretation")
-
-        if score < 30:
-            st.error("Business is highly exposed. Price increases likely destroy volume.")
-        elif score < 55:
-            st.warning("Pricing decisions must be cautious. Substitution pressure limits flexibility.")
-        elif score < 75:
-            st.success("Company has measurable pricing flexibility.")
-        else:
-            st.success("Structural pricing dominance. Brand or positioning creates insulation.")
-
-        st.divider()
-        st.subheader("🧠 Structural Drivers")
-
-        drivers = pd.DataFrame({
-            "Driver": [
-                "Margin Strength",
-                "Substitution Protection",
-                "Elasticity Resistance",
-                "Revenue Diversification"
-            ],
-            "Impact Level": [
-                f"{margin*100:.1f}%",
-                f"{(1-substitution)*100:.1f}%",
-                f"{(1 - (elasticity/3))*100:.1f}%",
-                f"{(1-concentration)*100:.1f}%"
-            ]
-        })
-
-        st.table(drivers)
-
-
-if __name__ == "__main__":
-    show_pricing_power_radar()
-
+    # 7. STRATEGIC LINK
+    if st.button("Simulate Price Increase in Simulator"):
+        st.session_state.selected_tool = "Break-Even Shift Analysis"
+        st.rerun()
