@@ -8,11 +8,11 @@ from ui.library import show_library
 from ui.about import show_about
 
 # Import τα stages από το φάκελο path
-import path.step0_calib as stage0
-import path.step1_break as stage1
+import path.step0_calibration as stage0
+import path.step1_survival as stage1
 import path.step2_cash as stage2
-import path.step3_clv as stage3
-import path.step4_sustain as stage4
+import path.step3_unit_economics as stage3
+import path.step4_sustainability as stage4
 import path.step5_strategy as stage5
 
 # Αρχικοποίηση Συστήματος
