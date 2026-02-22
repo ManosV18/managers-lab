@@ -1,25 +1,25 @@
 import streamlit as st
 from core.system_state import initialize_system_state
-from core.sidebar import render_sidebar
-from core.library import show_library
-from core.about import show_about
 
-# Εδώ είναι η αλλαγή για το home.py που βρίσκεται στο φάκελο ui
-from ui.home import show_home  
+# Όλα τα imports πλέον από το φάκελο ui
+from ui.sidebar import render_sidebar
+from ui.home import show_home
+from ui.library import show_library
+from ui.about import show_about
 
-# Import τα stages
-import path.step0_calibration as stage0
-import path.step1_survival as stage1
+# Import τα stages από το φάκελο path
+import path.step0_calib as stage0
+import path.step1_break as stage1
 import path.step2_cash as stage2
-import path.step3_unit_economics as stage3
-import path.step4_sustainability as stage4
+import path.step3_clv as stage3
+import path.step4_sustain as stage4
 import path.step5_strategy as stage5
 
 # Αρχικοποίηση Συστήματος
-st.set_page_config(page_title="Managers' Lab", layout="wide")
+st.set_page_config(page_title="Managers' Lab", layout="wide", page_icon="🧪")
 initialize_system_state()
 
-# Sidebar (σταθερό σε όλες τις σελίδες)
+# Εμφάνιση Sidebar
 render_sidebar()
 
 # Routing Logic
