@@ -63,7 +63,8 @@ def run_step():
                   delta=f"-{liquidity_drain_annual:,.2f} Stock Cost", delta_color="inverse")
         st.caption("Bottom line after all costs")
 
-    
+    # Στο τέλος του βήματος 4 (Results & Sync), πρόσθεσε:
+        st.session_state.liquidity_drain = working_capital_req * 0.10  # Υποθετικό κόστος κεφαλαίου 10%
 
     # 5. STRATEGIC SIGNAL (Annual Logic)
     st.divider()
