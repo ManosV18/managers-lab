@@ -1,61 +1,32 @@
 import streamlit as st
 
-def initialize_system_state():
-    """Single Source of Truth for the entire system"""
+def compute_core_metrics():
+    """Central derived calculations"""
+    # Χρησιμοποιούμε .get() για ασφάλεια κατά το πρώτο run
+    p = st.session_state.get('price', 0.0)
+    v = st.session_state.get('volume', 0)
+    vc = st.session_state.get('variable_cost', 0.0)
+    fc = st.session_state.get('fixed_cost', 0.0)
+    debt = st.session_state.get('debt', 0.0)
+    rate = st.session_state.get('interest_rate', 0.0)
+    liquidity = st.session_state.get('liquidity_drain_annual', 0.0)
 
-    # UI State
-    defaults_ui = {
-        "mode": "home",
-        "flow_step": 0,
-        "baseline_locked": False,
-        "selected_tool": None
+    unit_contribution = p - vc
+    revenue = p * v
+    ebit = (unit_contribution * v) - fc
+    interest = debt * rate
+    net_profit = ebit - interest - liquidity
+
+    operating_bep = fc / unit_contribution if unit_contribution > 0 else 0
+    full_fixed = fc + interest + liquidity
+    survival_bep = full_fixed / unit_contribution if unit_contribution > 0 else 0
+
+    return {
+        "unit_contribution": unit_contribution,
+        "revenue": revenue,
+        "ebit": ebit,
+        "interest": interest,
+        "net_profit": net_profit,
+        "operating_bep": operating_bep,
+        "survival_bep": survival_bep
     }
-
-    # 1️⃣ Revenue Engine
-    defaults_revenue = {
-        "price": 30.0,
-        "volume": 10000
-    }
-
-    # 2️⃣ Cost Structure
-    defaults_cost = {
-        "variable_cost": 15.0,
-        "fixed_cost": 50000.0
-    }
-
-    # 3️⃣ Working Capital
-    defaults_cash = {
-        "ar_days": 45,
-        "inventory_days": 60,
-        "payables_days": 30,
-        "ccc": 0,
-        "working_capital_req": 0.0,
-        "liquidity_drain_annual": 0.0
-    }
-
-    # 4️⃣ Capital & Financing
-    defaults_capital = {
-        "debt": 20000.0,
-        "interest_rate": 0.05,
-        "annual_loan_payment": 12000.0
-    }
-
-    # 5️⃣ Customer Durability
-    defaults_customer = {
-        "retention_rate": 0.85,
-        "cac": 150.0,
-        "purch_per_year": 4.0
-    }
-
-    all_defaults = {
-        **defaults_ui,
-        **defaults_revenue,
-        **defaults_cost,
-        **defaults_cash,
-        **defaults_capital,
-        **defaults_customer
-    }
-
-    for key, value in all_defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
