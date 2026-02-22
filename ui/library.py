@@ -2,6 +2,11 @@ import streamlit as st
 
 def show_library():
     st.title("📚 Tool Library")
+    
+    # Προσθήκη Quick Sync
+    if st.button("🔄 Refresh Global Data"):
+        st.rerun()
+    
     st.caption("Direct access to all analytical modules.")
 
     categories = {
