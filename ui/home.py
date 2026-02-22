@@ -2,6 +2,7 @@ import streamlit as st
 
 def show_home():
     # PHASE A: Entry Mode (No Baseline Defined)
+    # Ελέγχει αν έχει κλειδώσει η βάση δεδομένων από το Stage 0
     if not st.session_state.get('baseline_locked', False):
         st.title("🧪 Managers’ Lab")
         st.subheader("System Status: Baseline Not Defined")
@@ -23,8 +24,7 @@ def show_home():
         st.caption("Structural Overview — 365-Day Operating Model")
         st.markdown("---")
 
-        # Calculations from Shared Core
-        # Ensure these keys exist in core/system_state.py
+        # Ανάκτηση δεδομένων από το session_state (αρχικοποιημένα στο core/system_state.py)
         p = st.session_state.get('price', 0.0)
         v = st.session_state.get('volume', 0)
         vc = st.session_state.get('variable_cost', 0.0)
@@ -32,12 +32,14 @@ def show_home():
         debt = st.session_state.get('debt', 0.0)
         rate = st.session_state.get('interest_rate', 0.0)
         
+        # Αναλυτικοί Υπολογισμοί
         rev = p * v
         ebit = ((p - vc) * v) - fc
-        net_profit = ebit - (debt * rate)
+        interest_expense = debt * rate
+        net_profit = ebit - interest_expense
         margin = (p - vc) / p if p > 0 else 0
 
-        # Executive Metrics
+        # Executive Metrics Display
         c1, c2, c3 = st.columns(3)
         c1.metric("Annual Revenue", f"{rev:,.0f} €")
         c2.metric("Net Profit (Post-Interest)", f"{net_profit:,.0f} €", delta=f"EBIT: {ebit:,.0f} €")
@@ -59,6 +61,8 @@ def show_home():
                 st.rerun()
 
         st.divider()
+        
+        # Ρυθμίσεις Συστήματος (Expander)
         with st.expander("System Configuration"):
             st.write(
                 "The baseline defines the structural mechanics of the system. "
