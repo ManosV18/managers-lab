@@ -6,10 +6,12 @@ def show_library():
 
     categories = {
         "📈 Pricing & Break-Even": [
-            ("Break-Even Shift Analysis",  "break_even_shift_calculator", "show_break_even_shift_calculator"),
-            ("Loss Threshold Analysis",    "loss_threshold",              "show_loss_threshold_before_price_cut"),
-            ("Pricing Power Radar",        "pricing_power_radar",         "show_pricing_power_radar"),
+            # (Όνομα στην οθόνη, Όνομα αρχείου .py, Όνομα συνάρτησης)
+            ("Break-Even Shift Analysis", "break_even_shift_calculator", "show_break_even_shift_calculator"),
+            ("Loss Threshold Analysis",  "loss_threshold",              "show_loss_threshold_before_price_cut"),
+            ("Pricing Power Radar",        "pricing_power_radar",          "show_pricing_power_radar"),
         ],
+      
         "💰 Finance & Cash Flow": [
             ("Cash Cycle Calculator",      "cash_cycle",                  "run_cash_cycle_app"),
             ("Cash Fragility Index",       "cash_fragility_index",        "show_cash_fragility_index"),
