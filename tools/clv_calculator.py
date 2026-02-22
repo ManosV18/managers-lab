@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from core.engine import compute_core_metrics
 
 def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, realization, risk_p, cac):
     # Adjusted discount rate for risk
@@ -10,13 +11,9 @@ def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, 
     data = []
     payback = None
     
-    # Yearly projection based on lifespan (retention_years)
     for t in range(1, int(retention_years) + 1):
-        # Survival probability: (1 - churn)^t
         survival = (1 - churn_rate) ** t
-        # Realized cash flow after risk and survival
         annual_flow = (purchases * margin_per_order * realization) * survival
-        # Discounted to present value
         discounted_flow = annual_flow / ((1 + adj_disc) ** t)
         
         cum_npv += discounted_flow
@@ -31,12 +28,15 @@ def show_clv_calculator():
     st.header("👥 Executive CLV Simulator")
     st.info("Advanced Customer Lifetime Value modeling: Syncing Unit Economics with Risk-Adjusted NPV.")
 
-    # 1. SYNC WITH SHARED CORE (The "Cold" Baseline)
-    p = st.session_state.get('price', 100.0)
-    vc = st.session_state.get('variable_cost', 60.0)
-    unit_margin = p - vc
+    # 1. SYNC WITH SHARED CORE
+    metrics = compute_core_metrics()
+    p = st.session_state.get('price', 0.0)
+    vc = st.session_state.get('variable_cost', 0.0)
+    # Τραβάμε το βασικό επιτόκιο από το Stage 2 (Debt Analysis)
+    base_interest = st.session_state.get('interest_rate', 0.08) * 100 
     
-    st.write(f"**🔗 Core Baseline Linked:** Margin/Unit: **{unit_margin:,.2f} €** (Price: {p}€ | VC: {vc}€)")
+    unit_margin = p - vc
+    st.write(f"**🔗 Core Baseline Linked:** Unit Margin: **{unit_margin:,.2f} €**")
 
     st.divider()
 
@@ -46,23 +46,24 @@ def show_clv_calculator():
     with col_a:
         st.subheader("📊 Scenario A (Base)")
         purch_a = st.number_input("Purchases / Year (A)", value=4.0, key="pa")
-        units_a = st.number_input("Units / Order (A)", value=2.0, key="ua")
+        units_a = st.number_input("Units / Order (A)", value=1.0, key="ua")
         cac_a = st.number_input("CAC (€) (A)", value=150.0, key="caca")
         churn_a = st.slider("Annual Churn % (A)", 0, 100, 15, key="cha")
 
     with col_b:
         st.subheader("🚀 Scenario B (Target)")
         purch_b = st.number_input("Purchases / Year (B)", value=5.0, key="pb")
-        units_b = st.number_input("Units / Order (B)", value=2.0, key="ub")
+        units_b = st.number_input("Units / Order (B)", value=1.0, key="ub")
         cac_b = st.number_input("CAC (€) (B)", value=180.0, key="cacb")
         churn_b = st.slider("Annual Churn % (B)", 0, 100, 8, key="chb")
 
-    # 3. STRUCTURAL ASSUMPTIONS (NPV Logic)
+    # 3. STRUCTURAL ASSUMPTIONS
     with st.expander("⚙️ NPV & Risk Assumptions (Advanced)"):
         c1, c2 = st.columns(2)
-        disc = c1.number_input("Base Discount Rate (%)", value=8.0)
+        # Σύνδεση με το Baseline Interest Rate
+        disc = c1.number_input("Base Discount Rate (%)", value=float(base_interest))
         risk_p = c1.number_input("Customer Risk Premium (%)", value=3.0)
-        real = c2.number_input("Realization Rate (0.0-1.0)", value=0.90, help="Adjustment for cancellations/returns")
+        real = c2.number_input("Realization Rate (0.0-1.0)", value=0.90)
         horizon = c2.slider("Analysis Horizon (Years)", 1, 15, 5)
 
     # 4. EXECUTION
@@ -74,8 +75,6 @@ def show_clv_calculator():
 
     # 5. RESULTS COMPARISON
     st.divider()
-    st.subheader("📊 Scenario Comparison")
-    
     res_a, res_b = st.columns(2)
     
     with res_a:
@@ -92,25 +91,18 @@ def show_clv_calculator():
 
     # 6. STRATEGIC VERDICT
     st.divider()
-    st.subheader("🧠 Strategic Verdict")
-    
     if final_b > final_a:
-        val_diff = final_b - final_a
-        st.success(f"**Recommendation:** Strategy B creates **{val_diff:,.2f} €** more value per customer in NPV terms.")
+        st.success(f"**Recommendation:** Strategy B creates **{final_b - final_a:,.2f} €** more value per customer.")
     
     if ratio_b < 3.0:
-        st.warning("⚠️ **Fragile Economics:** Target Scenario B is below the 3.0x LTV/CAC threshold. Scaling may be inefficient.")
-    elif ratio_b >= 3.0:
-        st.success("✅ **Scalable Structure:** Scenario B supports aggressive acquisition.")
+        st.warning("⚠️ **Fragile Economics:** Ratio below 3.0x. Marketing efficiency is low.")
+    else:
+        st.success("✅ **Scalable Structure:** High efficiency detected.")
 
     # 7. VISUALIZATION
-    st.divider()
-    st.subheader("📉 Cumulative NPV Projection")
-    
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A (Base)', line=dict(color='#EF553B', dash='dash')))
-    fig.add_trace(go.Scatter(x=df_b['Year'], y=df_b['Cumulative_NPV'], name='Scenario B (Target)', line=dict(color='#00CC96', width=4)))
+    fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A', line=dict(color='#EF553B', dash='dash')))
+    fig.add_trace(go.Scatter(x=df_b['Year'], y=df_b['Cumulative_NPV'], name='Scenario B', line=dict(color='#00CC96', width=4)))
     fig.add_hline(y=0, line_dash="dot", line_color="white")
-    
     fig.update_layout(xaxis_title="Years", yaxis_title="Cumulative NPV (€)", height=450, template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
