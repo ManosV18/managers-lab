@@ -1,89 +1,86 @@
 import streamlit as st
-import pandas as pd
+from core.engine import compute_core_metrics
 
-def run_step():
-    st.header("🏢 Stage 4: Sustainability & Structural Break-Even")
-    st.info("Annual analysis of fixed costs, debt, and inventory carrying costs.")
+def run_stage4():
+    st.header("🏢 Stage 4: Sustainability & Survival Stress Test")
+    st.caption("Deep dive into the structural durability of the enterprise.")
 
-    # 1. DYNAMIC SYNC WITH STAGE 0 & STAGE 2
-    # Fetching annual data to maintain consistency with Stage 1
-    p = st.session_state.get('price', 100.0)
-    vc = st.session_state.get('variable_cost', 60.0)
-    q_annual = st.session_state.get('volume', 1000.0)
-    
-    # Inventory carrying cost (Annual) from Stage 2
-    liquidity_drain_annual = st.session_state.get('liquidity_drain', 0.0)
-    
-    unit_margin = p - vc
-    annual_revenue = p * q_annual
+    # 1. SYNC WITH CORE ENGINE
+    metrics = compute_core_metrics()
+    p = st.session_state.price
+    vc = st.session_state.variable_cost
+    q_annual = st.session_state.volume
+    liquidity_drain = st.session_state.liquidity_drain_annual
 
-    st.write(f"**🔗 Linked to Global Data:** Annual Volume: {q_annual:,.0f} units | Unit Margin: {unit_margin:,.2f} €")
+    st.write(f"**🔗 Core Engine Data:** Annual Volume: {q_annual:,.0f} | Unit Margin: {metrics['unit_contribution']:.2f} €")
 
-    # 2. ANNUAL FIXED COSTS INPUTS
-    st.subheader("Annual Operating Obligations")
+    # 2. FIXED COSTS & DEBT INPUTS (Updating Global State)
+    st.subheader("Annual Structural Obligations")
     col1, col2 = st.columns(2)
+    
     with col1:
-        # We multiply by 12 if the user thinks in monthly terms, or input annual directly
-        annual_rent = st.number_input("Annual Rent & Utilities (€)", value=18000.0)
-        annual_salaries = st.number_input("Annual Salaries & Insurance (€)", value=54000.0)
+        # Ενημερώνουμε το κεντρικό fixed_cost
+        st.session_state.fixed_cost = st.number_input(
+            "Total Annual Operating Fixed Costs (€)", 
+            min_value=0.0, 
+            value=float(st.session_state.fixed_cost),
+            help="Rent, Salaries, Admin, Software"
+        )
+        
     with col2:
-        annual_loan = st.number_input("Annual Debt Service (€)", value=12000.0)
-        annual_admin = st.number_input("Annual Admin & Software (€)", value=6000.0)
+        # Ενημερώνουμε το Debt Service
+        st.session_state.annual_loan_payment = st.number_input(
+            "Annual Debt Service (Principal + Interest) (€)", 
+            min_value=0.0, 
+            value=float(st.session_state.annual_loan_payment)
+        )
 
-    # 3. CALCULATIONS (All Annual)
-    total_fixed_costs = annual_rent + annual_salaries + annual_admin
-    ebit = (unit_margin * q_annual) - total_fixed_costs
+    # 3. RE-COMPUTE AFTER INPUTS
+    metrics = compute_core_metrics()
     
-    # Total obligations include fixed costs + debt repayment
-    total_annual_obligations = total_fixed_costs + annual_loan
-    
-    # Break-Even Point in Units (Annual)
-    if unit_margin > 0:
-        be_units_annual = total_annual_obligations / unit_margin
-    else:
-        be_units_annual = 0
-
-    # Final Net Profit after inventory "Slow-Stock Penalty"
-    final_net_profit = ebit - annual_loan - liquidity_drain_annual
-
-    # 4. RESULTS DISPLAY
+    # 4. RESULTS DISPLAY (Executive Metrics)
     st.divider()
     res1, res2, res3 = st.columns(3)
     
     with res1:
-        st.metric("Annual BEP Units", f"{be_units_annual:,.0f}")
-        st.caption("Units needed to cover all costs")
+        st.metric("Survival BEP (Units)", f"{metrics['survival_bep']:,.0f}")
+        st.caption("Includes Fixed Costs + Debt + Liquidity Drain")
 
     with res2:
-        st.metric("Annual EBIT", f"{ebit:,.2f} €")
-        st.caption("Operating profit before debt")
+        st.metric("Operating EBIT", f"{metrics['ebit']:,.2f} €")
+        st.caption("Before Debt & Liquidity Adjustments")
 
     with res3:
-        st.metric("Final Net Profit", f"{final_net_profit:,.2f} €", 
-                  delta=f"-{liquidity_drain_annual:,.2f} Stock Cost", delta_color="inverse")
-        st.caption("Bottom line after all costs")
+        # Το Net Profit εδώ υπολογίζεται από το Engine (EBIT - Interest - Liquidity)
+        st.metric("Final Net Economic Profit", f"{metrics['net_profit']:,.2f} €", 
+                  delta=f"-{liquidity_drain:,.0f} Liquidity Drain", delta_color="inverse")
+        st.caption("True bottom line after cash friction")
 
-    # Στο τέλος του βήματος 4 (Results & Sync), πρόσθεσε:
-        st.session_state.liquidity_drain = working_capital_req * 0.10  # Υποθετικό κόστος κεφαλαίου 10%
-
-    # 5. STRATEGIC SIGNAL (Annual Logic)
+    # 5. SURVIVAL ANALYSIS (Strategic Signal)
     st.divider()
-    if q_annual < be_units_annual:
-        st.error(f"🔴 **Survival Alert:** You are {be_units_annual - q_annual:,.0f} units below the annual break-even point.")
-    else:
-        st.success(f"🟢 **Operational Surplus:** You are {q_annual - be_units_annual:,.0f} units above the annual survival threshold.")
+    
+    
 
-    if liquidity_drain_annual > (ebit * 0.15) and ebit > 0:
-        st.warning(f"⚠️ **Efficiency Risk:** Slow-moving stock costs consume {(liquidity_drain_annual/ebit)*100:.1f}% of annual EBIT.")
+    if q_annual < metrics['survival_bep']:
+        st.error(f"🔴 **Survival Alert:** The system is structurally non-viable. You are {metrics['survival_bep'] - q_annual:,.0f} units short of the survival threshold.")
+    else:
+        safety_buffer = q_annual - metrics['survival_bep']
+        st.success(f"🟢 **Operational Surplus:** System is stable. Safety buffer: {safety_buffer:,.0f} units ({ (safety_buffer/q_annual)*100:.1f}%).")
+
+    # Risk Factor: Liquidity vs EBIT
+    if metrics['ebit'] > 0:
+        friction_ratio = (liquidity_drain / metrics['ebit']) * 100
+        if friction_ratio > 20:
+            st.warning(f"⚠️ **Efficiency Risk:** Cash friction (Working Capital) consumes {friction_ratio:.1f}% of operating profit.")
 
     # 6. NAVIGATION
     st.divider()
     nav1, nav2 = st.columns(2)
     with nav1:
-        if st.button("⬅️ Back to Stage 3"):
+        if st.button("⬅️ Back to CLV Analysis"):
             st.session_state.flow_step = 3
             st.rerun()
     with nav2:
-        if st.button("Proceed to Final Strategy (Stage 5) ➡️", type="primary"):
+        if st.button("Proceed to Strategic Synthesis (Stage 5) ➡️", type="primary"):
             st.session_state.flow_step = 5
             st.rerun()
