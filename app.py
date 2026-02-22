@@ -1,32 +1,50 @@
 import streamlit as st
+from core.system_state import initialize_system_state
+from core.engine import compute_core_metrics
 
-def compute_core_metrics():
-    """Central derived calculations"""
+from ui.home import show_home
+from ui.about import show_about
+from ui.library import show_library
 
-    p = st.session_state.price
-    v = st.session_state.volume
-    vc = st.session_state.variable_cost
-    fc = st.session_state.fixed_cost
-    debt = st.session_state.debt
-    rate = st.session_state.interest_rate
-    liquidity = st.session_state.liquidity_drain_annual
+from path.stage0 import run_stage0
+from path.stage1 import run_stage1
+from path.stage2 import run_stage2
+from path.stage3 import run_stage3
+from path.stage4 import run_stage4
+from path.stage5 import run_stage5
 
-    unit_contribution = p - vc
-    revenue = p * v
-    ebit = (unit_contribution * v) - fc
-    interest = debt * rate
-    net_profit = ebit - interest - liquidity
+# =========================================================
+# CONFIG
+# =========================================================
+st.set_page_config(page_title="Managers' Lab Engine", layout="wide")
 
-    operating_bep = fc / unit_contribution if unit_contribution > 0 else 0
-    full_fixed = fc + interest + liquidity
-    survival_bep = full_fixed / unit_contribution if unit_contribution > 0 else 0
+# =========================================================
+# INITIALIZE CORE
+# =========================================================
+initialize_system_state()
 
-    return {
-        "unit_contribution": unit_contribution,
-        "revenue": revenue,
-        "ebit": ebit,
-        "interest": interest,
-        "net_profit": net_profit,
-        "operating_bep": operating_bep,
-        "survival_bep": survival_bep
+# =========================================================
+# ROUTER
+# =========================================================
+
+if st.session_state.mode == "home":
+    show_home()
+
+elif st.session_state.mode == "about":
+    show_about()
+
+elif st.session_state.mode == "library":
+    show_library()
+
+elif st.session_state.mode == "path":
+
+    stage_router = {
+        0: run_stage0,
+        1: run_stage1,
+        2: run_stage2,
+        3: run_stage3,
+        4: run_stage4,
+        5: run_stage5
     }
+
+    stage_router[st.session_state.flow_step]()
