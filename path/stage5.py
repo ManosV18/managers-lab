@@ -55,7 +55,8 @@ def run_stage5():
     stressed_vc = vc * (1 + inc_costs/100)
     # Stressed calculation using core logic
     stressed_ebit = ((p - stressed_vc) * stressed_q) - fixed_cost
-    stressed_profit = stressed_ebit - metrics['interest'] - liquidity_drain
+    interest_cost = metrics.get('interest', 0.0)
+    stressed_profit = stressed_ebit - interest_cost - liquidity_drain
     
     profit_delta = stressed_profit - baseline_profit
     
