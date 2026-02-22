@@ -3,103 +3,71 @@ import pandas as pd
 import plotly.graph_objects as go
 from core.engine import compute_core_metrics
 
+def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, realization, risk_p, cac):
+    adj_disc = (discount / 100) + (risk_p / 100)
+    churn_rate = churn / 100
+    cum_npv = -cac
+    data = []
+    payback = None
+    
+    for t in range(1, int(retention_years) + 1):
+        survival = (1 - churn_rate) ** t
+        annual_flow = (purchases * margin_per_order * realization) * survival
+        discounted_flow = annual_flow / ((1 + adj_disc) ** t)
+        cum_npv += discounted_flow
+        data.append({"Year": t, "Cumulative_NPV": cum_npv})
+        if cum_npv >= 0 and payback is None:
+            payback = t
+    return pd.DataFrame(data), cum_npv, payback
+
 def run_stage3():
-    st.header("📊 Stage 3: Unit Economics & CLV Analysis")
-    st.caption("Evaluate the long-term durability of your customer relationships.")
-    
-    # 1. FETCH SYNCED METRICS
+    st.header("👥 Stage 3: Unit Economics (CLV & CAC)")
+    st.caption("Advanced Customer Lifetime Value modeling: Syncing Unit Economics with Risk-Adjusted NPV.")
+
+    # 1. SYNC WITH SHARED CORE
     metrics = compute_core_metrics()
-    p = st.session_state.price
-    vc = st.session_state.variable_cost
-    initial_unit_contribution = metrics["unit_contribution"]
-    
-    # 2. INPUTS (SYNCED WITH CORE STATE)
+    unit_margin = metrics['unit_contribution']
+    st.info(f"🔗 **Core Engine Linked:** Current Unit Margin: **{unit_margin:,.2f} €**")
+
+    # 2. INPUTS (Simplifying for the Path, using Scenario B as primary)
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Customer Behavior")
-        # Ενημερώνουμε το state απευθείας
-        st.session_state.purch_per_year = st.number_input(
-            "Purchases per Year", 
-            min_value=0.1, 
-            value=float(st.session_state.purch_per_year)
-        )
-        st.session_state.cac = st.number_input(
-            "Acquisition Cost (CAC) €", 
-            min_value=0.0, 
-            value=float(st.session_state.cac)
-        )
+        purchases = st.number_input("Annual Purchase Frequency", value=4.0)
+        units_per_order = st.number_input("Units per Order", value=1.0)
+        churn = st.slider("Annual Churn Rate (%)", 0, 100, 15)
         
     with col2:
-        st.subheader("Retention Strategy")
-        # Slider για Retention αντί για Churn (πιο analytical focus)
-        ret_rate = st.slider(
-            "Annual Retention Rate (%)", 
-            0, 100, 
-            int(st.session_state.retention_rate * 100)
-        )
-        st.session_state.retention_rate = ret_rate / 100
-        
-        ret_discount = st.slider("Retention Discount (%)", 0, 50, 5)
+        st.subheader("Acquisition & Horizon")
+        cac = st.number_input("Acquisition Cost (CAC) per Customer (€)", value=150.0)
         horizon = st.slider("Analysis Horizon (Years)", 1, 15, 5)
 
-    # 3. ANALYTICAL CALCULATIONS
-    # Year 1 Margin: 1st purchase full price, others at discount
-    y1_margin = initial_unit_contribution + ((st.session_state.purch_per_year - 1) * ((p * (1 - ret_discount/100)) - vc))
-    
-    # Subsequent Years Margin: All purchases at discount
-    subsequent_annual_contribution = st.session_state.purch_per_year * ((p * (1 - ret_discount/100)) - vc)
-    
-    discount_rate = 0.10 # WACC assumption
-    total_clv_npv = 0
-    data = []
-    
-    for t in range(1, horizon + 1):
-        # Probability of customer still being active
-        survival_prob = st.session_state.retention_rate ** (t - 1)
-        current_year_margin = y1_margin if t == 1 else subsequent_annual_contribution
-        
-        annual_flow = (current_year_margin * survival_prob) / ((1 + discount_rate) ** t)
-        total_clv_npv += annual_flow
-        data.append({"Year": t, "Cumulative_NPV": total_clv_npv - st.session_state.cac})
+    # 3. ADVANCED ASSUMPTIONS (Expander to keep UI clean)
+    with st.expander("⚙️ NPV & Risk Assumptions"):
+        c1, c2 = st.columns(2)
+        disc = c1.number_input("Base Discount Rate (%)", value=8.0)
+        risk_p = c1.number_input("Customer Risk Premium (%)", value=3.0)
+        real = c2.number_input("Realization Rate (0.0-1.0)", value=0.90)
 
-    ltv_cac_ratio = total_clv_npv / st.session_state.cac if st.session_state.cac > 0 else 0
+    # 4. CALCULATION
+    total_margin_per_order = unit_margin * units_per_order
+    df, clv_npv, payback = get_clv_data(purchases, total_margin_per_order, horizon, disc, churn, real, risk_p, cac)
 
-    # 4. RESULTS DISPLAY
+    # 5. DISPLAY METRICS
     st.divider()
-    c1, c2, c3 = st.columns(3)
-    c1.metric("LTV (NPV)", f"{total_clv_npv:,.2f} €")
-    c2.metric("LTV / CAC Ratio", f"{ltv_cac_ratio:.2f}x")
     
-    payback_months = (st.session_state.cac / y1_margin) * 12 if y1_margin > 0 else 0
-    c3.metric("CAC Payback", f"{payback_months:.1f} Months")
-
-    # 5. VISUALIZATION
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Risk-Adjusted CLV (NPV)", f"{clv_npv:,.2f} €")
+    m2.metric("CAC", f"{cac:,.2f} €")
     
-    df = pd.DataFrame(data)
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df['Year'], 
-        y=df['Cumulative_NPV'], 
-        line=dict(color='#00CC96', width=4), 
-        fill='tozeroy',
-        name="Net CLV"
-    ))
-    fig.add_hline(y=0, line_dash="dot", line_color="white")
-    fig.update_layout(
-        title="Customer Profitability Path (NPV)", 
-        template="plotly_dark",
-        xaxis_title="Years",
-        yaxis_title="Cumulative Euro"
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    ltv_cac_ratio = (clv_npv + cac) / cac if cac > 0 else 0
+    m3.metric("LTV/CAC Ratio", f"{ltv_cac_ratio:.2f}x")
 
-    # 6. STRATEGIC VERDICT
-    if subsequent_annual_contribution <= 0:
-        st.error(f"❌ **Analytical Failure:** Retention discount of {ret_discount}% destroys unit economics. Margin is negative.")
-    elif ltv_cac_ratio < 3:
-        st.warning("⚠️ **Efficiency Risk:** LTV/CAC < 3x. Customer acquisition is too expensive relative to lifetime value.")
+    # 6. COLD VERDICT
+    if ltv_cac_ratio < 3.0:
+        st.warning("⚠️ **Fragile Economics:** The ratio is below the 3.0x industry benchmark. Scaling might destroy capital.")
     else:
-        st.success("✅ **Sustainable Unit Economics:** Model absorbs retention costs while maintaining healthy growth margins.")
+        st.success("🏆 **Scalable Asset:** High CLV relative to CAC confirms structural strength.")
 
     # 7. NAVIGATION
     st.divider()
@@ -109,6 +77,6 @@ def run_stage3():
             st.session_state.flow_step = 2
             st.rerun()
     with nav2:
-        if st.button("Proceed to Stage 4 (Sustainability) ➡️", type="primary"):
+        if st.button("Proceed to Survival Stress Test ➡️", type="primary"):
             st.session_state.flow_step = 4
             st.rerun()
