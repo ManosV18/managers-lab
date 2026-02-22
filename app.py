@@ -1,41 +1,32 @@
 import streamlit as st
-from core.system_state import initialize_system_state
 
-# Όλα τα imports πλέον από το φάκελο ui
-from ui.sidebar import render_sidebar
-from ui.home import show_home
-from ui.library import show_library
-from ui.about import show_about
+def compute_core_metrics():
+    """Central derived calculations"""
 
-# Import τα stages από το φάκελο path
-import path.step0_calibration as stage0
-import path.step1_survival as stage1
-import path.step2_cash as stage2
-import path.step3_unit_economics as stage3
-import path.step4_sustainability as stage4
-import path.step5_strategy as stage5
+    p = st.session_state.price
+    v = st.session_state.volume
+    vc = st.session_state.variable_cost
+    fc = st.session_state.fixed_cost
+    debt = st.session_state.debt
+    rate = st.session_state.interest_rate
+    liquidity = st.session_state.liquidity_drain_annual
 
-# Αρχικοποίηση Συστήματος
-st.set_page_config(page_title="Managers' Lab", layout="wide", page_icon="🧪")
-initialize_system_state()
+    unit_contribution = p - vc
+    revenue = p * v
+    ebit = (unit_contribution * v) - fc
+    interest = debt * rate
+    net_profit = ebit - interest - liquidity
 
-# Εμφάνιση Sidebar
-render_sidebar()
+    operating_bep = fc / unit_contribution if unit_contribution > 0 else 0
+    full_fixed = fc + interest + liquidity
+    survival_bep = full_fixed / unit_contribution if unit_contribution > 0 else 0
 
-# Routing Logic
-mode = st.session_state.get('mode', 'home')
-
-if mode == "home":
-    show_home()
-elif mode == "about":
-    show_about()
-elif mode == "library":
-    show_library()
-elif mode == "path":
-    step = st.session_state.get('flow_step', 0)
-    if step == 0: stage0.run_step()
-    elif step == 1: stage1.run_step()
-    elif step == 2: stage2.run_step()
-    elif step == 3: stage3.run_step()
-    elif step == 4: stage4.run_step()
-    elif step == 5: stage5.run_step()
+    return {
+        "unit_contribution": unit_contribution,
+        "revenue": revenue,
+        "ebit": ebit,
+        "interest": interest,
+        "net_profit": net_profit,
+        "operating_bep": operating_bep,
+        "survival_bep": survival_bep
+    }
