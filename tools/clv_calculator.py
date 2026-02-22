@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from core.engine import compute_core_metrics
 
 def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, realization, risk_p, cac):
-    # Adjusted discount rate for risk
+    # Adjusted discount rate for risk: (Base Discount + Risk Premium)
     adj_disc = (discount / 100) + (risk_p / 100)
     churn_rate = churn / 100
     cum_npv = -cac
@@ -12,8 +12,11 @@ def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, 
     payback = None
     
     for t in range(1, int(retention_years) + 1):
+        # Survival probability: (1 - churn)^t
         survival = (1 - churn_rate) ** t
+        # Realized cash flow after risk and survival
         annual_flow = (purchases * margin_per_order * realization) * survival
+        # Discounted to present value
         discounted_flow = annual_flow / ((1 + adj_disc) ** t)
         
         cum_npv += discounted_flow
@@ -28,12 +31,12 @@ def show_clv_calculator():
     st.header("👥 Executive CLV Simulator")
     st.info("Advanced Customer Lifetime Value modeling: Syncing Unit Economics with Risk-Adjusted NPV.")
 
-    # 1. SYNC WITH SHARED CORE
+    # 1. SYNC WITH SHARED CORE (The "Cold" Baseline)
     metrics = compute_core_metrics()
     p = st.session_state.get('price', 0.0)
     vc = st.session_state.get('variable_cost', 0.0)
-    # Τραβάμε το βασικό επιτόκιο από το Stage 2 (Debt Analysis)
-    base_interest = st.session_state.get('interest_rate', 0.08) * 100 
+    # Τραβάμε το βασικό επιτόκιο από το Stage 2 ως WACC
+    wacc_base = st.session_state.get('interest_rate', 0.08) * 100 
     
     unit_margin = p - vc
     st.write(f"**🔗 Core Baseline Linked:** Unit Margin: **{unit_margin:,.2f} €**")
@@ -62,34 +65,27 @@ def show_clv_calculator():
         st.write("---")
         st.markdown("""
         **Formula:** $Discount Rate = WACC + Risk Premium$
-        * **WACC:** Your internal cost of capital (from Stage 2).
-        * **Risk Premium:** Extra return required to compensate for the specific customer's risk profile.
         """)
         
         c1, c2 = st.columns(2)
-        # Σύνδεση με το WACC της επιχείρησης (από το Stage 2)
-        wacc_base = st.session_state.get('interest_rate', 0.08) * 100 
+        disc = c1.number_input("Corporate WACC (%)", 
+                               value=float(wacc_base), 
+                               help="Your business cost of capital from Stage 2.")
         
-        current_wacc = c1.number_input("Corporate WACC (%)", 
-                                       value=float(wacc_base), 
-                                       help="Your business cost of capital as defined in Stage 2.")
-        
-        risk_premium = c1.number_input("Specific Customer Risk Premium (%)", 
-                                       value=3.0, 
-                                       help="Add 2-5% for average customers, 10%+ for high-risk segments.")
-        
-        # Το τελικό επιτόκιο που χρησιμοποιεί η συνάρτηση get_clv_data
-        total_discount_rate = current_wacc + risk_premium
+        risk_p = c1.number_input("Specific Customer Risk Premium (%)", 
+                                 value=3.0, 
+                                 help="Extra risk for this specific customer segment.")
         
         real = c2.number_input("Realization Rate (0.0-1.0)", value=0.90)
         horizon = c2.slider("Analysis Horizon (Years)", 1, 15, 5)
         
-        st.info(f"**Total Risk-Adjusted Discount Rate:** {total_discount_rate:.2f}%")
-       
+        st.info(f"**Total Risk-Adjusted Discount Rate:** {disc + risk_p:.2f}%")
+
     # 4. EXECUTION
     margin_a = unit_margin * units_a
     margin_b = unit_margin * units_b
 
+    # Διασφάλιση ότι όλες οι μεταβλητές περνάνε σωστά στη συνάρτηση
     df_a, final_a, pb_a = get_clv_data(purch_a, margin_a, horizon, disc, churn_a, real, risk_p, cac_a)
     df_b, final_b, pb_b = get_clv_data(purch_b, margin_b, horizon, disc, churn_b, real, risk_p, cac_b)
 
@@ -100,13 +96,13 @@ def show_clv_calculator():
     with res_a:
         st.metric("NPV CLV (A)", f"{final_a:,.2f} €")
         ratio_a = (final_a + cac_a) / cac_a if cac_a > 0 else 0
-        st.write(f"LTV/CAC: **{ratio_a:.2f}x**")
+        st.write(f"LTV/CAC Ratio: **{ratio_a:.2f}x**")
         st.caption(f"Payback: {f'{pb_a} Yrs' if pb_a else 'Never'}")
 
     with res_b:
         st.metric("NPV CLV (B)", f"{final_b:,.2f} €", delta=f"{final_b - final_a:,.2f} €")
         ratio_b = (final_b + cac_b) / cac_b if cac_b > 0 else 0
-        st.write(f"LTV/CAC: **{ratio_b:.2f}x**")
+        st.write(f"LTV/CAC Ratio: **{ratio_b:.2f}x**")
         st.caption(f"Payback: {f'{pb_b} Yrs' if pb_b else 'Never'}")
 
     # 6. STRATEGIC VERDICT
@@ -120,6 +116,8 @@ def show_clv_calculator():
         st.success("✅ **Scalable Structure:** High efficiency detected.")
 
     # 7. VISUALIZATION
+    st.subheader("📉 Cumulative NPV Projection")
+    
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A', line=dict(color='#EF553B', dash='dash')))
     fig.add_trace(go.Scatter(x=df_b['Year'], y=df_b['Cumulative_NPV'], name='Scenario B', line=dict(color='#00CC96', width=4)))
