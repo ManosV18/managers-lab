@@ -1,59 +1,70 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+from core.engine import compute_core_metrics
 
 def show_loss_threshold_before_price_cut():
     st.header("📉 Loss Threshold Analysis")
-    st.info("Calculates the required volume increase to maintain profit after a price drop.")
+    st.caption("Strategic Filter: Calculate the required volume surge to offset price reductions.")
 
-    # 1. SYNC WITH SHARED CORE
-    # Τραβάμε τις τιμές που ορίστηκαν στο Home ή στο Survival Anchor
-    p = st.session_state.get('price', 20.0)
-    vc = st.session_state.get('variable_cost', 12.0)
-    q = st.session_state.get('volume', 1000)
+    # 1. FETCH GLOBAL BASELINE
+    metrics = compute_core_metrics()
+    current_p = st.session_state.price
+    current_vc = st.session_state.variable_cost
+    current_m = metrics['unit_contribution'] # Αρχικό περιθώριο (P - VC)
+
+    if current_m <= 0:
+        st.error("❌ Το τρέχον περιθώριο κέρδους είναι μηδενικό ή αρνητικό. Η ανάλυση δεν μπορεί να προχωρήσει.")
+        return
+
+    # 2. SIMULATION INPUT
+    st.subheader("Price Reduction Scenario")
+    discount_pct = st.slider("Proposed Price Discount (%)", 1, 50, 10)
     
-    current_margin_euro = p - vc
-    current_margin_pct = (current_margin_euro / p) if p > 0 else 0
+    new_p = current_p * (1 - discount_pct/100)
+    new_m = new_p - current_vc
 
-    # Εμφάνιση των τρεχόντων δεδομένων για επιβεβαίωση
-    st.write(f"**Current Baseline:** Price: {p:.2f}€ | Unit VC: {vc:.2f}€ | Current Margin: {current_margin_pct:.1%}")
-
-    st.divider()
-
-    # 2. INPUTS ΓΙΑ ΤΗΝ ΕΚΠΤΩΣΗ
-    col1, col2 = st.columns(2)
-    with col1:
-        price_cut_pct = st.slider("Proposed Price Discount (%)", 0, 50, 10) / 100
-    with col2:
-        st.write(f"**New Price:** {p * (1 - price_cut_pct):.2f} €")
-
-    # 3. CALCULATIONS (The Cold Math)
-    # Τύπος: Required Q Change = (Price Cut %) / (Original Margin % - Price Cut %)
-    if current_margin_pct > price_cut_pct:
-        req_vol_increase = price_cut_pct / (current_margin_pct - price_cut_pct)
-        new_q = q * (1 + req_vol_increase)
+    # 3. ANALYTICAL CALCULATIONS
+    if new_m <= 0:
+        st.error(f"🚨 **Critical Failure:** Μια έκπτωση {discount_pct}% εκμηδενίζει το περιθώριο κέρδους. Θα χάνετε χρήματα σε κάθε πώληση, ανεξαρτήτως όγκου.")
     else:
-        req_vol_increase = float('inf') # Η επιχείρηση μπαίνει μέσα σε κάθε μονάδα
+        # Ο τύπος για το απαιτούμενο Volume Increase: (M_old / M_new) - 1
+        req_vol_increase_pct = (current_m / new_m) - 1
+        new_required_volume = st.session_state.volume * (1 + req_vol_increase_pct)
 
-    # 4. RESULTS DISPLAY
-    st.subheader("Results")
-    if req_vol_increase == float('inf'):
-        st.error("🚨 CRITICAL: The proposed discount is equal to or higher than your current margin. You will lose money on every unit sold!")
-    else:
-        res1, res2 = st.columns(2)
-        res1.metric("Required Volume Increase", f"+{req_vol_increase:.1%}")
-        res2.metric("New Target Volume", f"{int(new_q)} units")
+        # 4. RESULTS DISPLAY
+        st.divider()
+        c1, c2, c3 = st.columns(3)
         
-        st.warning(f"To keep the same gross profit, you must sell **{int(new_q - q)} additional units** due to the {price_cut_pct:.0%} discount.")
+        c1.metric("New Unit Margin", f"{new_m:,.2f} €", delta=f"-{discount_pct}%")
+        c2.metric("Required Volume Increase", f"+{req_vol_increase_pct*100:.1f}%")
+        c3.metric("New Sales Target (Units)", f"{new_required_volume:,.0f}")
 
-    # 5. SENSITIVITY TABLE
-    st.write("### Discount Sensitivity Table")
-    discounts = [0.02, 0.05, 0.10, 0.15, 0.20]
-    data = []
-    for d in discounts:
-        if current_margin_pct > d:
-            inc = d / (current_margin_pct - d)
-            data.append({"Discount": f"{d:.0%}", "Req. Vol. Increase": f"+{inc:.1%}", "New Price": f"{p*(1-d):.2f}€"})
-    
-    st.table(pd.DataFrame(data))
+        # 5. VISUALIZATION: The "Danger Zone" Chart
+        
+        
+        discounts = [5, 10, 15, 20, 25, 30]
+        required_vol = []
+        for d in discounts:
+            m_sim = (current_p * (1 - d/100)) - current_vc
+            v_inc = (current_m / m_sim - 1) * 100 if m_sim > 0 else None
+            required_vol.append(v_inc)
 
-    st.caption("Note: This analysis assumes Fixed Costs remain stable. It focuses purely on Contribution Margin protection.")
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=discounts, y=required_vol, mode='lines+markers', 
+                                 line=dict(color='#EF553B', width=3), name="Required Volume Jump"))
+        
+        fig.update_layout(
+            title="Price Discount vs. Required Volume Surge",
+            xaxis_title="Price Discount (%)",
+            yaxis_title="Required Volume Increase (%)",
+            template="plotly_dark"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # 6. ANALYTICAL VERDICT
+        st.info(f"**Verdict:** Για να παραμείνετε στο ίδιο επίπεδο κερδοφορίας μετά την έκπτωση, "
+                f"πρέπει για κάθε 100 μονάδες που πουλάτε σήμερα, να πουλάτε **{100*(1+req_vol_increase_pct):,.0f}** αύριο.")
+
+        if req_vol_increase_pct > 0.5:
+            st.warning("⚠️ **High Risk:** Η απαιτούμενη αύξηση όγκου είναι πάνω από 50%. Είναι εξαιρετικά απίθανο η ελαστικότητα ζήτησης να καλύψει αυτό το κενό.")
