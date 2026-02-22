@@ -18,6 +18,8 @@ def show_library():
         "💰 Finance & Cash Flow": [
             ("Cash Cycle Calculator",      "cash_cycle",                   "run_cash_cycle_app"),
             ("Cash Fragility Index",       "cash_fragility_index",         "show_cash_fragility_index"),
+            # ΕΝΟΠΟΙΗΜΕΝΟ ΕΡΓΑΛΕΙΟ ΕΙΣΠΡΑΞΕΩΝ ΕΔΩ:
+            ("Receivables Strategic Control", "receivables_manager", "show_receivables_manager"),
             ("Supplier Credit Analysis",   "supplier_credit_app",          "show_supplier_credit_analysis"),
             ("Loan vs Leasing",            "loan_vs_leasing_calculator",  "loan_vs_leasing_ui"),
         ],
@@ -30,11 +32,9 @@ def show_library():
         "📦 Operations": [
             ("Unit Cost Calculator",       "unit_cost_app",                "show_unit_cost_app"),
             ("Inventory Turnover",          "inventory_turnover_calculator","show_inventory_turnover_calculator"),
-            # ΕΔΩ ΕΙΝΑΙ Η ΕΝΟΠΟΙΗΣΗ: Αντικατάσταση Credit Days & Discount NPV
-            ("Receivables Strategic Control", "receivables_manager", "show_receivables_manager"),
         ],
     }
-
+           
     cat_names  = list(categories.keys())
     all_tools  = {t[0]: (cat_idx, t_idx)
                   for cat_idx, (_, tools) in enumerate(categories.items())
