@@ -1,81 +1,58 @@
 import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
 from core.engine import compute_core_metrics
 
 def show_loss_threshold_before_price_cut():
     st.header("📉 Loss Threshold Analysis")
-    st.caption("Strategic Filter: Calculate the required volume surge to offset price reductions.")
+    st.info("Calculate the maximum allowable price reduction or volume drop before the business enters a deficit.")
 
-    # 1. FETCH GLOBAL BASELINE
+    # 1. FETCH BASELINE DATA
     metrics = compute_core_metrics()
-    current_p = st.session_state.price
-    current_vc = st.session_state.variable_cost
-    current_m = metrics['unit_contribution'] # Original Margin (P - VC)
-
-    if current_m <= 0:
-        st.error("❌ Current unit margin is zero or negative. Analysis cannot proceed.")
-        return
-
-    # 2. SIMULATION INPUT
-    st.subheader("Price Reduction Scenario")
-    discount_pct = st.slider("Proposed Price Discount (%)", 1, 50, 10)
+    p = st.session_state.get('price', 0.0)
+    vc = st.session_state.get('variable_cost', 0.0)
+    q = st.session_state.get('volume', 0)
     
-    new_p = current_p * (1 - discount_pct/100)
-    new_m = new_p - current_vc
+    current_margin_per_unit = p - vc
+    current_total_contribution = current_margin_per_unit * q
+    fixed_obligations = st.session_state.get('fixed_cost', 0.0) + metrics.get('interest', 0.0)
 
-    # 3. ANALYTICAL CALCULATIONS
-    if new_m <= 0:
-        st.error(f"🚨 **Critical Failure:** A {discount_pct}% discount obliterates the unit margin. You will lose money on every unit sold, regardless of volume.")
+    # 2. ANALYSIS
+    st.subheader("Current Structural Resistance")
+    
+    
+
+    # Υπολογισμός του Margin of Safety σε επίπεδο τιμής
+    # Break-even Price = (Fixed Obligations / Q) + VC
+    be_price = (fixed_obligations / q) + vc if q > 0 else 0
+    max_price_cut = p - be_price
+    max_price_cut_pct = (max_price_cut / p) * 100 if p > 0 else 0
+
+    c1, c2 = st.columns(2)
+    c1.metric("Current Unit Margin", f"{current_margin_per_unit:,.2f} €")
+    c1.metric("Break-even Price", f"{be_price:,.2f} €", help="The price below which you lose money on every sale considering fixed costs.")
+    
+    c2.metric("Max Price Cut Allowed", f"{max_price_cut:,.2f} €", delta=f"-{max_price_cut_pct:.1f}%", delta_color="inverse")
+    
+    st.divider()
+
+    # 3. INTERACTIVE SIMULATOR
+    st.subheader("What-If Scenario")
+    new_price = st.slider("Simulated Price Change (€)", 
+                          min_value=float(vc), 
+                          max_value=float(p * 1.5), 
+                          value=float(p))
+    
+    new_margin = new_price - vc
+    new_ebit = (new_margin * q) - fixed_obligations
+    
+    if new_ebit < 0:
+        st.error(f"🚨 **Warning:** At a price of {new_price:,.2f} €, you will have an annual loss of {abs(new_ebit):,.2f} €.")
     else:
-        # Formula for required Volume Increase: (M_old / M_new) - 1
-        req_vol_increase_pct = (current_m / new_m) - 1
-        new_required_volume = st.session_state.volume * (1 + req_vol_increase_pct)
+        st.success(f"✅ **Safe:** At this price, you still generate {new_ebit:,.2f} € in net profit.")
 
-        # 4. RESULTS DISPLAY
-        st.divider()
-        c1, c2, c3 = st.columns(3)
-        
-        c1.metric("New Unit Margin", f"{new_m:,.2f} €", delta=f"-{discount_pct}%")
-        c2.metric("Req. Volume Increase", f"+{req_vol_increase_pct*100:.1f}%")
-        c3.metric("New Sales Target (Units)", f"{new_required_volume:,.0f}")
-
-        # 5. VISUALIZATION: The "Danger Zone" Chart
-        
-        
-        discounts = [5, 10, 15, 20, 25, 30, 35, 40]
-        required_vol = []
-        for d in discounts:
-            m_sim = (current_p * (1 - d/100)) - current_vc
-            v_inc = (current_m / m_sim - 1) * 100 if m_sim > 0 else None
-            required_vol.append(v_inc)
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=discounts, 
-            y=required_vol, 
-            mode='lines+markers', 
-            line=dict(color='#EF553B', width=3), 
-            name="Required Volume Jump"
-        ))
-        
-        fig.update_layout(
-            title="Price Discount vs. Required Volume Surge",
-            xaxis_title="Price Discount (%)",
-            yaxis_title="Required Volume Increase (%)",
-            template="plotly_dark",
-            hovermode="x unified"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # 6. ANALYTICAL VERDICT
-        st.info(
-            f"**Analytical Verdict:** To maintain current profit levels after the discount, "
-            f"for every 100 units currently sold, you must sell **{100*(1+req_vol_increase_pct):,.0f}** units tomorrow."
-        )
-
-        if req_vol_increase_pct > 0.5:
-            st.warning(
-                "⚠️ **High Structural Risk:** The required volume surge exceeds 50%. It is mathematically improbable "
-                "that demand elasticity will offset this margin compression in most market conditions."
-            )
+    # 4. COLD VERDICT
+    st.markdown(f"""
+    ### 🧠 Strategic Insight
+    Your business model has a **{max_price_cut_pct:.1f}% pricing buffer**. 
+    If your competitors drop prices more than this, or if your costs (VC) rise by more than **{max_price_cut:,.2f} €** per unit, 
+    your current volume will no longer be enough to sustain your fixed obligations.
+    """)
