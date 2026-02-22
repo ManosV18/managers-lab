@@ -7,7 +7,7 @@ def show_break_even_shift_calculator():
     # 1. INITIALIZE GLOBAL STATE (Αν δεν υπάρχουν ήδη, βάζουμε default τιμές)
     if "global_units" not in st.session_state: st.session_state.global_units = 10000
     if "global_price" not in st.session_state: st.session_state.global_price = 30.0
-    if "global_vc" not in st.session_state: st.session_state.global_vc = 15.0
+    if "global_vc" not in st.session_state: st.session_state.global_vc = 20.0
     if "global_fc" not in st.session_state: st.session_state.global_fc = 75000.0
 
     st.info("💡 Data entered here will automatically populate other tools in the path.")
