@@ -11,10 +11,10 @@ def show_loss_threshold_before_price_cut():
     metrics = compute_core_metrics()
     current_p = st.session_state.price
     current_vc = st.session_state.variable_cost
-    current_m = metrics['unit_contribution'] # Αρχικό περιθώριο (P - VC)
+    current_m = metrics['unit_contribution'] # Original Margin (P - VC)
 
     if current_m <= 0:
-        st.error("❌ Το τρέχον περιθώριο κέρδους είναι μηδενικό ή αρνητικό. Η ανάλυση δεν μπορεί να προχωρήσει.")
+        st.error("❌ Current unit margin is zero or negative. Analysis cannot proceed.")
         return
 
     # 2. SIMULATION INPUT
@@ -26,9 +26,9 @@ def show_loss_threshold_before_price_cut():
 
     # 3. ANALYTICAL CALCULATIONS
     if new_m <= 0:
-        st.error(f"🚨 **Critical Failure:** Μια έκπτωση {discount_pct}% εκμηδενίζει το περιθώριο κέρδους. Θα χάνετε χρήματα σε κάθε πώληση, ανεξαρτήτως όγκου.")
+        st.error(f"🚨 **Critical Failure:** A {discount_pct}% discount obliterates the unit margin. You will lose money on every unit sold, regardless of volume.")
     else:
-        # Ο τύπος για το απαιτούμενο Volume Increase: (M_old / M_new) - 1
+        # Formula for required Volume Increase: (M_old / M_new) - 1
         req_vol_increase_pct = (current_m / new_m) - 1
         new_required_volume = st.session_state.volume * (1 + req_vol_increase_pct)
 
@@ -37,13 +37,13 @@ def show_loss_threshold_before_price_cut():
         c1, c2, c3 = st.columns(3)
         
         c1.metric("New Unit Margin", f"{new_m:,.2f} €", delta=f"-{discount_pct}%")
-        c2.metric("Required Volume Increase", f"+{req_vol_increase_pct*100:.1f}%")
+        c2.metric("Req. Volume Increase", f"+{req_vol_increase_pct*100:.1f}%")
         c3.metric("New Sales Target (Units)", f"{new_required_volume:,.0f}")
 
         # 5. VISUALIZATION: The "Danger Zone" Chart
         
         
-        discounts = [5, 10, 15, 20, 25, 30]
+        discounts = [5, 10, 15, 20, 25, 30, 35, 40]
         required_vol = []
         for d in discounts:
             m_sim = (current_p * (1 - d/100)) - current_vc
@@ -51,20 +51,31 @@ def show_loss_threshold_before_price_cut():
             required_vol.append(v_inc)
 
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=discounts, y=required_vol, mode='lines+markers', 
-                                 line=dict(color='#EF553B', width=3), name="Required Volume Jump"))
+        fig.add_trace(go.Scatter(
+            x=discounts, 
+            y=required_vol, 
+            mode='lines+markers', 
+            line=dict(color='#EF553B', width=3), 
+            name="Required Volume Jump"
+        ))
         
         fig.update_layout(
             title="Price Discount vs. Required Volume Surge",
             xaxis_title="Price Discount (%)",
             yaxis_title="Required Volume Increase (%)",
-            template="plotly_dark"
+            template="plotly_dark",
+            hovermode="x unified"
         )
         st.plotly_chart(fig, use_container_width=True)
 
         # 6. ANALYTICAL VERDICT
-        st.info(f"**Verdict:** Για να παραμείνετε στο ίδιο επίπεδο κερδοφορίας μετά την έκπτωση, "
-                f"πρέπει για κάθε 100 μονάδες που πουλάτε σήμερα, να πουλάτε **{100*(1+req_vol_increase_pct):,.0f}** αύριο.")
+        st.info(
+            f"**Analytical Verdict:** To maintain current profit levels after the discount, "
+            f"for every 100 units currently sold, you must sell **{100*(1+req_vol_increase_pct):,.0f}** units tomorrow."
+        )
 
         if req_vol_increase_pct > 0.5:
-            st.warning("⚠️ **High Risk:** Η απαιτούμενη αύξηση όγκου είναι πάνω από 50%. Είναι εξαιρετικά απίθανο η ελαστικότητα ζήτησης να καλύψει αυτό το κενό.")
+            st.warning(
+                "⚠️ **High Structural Risk:** The required volume surge exceeds 50%. It is mathematically improbable "
+                "that demand elasticity will offset this margin compression in most market conditions."
+            )
