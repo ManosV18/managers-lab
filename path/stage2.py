@@ -66,12 +66,23 @@ def run_stage2():
     
     c3.metric("Net Economic Profit", f"{metrics['net_profit']:,.0f} €")
 
-    # COLD VERDICT
-    if st.session_state.liquidity_drain_annual > metrics['operating_profit']:
-        st.error("🚨 **Liquidity Trap:** Your slow-moving inventory and credit terms are consuming 100% of your operating profit. You are growing yourself into bankruptcy.")
-    else:
-        st.success("✅ **Balanced Liquidity:** Your cash cycle is sustainable even with the current inventory buffers.")
+    # =====================================================
+    # COLD VERDICT (Safe Implementation)
+    # =====================================================
+    # Use .get() to avoid KeyError and provide a 0.0 default
+    op_profit = metrics.get('operating_profit', 0.0) 
+    drain = st.session_state.get('liquidity_drain_annual', 0.0)
 
+    if drain > op_profit and op_profit > 0:
+    st.error(
+        "🚨 **Liquidity Trap:** Your slow-moving inventory and credit terms are consuming "
+        f"{ (drain/op_profit)*100:.1f}% of your operating profit. You are growing yourself into bankruptcy."
+    )
+    elif op_profit <= 0:
+    st.error("🚨 **Structural Failure:** Operating profit is zero or negative. The business cannot sustain its own operations.")
+    else:
+    st.success("✅ **Balanced Liquidity:** Your cash cycle is sustainable even with the current inventory buffers.")
+    
     # NAVIGATION
     st.divider()
     nav1, nav2 = st.columns(2)
