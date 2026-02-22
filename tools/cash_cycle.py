@@ -1,6 +1,6 @@
 import streamlit as st
 
-def run_stage2():
+def run_cash_cycle_app():
     """Stage 2: Cash Conversion Cycle Analysis"""
     
     st.header("💰 Stage 2: Cash Conversion Cycle (CCC)")
@@ -125,3 +125,4 @@ def run_stage2():
         if st.button("Next: Unit Economics ➡️", type="primary"):
             st.session_state.flow_step = 3
             st.rerun()
+
