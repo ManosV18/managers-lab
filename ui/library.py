@@ -21,7 +21,7 @@ def show_library():
             ("Receivables Strategic Control", "receivables_manager", "show_receivables_manager"),
             ("Payables Strategic Control",  "payables_manager",    "show_payables_manager"),
             ("Loan vs Leasing",            "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
-            ("growth funding needed",      "growth_funding_needed_calculator",  "show_growth_funding_needed"),
+            ("growth funding needed",      "growth_funding_needed",  "show_growth_funding_needed"),
         ],  
         
         "👥 Customer & Strategy": [
