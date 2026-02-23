@@ -1,36 +1,45 @@
-def compute_core_metrics():
-    """Central derived calculations"""
-    # Χρησιμοποιούμε .get() για ασφάλεια κατά το πρώτο run
-    p = st.session_state.get('price', 0.0)
-    v = st.session_state.get('volume', 0)
-    vc = st.session_state.get('variable_cost', 0.0)
-    fc = st.session_state.get('fixed_cost', 0.0)
-    debt = st.session_state.get('debt', 0.0)
-    rate = st.session_state.get('interest_rate', 0.0) # Cost of Debt
-    wacc = st.session_state.get('wacc', 0.0)          # Weighted Average Cost of Capital
-    liquidity = st.session_state.get('liquidity_drain_annual', 0.0)
+import streamlit as st
 
+def compute_core_metrics():
+    """Central derived calculations incorporating WACC and Interest Rate"""
+    
+    # Fetch values safely
+    s = st.session_state
+    p = s.get('price', 30.0)
+    v = s.get('volume', 10000)
+    vc = s.get('variable_cost', 15.0)
+    fc = s.get('fixed_cost', 50000.0)
+    debt = s.get('debt', 0.0)
+    
+    # Distinct Rates
+    cost_of_debt = s.get('interest_rate', 0.05)
+    wacc = s.get('wacc', 0.12)
+    
+    liquidity = s.get('liquidity_drain_annual', 0.0)
+
+    # Financial Logic
     unit_contribution = p - vc
     revenue = p * v
     ebit = (unit_contribution * v) - fc
     
-    # Οι τόκοι υπολογίζονται ΠΑΝΤΑ με το επιτόκιο δανεισμού (interest_rate)
-    interest = debt * rate
+    # Interest is calculated ONLY on Interest Rate (Cost of Debt)
+    interest_expense = debt * cost_of_debt
     
-    net_profit = ebit - interest - liquidity
+    net_profit = ebit - interest_expense - liquidity
 
+    # Break-Even Analysis
     operating_bep = fc / unit_contribution if unit_contribution > 0 else 0
-    full_fixed = fc + interest + liquidity
-    survival_bep = full_fixed / unit_contribution if unit_contribution > 0 else 0
+    total_fixed_burden = fc + interest_expense + liquidity
+    survival_bep = total_fixed_burden / unit_contribution if unit_contribution > 0 else 0
 
     return {
         "unit_contribution": unit_contribution,
         "revenue": revenue,
         "ebit": ebit,
-        "operating_profit": ebit,
-        "interest": interest,
+        "interest": interest_expense,
         "net_profit": net_profit,
         "operating_bep": operating_bep,
         "survival_bep": survival_bep,
-        "wacc": wacc # Επιστρέφουμε και το WACC για χρήση από τα εργαλεία
+        "wacc": wacc,          # Available for Receivables/NPV
+        "interest_rate": cost_of_debt # Available for Payables/Loans
     }
