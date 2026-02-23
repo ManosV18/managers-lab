@@ -1,5 +1,3 @@
-import streamlit as st
-
 def compute_core_metrics():
     """Central derived calculations"""
     # Χρησιμοποιούμε .get() για ασφάλεια κατά το πρώτο run
@@ -8,13 +6,17 @@ def compute_core_metrics():
     vc = st.session_state.get('variable_cost', 0.0)
     fc = st.session_state.get('fixed_cost', 0.0)
     debt = st.session_state.get('debt', 0.0)
-    rate = st.session_state.get('interest_rate', 0.0)
+    rate = st.session_state.get('interest_rate', 0.0) # Cost of Debt
+    wacc = st.session_state.get('wacc', 0.0)          # Weighted Average Cost of Capital
     liquidity = st.session_state.get('liquidity_drain_annual', 0.0)
 
     unit_contribution = p - vc
     revenue = p * v
     ebit = (unit_contribution * v) - fc
+    
+    # Οι τόκοι υπολογίζονται ΠΑΝΤΑ με το επιτόκιο δανεισμού (interest_rate)
     interest = debt * rate
+    
     net_profit = ebit - interest - liquidity
 
     operating_bep = fc / unit_contribution if unit_contribution > 0 else 0
@@ -29,5 +31,6 @@ def compute_core_metrics():
         "interest": interest,
         "net_profit": net_profit,
         "operating_bep": operating_bep,
-        "survival_bep": survival_bep
+        "survival_bep": survival_bep,
+        "wacc": wacc # Επιστρέφουμε και το WACC για χρήση από τα εργαλεία
     }
