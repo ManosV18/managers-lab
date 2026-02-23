@@ -29,6 +29,7 @@ def initialize_system_state():
         "debt": 20000.0,
         "interest_rate": 0.05,  # Cost of Debt (for Payables/Loans)
         "wacc": 0.12,           # Weighted Average Cost of Capital (for NPV/Receivables)
+        "tax_rate": 0.22,
         "annual_loan_payment": 12000.0,
         
         # Customer
