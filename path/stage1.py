@@ -30,16 +30,6 @@ def run_stage1():
         step=1000.0
     )
 
-    # ✅ ΝΕΟ: Tax Rate Input (ΜΟΝΟ ΑΥΤΟ!)
-    st.session_state.tax_rate = st.number_input(
-        "Corporate Tax Rate (%)",
-        min_value=0.0,
-        max_value=100.0,
-        value=float(st.session_state.get('tax_rate', 0.22)) * 100,
-        step=1.0,
-        help="Corporate tax rate for net profit calculations"
-    ) / 100
-
     # =====================================================
     # CORE METRICS (Single Source of Truth)
     # =====================================================
