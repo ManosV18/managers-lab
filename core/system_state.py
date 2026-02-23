@@ -1,5 +1,3 @@
-import streamlit as st
-
 def initialize_system_state():
     """Single Source of Truth for the entire system"""
 
@@ -33,10 +31,11 @@ def initialize_system_state():
         "liquidity_drain_annual": 0.0
     }
 
-    # 4️⃣ Capital & Financing
+    # 4️⃣ Capital & Financing (ΔΙΑΧΩΡΙΣΜΟΣ RATE vs WACC)
     defaults_capital = {
         "debt": 20000.0,
-        "interest_rate": 0.05,
+        "interest_rate": 0.05,        # Κόστος Δανεισμού (π.χ. Τράπεζα)
+        "wacc": 0.12,                 # Συνολικό Κόστος Κεφαλαίου (για NPV/CLV)
         "annual_loan_payment": 12000.0
     }
 
