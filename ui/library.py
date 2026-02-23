@@ -33,6 +33,10 @@ def show_library():
             ("Unit Cost Calculator",       "unit_cost_app",                "show_unit_cost_app"),
             ("Inventory Strategic Control", "inventory_manager",            "show_inventory_manager"),
         ],
+
+        "🛡️ Risk Management": [
+            ("stress test simulator",    "stress_test_simulator",            "show_stress_test_simulator"),
+                   
     }
          
     cat_names  = list(categories.keys())
