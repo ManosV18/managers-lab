@@ -19,21 +19,22 @@ def show_library():
             ("Cash Cycle Calculator",      "cash_cycle",           "run_cash_cycle_app"),
             ("Cash Fragility Index",       "cash_fragility_index", "show_cash_fragility_index"),
             ("Receivables Strategic Control", "receivables_manager", "show_receivables_manager"),
-            ("Payables Strategic Control",  "payables_manager",    "show_payables_manager"), # New Entry
+            ("Payables Strategic Control",  "payables_manager",    "show_payables_manager"),
             ("Loan vs Leasing",            "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
         ],
         
         "👥 Customer & Strategy": [
             ("CLV Analysis",               "clv_calculator",               "show_clv_calculator"),
             ("QSPM Strategy Tool",          "qspm_two_strategies",          "show_qspm_tool"),
-            "Pricing & Elasticity Strategy", "pricing_strategy", "show_pricing_strategy_tool"),
+            ("Pricing & Elasticity Strategy", "pricing_strategy", "show_pricing_strategy_tool"), # <-- Η ΔΙΟΡΘΩΣΗ ΕΔΩ
         ],
+        
         "📦 Operations": [
             ("Unit Cost Calculator",       "unit_cost_app",                "show_unit_cost_app"),
             ("Inventory Turnover",          "inventory_turnover_calculator","show_inventory_turnover_calculator"),
         ],
     }
-           
+         
     cat_names  = list(categories.keys())
     all_tools  = {t[0]: (cat_idx, t_idx)
                   for cat_idx, (_, tools) in enumerate(categories.items())
