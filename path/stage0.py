@@ -123,37 +123,48 @@ def run_stage0():
     col_c2.metric("Working Capital Required (€)", f"{working_capital_required:,.0f}")
 
     # =====================================================
-    # FINANCIAL STRUCTURE (NEW SECTION - ADDED)
+    # FINANCIAL STRUCTURE (FIXED)
     # =====================================================
     st.divider()
     st.subheader("🏦 Financial Structure")
 
     f1, f2, f3 = st.columns(3)
 
-    st.session_state.tax_rate = f1.number_input(
+    # --- TAX ---
+    tax_input = f1.number_input(
         "Corporate Tax Rate (%)",
         min_value=0.0,
         max_value=100.0,
-        value=float(st.session_state.tax_rate),
-        step=0.5
-    ) / 100
+        value=st.session_state.get("tax_input_field", 22.0),
+        step=0.5,
+        key="tax_input_field"
+    )
 
-    st.session_state.interest_rate = f2.number_input(
+    # --- INTEREST ---
+    interest_input = f2.number_input(
         "Cost of Debt (%)",
         min_value=0.0,
         max_value=100.0,
-        value=float(st.session_state.interest_rate),
-        step=0.5
-    ) / 100
+        value=st.session_state.get("interest_input_field", 5.0),
+        step=0.5,
+        key="interest_input_field"
+    )
 
-    st.session_state.wacc = f3.number_input(
+    # --- WACC ---
+    wacc_input = f3.number_input(
         "WACC (%)",
         min_value=0.0,
         max_value=100.0,
-        value=float(st.session_state.wacc),
-        step=0.5
-    ) / 100
+        value=st.session_state.get("wacc_input_field", 8.0),
+        step=0.5,
+        key="wacc_input_field"
+    )
 
+    # Convert to decimals for engine usage
+    st.session_state.tax_rate = tax_input / 100
+    st.session_state.interest_rate = interest_input / 100
+    st.session_state.wacc = wacc_input / 100
+    
     # =====================================================
     # LOCK BASELINE
     # =====================================================
