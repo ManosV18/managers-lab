@@ -11,7 +11,7 @@ def pmt(rate, nper, pv, fv=0, when=0):
 def format_eur(x):
     return f"€ {x:,.0f}".replace(",", ".")
 
-# CALCULATION ENGINE (Original Formulas Preserved)
+# CALCULATION ENGINE
 def run_calculations(loan_rate, wc_rate, years, tax_rate, when, value, loan_pct, lease_pct, exp_loan, exp_lease, residual, dep_years):
     months = years * 12
     
@@ -44,34 +44,33 @@ def run_calculations(loan_rate, wc_rate, years, tax_rate, when, value, loan_pct,
 # -------------------------------------------------
 def loan_vs_leasing_ui():
     st.header("📊 Loan vs Leasing – Analytical Comparison")
-    st.info("Evaluation based on net financial burden (Interest, Tax Shield, and Opportunity Cost).")
+    st.info("Independent evaluation module. Enter asset-specific financial terms below.")
 
-    # Inputs organized in columns to avoid sidebar conflict
     col_in1, col_in2 = st.columns(2)
     
     with col_in1:
         st.subheader("Financial Terms")
-        loan_rate_input = st.number_input("Interest Rate (%)", value=6.0) / 100
-        wc_rate_input = st.number_input("Working Capital Interest Rate (%)", value=8.0) / 100
-        years_input = st.number_input("Duration (years)", value=15)
-        tax_rate_input = st.number_input("Corporate Tax Rate (%)", value=35.0) / 100
-        timing = st.radio("Payment Timing", ["End of Period", "Beginning of Period"])
+        loan_rate_input = st.number_input("Interest Rate (%)", value=6.0, key="lvl_loan_r") / 100
+        wc_rate_input = st.number_input("Working Capital Interest Rate (%)", value=8.0, key="lvl_wc_r") / 100
+        years_input = st.number_input("Duration (years)", value=15, key="lvl_years")
+        tax_rate_input = st.number_input("Corporate Tax Rate (%)", value=35.0, key="lvl_tax") / 100
+        timing = st.radio("Payment Timing", ["End of Period", "Beginning of Period"], key="lvl_timing")
         when_val = 1 if timing == "Beginning of Period" else 0
 
     with col_in2:
         st.subheader("Asset & Costs")
-        value_input = st.number_input("Property Value (€)", value=250000.0)
-        loan_pct_input = st.number_input("Loan Financing (%)", value=70.0) / 100
-        lease_pct_input = st.number_input("Leasing Financing (%)", value=100.0) / 100
-        exp_loan_input = st.number_input("Acquisition Costs – Loan (€)", value=35000.0)
-        exp_lease_input = st.number_input("Acquisition Costs – Leasing (€)", value=30000.0)
-        residual_input = st.number_input("Residual Value (€)", value=3530.0)
-        dep_years_input = st.number_input("Depreciation Period (years)", value=30)
+        value_input = st.number_input("Property Value (€)", value=250000.0, key="lvl_val")
+        loan_pct_input = st.number_input("Loan Financing (%)", value=70.0, key="lvl_loan_p") / 100
+        lease_pct_input = st.number_input("Leasing Financing (%)", value=100.0, key="lvl_lease_p") / 100
+        exp_loan_input = st.number_input("Acquisition Costs – Loan (€)", value=35000.0, key="lvl_exp_l")
+        exp_lease_input = st.number_input("Acquisition Costs – Leasing (€)", value=30000.0, key="lvl_exp_ls")
+        residual_input = st.number_input("Residual Value (€)", value=3530.0, key="lvl_res")
+        dep_years_input = st.number_input("Depreciation Period (years)", value=30, key="lvl_dep")
 
     st.divider()
-    run = st.button("🚀 Run Financial Analysis", use_container_width=True)
-
-    if run:
+    
+    # Execution Button
+    if st.button("🚀 Run Financial Analysis", use_container_width=True):
         l_final, ls_final, l_cash, l_int, l_dep, l_tx, ls_cash, ls_int, ls_dep, ls_tx = run_calculations(
             loan_rate_input, wc_rate_input, years_input, tax_rate_input, when_val, 
             value_input, loan_pct_input, lease_pct_input, exp_loan_input, exp_lease_input, 
@@ -117,6 +116,7 @@ def loan_vs_leasing_ui():
         ax.grid(True, alpha=0.3)
         st.pyplot(fig)
 
+        # Indifference Point Logic
         indifference_rate = None
         for i in range(len(test_rates) - 1):
             if (ls_burdens[i] - l_final) * (ls_burdens[i+1] - l_final) <= 0:
