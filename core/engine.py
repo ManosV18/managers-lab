@@ -1,9 +1,9 @@
 import streamlit as st
 
 def compute_core_metrics():
-    """Central derived calculations incorporating WACC and Interest Rate"""
+    """Central derived calculations incorporating Taxes, WACC and Interest Rate"""
     
-    # Fetch values safely
+    # 1. Fetch values safely from session state
     s = st.session_state
     p = s.get('price', 30.0)
     v = s.get('volume', 10000)
@@ -11,13 +11,15 @@ def compute_core_metrics():
     fc = s.get('fixed_cost', 50000.0)
     debt = s.get('debt', 0.0)
     
-    # Distinct Rates
+    # 2. Rates & Tax
     cost_of_debt = s.get('interest_rate', 0.05)
     wacc = s.get('wacc', 0.12)
+    tax_rate = s.get('tax_rate', 0.22) # Default 22% (Ελληνικός συντελεστής)
     
+    # 3. Cash Flow adjustments
     liquidity = s.get('liquidity_drain_annual', 0.0)
 
-    # Financial Logic
+    # 4. Financial Logic (The P&L Ladder)
     unit_contribution = p - vc
     revenue = p * v
     ebit = (unit_contribution * v) - fc
@@ -25,9 +27,14 @@ def compute_core_metrics():
     # Interest is calculated ONLY on Interest Rate (Cost of Debt)
     interest_expense = debt * cost_of_debt
     
-    net_profit = ebit - interest_expense - liquidity
+    # EBT (Earnings Before Taxes)
+    ebt = ebit - interest_expense - liquidity
+    
+    # Tax Calculation & Net Profit
+    tax_amount = max(0, ebt * tax_rate) # Φόρος μόνο αν υπάρχει κέρδος
+    net_profit = ebt - tax_amount
 
-    # Break-Even Analysis
+    # 5. Break-Even Analysis
     operating_bep = fc / unit_contribution if unit_contribution > 0 else 0
     total_fixed_burden = fc + interest_expense + liquidity
     survival_bep = total_fixed_burden / unit_contribution if unit_contribution > 0 else 0
@@ -36,10 +43,12 @@ def compute_core_metrics():
         "unit_contribution": unit_contribution,
         "revenue": revenue,
         "ebit": ebit,
-        "interest": interest_expense,
+        "ebt": ebt,
+        "tax_amount": tax_amount,
         "net_profit": net_profit,
         "operating_bep": operating_bep,
         "survival_bep": survival_bep,
-        "wacc": wacc,          # Available for Receivables/NPV
-        "interest_rate": cost_of_debt # Available for Payables/Loans
+        "wacc": wacc,
+        "interest_rate": cost_of_debt,
+        "tax_rate": tax_rate
     }
