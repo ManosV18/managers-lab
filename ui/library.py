@@ -36,7 +36,7 @@ def show_library():
 
         "🛡️ Risk Management": [
             ("stress test simulator",    "stress_test_simulator",            "show_stress_test_simulator"),
-                   
+        ],       
     }
          
     cat_names  = list(categories.keys())
