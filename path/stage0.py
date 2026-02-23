@@ -123,6 +123,38 @@ def run_stage0():
     col_c2.metric("Working Capital Required (€)", f"{working_capital_required:,.0f}")
 
     # =====================================================
+    # FINANCIAL STRUCTURE (NEW SECTION - ADDED)
+    # =====================================================
+    st.divider()
+    st.subheader("🏦 Financial Structure")
+
+    f1, f2, f3 = st.columns(3)
+
+    st.session_state.tax_rate = f1.number_input(
+        "Corporate Tax Rate (%)",
+        min_value=0.0,
+        max_value=100.0,
+        value=float(st.session_state.tax_rate),
+        step=0.5
+    ) / 100
+
+    st.session_state.interest_rate = f2.number_input(
+        "Cost of Debt (%)",
+        min_value=0.0,
+        max_value=100.0,
+        value=float(st.session_state.interest_rate),
+        step=0.5
+    ) / 100
+
+    st.session_state.wacc = f3.number_input(
+        "WACC (%)",
+        min_value=0.0,
+        max_value=100.0,
+        value=float(st.session_state.wacc),
+        step=0.5
+    ) / 100
+
+    # =====================================================
     # LOCK BASELINE
     # =====================================================
     st.divider()
