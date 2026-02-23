@@ -31,7 +31,7 @@ def show_library():
         
         "📦 Operations": [
             ("Unit Cost Calculator",       "unit_cost_app",                "show_unit_cost_app"),
-            ("Inventory Turnover",          "inventory_turnover_calculator","show_inventory_turnover_calculator"),
+            ("Inventory Strategic Control", "inventory_manager",            "show_inventory_manager"),
         ],
     }
          
