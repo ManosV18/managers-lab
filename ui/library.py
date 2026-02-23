@@ -16,13 +16,13 @@ def show_library():
         ],
       
         "💰 Finance & Cash Flow": [
-            ("Cash Cycle Calculator",      "cash_cycle",                   "run_cash_cycle_app"),
-            ("Cash Fragility Index",       "cash_fragility_index",         "show_cash_fragility_index"),
-            # ΕΝΟΠΟΙΗΜΕΝΟ ΕΡΓΑΛΕΙΟ ΕΙΣΠΡΑΞΕΩΝ ΕΔΩ:
+            ("Cash Cycle Calculator",      "cash_cycle",           "run_cash_cycle_app"),
+            ("Cash Fragility Index",       "cash_fragility_index", "show_cash_fragility_index"),
             ("Receivables Strategic Control", "receivables_manager", "show_receivables_manager"),
-            ("Supplier Credit Analysis",   "supplier_credit_app",          "show_supplier_credit_analysis"),
-            ("Loan vs Leasing",            "loan_vs_leasing_calculator",  "loan_vs_leasing_ui"),
+            ("Payables Strategic Control",  "payables_manager",    "show_payables_manager"), # New Entry
+            ("Loan vs Leasing",            "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
         ],
+        
         "👥 Customer & Strategy": [
             ("CLV Analysis",               "clv_calculator",               "show_clv_calculator"),
             ("QSPM Strategy Tool",          "qspm_two_strategies",          "show_qspm_tool"),
