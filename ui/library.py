@@ -26,8 +26,7 @@ def show_library():
         "👥 Customer & Strategy": [
             ("CLV Analysis",               "clv_calculator",               "show_clv_calculator"),
             ("QSPM Strategy Tool",          "qspm_two_strategies",          "show_qspm_tool"),
-            ("Substitutes Sensitivity",    "substitution_analysis_tool",  "show_substitutes_sensitivity_tool"),
-            ("Complementary Analysis",      "complementary_analysis",      "show_complementary_analysis"),
+            "Pricing & Elasticity Strategy", "pricing_strategy", "show_pricing_strategy_tool"),
         ],
         "📦 Operations": [
             ("Unit Cost Calculator",       "unit_cost_app",                "show_unit_cost_app"),
