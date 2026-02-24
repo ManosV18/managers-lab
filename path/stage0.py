@@ -68,6 +68,7 @@ def run_stage0():
     col_b1.metric("Operating Break-Even (Units)", f"{metrics.get('operating_bep',0):,.0f}")
     col_b2.metric("Unit Contribution", f"{metrics.get('unit_contribution',0):,.2f} €")
 
+    # [ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΤΟΥ working_capital_section ΣΤΟ STAGE0.PY]
     # =============================
     # Working Capital Cycle
     # =============================
@@ -77,16 +78,15 @@ def run_stage0():
         st.caption("Adjust operational cash timing and inventory friction.")
         c1, c2, c3, c4 = st.columns(4)
         
+        # ΔΙΟΡΘΩΜΕΝΑ ΟΝΟΜΑΤΑ ΜΕΤΑΒΛΗΤΩΝ ΧΩΡΙΣ ΠΑΡΕΝΘΕΣΕΙΣ
         st.session_state.ar_days = c1.number_input("Receivables (DSO)", min_value=0, value=int(st.session_state.get('ar_days', 45)))
         st.session_state.inventory_days = c2.number_input("Inventory (DIO)", min_value=0, value=int(st.session_state.get('inventory_days', 60)))
-        st.session_state.payables (DPO) = c3.number_input("Payables (DPO)", min_value=0, value=int(st.session_state.get('payables_days', 30)))
+        st.session_state.payables_days = c3.number_input("Payables (DPO)", min_value=0, value=int(st.session_state.get('payables_days', 30)))
         
-        # Προσθήκη Slow Moving Factor βάσει παρατηρήσεων
         slow_pct = c4.number_input("Slow-Stock (%)", min_value=0, max_value=100, value=int(st.session_state.get('slow_moving_factor', 0.2)*100))
         st.session_state.slow_moving_factor = slow_pct / 100
 
-    # Αναλυτικός υπολογισμός Liquidity Drain (365 days)
-    # Inventory & Payables υπολογίζονται επί του COGS, Receivables επί του Revenue
+    # Υπολογισμοί με βάση το 365
     cogs_annual = st.session_state.variable_cost * st.session_state.volume
     revenue_annual = st.session_state.price * st.session_state.volume
     
@@ -97,13 +97,12 @@ def run_stage0():
     inv_funding = cogs_annual * (st.session_state.inventory_days / 365)
     pay_offset = cogs_annual * (st.session_state.payables_days / 365)
     
-    # Προσθήκη friction από αργοκίνητο απόθεμα
     inventory_friction = inv_funding * st.session_state.slow_moving_factor
     
     total_wc_req = ar_funding + inv_funding - pay_offset + inventory_friction
     st.session_state.working_capital_req = total_wc_req
     st.session_state.liquidity_drain_annual = total_wc_req
-
+    
     col_c1, col_c2 = st.columns(2)
     col_c1.metric("Cash Conversion Cycle", f"{ccc} Days")
     col_c2.metric("Total Liquidity Drain", f"{total_wc_req:,.0f} €", help="Cash tied up in operations.")
