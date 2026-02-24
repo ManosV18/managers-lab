@@ -13,12 +13,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# [ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΣΤΟ APP.PY]
 # =========================================================
 # 2️⃣ PATH CONFIGURATION & MANUAL IMPORT HELPER
 # =========================================================
 root_dir = os.path.dirname(os.path.abspath(__file__))
 if root_dir not in sys.path:
-    sys.path.insert(0, 0)
+    sys.path.insert(0, root_dir) # ΔΙΟΡΘΩΣΗ ΕΔΩ
 
 def manual_import(module_name, file_name):
     """Load a module from path/ folder manually"""
