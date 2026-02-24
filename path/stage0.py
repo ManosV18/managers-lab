@@ -9,15 +9,20 @@ def run_stage0():
     st.header("⚙️ Stage 0: System Calibration")
     st.caption("Establish the core economic parameters of the enterprise.")
 
-    # --- DEFAULTS SAFETY CHECK ---
-    if "price" not in st.session_state: st.session_state.price = 0.0
-    if "volume" not in st.session_state: st.session_state.volume = 0
-    if "variable_cost" not in st.session_state: st.session_state.variable_cost = 0.0
-    if "fixed_cost" not in st.session_state: st.session_state.fixed_cost = 0.0
-    if "ar_days" not in st.session_state: st.session_state.ar_days = 45
-    if "inventory_days" not in st.session_state: st.session_state.inventory_days = 60
-    if "payables_days" not in st.session_state: st.session_state.payables_days = 30
-    if "baseline_locked" not in st.session_state: st.session_state.baseline_locked = False
+    # --- DEFAULTS SAFETY CHECK & LOGICAL INITIAL VALUES ---
+    defaults = {
+        "price": 50.0,             # realistic unit price
+        "volume": 1000,            # annual units
+        "variable_cost": 20.0,     # unit variable cost < price
+        "fixed_cost": 15000.0,     # annual fixed costs
+        "ar_days": 45,
+        "inventory_days": 60,
+        "payables_days": 30,
+        "baseline_locked": False
+    }
+
+    for key, val in defaults.items():
+        st.session_state.setdefault(key, val)
 
     col1, col2 = st.columns(2)
 
@@ -65,8 +70,8 @@ def run_stage0():
     st.divider()
     metrics = compute_core_metrics()
     col_b1, col_b2 = st.columns(2)
-    col_b1.metric("Operating Break-Even (Units)", f"{metrics['operating_bep']:,.0f}")
-    col_b2.metric("Unit Contribution", f"{metrics['unit_contribution']:,.2f} €")
+    col_b1.metric("Operating Break-Even (Units)", f"{metrics.get('operating_bep',0):,.0f}")
+    col_b2.metric("Unit Contribution", f"{metrics.get('unit_contribution',0.0):,.2f} €")
 
     # =============================
     # WORKING CAPITAL
@@ -76,9 +81,15 @@ def run_stage0():
     with st.expander("Configure Working Capital Cycle", expanded=False):
         st.caption("Adjust operational cash timing assumptions.")
         c1, c2, c3 = st.columns(3)
-        st.session_state.ar_days = c1.number_input("Receivables Days", min_value=0, value=int(st.session_state.ar_days))
-        st.session_state.inventory_days = c2.number_input("Inventory Days", min_value=0, value=int(st.session_state.inventory_days))
-        st.session_state.payables_days = c3.number_input("Payables Days", min_value=0, value=int(st.session_state.payables_days))
+        st.session_state.ar_days = c1.number_input(
+            "Receivables Days", min_value=0, value=int(st.session_state.ar_days)
+        )
+        st.session_state.inventory_days = c2.number_input(
+            "Inventory Days", min_value=0, value=int(st.session_state.inventory_days)
+        )
+        st.session_state.payables_days = c3.number_input(
+            "Payables Days", min_value=0, value=int(st.session_state.payables_days)
+        )
 
     # =============================
     # CCC + WC CALC
@@ -91,12 +102,13 @@ def run_stage0():
 
     working_capital_required = st.session_state.price * st.session_state.volume * (ccc / 365)
     st.session_state.working_capital_req = working_capital_required
-    st.session_state.liquidity_drain_annual = working_capital_required  # Initial assumption
+    st.session_state.liquidity_drain_annual = working_capital_required
 
     col_c1, col_c2 = st.columns(2)
     col_c1.metric("Cash Conversion Cycle (Days)", f"{ccc}")
     col_c2.metric("Working Capital Required (€)", f"{working_capital_required:,.0f}")
 
+    # Update metrics after WC
     metrics = compute_core_metrics()
     st.session_state.liquidity_drain_annual = metrics.get('liquidity_drain_annual', working_capital_required)
 
@@ -106,9 +118,15 @@ def run_stage0():
     st.divider()
     st.subheader("🏦 Financial Structure")
     f1, f2, f3 = st.columns(3)
-    tax_input = f1.number_input("Corporate Tax Rate (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("tax_input_field", 22.0), step=0.5, key="tax_input_field")
-    interest_input = f2.number_input("Cost of Debt (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("interest_input_field", 5.0), step=0.5, key="interest_input_field")
-    wacc_input = f3.number_input("WACC (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("wacc_input_field", 8.0), step=0.5, key="wacc_input_field")
+    tax_input = f1.number_input(
+        "Corporate Tax Rate (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("tax_input_field", 22.0), step=0.5, key="tax_input_field"
+    )
+    interest_input = f2.number_input(
+        "Cost of Debt (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("interest_input_field", 5.0), step=0.5, key="interest_input_field"
+    )
+    wacc_input = f3.number_input(
+        "WACC (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("wacc_input_field", 8.0), step=0.5, key="wacc_input_field"
+    )
 
     st.session_state.tax_rate = tax_input / 100
     st.session_state.interest_rate = interest_input / 100
