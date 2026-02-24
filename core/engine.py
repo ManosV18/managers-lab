@@ -1,69 +1,75 @@
 import streamlit as st
-
-def initialize_system_state():
-    """Αρχικοποιεί το DNA της επιχείρησης. Single Source of Truth για τα κλειδιά."""
-    defaults = {
-        'price': 100.0,
-        'variable_cost': 60.0,
-        'volume': 5000,
-        'fixed_cost': 150000.0,
-        'annual_loan_payment': 24000.0,
-        'debt': 200000.0,
-        'interest_rate': 0.05,
-        'ar_days': 45,
-        'inventory_days': 60,
-        'payables_days': 30,
-        'slow_moving_factor': 0.2,
-        'tax_rate': 0.22,
-        'opening_cash': 50000.0,
-        'flow_step': 0,
-        'baseline_locked': False
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+from core.unit_economics import compute_unit_economics
+from core.working_capital import compute_working_capital
+from core.fragility import compute_fragility
+from core.leverage import compute_leverage
 
 def compute_core_metrics():
-    """Εκτελεί το 'Cold' Cash Physics Engine."""
+    """
+    The Orchestrator: Integrates all sub-modules into a single 
+    Institutional-Grade financial truth.
+    """
     s = st.session_state
+
+    # 1. ATOMIC LAYER: Unit Economics
+    unit = compute_unit_economics(s.price, s.variable_cost, s.volume)
     
-    # 1. Unit Economics & Viability Guardrail
-    unit_contribution = s.get('price', 0.0) - s.get('variable_cost', 0.0)
-    is_non_viable = unit_contribution <= 0
+    # 2. OPERATIONAL LAYER: Top-line & Variable Costs
+    revenue = s.price * s.volume
+    total_vc = s.variable_cost * s.volume
+    ebitda = unit["total_cm"] - s.fixed_cost
     
-    # 2. Working Capital (Upfront Funding Requirement)
-    rev_annual = s.get('price', 0.0) * s.get('volume', 0.0)
-    cogs_annual = s.get('variable_cost', 0.0) * s.get('volume', 0.0)
+    # 3. LIQUIDITY LAYER: Working Capital
+    wc = compute_working_capital(
+        revenue, 
+        total_vc, 
+        s.ar_days, 
+        s.inventory_days, 
+        s.ap_days
+    )
     
-    ar_req = rev_annual * (s.get('ar_days', 0) / 365)
-    inv_req = cogs_annual * (s.get('inventory_days', 0) / 365) * (1 + s.get('slow_moving_factor', 0.0))
-    ap_offset = cogs_annual * (s.get('payables_days', 0) / 365)
-    total_wc_req = ar_req + inv_req - ap_offset
+    # 4. CASH FLOW LAYER: OCF & FCF
+    # Using a flat tax assumption for the simulation
+    tax_impact = max(0, ebitda * s.tax_rate)
+    ocf = ebitda - tax_impact
+    fcf = ocf - s.annual_loan_payment
     
-    # 3. Operating Cash Flow (OCF) Layer
-    ebit = (unit_contribution * s.get('volume', 0.0)) - s.get('fixed_cost', 0.0)
-    tax_on_ebit = max(0.0, ebit * s.get('tax_rate', 0.22))
-    ocf = ebit - tax_on_ebit # Recurring operational cash generation
+    # 5. RISK & LEVERAGE LAYER
+    monthly_net = fcf / 12
+    # Net Oxygen: Available Cash after initial WC "Lock"
+    current_cash_reserve = s.get('opening_cash', 0.0) - wc["total_wc_requirement"]
     
-    # 4. Debt Service & FCF
-    # Σημείωση: Το annual_loan_payment περιλαμβάνει Principal + Interest
-    fcf = ocf - s.get('annual_loan_payment', 0.0)
+    risk = compute_fragility(fcf, current_cash_reserve, monthly_net)
+    debt_risk = compute_leverage(max(1, ocf), s.annual_loan_payment)
     
-    # 5. Survival Wall
-    cash_wall = s.get('fixed_cost', 0.0) + s.get('annual_loan_payment', 0.0) + total_wc_req
-    survival_bep = cash_wall / unit_contribution if not is_non_viable else float('inf')
-    
-    metrics = {
-        "revenue": rev_annual,
-        "unit_contribution": unit_contribution,
-        "is_non_viable": is_non_viable,
-        "total_wc_requirement": total_wc_req,
-        "cash_wall": cash_wall,
-        "survival_bep": survival_bep,
-        "ebit": ebit,
+    # 6. STRATEGIC LAYER: The Cash Wall & Survival BEP
+    # The absolute volume needed to cover Fixed Costs + Debt + WC Lock
+    cash_wall = s.fixed_cost + s.annual_loan_payment + wc["total_wc_requirement"]
+    survival_bep = cash_wall / unit["unit_contribution"] if unit["unit_contribution"] > 0 else float('inf')
+
+    # 7. CONSOLIDATED OUTPUT
+    return {
+        # Unit Stats
+        "unit_contribution": unit["unit_contribution"],
+        "contribution_ratio": unit["contribution_ratio"],
+        "total_cm": unit["total_cm"],
+        
+        # Operational Stats
+        "revenue": revenue,
+        "ebitda": ebitda,
         "ocf": ocf,
-        "fcf": fcf
+        "fcf": fcf,
+        
+        # Liquidity & WC
+        "wc_requirement": wc["total_wc_requirement"],
+        "ccc": wc["ccc"],
+        "cash_reserve": current_cash_reserve,
+        
+        # Risk & Strategic
+        "fragility_score": risk["fragility_score"],
+        "runway_months": risk["coverage_months"],
+        "dscr": debt_risk["dscr"],
+        "survival_bep": survival_bep,
+        "cash_wall": cash_wall,
+        "is_non_viable": unit["is_non_viable"]
     }
-    
-    s.last_computed_metrics = metrics
-    return metrics
