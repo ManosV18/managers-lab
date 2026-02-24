@@ -61,10 +61,10 @@ def show_loss_threshold_before_price_cut():
     # 4. COLD VERDICT
     st.subheader("🧠 Strategic Insight")
     st.markdown(f"""
-    Το επιχειρηματικό σου μοντέλο διαθέτει ένα **pricing buffer της τάξης του {max_price_cut_pct:.1f}%**. 
+    Your business model maintains a **pricing buffer of {max_price_cut_pct:.1f}%**. 
     
-    * **Ανταγωνισμός:** Αν οι ανταγωνιστές μειώσουν τις τιμές τους περισσότερο από αυτό το όριο, η επιχείρηση θα χρειαστεί άμεση αύξηση του Volume για να επιβιώσει.
-    * **Κόστος:** Αν το μεταβλητό σου κόστος (VC) αυξηθεί κατά **{max_price_cut:,.2f} €** ανά μονάδα, ο τρέχων όγκος πωλήσεων δεν θα επαρκεί πλέον για την κάλυψη των δανείων και των σταθερών εξόδων.
+    * **Competition:** If competitors reduce their prices beyond this threshold, the business will require an immediate increase in Volume to remain viable.
+    * **Costs:** If your Variable Cost (VC) increases by **{max_price_cut:,.2f} €** per unit, the current sales volume will no longer be sufficient to cover debt obligations and fixed expenses.
     """)
 
     
