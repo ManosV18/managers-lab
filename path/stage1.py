@@ -1,6 +1,9 @@
 # =========================================
 # Stage 1: Break-Even Analysis
 # =========================================
+import streamlit as st
+from core.engine import compute_core_metrics
+
 def run_stage1():
 
     # --- DEFAULTS SAFETY CHECK ---
@@ -20,8 +23,14 @@ def run_stage1():
         return
 
     st.subheader("Annual Fixed Costs")
-    st.session_state.fixed_cost = st.number_input("Total Annual Fixed Costs (€)", min_value=0.0, value=float(st.session_state.fixed_cost), step=1000.0)
+    st.session_state.fixed_cost = st.number_input(
+        "Total Annual Fixed Costs (€)", 
+        min_value=0.0, 
+        value=float(st.session_state.fixed_cost), 
+        step=1000.0
+    )
 
+    # --- CORE METRICS ---
     metrics = compute_core_metrics()
     price = st.session_state.price
     variable_cost = st.session_state.variable_cost
