@@ -56,25 +56,28 @@ def run_stage4():
         net_econ_profit = metrics['net_profit'] - liquidity_drain
         st.metric("Net Economic Profit", f"{metrics['net_profit']:,.0f} €", 
                   delta=f"-{liquidity_drain:,.0f} Cash Friction", delta_color="inverse",
-                  help="Accounting Profit minus Cash tied up in Working Capital.")
-
+                  help="Accounting Profit minus Cash tied up in Working Capital.")    
+    
     # 5. SURVIVAL ANALYSIS (Shock Test)
     st.divider()
     st.subheader("🔬 Structural Viability Analysis")
     
-    # Visualization: Capacity vs Survival
-    if surv_bep > 0:
-        # Αντιστρέφουμε τη λογική: Δείχνουμε πόσο κοντά είμαστε στο 'γκρεμό'
-        safety_margin_pct = ((q_annual - surv_bep) / q_annual) if q_annual > 0 else -1.0
+    # Υπολογισμός Safety Margin εκτός του f-string για αποφυγή σφαλμάτων
+    if q_annual > 0:
+        safety_margin_val = (q_annual - surv_bep) / q_annual
+    else:
+        safety_margin_val = -1.0
         
+    safety_margin_text = f"{safety_margin_val:.1%}"
+
+    if surv_bep > 0:
         c1, c2 = st.columns([1, 3])
         c1.write("**Safety Margin**")
-        c1.write(f"### {safety_margin_pct:.1%}")
+        c1.write(f"### {safety_margin_text}") # Χρήση της προ-υπολογισμένης μεταβλητής
         
-        # ProgressBar: Red if below BEP, Green if above
-        progress_val = min(max(q_annual / surv_bep, 0.0), 1.0) if surv_bep > 0 else 0
+        # ProgressBar Logic
+        progress_val = min(max(q_annual / surv_bep, 0.0), 1.0)
         st.progress(progress_val)
-        
     
 
     # Cold Analysis Logic
