@@ -16,12 +16,13 @@ def initialize_system_state():
         
         # Financial Structure
         "debt": 20000.0,
+        "annual_loan_payment": 12000.0, # Προσθήκη για Principal + Interest
         "interest_rate": 0.05,
         "wacc": 0.12,
         "tax_rate": 0.22,
-        "tax_input_field": 22.0,      # Για τα UI widgets
-        "interest_input_field": 5.0,  # Για τα UI widgets
-        "wacc_input_field": 12.0,     # Για τα UI widgets
+        "tax_input_field": 22.0,
+        "interest_input_field": 5.0,
+        "wacc_input_field": 12.0,
         
         # Working Capital
         "ar_days": 45,
@@ -42,49 +43,58 @@ def compute_core_metrics():
     s = st.session_state
 
     # 1. Fetch Inputs
-    price = s.get('price', 50.0)
-    volume = s.get('volume', 15000)
-    variable_cost = s.get('variable_cost', 25.0)
-    fixed_cost = s.get('fixed_cost', 200000.0)
+    p = s.get('price', 50.0)
+    v = s.get('volume', 15000)
+    vc = s.get('variable_cost', 25.0)
+    fc = s.get('fixed_cost', 200000.0)
     debt = s.get('debt', 20000.0)
-    interest_rate = s.get('interest_rate', 0.05)
+    int_rate = s.get('interest_rate', 0.05)
     tax_rate = s.get('tax_rate', 0.22)
-    ar_days = s.get('ar_days', 45)
-    inv_days = s.get('inventory_days', 60)
-    pay_days = s.get('payables_days', 30)
-    slow_factor = s.get('slow_moving_factor', 0.2)
-
-    # 2. P&L Calculations
-    unit_contribution = price - variable_cost
-    revenue = price * volume
-    cogs = variable_cost * volume
-    ebit = (unit_contribution * volume) - fixed_cost
-    interest_expense = debt * interest_rate
+    
+    # 2. P&L Calculations (Standard Accrual)
+    unit_contribution = p - vc
+    revenue = p * v
+    cogs = vc * v
+    ebit = (unit_contribution * v) - fc
+    
+    interest_expense = debt * int_rate
     ebt = ebit - interest_expense
     tax_amount = max(0, ebt * tax_rate)
-    net_profit = ebt - tax_amount
+    net_profit = ebt - tax_amount # Καθαρό κέρδος (Λογιστικό)
 
-    # 3. Working Capital & Liquidity
-    # Current
-    curr_ar = revenue * (ar_days / 365)
-    curr_inv = cogs * (inv_days / 365)
-    curr_pay = cogs * (pay_days / 365)
-    wc_current = curr_ar + curr_inv - curr_pay
+    # 3. Working Capital & Liquidity (Cash Flow Impact)
+    # Χρήση 365 ημερών βάσει οδηγίας
+    curr_ar = revenue * (s.get('ar_days', 45) / 365)
+    curr_inv = cogs * (s.get('inventory_days', 60) / 365)
+    curr_pay = cogs * (s.get('payables_days', 30) / 365)
     
-    inv_friction = (inv_days / 365) * cogs * slow_factor
-    liquidity_drain = wc_current + inv_friction
-    s['liquidity_drain_annual'] = liquidity_drain
+    wc_base = curr_ar + curr_inv - curr_pay
+    inv_friction = curr_inv * s.get('slow_moving_factor', 0.2)
+    
+    # Το Liquidity Drain είναι η συνολική δέσμευση μετρητών στην επιχείρηση
+    total_liquidity_drain = wc_base + inv_friction
+    s['liquidity_drain_annual'] = total_liquidity_drain
 
-    # 4. Cash Flow
-    opening_cash = 0.05 * revenue
-    # Σε single-period, το change_in_wc θεωρείται η δέσμευση του wc_current
-    fcf = net_profit - wc_current 
+    # 4. Cash Flow Logic
+    opening_cash = 0.05 * revenue # Buffer ασφαλείας
+    
+    # FCF = Net Profit + Non-Cash - CapEx - ΔWC
+    # Εδώ ως ΔWC θεωρούμε όλο το liquidity drain για την πρώτη περίοδο
+    fcf = net_profit - total_liquidity_drain
     ending_cash = opening_cash + fcf
 
-    # 5. Break-Even
-    op_bep = fixed_cost / unit_contribution if unit_contribution > 0 else 0
-    total_burden = fixed_cost + interest_expense + liquidity_drain
-    surv_bep = total_burden / unit_contribution if unit_contribution > 0 else 0
+    # 5. Break-Even Analysis (The "Cold" Thresholds)
+    # Operating BEP: Καλύπτει μόνο Fixed Costs
+    op_bep = fc / unit_contribution if unit_contribution > 0 else 0
+    
+    # Survival BEP: Πρέπει να καλύψει Fixed Costs + Τόκους + Δέσμευση WC
+    # Σημείωση: Το WC εξαρτάται από το volume, οπότε χρησιμοποιούμε το WC per unit
+    wc_per_unit = total_liquidity_drain / v if v > 0 else 0
+    
+    # Survival BEP Formula: (FC + Interest) / (Unit Contribution - WC per Unit)
+    # Δείχνει πόσες μονάδες πρέπει να πουλήσεις για να μην "στεγνώσεις" από μετρητά
+    denominator = unit_contribution - wc_per_unit
+    surv_bep = (fc + interest_expense) / denominator if denominator > 0 else 0
 
     return {
         "unit_contribution": unit_contribution,
@@ -96,5 +106,6 @@ def compute_core_metrics():
         "survival_bep": surv_bep,
         "fcf": fcf,
         "ending_cash": ending_cash,
-        "cash_survival_horizon": opening_cash / abs(fcf) if fcf < 0 else float('inf')
+        "cash_survival_horizon": opening_cash / abs(fcf) if fcf < 0 else float('inf'),
+        "liquidity_drain": total_liquidity_drain
     }
