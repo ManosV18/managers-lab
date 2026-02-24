@@ -14,7 +14,7 @@ def compute_core_metrics():
     # 1. ATOMIC LAYER: Unit Economics
     unit = compute_unit_economics(s.price, s.variable_cost, s.volume)
     
-    # 2. OPERATIONAL LAYER: Top-line & Variable Costs
+    # 2. OPERATIONAL LAYER
     revenue = s.price * s.volume
     total_vc = s.variable_cost * s.volume
     ebitda = unit["total_cm"] - s.fixed_cost
@@ -28,44 +28,35 @@ def compute_core_metrics():
         s.ap_days
     )
     
-    # 4. CASH FLOW LAYER: OCF & FCF
-    # Using a flat tax assumption for the simulation
+    # 4. CASH FLOW LAYER
     tax_impact = max(0, ebitda * s.tax_rate)
     ocf = ebitda - tax_impact
     fcf = ocf - s.annual_loan_payment
     
     # 5. RISK & LEVERAGE LAYER
     monthly_net = fcf / 12
-    # Net Oxygen: Available Cash after initial WC "Lock"
     current_cash_reserve = s.get('opening_cash', 0.0) - wc["total_wc_requirement"]
     
     risk = compute_fragility(fcf, current_cash_reserve, monthly_net)
     debt_risk = compute_leverage(max(1, ocf), s.annual_loan_payment)
     
-    # 6. STRATEGIC LAYER: The Cash Wall & Survival BEP
-    # The absolute volume needed to cover Fixed Costs + Debt + WC Lock
+    # 6. STRATEGIC LAYER
     cash_wall = s.fixed_cost + s.annual_loan_payment + wc["total_wc_requirement"]
     survival_bep = cash_wall / unit["unit_contribution"] if unit["unit_contribution"] > 0 else float('inf')
 
     # 7. CONSOLIDATED OUTPUT
     return {
-        # Unit Stats
         "unit_contribution": unit["unit_contribution"],
         "contribution_ratio": unit["contribution_ratio"],
         "total_cm": unit["total_cm"],
-        
-        # Operational Stats
         "revenue": revenue,
         "ebitda": ebitda,
         "ocf": ocf,
         "fcf": fcf,
-        
-        # Liquidity & WC
+        "wacc": s.get('wacc', 0.10),  # <--- ΠΡΟΣΘΗΚΗ WACC (Default 10%)
         "wc_requirement": wc["total_wc_requirement"],
         "ccc": wc["ccc"],
         "cash_reserve": current_cash_reserve,
-        
-        # Risk & Strategic
         "fragility_score": risk["fragility_score"],
         "runway_months": risk["coverage_months"],
         "dscr": debt_risk["dscr"],
