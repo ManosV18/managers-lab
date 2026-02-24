@@ -83,16 +83,14 @@ def show_qspm_tool():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    
-
     # 7. STRATEGIC VERDICT
     st.subheader("🧠 Analyst's Verdict")
     if abs(total_a - total_b) < 0.2:
-        st.warning("**Strategic Stalemate:** Οι επιλογές είναι πολύ κοντά. Επανεκτίμησε τα βάρη (weights) ή εξέτασε αν οι στρατηγικές μπορούν να εφαρμοστούν σταδιακά (Phased Execution).")
+        st.warning("**Strategic Stalemate:** The options are very close. Reassess the weights or consider whether the strategies can be implemented gradually (Phased Execution).")
     elif total_a > total_b:
-        st.success(f"**Winner: {strat1_name}** – Αυτή η επιλογή ευθυγραμμίζεται καλύτερα με τους παράγοντες επιτυχίας και το τρέχον προφίλ ρίσκου.")
+        st.success(f"**Winner: {strat1_name}** – This choice aligns better with the success factors and the current risk profile.")
     else:
-        st.success(f"**Winner: {strat2_name}** – Αυτή η στρατηγική υπερέχει ποσοτικά, παρά το ενδεχομένως υψηλότερο ρίσκο.")
+        st.success(f"**Winner: {strat2_name}** – This strategy quantitatively outperforms, even if it carries potentially higher risk.")
 
     if st.button("Back to Library Hub"):
         st.session_state.selected_tool = None
