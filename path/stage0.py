@@ -1,26 +1,24 @@
 # =========================================
-# Stage 0: System Calibration
+# Stage 0: System Calibration (Safe Defaults)
 # =========================================
 import streamlit as st
 from core.engine import compute_core_metrics
 
 def run_stage0():
-
     st.header("⚙️ Stage 0: System Calibration")
     st.caption("Establish the core economic parameters of the enterprise.")
 
-    # --- DEFAULTS SAFETY CHECK & LOGICAL INITIAL VALUES ---
+    # --- DEFAULTS SAFETY CHECK ---
     defaults = {
-        "price": 50.0,             # realistic unit price
-        "volume": 1000,            # annual units
-        "variable_cost": 20.0,     # unit variable cost < price
-        "fixed_cost": 15000.0,     # annual fixed costs
+        "price": 50.0,            # €/unit
+        "volume": 15000,           # units/year
+        "variable_cost": 25.0,     # €/unit (50% margin)
+        "fixed_cost": 200000.0,    # €/year
         "ar_days": 45,
         "inventory_days": 60,
         "payables_days": 30,
         "baseline_locked": False
     }
-
     for key, val in defaults.items():
         st.session_state.setdefault(key, val)
 
@@ -31,12 +29,8 @@ def run_stage0():
     # =============================
     with col1:
         st.subheader("Revenue Structure")
-        st.session_state.price = st.number_input(
-            "Price per Unit (€)", min_value=0.0, value=float(st.session_state.price)
-        )
-        st.session_state.volume = st.number_input(
-            "Annual Volume (Units)", min_value=0, value=int(st.session_state.volume)
-        )
+        st.session_state.price = st.number_input("Price per Unit (€)", min_value=0.0, value=float(st.session_state.price))
+        st.session_state.volume = st.number_input("Annual Volume (Units)", min_value=0, value=int(st.session_state.volume))
         revenue = st.session_state.price * st.session_state.volume
         st.metric("Annual Revenue", f"{revenue:,.0f} €")
 
@@ -45,12 +39,8 @@ def run_stage0():
     # =============================
     with col2:
         st.subheader("Cost Structure")
-        st.session_state.variable_cost = st.number_input(
-            "Variable Cost per Unit (€)", min_value=0.0, value=float(st.session_state.variable_cost)
-        )
-        st.session_state.fixed_cost = st.number_input(
-            "Annual Fixed Costs (€)", min_value=0.0, value=float(st.session_state.fixed_cost)
-        )
+        st.session_state.variable_cost = st.number_input("Variable Cost per Unit (€)", min_value=0.0, value=float(st.session_state.variable_cost))
+        st.session_state.fixed_cost = st.number_input("Annual Fixed Costs (€)", min_value=0.0, value=float(st.session_state.fixed_cost))
 
         p = st.session_state.price
         vc = st.session_state.variable_cost
@@ -70,8 +60,8 @@ def run_stage0():
     st.divider()
     metrics = compute_core_metrics()
     col_b1, col_b2 = st.columns(2)
-    col_b1.metric("Operating Break-Even (Units)", f"{metrics.get('operating_bep',0):,.0f}")
-    col_b2.metric("Unit Contribution", f"{metrics.get('unit_contribution',0.0):,.2f} €")
+    col_b1.metric("Operating Break-Even (Units)", f"{metrics['operating_bep']:,.0f}")
+    col_b2.metric("Unit Contribution", f"{metrics['unit_contribution']:,.2f} €")
 
     # =============================
     # WORKING CAPITAL
@@ -81,15 +71,9 @@ def run_stage0():
     with st.expander("Configure Working Capital Cycle", expanded=False):
         st.caption("Adjust operational cash timing assumptions.")
         c1, c2, c3 = st.columns(3)
-        st.session_state.ar_days = c1.number_input(
-            "Receivables Days", min_value=0, value=int(st.session_state.ar_days)
-        )
-        st.session_state.inventory_days = c2.number_input(
-            "Inventory Days", min_value=0, value=int(st.session_state.inventory_days)
-        )
-        st.session_state.payables_days = c3.number_input(
-            "Payables Days", min_value=0, value=int(st.session_state.payables_days)
-        )
+        st.session_state.ar_days = c1.number_input("Receivables Days", min_value=0, value=int(st.session_state.ar_days))
+        st.session_state.inventory_days = c2.number_input("Inventory Days", min_value=0, value=int(st.session_state.inventory_days))
+        st.session_state.payables_days = c3.number_input("Payables Days", min_value=0, value=int(st.session_state.payables_days))
 
     # =============================
     # CCC + WC CALC
@@ -108,7 +92,6 @@ def run_stage0():
     col_c1.metric("Cash Conversion Cycle (Days)", f"{ccc}")
     col_c2.metric("Working Capital Required (€)", f"{working_capital_required:,.0f}")
 
-    # Update metrics after WC
     metrics = compute_core_metrics()
     st.session_state.liquidity_drain_annual = metrics.get('liquidity_drain_annual', working_capital_required)
 
@@ -118,15 +101,9 @@ def run_stage0():
     st.divider()
     st.subheader("🏦 Financial Structure")
     f1, f2, f3 = st.columns(3)
-    tax_input = f1.number_input(
-        "Corporate Tax Rate (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("tax_input_field", 22.0), step=0.5, key="tax_input_field"
-    )
-    interest_input = f2.number_input(
-        "Cost of Debt (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("interest_input_field", 5.0), step=0.5, key="interest_input_field"
-    )
-    wacc_input = f3.number_input(
-        "WACC (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("wacc_input_field", 8.0), step=0.5, key="wacc_input_field"
-    )
+    tax_input = f1.number_input("Corporate Tax Rate (%)", min_value=0.0, max_value=100.0, value=22.0, step=0.5, key="tax_input_field")
+    interest_input = f2.number_input("Cost of Debt (%)", min_value=0.0, max_value=100.0, value=5.0, step=0.5, key="interest_input_field")
+    wacc_input = f3.number_input("WACC (%)", min_value=0.0, max_value=100.0, value=8.0, step=0.5, key="wacc_input_field")
 
     st.session_state.tax_rate = tax_input / 100
     st.session_state.interest_rate = interest_input / 100
