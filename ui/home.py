@@ -37,7 +37,7 @@ def show_home():
         # Net Economic Profit (The cold truth including liquidity drain)
         c2.metric(
             "Net Economic Profit", 
-            f"{metrics['net_profit']:,.0f} €", 
+            f"{metrics.get('ebit', 0.0):,.0f} €", 
             help="Final profit after interest AND liquidity drain (working capital friction)."
         )
         
