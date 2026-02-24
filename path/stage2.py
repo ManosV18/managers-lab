@@ -3,66 +3,66 @@ from core.engine import compute_core_metrics
 
 def run_stage2():
     st.header("📉 Stage 2: Volume Shock Simulation")
-    st.caption("Stress testing survival against market volatility and revenue collapse.")
+    st.caption("Sensitivity Analysis: Assessing how sales volatility impacts Free Cash Flow.")
 
-    # 1. Shock Input
-    st.subheader("Simulate Market Crisis")
-    shock_pct = st.slider("Simulated Volume Drop (%)", 0, 80, 25, help="How much sales volume is lost?")
-    
-    # 2. Recompute for the Shock
+    # 1. ΚΡΑΤΑΜΕ ΤΟ BASELINE (Πριν το Shock)
+    # Παίρνουμε τα metrics με το τρέχον volume (π.χ. 5000 μονάδες)
+    baseline_metrics = compute_core_metrics()
+    baseline_fcf = baseline_metrics['fcf']
     original_vol = st.session_state.volume
-    st.session_state.volume = original_vol * (1 - shock_pct/100)
-    
-    metrics = compute_core_metrics()
-    fcf = metrics.get('fcf', 0.0)
 
-    # --- ΠΡΟΣΘΗΚΗ ΣΤΟ STAGE 2: FCF ELASTICITY ---
-    # Υποθέτουμε ότι το baseline_fcf είναι το fcf που είχε το σύστημα χωρίς το shock
-    baseline_metrics = compute_core_metrics() # (Αν δεν έχεις πειράξει ακόμα το volume)
+    # 2. ΡΥΘΜΙΣΗ ΤΟΥ SHOCK
+    st.subheader("Apply Stress Test")
+    shock_pct = st.slider("Simulated Volume Drop (%)", 0, 80, 25, help="How much will sales drop in a bad scenario?")
     
-    # Μετά το shock:
-    shocked_metrics = compute_core_metrics()
-    fcf = shocked_metrics['fcf']
-    baseline_fcf = st.session_state.get('last_computed_metrics', {}).get('fcf', fcf)
+    # Προσωρινός υπολογισμός του νέου όγκου
+    stressed_vol = original_vol * (1 - shock_pct/100)
+    
+    # Ενημερώνουμε προσωρινά το state για να υπολογίσει ο Engine τα νέα metrics
+    st.session_state.volume = stressed_vol
+    stressed_metrics = compute_core_metrics()
+    fcf_shocked = stressed_metrics['fcf']
 
-    # Υπολογισμός % επιδείνωσης
+    # 3. ΥΠΟΛΟΓΙΣΜΟΣ ΕΛΑΣΤΙΚΟΤΗΤΑΣ (Elasticity)
     if baseline_fcf != 0:
-        delta_pct = (fcf - baseline_fcf) / abs(baseline_fcf)
+        delta_pct = (fcf_shocked - baseline_fcf) / abs(baseline_fcf)
     else:
         delta_pct = 0.0
 
+    # 4. ΕΜΦΑΝΙΣΗ ΑΠΟΤΕΛΕΣΜΑΤΩΝ
+    st.divider()
+    c1, c2 = st.columns(2)
+    
+    c1.metric("Original Annual FCF", f"{baseline_fcf:,.0f} €")
+    
+    # Το "Cold" Delta δείχνει την % επιδείνωση
     st.metric(
         label="Stressed Annual FCF", 
-        value=f"{fcf:,.0f} €", 
+        value=f"{fcf_shocked:,.0f} €", 
         delta=f"{delta_pct:.1%} vs Baseline", 
         delta_color="inverse"
     )
- 
-    # 3. Display Impact
-    st.divider()
-    c1, c2 = st.columns(2)
-    c1.metric("Stressed Volume", f"{st.session_state.volume:,.0f} Units")
+
     
-    status_color = "normal" if fcf >= 0 else "inverse"
-    c2.metric("Stressed Annual FCF", f"{fcf:,.0f} €", delta="CRITICAL" if fcf < 0 else "STABLE", delta_color=status_color)
 
-    # 4. Elasticity of Survival
-    st.subheader("⚠️ Elasticity Analysis")
-    if fcf < 0:
-        st.error(f"💀 **Collapse Point:** At a {shock_pct}% drop, the system enters a death spiral (Negative FCF).")
+    # 5. COLD INSIGHT
+    st.subheader("🔬 Manager's Assessment")
+    if fcf_shocked < 0:
+        st.error(f"""
+        **Terminal Shock:** Μια πτώση {shock_pct}% στις πωλήσεις εξαφανίζει όλο το FCF και δημιουργεί 
+        τρύπα {abs(fcf_shocked):,.0f}€. Το μοντέλο σου δεν έχει 'λίπος' για να απορροφήσει κραδασμούς.
+        """)
     else:
-        st.success(f"🛡️ **Resilience:** The system absorbs a {shock_pct}% shock and remains cash-flow positive.")
+        st.success(f"""
+        **Resilient Structure:** Παρά την πτώση, το FCF παραμένει θετικό ({fcf_shocked:,.0f}€). 
+        Έχεις επαρκές 'Safety Buffer'.
+        """)
 
-    # Επαναφορά Baseline
+    # 6. ΕΠΑΝΑΦΟΡΑ VOLUME & NAVIGATION
+    # Επαναφέρουμε το volume στην αρχική του τιμή για να μην επηρεαστούν τα επόμενα Stages
     st.session_state.volume = original_vol
 
     st.divider()
-    nav1, nav2 = st.columns(2)
-    with nav1:
-        if st.button("⬅️ Back to Stage 1"):
-            st.session_state.flow_step = 1
-            st.rerun()
-    with nav2:
-        if st.button("Next: Stage 3 (Liquidity Timeline) 🫁", type="primary"):
-            st.session_state.flow_step = 3
-            st.rerun()
+    if st.button("Next: Liquidity Collapse (Stage 3) 🫁", type="primary", use_container_width=True):
+        st.session_state.flow_step = 3
+        st.rerun()
