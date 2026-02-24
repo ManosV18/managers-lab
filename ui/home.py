@@ -2,7 +2,7 @@ import streamlit as st
 from core.engine import compute_core_metrics
 
 def show_home():
-    # PHASE A: Entry Mode (No Baseline Defined)
+    # PHASE A: Entry Mode (Baseline Not Defined)
     if not st.session_state.get('baseline_locked', False):
         st.title("🧪 Managers’ Lab")
         st.subheader("System Status: Baseline Not Defined")
@@ -24,42 +24,41 @@ def show_home():
         st.caption("Structural Overview — 365-Day Operating Model")
         st.markdown("---")
 
-        # 1. FETCH DATA VIA ENGINE FOR CONSISTENCY
+        # 1. FETCH DATA VIA ENGINE (Single Source of Truth)
         metrics = compute_core_metrics()
         
         # 2. EXECUTIVE METRICS DISPLAY
-        
         c1, c2, c3 = st.columns(3)
         
-        # Revenue
+        # Total Sales
         c1.metric("Annual Revenue", f"{metrics['revenue']:,.0f} €")
         
-        # Net Economic Profit (The cold truth including liquidity drain)
+        # Free Cash Flow (The cold truth of survival)
+        # Χρησιμοποιούμε το 'fcf' αντί για 'net_profit' ή 'ebit'
+        fcf_val = metrics['fcf']
         c2.metric(
-            "Net Economic Profit", 
-            f"{metrics.get('ebit', 0.0):,.0f} €", 
-            help="Final profit after interest AND liquidity drain (working capital friction)."
+            "Free Cash Flow (FCF)", 
+            f"{fcf_val:,.0f} €", 
+            help="Final liquidity after taxes, operating costs, and debt service."
         )
         
-        # Contribution Margin %
-        p = st.session_state.get('price', 0.0)
-        margin_pct = (metrics['unit_contribution'] / p * 100) if p > 0 else 0
+        # Contribution Margin (Using Engine-calculated Ratio)
+        margin_pct = metrics['contribution_ratio'] * 100
         c3.metric("Contribution Margin", f"{margin_pct:.1f}%")
 
         # 3. STATUS VERDICT
         st.divider()
-        if metrics['net_profit'] > 0:
-            st.success(f"✅ **System Status: Functional.** The enterprise is generating a net surplus above its structural obligations.")
+        if fcf_val > 0:
+            st.success(f"✅ **System Status: Functional.** The enterprise is generating a net surplus of {fcf_val:,.0f}€ above its structural obligations.")
         else:
-            st.error(f"🚨 **System Status: Deficit.** The enterprise is currently consuming capital to maintain operations.")
+            st.error(f"🚨 **System Status: Deficit.** The enterprise is currently consuming capital at a rate of {abs(fcf_val/12):,.0f}€ per month.")
 
         # 4. NAVIGATION HUB
         st.subheader("Analysis Environment")
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("Enter Structured Path", use_container_width=True, type="primary"):
+            if st.button("Enter War Room Path", use_container_width=True, type="primary"):
                 st.session_state.mode = "path"
-                # Start from Stage 1 as Baseline is already locked
                 st.session_state.flow_step = 1
                 st.rerun()
         with col_b:
@@ -75,6 +74,11 @@ def show_home():
                 "The baseline defines the structural mechanics of the system. "
                 "Modifying it will recalibrate all analytical modules."
             )
+            
+            # Additional Cold Metrics for the Expander
+            st.write(f"**Survival BEP:** {metrics['survival_bep']:,.0f} units")
+            st.write(f"**Cash Conversion Cycle:** {metrics['ccc']} days")
+            
             if st.button("Unlock Baseline & Recalibrate", use_container_width=True):
                 st.session_state.baseline_locked = False
                 st.session_state.mode = "path"
