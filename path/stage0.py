@@ -50,6 +50,6 @@ def run_stage0():
         st.rerun()
 
     # 6. RESET OPTION
-    if st.button("Reset to Defaults", variant="ghost"):
+    if st.button("Reset to Defaults", type="secondary"):
         st.session_state.clear()
         st.rerun()
