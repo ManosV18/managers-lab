@@ -3,73 +3,77 @@ import plotly.graph_objects as go
 from core.engine import compute_core_metrics
 
 def show_break_even_shift_calculator():
-    st.header("⚖️ Break-Even Shift Analysis")
-    st.caption("Strategic Simulation: Evaluate how structural changes shift your survival anchor.")
+    st.header("⚖️ Break-even Shift Analysis")
+    st.info("Analyze how changes in fixed costs or unit margins shift your survival threshold.")
 
-    # 1. FETCH SYNCED DATA
-    # Αντλούμε τα δεδομένα από το κεντρικό state μέσω του engine
+    # 1. FETCH BASELINE DATA
     metrics = compute_core_metrics()
+    s = st.session_state
     
-    # 2. SIMULATION CONTROLS
-    st.subheader("🛠️ Strategic Stress Test")
-    st.info("Simulate shifts without affecting the baseline. Use the button at the bottom to commit changes.")
+    current_fixed = s.get('fixed_cost', 0.0) + s.get('annual_loan_payment', 0.0)
+    current_unit_cm = metrics['unit_contribution']
+    current_bep = metrics['survival_bep']
 
+    # 2. SHIFT PARAMETERS
+    st.subheader("🛠️ Shift Scenarios")
     col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Price & Volume**")
-        # Χρησιμοποιούμε sliders για "τι θα γινόταν αν" (simulation)
-        price_shift = st.slider("Simulate Price Change (%)", -30, 50, 0)
-        vol_shift = st.slider("Simulate Volume Change (%)", -30, 50, 0)
-        
-    with col2:
-        st.markdown("**Cost Structure**")
-        fc_shift = st.slider("Simulate Fixed Cost Change (%)", -30, 50, 0)
-        vc_shift = st.slider("Simulate Var. Cost Change (%)", -30, 50, 0)
-
-    # 3. ANALYTICAL CALCULATIONS (Stressed Model)
-    s_price = st.session_state.price * (1 + price_shift/100)
-    s_vol = st.session_state.volume * (1 + vol_shift/100)
-    s_fc = st.session_state.fixed_cost * (1 + fc_shift/100)
-    s_vc = st.session_state.variable_cost * (1 + vc_shift/100)
     
-    s_unit_cont = s_price - s_vc
-    s_bep = s_fc / s_unit_cont if s_unit_cont > 0 else 0
-    s_profit = (s_unit_cont * s_vol) - s_fc - st.session_state.annual_loan_payment - st.session_state.liquidity_drain_annual
+    fixed_change_pct = col1.slider("Change in Fixed Costs (%)", -30, 50, 0)
+    margin_change_pct = col2.slider("Change in Unit Margin (%)", -30, 50, 0)
 
-    # 4. IMPACT VISUALIZATION
+    # 3. CALCULATIONS
+    new_fixed = current_fixed * (1 + fixed_change_pct / 100)
+    new_unit_cm = current_unit_cm * (1 + margin_change_pct / 100)
+    
+    # New Break-even Point (Volume)
+    new_bep = new_fixed / new_unit_cm if new_unit_cm > 0 else float('inf')
+    bep_shift = new_bep - current_bep
+    bep_shift_pct = (bep_shift / current_bep * 100) if current_bep > 0 else 0
+
+    # 4. RESULTS DASHBOARD
     st.divider()
-    c1, c2, c3 = st.columns(3)
+    m1, m2, m3 = st.columns(3)
     
-    # Σύγκριση με το τρέχον Profit
-    c1.metric("Simulated Profit", f"{s_profit:,.2f} €", 
-              delta=f"{s_profit - metrics['net_profit']:,.2f} €")
-    
-    # Μετατόπιση του Break-Even
-    bep_delta = s_bep - metrics['survival_bep']
-    c2.metric("Simulated Survival BEP", f"{s_bep:,.0f} u", 
-              delta=f"{bep_delta:,.0f} u", delta_color="inverse")
-    
-    # Margin of Safety
-    safety_margin = ((s_vol / s_bep) - 1) * 100 if s_bep > 0 else 0
-    c3.metric("Survival Buffer", f"{safety_margin:.1f}%")
+    m1.metric("Current BEP (Units)", f"{current_bep:,.0f}")
+    m2.metric("New BEP (Units)", f"{new_bep:,.0f}", 
+              delta=f"{bep_shift:+.0f} units", 
+              delta_color="inverse")
+    m3.metric("Threshold Shift", f"{bep_shift_pct:+.1f}%", 
+              delta="Risk Impact", 
+              delta_color="inverse")
 
-    # 5. BREAK-EVEN CHART
+    # 5. VISUALIZATION: BEP SHIFT CHART
+    st.subheader("📈 Break-even Sensitivity")
     
-    
-    # Οπτικοποίηση της διαφοράς
-    labels = ['Baseline BEP', 'Simulated BEP']
-    values = [metrics['survival_bep'], s_bep]
-    
-    fig = go.Figure(data=[go.Bar(x=labels, y=values, marker_color=['#636EFA', '#EF553B'])])
-    fig.update_layout(title="Break-Even Threshold Shift", height=300, template="plotly_dark")
+    fig = go.Figure()
+    # Baseline Bar
+    fig.add_trace(go.Bar(
+        x=['Current', 'Scenario'],
+        y=[current_bep, new_bep],
+        marker_color=['#636EFA', '#EF553B'],
+        text=[f"{current_bep:,.0f}", f"{new_bep:,.0f}"],
+        textposition='auto',
+    ))
+
+    fig.update_layout(
+        yaxis_title="Units needed to Break-even",
+        template="plotly_dark",
+        height=400
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-    # 6. ACTION BRIDGE
-    st.divider()
-    if st.button("🚨 Overwrite Baseline with Simulated Values", type="secondary"):
-        st.session_state.price = s_price
-        st.session_state.volume = s_vol
-        st.session_state.fixed_cost = s_fc
-        st.session_state.variable_cost = s_vc
-        st.success("Global Configuration Updated. All stages have been recalibrated.")
+    
+
+    # 6. COLD ANALYSIS
+    st.subheader("🧠 Analyst's Verdict")
+    if bep_shift_pct > 20:
+        st.error(f"🚨 **DANGER:** Your break-even point has increased by **{bep_shift_pct:.1f}%**. Your business is becoming significantly more fragile. You need a massive volume increase to justify these new costs.")
+    elif bep_shift_pct < 0:
+        st.success(f"✅ **EFFICIENCY GAIN:** Your break-even point dropped by **{abs(bep_shift_pct):.1f}%**. Your 'Safety Margin' has expanded.")
+    else:
+        st.info("ℹ️ **NEUTRAL:** No significant shift in structural risk.")
+
+    # 7. NAVIGATION
+    if st.button("Back to Library Hub"):
+        st.session_state.selected_tool = None
         st.rerun()
