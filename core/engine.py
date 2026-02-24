@@ -52,3 +52,25 @@ def compute_core_metrics():
     
     s.last_computed_metrics = metrics
     return metrics
+
+def initialize_system_state():
+    defaults = {
+        'price': 100.0,
+        'variable_cost': 60.0,
+        'volume': 5000,
+        'fixed_cost': 150000.0,
+        'annual_loan_payment': 24000.0,
+        'debt': 200000.0,
+        'interest_rate': 0.05,
+        'ar_days': 45,
+        'inventory_days': 60,
+        'payables_days': 30,
+        'slow_moving_factor': 0.2,
+        'tax_rate': 0.22,
+        'opening_cash_balance': 50000.0,
+        'flow_step': 0,
+        'baseline_locked': False
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
