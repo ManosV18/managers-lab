@@ -9,19 +9,17 @@ def run_stage4():
     m = compute_core_metrics()
     s = st.session_state
     
-    # Υπολογισμός αρχικού Runway (Baseline) πριν τις νέες παρεμβάσεις
-    # Χρησιμοποιούμε το FCF/12 για το monthly burn rate
+    # Baseline Runway Calculation
     monthly_net_baseline = m['fcf'] / 12
     initial_oxygen = s.get('opening_cash', 0.0) - m['total_wc_requirement']
     
     if monthly_net_baseline >= 0:
-        initial_runway = 100 # Stable
+        initial_runway = 100.0  # Stable
     else:
         initial_runway = max(0.0, initial_oxygen / abs(monthly_net_baseline))
 
     # 2. INTERVENTION CONTROLS
     st.subheader("Choose Your Intervention")
-    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -39,59 +37,63 @@ def run_stage4():
     with col2:
         st.markdown("### 🔵 AR Factoring (WC Release)")
         factoring_pct = st.slider("Factor portion of Accounts Receivable (%)", 0, 100, 0)
-        factoring_fee = 0.03 # 3% fee on factored amount
+        factoring_fee = 0.03 
         
     # 3. CALCULATE IMPACT
-    # Impact of Equity: Αυξάνει το αρχικό οξυγόνο
     new_oxygen = initial_oxygen + injection
     
-    # Impact of Factoring: Immediate Cash Release (από το τρέχον AR balance)
+    # Factoring Impact
     ar_balance = (s.price * s.volume) * (s.ar_days / 365)
     cash_released = ar_balance * (factoring_pct / 100) * (1 - factoring_fee)
     new_oxygen += cash_released
     
-    # Impact of Debt Restructuring: Αλλάζει το Monthly Net Flow (μειώνει το bleed)
-    # Χρησιμοποιούμε το OCF (Operating Cash Flow) και αφαιρούμε το νέο Debt Service
+    # Monthly Flow Impact
     new_monthly_net = (m['ocf'] - new_annual_payment) / 12
     
-    # New Runway Calculation
+    # New Runway & Delta Calculation
     if new_monthly_net >= 0:
-        new_runway_val = "∞ (Stable)"
-        runway_is_stable = True
+        new_runway_val = 100.0 # Stable
+        display_runway = "∞ (Stable)"
     else:
-        calc_runway = max(0.0, new_oxygen / abs(new_monthly_net))
-        new_runway_val = f"{calc_runway:,.1f} Months"
-        runway_is_stable = False
+        new_runway_val = max(0.0, new_oxygen / abs(new_monthly_net))
+        display_runway = f"{new_runway_val:,.1f} Months"
+
+    # --- ΠΡΟΣΘΗΚΗ: RUNWAY DELTA LOGIC ---
+    # Υπολογίζουμε πόσους μήνες κερδίσαμε ή χάσαμε
+    if initial_runway >= 100 and new_runway_val >= 100:
+        runway_delta_text = "Maintained Stability"
+    elif new_runway_val >= 100:
+        runway_delta_text = "Achieved Stability"
+    else:
+        diff = new_runway_val - initial_runway
+        runway_delta_text = f"{diff:+.1f} Months"
 
     # 4. RESULTS DASHBOARD
     st.divider()
     res1, res2 = st.columns(2)
     
-    res1.metric("Baseline Runway", f"{initial_runway:,.1f} Months" if initial_runway < 100 else "Stable")
+    res1.metric("Baseline Runway", 
+               f"{initial_runway:,.1f} Months" if initial_runway < 100 else "Stable")
     
-    delta_val = f"{injection + cash_released:,.0f}€ Liquidity Boost"
-    res2.metric("New Runway after Intervention", new_runway_val, 
-                delta=delta_val, delta_color="normal")
+    # Εδώ εμφανίζουμε το Runway Delta
+    res2.metric("New Runway after Intervention", 
+               display_runway, 
+               delta=runway_delta_text, 
+               delta_color="normal" if "Months" in runway_delta_text and (new_runway_val > initial_runway) else "off")
 
     # 5. COLD ANALYSIS
     st.subheader("🔬 Tactical Assessment")
     
-    
-    
-    if injection > 0:
-        st.write(f"✔️ **Equity Injection:** Προσθέτεις {injection:,.0f}€ στο 'Month 0', αγοράζοντας χρόνο χωρίς να επιβαρύνεις το P&L.")
-    
-    if factoring_pct > 0:
-        st.write(f"⚡ **Factoring:** Απελευθερώνεις {cash_released:,.0f}€ από τις απαιτήσεις σου. Βελτιώνει το 'Month 0' αλλά μειώνει ελαφρώς το μελλοντικό margin λόγω fee.")
-
-    if new_annual_payment < s.annual_loan_payment:
-        reduction = (s.annual_loan_payment - new_annual_payment) / 12
-        st.write(f"📉 **Debt Restructuring:** Μειώνεις το μηνιαίο bleed κατά {reduction:,.0f}€. Αυτό είναι το πιο ισχυρό εργαλείο για δομική επιβίωση.")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if injection > 0 or cash_released > 0:
+            st.write(f"✅ **Liquidity Boost:** +{injection + cash_released:,.0f}€ immediate oxygen.")
+        if new_annual_payment < s.annual_loan_payment:
+            st.write(f"📉 **Flow Improvement:** +{(s.annual_loan_payment - new_annual_payment)/12:,.0f}€/month saved.")
 
     # 6. NAVIGATION
     st.divider()
     if st.button("Apply & Finalize Strategy 🏁", type="primary", use_container_width=True):
-        # Ενημερώνουμε το state με τις νέες "πολεμικές" παραμέτρους
         s.opening_cash += (injection + cash_released)
         s.annual_loan_payment = new_annual_payment
         s.flow_step = 5
