@@ -40,7 +40,12 @@ def compute_core_metrics():
     principal = max(0.0, debt_service - interest_expense)
     fcf = net_profit - total_wc_req - principal
     
+    revenue_annual = price * vol
+    total_operating_costs = (v_cost * vol) + f_cost
+    
     metrics = {
+        "revenue": revenue_annual, # Προσθήκη για το Home Screen
+        "annual_costs": total_operating_costs,
         "unit_contribution": unit_contribution,
         "total_wc_requirement": total_wc_req,
         "cash_wall": cash_wall,
