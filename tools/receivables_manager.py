@@ -6,8 +6,9 @@ from core.engine import compute_core_metrics
 
 # --- 1. CORE LOGIC ENGINES ---
 def calculate_discount_npv(current_sales, extra_sales, discount_trial, prc_clients_take_disc, 
-                           eff_take, eff_no_take, new_days_payment, cogs, wacc):
+                            eff_take, eff_no_take, new_days_payment, cogs, wacc):
     getcontext().prec = 20
+    # Daily interest rate
     i = wacc / 365
     
     avg_current_days = (prc_clients_take_disc * eff_take) + ((1 - prc_clients_take_disc) * eff_no_take)
@@ -23,10 +24,12 @@ def calculate_discount_npv(current_sales, extra_sales, discount_trial, prc_clien
     profit_extra = extra_sales * (1 - cogs / current_sales) if current_sales > 0 else 0
     discount_cost = total_sales * prcnt_new * discount_trial
     
+    # Το κέρδος από το ελεύθερο κεφάλαιο βάσει WACC
     yield_free_cap = free_cap * wacc
     npv = yield_free_cap + profit_extra - discount_cost
     
     max_discount = (yield_free_cap + profit_extra) / (total_sales * prcnt_new) if (total_sales * prcnt_new) > 0 else 0
+    # Προσέγγιση βέλτιστης έκπτωσης βάσει κόστους χρήματος
     optimum_discount = (1 - ((1 + i) ** (new_days_payment - avg_current_days))) / 2
 
     return {
@@ -46,6 +49,7 @@ def show_receivables_manager():
     st.header("📊 Receivables Strategic Control")
     st.info("Analyze credit exposure and simulate NPV-positive discount policies.")
     
+    # 1. SYNC WITH CORE ENGINE
     metrics = compute_core_metrics()
     base_sales = metrics['revenue']
     base_cogs = st.session_state.get('variable_cost', 0.0) * st.session_state.get('volume', 0)
@@ -65,7 +69,9 @@ def show_receivables_manager():
         for i in range(num_cat):
             c = st.columns([2, 2, 1])
             name = c[0].text_input(f"Name {i}", f"Segment {i+1}", label_visibility="collapsed", key=f"rn_{i}")
-            amt = c[1].number_input(f"Amt {i}", 0.0, value=base_sales/num_cat if base_sales > 0 else 10000.0, label_visibility="collapsed", key=f"ra_{i}")
+            # Μοιράζουμε το συνολικό revenue ως default
+            default_amt = base_sales/num_cat if base_sales > 0 else 10000.0
+            amt = c[1].number_input(f"Amt {i}", 0.0, value=float(default_amt), label_visibility="collapsed", key=f"ra_{i}")
             days = c[2].number_input(f"Days {i}", 0, value=60, label_visibility="collapsed", key=f"rd_{i}")
             data.append({"Category": name, "Amount": amt, "Days": days})
         
@@ -75,6 +81,7 @@ def show_receivables_manager():
         
         st.metric("Weighted Average DSO", f"{weighted_avg_days:.1f} Days")
         
+        # Pareto Visualization
         df["Cum%"] = (df["Amount"].cumsum() / total_amt) * 100
         fig = go.Figure()
         fig.add_trace(go.Bar(x=df["Category"], y=df["Amount"], name="Debt", marker_color="#1f77b4"))
@@ -91,19 +98,32 @@ def show_receivables_manager():
         sim_dso = st.session_state.get('sim_dso', weighted_avg_days)
         
         col_l, col_r = st.columns(2)
-        disc_val = col_l.slider("Discount %", 0.0, 5.0, 2.0, step=0.1) / 100
-        take_rate = col_r.slider("% Customers Taking", 0, 100, 40) / 100
-        target_days = col_l.number_input("Target Days", value=10)
-        extra_sales_pct = col_r.number_input("Est. Extra Sales %", value=5.0) / 100
+        disc_val = col_l.slider("Discount % Offered", 0.0, 5.0, 2.0, step=0.1) / 100
+        take_rate = col_r.slider("% Customers Taking the Discount", 0, 100, 40) / 100
+        target_days = col_l.number_input("Target Payment Days (for Discount)", value=10)
+        extra_sales_pct = col_r.number_input("Est. Extra Sales due to Discount %", value=5.0) / 100
         
+        # Υπολογισμός NPV
         res = calculate_discount_npv(total_amt, total_amt * extra_sales_pct, disc_val, take_rate, 
                                      target_days, sim_dso, target_days, base_cogs, base_wacc)
         
         st.divider()
         m1, m2, m3 = st.columns(3)
         m1.metric("DSO Shift", f"{res['avg_current_days']} → {res['new_avg_days']}")
-        m2.metric("Cash Released", f"€ {res['free_capital']:,.2f}")
-        m3.metric("Net NPV", f"€ {res['npv']:,.2f}", delta="Gain" if res['npv'] > 0 else "Loss")
+        m2.metric("Cash Released", f"€ {res['free_capital']:,.0f}")
+        m3.metric("Net NPV", f"€ {res['npv']:,.0f}", delta="Gain" if res['npv'] > 0 else "Loss")
 
         st.subheader("🧠 Strategic Decision Thresholds")
-        st.info(f"Max Sustainable Discount: **{res['max_discount']}%** | Optimum: **{res['optimum_discount']}%**")
+        st.info(f"**Max Sustainable Discount:** {res['max_discount']}% | **Optimum:** {res['optimum_discount']}%")
+        
+        
+
+        # 4. COLD VERDICT
+        if res['npv'] < 0:
+            st.error("🚨 **Financial Drain:** Το κόστος της έκπτωσης υπερβαίνει το όφελος από την απελευθέρωση κεφαλαίου. Μην εφαρμόσετε αυτή την πολιτική.")
+        else:
+            st.success("✅ **Value Creation:** Η πολιτική αυτή αυξάνει την καθαρή παρούσα αξία της επιχείρησης, βελτιώνοντας ταυτόχρονα τη ρευστότητα.")
+
+    if st.button("Back to Library Hub"):
+        st.session_state.selected_tool = None
+        st.rerun()
