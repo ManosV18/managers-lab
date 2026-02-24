@@ -1,6 +1,8 @@
+# =========================================
+# Stage 3: Unit Economics (CLV & CAC)
+# =========================================
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 from core.engine import compute_core_metrics
 
 def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, realization, risk_p, cac):
@@ -24,30 +26,43 @@ def run_stage3():
     st.header("👥 Stage 3: Unit Economics (CLV & CAC)")
     st.caption("Advanced Customer Lifetime Value modeling: Syncing Unit Economics with Risk-Adjusted NPV.")
 
-    # 1. SYNC WITH SHARED CORE
+    # --- DEFAULTS SAFETY CHECK ---
+    defaults = {
+        "clv_purchases": 4.0,
+        "clv_units_per_order": 1.0,
+        "clv_churn": 15.0,
+        "clv_cac": 150.0,
+        "clv_horizon": 5,
+        "clv_disc": 8.0,
+        "clv_risk_p": 3.0,
+        "clv_real": 0.9
+    }
+    for key, val in defaults.items():
+        st.session_state.setdefault(key, val)
+
+    # 1. SYNC WITH CORE ENGINE
     metrics = compute_core_metrics()
-    unit_margin = metrics['unit_contribution']
+    unit_margin = metrics.get('unit_contribution', 30.0)  # fallback if core fails
     st.info(f"🔗 **Core Engine Linked:** Current Unit Margin: **{unit_margin:,.2f} €**")
 
-    # 2. INPUTS (Simplifying for the Path, using Scenario B as primary)
+    # 2. INPUTS
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Customer Behavior")
-        purchases = st.number_input("Annual Purchase Frequency", value=4.0)
-        units_per_order = st.number_input("Units per Order", value=1.0)
-        churn = st.slider("Annual Churn Rate (%)", 0, 100, 15)
-        
+        purchases = st.number_input("Annual Purchase Frequency", value=st.session_state.clv_purchases, min_value=0.1)
+        units_per_order = st.number_input("Units per Order", value=st.session_state.clv_units_per_order, min_value=0.1)
+        churn = st.slider("Annual Churn Rate (%)", 0, 100, int(st.session_state.clv_churn))
     with col2:
         st.subheader("Acquisition & Horizon")
-        cac = st.number_input("Acquisition Cost (CAC) per Customer (€)", value=150.0)
-        horizon = st.slider("Analysis Horizon (Years)", 1, 15, 5)
+        cac = st.number_input("Acquisition Cost (CAC) per Customer (€)", value=st.session_state.clv_cac, min_value=0.0)
+        horizon = st.slider("Analysis Horizon (Years)", 1, 15, st.session_state.clv_horizon)
 
-    # 3. ADVANCED ASSUMPTIONS (Expander to keep UI clean)
+    # 3. ADVANCED ASSUMPTIONS
     with st.expander("⚙️ NPV & Risk Assumptions"):
         c1, c2 = st.columns(2)
-        disc = c1.number_input("Base Discount Rate (%)", value=8.0)
-        risk_p = c1.number_input("Customer Risk Premium (%)", value=3.0)
-        real = c2.number_input("Realization Rate (0.0-1.0)", value=0.90)
+        disc = c1.number_input("Base Discount Rate (%)", value=st.session_state.clv_disc)
+        risk_p = c1.number_input("Customer Risk Premium (%)", value=st.session_state.clv_risk_p)
+        real = c2.number_input("Realization Rate (0.0-1.0)", value=st.session_state.clv_real, min_value=0.0, max_value=1.0)
 
     # 4. CALCULATION
     total_margin_per_order = unit_margin * units_per_order
@@ -55,17 +70,15 @@ def run_stage3():
 
     # 5. DISPLAY METRICS
     st.divider()
-    
     m1, m2, m3 = st.columns(3)
     m1.metric("Risk-Adjusted CLV (NPV)", f"{clv_npv:,.2f} €")
     m2.metric("CAC", f"{cac:,.2f} €")
-    
     ltv_cac_ratio = (clv_npv + cac) / cac if cac > 0 else 0
     m3.metric("LTV/CAC Ratio", f"{ltv_cac_ratio:.2f}x")
 
     # 6. COLD VERDICT
     if ltv_cac_ratio < 3.0:
-        st.warning("⚠️ **Fragile Economics:** The ratio is below the 3.0x industry benchmark. Scaling might destroy capital.")
+        st.warning("⚠️ **Fragile Economics:** LTV/CAC < 3x. Scaling might destroy capital.")
     else:
         st.success("🏆 **Scalable Asset:** High CLV relative to CAC confirms structural strength.")
 
