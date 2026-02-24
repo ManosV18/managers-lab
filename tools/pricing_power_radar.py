@@ -1,86 +1,50 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
 from core.engine import compute_core_metrics
 
 def show_pricing_power_radar():
-    st.header("🎯 Pricing Power Radar")
-    st.caption("Strategic Audit: Evaluate your structural ability to defend or increase prices.")
+    st.subheader("🎯 Pricing Power Radar")
+    st.write("Ανάλυση ανθεκτικότητας: Πόσο Volume μπορείς να χάσεις αν αυξήσεις την τιμή;")
+    
+    # 1. Λήψη δεδομένων από τον Engine
+    m = compute_core_metrics()
+    current_price = st.session_state.price
+    current_vc = st.session_state.variable_cost
+    current_cm = m['unit_contribution']
+    
+    # 2. Simulation Sliders
+    st.divider()
+    price_change_pct = st.slider("Προσομοίωση Μεταβολής Τιμής (%)", -30, 50, 10)
+    new_price = current_price * (1 + price_change_pct/100)
+    new_cm = new_price - current_vc
+    
+    # 3. Τα Μαθηματικά της "Ισορροπίας" (Indifference Point)
+    # Για να μείνει το συνολικό Contribution Margin ίδιο:
+    # New_Vol * New_CM = Old_Vol * Old_CM  =>  New_Vol/Old_Vol = Old_CM / New_CM
+    if new_cm > 0:
+        permissible_vol_loss = 1 - (current_cm / new_cm)
+    else:
+        permissible_vol_loss = -1.0 # Fatal state
 
-    # 1. FETCH CONTEXT FROM GLOBAL ENGINE
-    metrics = compute_core_metrics()
-    p = st.session_state.price
-    current_margin = (metrics['unit_contribution'] / p) * 100 if p > 0 else 0
-
-    # 2. EVALUATION PILLARS
-    st.subheader("Structural Assessment")
-    st.write("Rate your position on a scale of 1 (Commoditized/Weak) to 10 (Unique/Dominant).")
-
+    # 4. Executive Display
     col1, col2 = st.columns(2)
     
-    with col1:
-        brand_score = st.slider("Brand Equity & Loyalty", 1, 10, 5, 
-                                help="Do customers choose you for 'who' you are or strictly for the lowest price?")
-        switching_costs = st.slider("Switching Costs", 1, 10, 5, 
-                                help="How difficult/expensive is it for a customer to move to a competitor?")
-        
-    with col2:
-        scarcity_score = st.slider("Product Scarcity / IP", 1, 10, 5, 
-                                help="Do you have unique features, patents, or limited market availability?")
-        market_share = st.slider("Market Concentration", 1, 10, 5, 
-                                help="Are you a leader in a niche or one of many small, interchangeable players?")
-
-    # 3. CALCULATIONS
-    # Automatically derive the 5th pillar (Margin Strength) from the Engine
-    # Scaling: 5% margin = 1 point, up to 50% margin = 10 points
-    margin_score = min(max(int(current_margin / 5), 1), 10)
+    col1.metric("Νέα Τιμή", f"{new_price:,.2f} €", f"{price_change_pct:+.1f}%")
     
-    radar_data = pd.DataFrame({
-        'Pillar': ['Brand Equity', 'Switching Costs', 'Scarcity/IP', 'Market Power', 'Margin Strength'],
-        'Score': [brand_score, switching_costs, scarcity_score, market_share, margin_score]
-    })
-
-    # 4. VISUALIZATION
-    
-    
-    fig = px.line_polar(radar_data, r='Score', theta='Pillar', line_close=True,
-                        template="plotly_dark", range_r=[0, 10])
-    fig.update_traces(fill='toself', line_color='#00CC96')
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 10])),
-        showlegend=False,
-        margin=dict(l=40, r=40, t=40, b=40)
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-    # 5. ANALYTICAL SCORING
-    total_score = radar_data['Score'].mean()
-    
-    st.divider()
-    res1, res2 = st.columns(2)
-    res1.metric("Pricing Power Index", f"{total_score:.1f} / 10")
-
-    # 6. COLD ANALYSIS VERDICT
-    if total_score < 4:
-        st.error(
-            "🔴 **Price Taker:** You possess zero pricing authority. Any price increase will likely trigger "
-            "immediate customer churn. Focus strictly on cost optimization and survival efficiency."
-        )
-    elif total_score < 7:
-        st.warning(
-            "🟠 **Defensive Position:** You have moderate structural protection. Price adjustments must be "
-            "cautious and accompanied by clear value communication to prevent volume erosion."
-        )
+    if price_change_pct > 0:
+        color = "normal"
+        msg = f"Μπορείς να χάσεις έως και **{permissible_vol_loss*100:.1f}%** των πελατών σου και να έχεις το ΙΔΙΟ κέρδος."
     else:
-        st.success(
-            "🏆 **Price Maker:** Significant structural insulation detected. You have the leverage to test "
-            "price increases to expand margins with minimal risk of critical volume loss."
-        )
+        color = "inverse"
+        msg = f"Πρέπει να αυξήσεις το Volume κατά **{abs(permissible_vol_loss)*100:.1f}%** για να καλύψεις τη μείωση τιμής."
+        
+    col2.metric("Επιτρεπτή Μεταβολή Volume", f"{permissible_vol_loss*100:+.1;f}%", delta_color=color)
 
-    # 7. STRATEGIC LINKAGE
-    st.write("---")
-    st.subheader("Next Strategic Step")
-    if st.button("Simulate Impact in Break-Even Simulator"):
-        st.session_state.selected_tool = "Break-Even Shift Analysis"
+    st.info(msg)
+
+    
+
+    # 5. Reset Button για το Tool
+    if st.button("Back to Library Hub"):
+        st.session_state.selected_tool = None
+        st.session_state.mode = "library"
         st.rerun()
