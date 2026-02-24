@@ -122,6 +122,9 @@ def run_stage0():
     col_c1.metric("Cash Conversion Cycle (Days)", f"{ccc}")
     col_c2.metric("Working Capital Required (€)", f"{working_capital_required:,.0f}")
 
+    metrics = compute_core_metrics()
+    st.session_state.liquidity_drain_annual = metrics['liquidity_drain_annual']
+
     # =====================================================
     # FINANCIAL STRUCTURE (FIXED)
     # =====================================================
