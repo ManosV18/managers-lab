@@ -1,7 +1,7 @@
 import streamlit as st
 
 def initialize_system_state():
-    """Αρχικοποιεί το DNA της επιχείρησης αν δεν υπάρχει ήδη στο state."""
+    """Αρχικοποιεί το DNA της επιχείρησης με ενιαίο naming convention."""
     defaults = {
         'price': 100.0,
         'variable_cost': 60.0,
@@ -15,7 +15,7 @@ def initialize_system_state():
         'payables_days': 30,
         'slow_moving_factor': 0.2,
         'tax_rate': 0.22,
-        'opening_cash_balance': 50000.0,
+        'opening_cash': 50000.0, # Διορθωμένο naming
         'flow_step': 0,
         'baseline_locked': False
     }
