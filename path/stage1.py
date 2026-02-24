@@ -1,6 +1,6 @@
-# =============================
+# =========================================
 # Stage 1: Break-Even Analysis
-# =============================
+# =========================================
 def run_stage1():
     st.session_state.setdefault("price", 50.0)
     st.session_state.setdefault("volume", 15000)
@@ -18,17 +18,18 @@ def run_stage1():
         return
 
     st.subheader("Annual Fixed Costs")
-    st.session_state.fixed_cost = st.number_input("Total Annual Fixed Costs (€)", value=float(st.session_state.fixed_cost), step=1000.0)
+    st.session_state.fixed_cost = st.number_input(
+        "Total Annual Fixed Costs (€)",
+        min_value=0.0,
+        value=float(st.session_state.fixed_cost),
+        step=1000.0
+    )
 
     metrics = compute_core_metrics()
-    price = st.session_state.price
-    variable_cost = st.session_state.variable_cost
-    fixed_cost = st.session_state.fixed_cost
-    current_volume = st.session_state.volume
-
     unit_contribution = metrics.get("unit_contribution", 0)
     operating_bep = metrics.get("operating_bep", 0)
     survival_bep = metrics.get("survival_bep", 0)
+    current_volume = st.session_state.volume
 
     st.divider()
     col1, col2, col3 = st.columns(3)
