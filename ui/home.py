@@ -15,7 +15,7 @@ def show_home():
 
         if st.button("Define Baseline (Stage 0)", use_container_width=True, type="primary"):
             st.session_state.mode = "path"
-            st.session_state.flow_step = 0
+            st.session_state.flow_step = "stage0"
             st.rerun()
 
     # PHASE B: Control Center Mode (System Operational)
