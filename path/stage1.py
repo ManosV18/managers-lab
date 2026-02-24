@@ -65,6 +65,11 @@ def run_stage1():
         delta=f"{current_volume - survival_bep:,.0f} units"
     )
 
+    col4, col5, col6 = st.columns(3)
+    col4.metric("Free Cash Flow", f"{metrics['fcf']:,.0f} €")
+    col5.metric("Ending Cash", f"{metrics['ending_cash']:,.0f} €")
+    col6.metric("Cash Survival Horizon (years)", f"{metrics['cash_survival_horizon']:.2f}")
+
     # =====================================================
     # VISUALIZATION
     # =====================================================
