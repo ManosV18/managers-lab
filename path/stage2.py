@@ -65,6 +65,11 @@ def run_stage2():
     
     c3.metric("Net Economic Profit", f"{metrics.get('net_profit', 0):,.0f} €")
 
+    c4, c5, c6 = st.columns(3)
+    c4.metric("Free Cash Flow", f"{metrics['fcf']:,.0f} €")
+    c5.metric("Ending Cash", f"{metrics['ending_cash']:,.0f} €")
+    c6.metric("Cash Survival Horizon (years)", f"{metrics['cash_survival_horizon']:.2f}")
+
     # =====================================================
     # 3. COLD VERDICT (Fixed Indentation)
     # =====================================================
