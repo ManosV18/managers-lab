@@ -15,7 +15,29 @@ def run_stage2():
     
     metrics = compute_core_metrics()
     fcf = metrics.get('fcf', 0.0)
+
+    # --- ΠΡΟΣΘΗΚΗ ΣΤΟ STAGE 2: FCF ELASTICITY ---
+    # Υποθέτουμε ότι το baseline_fcf είναι το fcf που είχε το σύστημα χωρίς το shock
+    baseline_metrics = compute_core_metrics() # (Αν δεν έχεις πειράξει ακόμα το volume)
     
+    # Μετά το shock:
+    shocked_metrics = compute_core_metrics()
+    fcf = shocked_metrics['fcf']
+    baseline_fcf = st.session_state.get('last_computed_metrics', {}).get('fcf', fcf)
+
+    # Υπολογισμός % επιδείνωσης
+    if baseline_fcf != 0:
+        delta_pct = (fcf - baseline_fcf) / abs(baseline_fcf)
+    else:
+        delta_pct = 0.0
+
+    st.metric(
+        label="Stressed Annual FCF", 
+        value=f"{fcf:,.0f} €", 
+        delta=f"{delta_pct:.1%} vs Baseline", 
+        delta_color="inverse"
+    )
+ 
     # 3. Display Impact
     st.divider()
     c1, c2 = st.columns(2)
