@@ -8,21 +8,6 @@ def run_stage0():
     st.header("⚙️ Stage 0: System Calibration")
     st.caption("Establish the core economic parameters of the enterprise.")
 
-    # --- DEFAULTS SAFETY CHECK (Μέσα στη συνάρτηση) ---
-    st.session_state.setdefault("price", 50.0)
-    st.session_state.setdefault("volume", 15000)
-    st.session_state.setdefault("variable_cost", 25.0)
-    st.session_state.setdefault("fixed_cost", 200000.0)
-    st.session_state.setdefault("ar_days", 45)
-    st.session_state.setdefault("inventory_days", 60)
-    st.session_state.setdefault("payables_days", 30)
-    st.session_state.setdefault("baseline_locked", False)
-    st.session_state.setdefault("tax_input_field", 22.0)
-    st.session_state.setdefault("interest_input_field", 5.0)
-    st.session_state.setdefault("wacc_input_field", 8.0)
-
-    col1, col2 = st.columns(2)
-
     # =============================
     # Revenue
     # =============================
