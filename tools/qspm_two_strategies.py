@@ -1,32 +1,34 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+from core.engine import compute_core_metrics
 
 def show_qspm_tool():
     st.header("🧭 QSPM – Strategy Comparison")
     st.info("Quantitative Strategic Planning Matrix: Evaluate which strategy best fits your current business reality.")
 
-    # 1. LOAD SYSTEM CONTEXT (For Reference)
-    survival = st.session_state.get('volume', 0) / (st.session_state.get('fixed_cost', 1) / (st.session_state.get('price', 1) - st.session_state.get('variable_cost', 0.1)) + 0.001) - 1
-    cash_days = st.session_state.get('ar_days', 0) + st.session_state.get('inventory_days', 0) - st.session_state.get('payables_days', 0)
+    # 1. LOAD SYSTEM CONTEXT (For Cold Analysis)
+    metrics = compute_core_metrics()
+    survival_margin = (metrics['revenue'] / metrics['cash_wall']) - 1 if metrics['cash_wall'] > 0 else 0
+    cash_cycle = metrics['ccc']
 
-    st.write(f"**Current Strategic Context:** Survival Margin: {survival:.1%} | Cash Cycle: {int(cash_days)} Days")
+    st.write(f"**Current Strategic Context:** Survival Margin: {survival_margin:.1%} | Cash Conversion Cycle: {int(cash_cycle)} Days")
 
     st.divider()
 
     # 2. DEFINE STRATEGIES
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        strat1_name = st.text_input("Strategy A", value="Market Expansion")
+        strat1_name = st.text_input("Strategy A", value="Operational Optimization")
     with col_s2:
-        strat2_name = st.text_input("Strategy B", value="Product Innovation")
+        strat2_name = st.text_input("Strategy B", value="Aggressive Market Expansion")
 
     # 3. CRITICAL SUCCESS FACTORS (CSFs)
-    # Ορίζουμε τους παράγοντες και τη βαρύτητά τους (Weight)
     factors = [
         ("Financial Stability (Cash Flow)", 0.30),
         ("Profitability (Margin)", 0.25),
         ("Market Share / Growth", 0.20),
-        ("Operational Complexity", 0.15),
+        ("Execution Simplicity", 0.15),
         ("Resource Availability", 0.10)
     ]
 
@@ -35,15 +37,19 @@ def show_qspm_tool():
 
     scores_a = []
     scores_b = []
+    raw_a = []
+    raw_b = []
 
     for factor, weight in factors:
         st.markdown(f"**{factor}** (Weight: {weight:.0%})")
         c1, c2 = st.columns(2)
         with c1:
-            s_a = st.slider(f"Score for {strat1_name}", 1, 4, 2, key=f"a_{factor}")
+            s_a = st.slider(f"Score A", 1, 4, 2, key=f"q_a_{factor}")
+            raw_a.append(s_a)
             scores_a.append(s_a * weight)
         with c2:
-            s_b = st.slider(f"Score for {strat2_name}", 1, 4, 2, key=f"b_{factor}")
+            s_b = st.slider(f"Score B", 1, 4, 2, key=f"q_b_{factor}")
+            raw_b.append(s_b)
             scores_b.append(s_b * weight)
 
     # 4. FINAL CALCULATION
@@ -57,21 +63,37 @@ def show_qspm_tool():
     with res_a:
         st.metric(f"Total Score: {strat1_name}", f"{total_a:.2f}")
     with res_b:
-        st.metric(f"Total Score: {strat2_name}", f"{total_b:.2f}")
+        st.metric(f"Total Score: {strat2_name}", f"{total_b:.2f}", 
+                  delta=f"{total_b - total_a:.2f}" if total_b != total_a else None)
 
-    # Strategic Verdict
+    # 6. VISUAL RADAR CHART
+    st.subheader("📊 Strategic Alignment Radar")
+    
+    fig = go.Figure()
+    categories = [f[0] for f in factors]
+    
+    fig.add_trace(go.Scatterpolar(r=raw_a, theta=categories, fill='toself', name=strat1_name))
+    fig.add_trace(go.Scatterpolar(r=raw_b, theta=categories, fill='toself', name=strat2_name))
+
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 4])),
+        showlegend=True,
+        template="plotly_dark",
+        height=450
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    
+
+    # 7. STRATEGIC VERDICT
+    st.subheader("🧠 Analyst's Verdict")
     if abs(total_a - total_b) < 0.2:
-        st.warning("**Strategic Stalemate:** The options are too close. Re-evaluate the weights or consider if both can be executed in phases.")
+        st.warning("**Strategic Stalemate:** Οι επιλογές είναι πολύ κοντά. Επανεκτίμησε τα βάρη (weights) ή εξέτασε αν οι στρατηγικές μπορούν να εφαρμοστούν σταδιακά (Phased Execution).")
     elif total_a > total_b:
-        st.success(f"**Winner: {strat1_name}** – This strategy aligns better with your success factors and current risk profile.")
+        st.success(f"**Winner: {strat1_name}** – Αυτή η επιλογή ευθυγραμμίζεται καλύτερα με τους παράγοντες επιτυχίας και το τρέχον προφίλ ρίσκου.")
     else:
-        st.success(f"**Winner: {strat2_name}** – This strategy is quantitatively superior based on your scoring.")
+        st.success(f"**Winner: {strat2_name}** – Αυτή η στρατηγική υπερέχει ποσοτικά, παρά το ενδεχομένως υψηλότερο ρίσκο.")
 
-    # 6. VISUALIZATION TABLE
-    df_qspm = pd.DataFrame({
-        "Factor": [f[0] for f in factors],
-        "Weight": [f[1] for f in factors],
-        f"{strat1_name} (Weighted)": scores_a,
-        f"{strat2_name} (Weighted)": scores_b
-    })
-    st.table(df_qspm)
+    if st.button("Back to Library Hub"):
+        st.session_state.selected_tool = None
+        st.rerun()
