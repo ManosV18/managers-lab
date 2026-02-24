@@ -4,11 +4,11 @@
 def run_stage1():
 
     # --- DEFAULTS SAFETY CHECK ---
-    if "price" not in st.session_state: st.session_state.price = 0.0
-    if "volume" not in st.session_state: st.session_state.volume = 0
-    if "variable_cost" not in st.session_state: st.session_state.variable_cost = 0.0
-    if "fixed_cost" not in st.session_state: st.session_state.fixed_cost = 0.0
-
+    st.session_state.setdefault("price", 0.0)
+    st.session_state.setdefault("volume", 0)
+    st.session_state.setdefault("variable_cost", 0.0)
+    st.session_state.setdefault("fixed_cost", 0.0)
+    
     st.header("📉 Stage 1: Break-Even Analysis")
     st.info("Analyze operating and survival break-even structure.")
 
