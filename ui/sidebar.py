@@ -1,54 +1,45 @@
 import streamlit as st
 
-def render_sidebar():
+def show_sidebar():
     with st.sidebar:
-        st.title("🧪 Managers’ Lab")
-        st.caption("Strategic Decision Support")
+        st.title("⚙️ Global Controls")
+        
+        # 1. Navigation Status
+        st.info(f"**Current Stage:** {st.session_state.flow_step}")
+        
+        # 2. Structural Inputs (Always accessible to the Manager)
+        st.subheader("Base Parameters")
+        
+        st.session_state.price = st.number_input(
+            "Unit Price (€)", value=float(st.session_state.price), step=1.0
+        )
+        st.session_state.variable_cost = st.number_input(
+            "Variable Cost (€)", value=float(st.session_state.variable_cost), step=1.0
+        )
+        st.session_state.volume = st.number_input(
+            "Annual Volume (Units)", value=int(st.session_state.volume), step=100
+        )
         
         st.divider()
+        
+        # 3. Liquidity Settings
+        with st.expander("💳 Liquidity & WC Settings"):
+            st.session_state.ar_days = st.slider("AR Days", 0, 120, int(st.session_state.ar_days))
+            st.session_state.inventory_days = st.slider("Inv. Days", 0, 120, int(st.session_state.inventory_days))
+            st.session_state.ap_days = st.slider("AP Days", 0, 120, int(st.session_state.ap_days))
+            st.session_state.opening_cash = st.number_input("Opening Cash (€)", value=float(st.session_state.opening_cash))
 
-        # Home Button
-        if st.button("🏠 Home", use_container_width=True):
-            st.session_state.mode = "home"
-            st.session_state.selected_tool = None
-            st.rerun()
-            
+        # 4. Debt & Tax
+        with st.expander("🏛️ Fixed Obligations"):
+            st.session_state.fixed_cost = st.number_input("Annual Fixed Costs", value=float(st.session_state.fixed_cost))
+            st.session_state.annual_loan_payment = st.number_input("Annual Debt Service", value=float(st.session_state.annual_loan_payment))
+            st.session_state.tax_rate = st.slider("Tax Rate", 0.0, 0.5, float(st.session_state.tax_rate))
+
         st.divider()
-        st.subheader("Navigation")
-
-        # Tool Library Button
-        if st.button("📚 Tool Library", use_container_width=True):
-            st.session_state.mode = "library"
-            st.session_state.selected_tool = None
+        
+        # 5. Global Actions
+        if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
+            st.session_state.clear()
             st.rerun()
 
-        # Structured Path Button
-        # Logic: If not locked, start at Stage 0. If locked, resume/start at Stage 1.
-        if st.button("🧭 Structured Path", use_container_width=True):
-            st.session_state.mode = "path"
-            if not st.session_state.get('baseline_locked', False):
-                st.session_state.flow_step = 0
-            else:
-                st.session_state.flow_step = 1
-            st.session_state.selected_tool = None
-            st.rerun()
-
-        # Progress Bar (Visible only in Path mode)
-        if st.session_state.get('mode') == "path":
-            step = st.session_state.get('flow_step', 0)
-            if step > 0:  # Only show progress for Analysis Stages 1-5
-                st.divider()
-                st.caption(f"Analysis Progress: Stage {step} of 5")
-                st.progress(step / 5)
-
-        # Support & Information Section
-        st.divider()
-        if st.button("ℹ️ About & Support", use_container_width=True):
-            st.session_state.mode = "about"
-            st.session_state.selected_tool = None
-            st.rerun()
-
-        # Cold Analysis Footer Note
-        st.divider()
-        st.caption("Analytical focus: Efficiency, Stability, & Survival Margin.")
-        st.caption("System Version: 2.0.1")
+        st.caption("Executive War Room v2.0 | 2026 Edition")
