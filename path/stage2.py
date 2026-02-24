@@ -12,78 +12,93 @@ def run_stage2():
 
     with col1:
         st.subheader("Financing & Debt")
-        # Ενημέρωση του Debt απευθείας στο state
+        # Ενημέρωση του Debt
         st.session_state.debt = st.number_input(
             "Total Outstanding Debt (€)", 
             min_value=0.0, 
-            value=float(st.session_state.get('debt', 20000.0))
+            value=float(st.session_state.get('debt', 20000.0)),
+            key="debt_input_s2"
         )
-        # Χρήση του UI field για το επιτόκιο (συγχρονισμός με Stage 0)
+        
         interest_in = st.number_input(
             "Annual Interest Rate (%)", 
+            min_value=0.0,
+            max_value=100.0,
             value=float(st.session_state.get('interest_input_field', 5.0)),
-            key="interest_input_stage2" # Διαφορετικό key για να μην συγκρούεται, αλλά ενημερώνει το ίδιο value
+            key="interest_input_s2" 
         )
         st.session_state.interest_input_field = interest_in
         st.session_state.interest_rate = interest_in / 100
 
     with col2:
         st.subheader("Inventory & Cash Velocity")
-        st.session_state.inventory_days = st.number_input("Inventory Days (DIO)", value=int(st.session_state.inventory_days))
+        st.session_state.inventory_days = st.number_input(
+            "Inventory Days (DIO)", 
+            min_value=0, 
+            value=int(st.session_state.get('inventory_days', 60)),
+            key="inv_days_s2"
+        )
         
-        slow_pct = st.slider("Slow-Moving / Buffer Stock (%)", 0, 100, int(st.session_state.get('slow_moving_factor', 0.2) * 100))
+        slow_pct = st.slider(
+            "Slow-Moving / Buffer Stock (%)", 
+            0, 100, 
+            int(st.session_state.get('slow_moving_factor', 0.2) * 100),
+            key="slow_moving_slider_s2"
+        )
         st.session_state.slow_moving_factor = slow_pct / 100
         
-        st.session_state.ar_days = st.number_input("Receivable Days (DSO)", value=int(st.session_state.ar_days))
-        st.session_state.payables_days = st.number_input("Payable Days (DPO)", value=int(st.session_state.payables_days))
+        st.session_state.ar_days = st.number_input(
+            "Receivable Days (DSO)", 
+            min_value=0, 
+            value=int(st.session_state.get('ar_days', 45)),
+            key="ar_days_s2"
+        )
+        st.session_state.payables_days = st.number_input(
+            "Payable Days (DPO)", 
+            min_value=0, 
+            value=int(st.session_state.get('payables_days', 30)),
+            key="pay_days_s2"
+        )
 
-    # 2. Working Capital Physics (365 Days)
-    ccc = st.session_state.ar_days + st.session_state.inventory_days - st.session_state.payables_days
-    st.session_state.ccc = ccc
-    
-    # Υπολογισμός βάσει κόστους (COGS) για μεγαλύτερη ακρίβεια στο Inventory Friction
-    annual_revenue = st.session_state.volume * st.session_state.price
-    annual_cogs = st.session_state.volume * st.session_state.variable_cost
-    
-    base_wc = (ccc / 365) * annual_revenue # WC ανάγκη βάσει κύκλου εργασιών
-    inventory_friction = (st.session_state.inventory_days / 365) * annual_cogs * st.session_state.slow_moving_factor
-    
-    st.session_state.liquidity_drain_annual = base_wc + inventory_friction
-
-    # 3. Refresh metrics after inputs
+    # 2. Refresh metrics after inputs
+    # Ο Engine υπολογίζει αυτόματα το liquidity_drain_annual εσωτερικά
     metrics = compute_core_metrics()
+    drain = st.session_state.get('liquidity_drain_annual', 0)
 
-    # 4. Dashboard Metrics
+    # 3. Dashboard Metrics
     st.divider()
     c1, c2, c3 = st.columns(3)
     c1.metric("Survival BEP", f"{metrics.get('survival_bep', 0):,.0f} units")
-    c2.metric("Total Liquidity Friction", f"{st.session_state.liquidity_drain_annual:,.0f} €", 
+    c2.metric("Total Liquidity Friction", f"{drain:,.0f} €", 
               delta=f"Incl. {slow_pct}% Slow-Stock", delta_color="inverse")
     c3.metric("Net Profit (Post-Tax)", f"{metrics.get('net_profit', 0):,.0f} €")
 
     c4, c5, c6 = st.columns(3)
     c4.metric("Free Cash Flow", f"{metrics.get('fcf', 0):,.0f} €")
-    c5.metric("Ending Cash", f"{metrics.get('ending_cash', 0):,.0f} €")
+    c5.metric("Ending Cash Balance", f"{metrics.get('ending_cash', 0):,.0f} €")
     
     horizon = metrics.get('cash_survival_horizon', 0)
     horizon_disp = "Stable" if horizon == float('inf') else f"{horizon:.2f} yrs"
-    c6.metric("Cash Survival", horizon_disp)
+    c6.metric("Cash Runway", horizon_disp)
 
-    # 5. The "Cold" Liquidity Audit
+    # 4. The "Cold" Liquidity Audit
     st.divider()
-    op_profit = metrics.get('ebit', 0.0) # ΔΙΟΡΘΩΣΗ: Χρήση του ebit από τον engine
-    drain = st.session_state.liquidity_drain_annual
+    ebit = metrics.get('ebit', 0.0)
     
-    
+    st.subheader("⚠️ Liquidity Stress Test")
+    if ebit > 0:
+        usage_ratio = min(drain / ebit, 2.0) # Cap at 200% for visualization
+        st.write(f"Operational Profit consumed by Working Capital: **{usage_ratio:.1%}**")
+        st.progress(usage_ratio if usage_ratio <= 1.0 else 1.0)
 
-    if drain > op_profit and op_profit > 0:
-        st.error(f"🚨 **Liquidity Trap:** Operational friction ({drain:,.0f}€) exceeds Operating Profit ({op_profit:,.0f}€). You are profitable on paper, but losing cash.")
-    elif op_profit <= 0:
-        st.error("🚨 **Structural Failure:** Negative EBIT. Liquidity is the least of your concerns.")
+    if drain > ebit and ebit > 0:
+        st.error(f"🚨 **Liquidity Trap:** Operational friction ({drain:,.0f}€) exceeds Operating Profit ({ebit:,.0f}€). The business is a 'Black Hole' for cash despite being P&L profitable.")
+    elif ebit <= 0:
+        st.error("🚨 **Structural Failure:** Negative EBIT. The business model cannot sustain its own existence, let alone its liquidity.")
     else:
-        st.success("✅ **Balanced Liquidity:** Your operating profit can self-fund the working capital cycle.")
+        st.success("✅ **Balanced Liquidity:** Your operating profit can self-fund the working capital cycle. Structural integrity is maintained.")
 
-    # 6. Navigation
+    # 5. Navigation
     st.divider()
     nav1, nav2 = st.columns(2)
     with nav1:
@@ -91,6 +106,6 @@ def run_stage2():
             st.session_state.flow_step = 1
             st.rerun()
     with nav2:
-        if st.button("Next: CLV Analysis ➡️", type="primary", use_container_width=True):
+        if st.button("Next: Stage 3 (CLV & Growth) ➡️", type="primary", use_container_width=True):
             st.session_state.flow_step = 3
             st.rerun()
