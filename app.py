@@ -2,11 +2,11 @@ import streamlit as st
 import sys
 import os
 
-# Διασφάλιση ότι ο root φάκελος είναι στο path (βοηθάει στα imports του Cloud)
+# Διασφάλιση ότι ο root φάκελος είναι στο path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from core.system_state import initialize_system_state
-from core.engine import compute_core_metrics
+# THE FIX: Διαβάζουμε και τα δύο από το ενοποιημένο αρχείο πλέον
+from core.engine import initialize_system_state, compute_core_metrics
 
 # Imports από τον φάκελο ui
 from ui.sidebar import render_sidebar
@@ -23,20 +23,24 @@ from path.stage4 import run_stage4
 from path.stage5 import run_stage5
 
 # =========================================================
-# CONFIG
+# CONFIG (Πρέπει να είναι το πρώτο Streamlit command)
 # =========================================================
 st.set_page_config(page_title="Managers' Lab Engine", layout="wide", page_icon="🧪")
 
 # =========================================================
-# INITIALIZE CORE & UI
+# INITIALIZE CORE (ΠΡΙΝ ΤΟ ROUTING)
 # =========================================================
 initialize_system_state()
-render_sidebar()  # <--- Απαραίτητο για να δουλέψει το μενού
+
+# =========================================================
+# UI LAYOUT
+# =========================================================
+render_sidebar() 
 
 # =========================================================
 # ROUTER
 # =========================================================
-mode = st.session_state.mode
+mode = st.session_state.get("mode", "home")
 
 if mode == "home":
     show_home()
@@ -45,7 +49,7 @@ elif mode == "about":
 elif mode == "library":
     show_library()
 elif mode == "path":
-    step = st.session_state.flow_step
+    step = st.session_state.get("flow_step", 0)
     stage_router = {
         0: run_stage0,
         1: run_stage1,
@@ -54,4 +58,9 @@ elif mode == "path":
         4: run_stage4,
         5: run_stage5
     }
-    stage_router[step]()
+    
+    # Ασφαλής κλήση του router
+    if step in stage_router:
+        stage_router[step]()
+    else:
+        st.error(f"Stage {step} not found.")
