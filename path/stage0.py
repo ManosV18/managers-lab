@@ -8,8 +8,11 @@ def run_stage0():
     st.header("⚙️ Stage 0: System Calibration")
     st.caption("Establish the core economic parameters of the enterprise.")
 
+    # --- ΤΟ FIX: Ορισμός των columns ---
+    col1, col2 = st.columns(2)
+
     # =============================
-    # Revenue
+    # Revenue Structure
     # =============================
     with col1:
         st.subheader("Revenue Structure")
@@ -23,7 +26,7 @@ def run_stage0():
         st.metric("Annual Revenue", f"{revenue:,.0f} €")
 
     # =============================
-    # Costs
+    # Cost Structure
     # =============================
     with col2:
         st.subheader("Cost Structure")
@@ -37,17 +40,18 @@ def run_stage0():
         p = st.session_state.price
         vc = st.session_state.variable_cost
         margin = (p - vc) / p if p > 0 else 0
+        
         if p <= 0:
             st.error("❌ Price must be greater than zero.")
         elif p <= vc:
-            st.error(f"❌ Critical: Negative/Zero Margin ({margin:.1%}). Value destruction in progress.")
+            st.error(f"❌ Critical: Negative/Zero Margin ({margin:.1%}). Value destruction.")
         elif margin < 0.20:
-            st.warning(f"⚠️ Low structural buffer ({margin:.1%}). High sensitivity detected.")
+            st.warning(f"⚠️ Low structural buffer ({margin:.1%}).")
         else:
             st.success(f"✅ Healthy Margin: {margin:.1%}")
 
     # =============================
-    # Core Metrics
+    # Core Metrics (Live Preview)
     # =============================
     st.divider()
     metrics = compute_core_metrics()
@@ -67,12 +71,11 @@ def run_stage0():
         st.session_state.inventory_days = c2.number_input("Inventory Days", min_value=0, value=int(st.session_state.inventory_days))
         st.session_state.payables_days = c3.number_input("Payables Days", min_value=0, value=int(st.session_state.payables_days))
 
-    ar = st.session_state.ar_days
-    inv = st.session_state.inventory_days
-    pay = st.session_state.payables_days
-    ccc = ar + inv - pay
+    ccc = st.session_state.ar_days + st.session_state.inventory_days - st.session_state.payables_days
     st.session_state.ccc = ccc
-    working_capital_required = st.session_state.price * st.session_state.volume * (ccc / 365)
+    
+    # Χρήση του 365 βάσει των οδηγιών σου
+    working_capital_required = (st.session_state.price * st.session_state.volume) * (ccc / 365)
     st.session_state.working_capital_req = working_capital_required
     st.session_state.liquidity_drain_annual = working_capital_required
 
@@ -86,15 +89,18 @@ def run_stage0():
     st.divider()
     st.subheader("🏦 Financial Structure")
     f1, f2, f3 = st.columns(3)
-    tax_input = f1.number_input("Corporate Tax Rate (%)", min_value=0.0, max_value=100.0, value=st.session_state.tax_input_field, step=0.5, key="tax_input_field")
-    interest_input = f2.number_input("Cost of Debt (%)", min_value=0.0, max_value=100.0, value=st.session_state.interest_input_field, step=0.5, key="interest_input_field")
-    wacc_input = f3.number_input("WACC (%)", min_value=0.0, max_value=100.0, value=st.session_state.wacc_input_field, step=0.5, key="wacc_input_field")
-    st.session_state.tax_rate = tax_input / 100
-    st.session_state.interest_rate = interest_input / 100
-    st.session_state.wacc = wacc_input / 100
+    
+    # Χρήση των κλειδιών από το initialize_system_state
+    tax_in = f1.number_input("Tax Rate (%)", 0.0, 100.0, float(st.session_state.tax_input_field), 0.5, key="tax_input_field")
+    int_in = f2.number_input("Interest Rate (%)", 0.0, 100.0, float(st.session_state.interest_input_field), 0.5, key="interest_input_field")
+    wacc_in = f3.number_input("WACC (%)", 0.0, 100.0, float(st.session_state.wacc_input_field), 0.5, key="wacc_input_field")
+    
+    st.session_state.tax_rate = tax_in / 100
+    st.session_state.interest_rate = int_in / 100
+    st.session_state.wacc = wacc_in / 100
 
     # =============================
-    # Lock Baseline
+    # Navigation
     # =============================
     st.divider()
     if st.button("Lock Baseline & Continue ➡️", use_container_width=True, type="primary"):
