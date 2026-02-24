@@ -14,25 +14,36 @@ def run_stage3():
     # Χρήση του διορθωμένου naming 'opening_cash' για αποφυγή KeyErrors
     cash_after_wc = s.get('opening_cash', 0.0) - m["total_wc_requirement"]
 
-    # 3. MONTHLY NET FLOW (Cash Physics Logic)
-    # Χρησιμοποιούμε το FCF του Engine που είναι ήδη καθαρό από WC διπλοεγγραφές
-    monthly_net = m["fcf"] / 12
-
-    # 4. TIMELINE GENERATION
+    # --- ΠΡΟΣΘΗΚΗ ΣΤΟ STAGE 3: RUNWAY STOP LOGIC ---
     timeline = []
     current_cash = cash_after_wc
     death_month = None
 
-    # Προσομοίωση 3 ετών (36 μήνες + Μήνας 0)
     for month in range(0, 37):
         timeline.append({"Month": month, "Cash Balance": current_cash})
         
-        # Καταγραφή του Month of Death αν τα μετρητά μηδενιστούν
-        if current_cash <= 0 and death_month is None:
+        if current_cash <= 0:
             death_month = month
+            break # Σταματάμε το loop εδώ για να μην δείχνει αρνητικά το chart
             
         current_cash += monthly_net
 
+    # --- ΠΡΟΣΘΗΚΗ ΣΤΟ STAGE 3: EQUILIBRIUM LOGIC ---
+    st.divider()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Cash After WC", f"{cash_after_wc:,.0f} €")
+    c2.metric("Monthly Net Flow", f"{monthly_net:,.0f} €")
+    
+    # Advanced Runway Status
+    if death_month is not None:
+        runway_val = f"{death_month} Months"
+    elif monthly_net == 0:
+        runway_val = "Equilibrium"
+    else:
+        runway_val = "Stable (∞)"
+        
+    c3.metric("Runway", runway_val, delta="CRITICAL" if death_month else "OK", delta_color="inverse" if death_month else "normal")
+    
     # 5. DASHBOARD
     st.divider()
     c1, c2, c3 = st.columns(3)
