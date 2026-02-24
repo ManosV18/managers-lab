@@ -4,7 +4,7 @@ import os
 import importlib.util
 
 # =========================================================
-# 1️⃣ PAGE CONFIG (Πρέπει να είναι η πρώτη εντολή Streamlit)
+# 1️⃣ PAGE CONFIG
 # =========================================================
 st.set_page_config(
     page_title="Managers' Lab Engine v2.0",
@@ -14,18 +14,22 @@ st.set_page_config(
 )
 
 # =========================================================
-# 2️⃣ PATH CONFIGURATION & HELPER
+# 2️⃣ PATH CONFIGURATION & MANUAL IMPORT HELPER
 # =========================================================
 root_dir = os.path.dirname(os.path.abspath(__file__))
 if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
+    sys.path.insert(0, 0)
 
 def manual_import(module_name, file_name):
-    """Φορτώνει χειροκίνητα ένα module από το φάκελο path/"""
+    """Load a module from path/ folder manually"""
     file_path = os.path.join(root_dir, "path", file_name)
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_name} not found in 'path/'")
+    
     spec = importlib.util.spec_from_file_location(module_name, file_path)
-    if spec is None:
-        raise ImportError(f"Could not find {file_name} in path/")
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load spec for {file_name}")
+    
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
@@ -35,47 +39,54 @@ def manual_import(module_name, file_name):
 # 3️⃣ SAFE IMPORTS
 # =========================================================
 try:
-    # 1. Βασικά Modules
+    # Core engine & UI
     from core.engine import initialize_system_state, compute_core_metrics
     from ui.sidebar import render_sidebar
     from ui.home import show_home
     from ui.about import show_about
     from ui.library import show_library
-    
-    # 2. Χειροκίνητο Import των Stages για αποφυγή ModuleNotFoundError
+
+    # Stages
     s0 = manual_import("s0", "stage0.py")
     s1 = manual_import("s1", "stage1.py")
     s2 = manual_import("s2", "stage2.py")
     s3 = manual_import("s3", "stage3.py")
     s4 = manual_import("s4", "stage4.py")
     s5 = manual_import("s5", "stage5.py")
-    
+
 except Exception as e:
-    st.error(f"🚨 **Critical Failure:** {e}")
+    st.error(f"🚨 Critical Failure: {e}")
     st.info(f"Checking Directory: {os.path.join(root_dir, 'path')}")
     if os.path.exists(os.path.join(root_dir, 'path')):
         st.write("Files found:", os.listdir(os.path.join(root_dir, 'path')))
-    else:
-        st.error("Folder 'path' not found. Please ensure it is lowercase in GitHub.")
     st.stop()
 
 # =========================================================
-# 4️⃣ INITIALIZATION & GLOBAL METRICS
+# 4️⃣ INITIALIZE SYSTEM & COMPUTE METRICS
 # =========================================================
 initialize_system_state()
 render_sidebar()
-metrics = compute_core_metrics()
 
-# Εμφάνιση Global Header μόνο στο Lab Mode
+try:
+    metrics = compute_core_metrics()
+except Exception as e:
+    st.warning(f"⚠️ Metrics could not be computed: {e}")
+    metrics = {
+        "net_profit": 0,
+        "survival_bep": 0,
+        "fcf": 0,
+        "ending_cash": 0
+    }
+
+# Live Lab Header
 if st.session_state.get("mode") == "path":
-    with st.container():
-        st.markdown(f"### 📊 Live Analysis: Stage {st.session_state.flow_step}")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Net Profit", f"{metrics['net_profit']:,.0f} €")
-        c2.metric("Survival BEP", f"{metrics['survival_bep']:,.0f} u")
-        c3.metric("FCF", f"{metrics['fcf']:,.0f} €")
-        c4.metric("Ending Cash", f"{metrics['ending_cash']:,.0f} €")
-        st.divider()
+    st.markdown(f"### 📊 Live Analysis: Stage {st.session_state.flow_step}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Net Profit", f"{metrics.get('net_profit',0):,.0f} €")
+    c2.metric("Survival BEP", f"{metrics.get('survival_bep',0):,.0f} u")
+    c3.metric("FCF", f"{metrics.get('fcf',0):,.0f} €")
+    c4.metric("Ending Cash", f"{metrics.get('ending_cash',0):,.0f} €")
+    st.divider()
 
 # =========================================================
 # 5️⃣ ROUTER LOGIC
@@ -90,8 +101,6 @@ elif mode == "library":
     show_library()
 elif mode == "path":
     step = st.session_state.get("flow_step", 0)
-    
-    # Mapping των συναρτήσεων από τα χειροκίνητα φορτωμένα modules
     stage_router = {
         0: s0.run_stage0,
         1: s1.run_stage1,
