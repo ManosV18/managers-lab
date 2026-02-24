@@ -8,6 +8,10 @@ def run_stage1():
     metrics = compute_core_metrics()
     s = st.session_state
 
+    if metrics['is_non_viable']:
+    st.error("🚨 **SYSTEMIC COLLAPSE:** Your Variable Cost exceeds your Price. The business loses money with every unit sold. Survival is mathematically impossible at any volume.")
+else:
+    st.metric("Survival BEP", f"{metrics['survival_bep']:,.0f} Units")
     # 1. Calculation of the Cash Wall
     # Το WC Requirement θεωρείται upfront κεφάλαιο που πρέπει να 'κλειδωθεί'
     cash_wall = s.fixed_cost + s.annual_loan_payment + metrics['total_wc_requirement']
