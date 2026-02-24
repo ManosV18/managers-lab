@@ -18,32 +18,38 @@ def show_pricing_power_radar():
     new_cm = new_price - current_vc
     
     # 3. Τα Μαθηματικά της "Ισορροπίας" (Indifference Point)
-    # Για να μείνει το συνολικό Contribution Margin ίδιο:
-    # New_Vol * New_CM = Old_Vol * Old_CM  =>  New_Vol/Old_Vol = Old_CM / New_CM
+    # Διόρθωση: Έλεγχος αν το νέο περιθώριο είναι θετικό
     if new_cm > 0:
         permissible_vol_loss = 1 - (current_cm / new_cm)
     else:
-        permissible_vol_loss = -1.0 # Fatal state
+        permissible_vol_loss = -1.0 # 100% loss αν η τιμή πέσει κάτω από το μεταβλητό κόστος
 
     # 4. Executive Display
     col1, col2 = st.columns(2)
     
     col1.metric("Νέα Τιμή", f"{new_price:,.2f} €", f"{price_change_pct:+.1f}%")
     
+    # ΔΙΟΡΘΩΣΗ FORMAT: Χρήση :+.1f αντί για :+.1;f
     if price_change_pct > 0:
         color = "normal"
         msg = f"Μπορείς να χάσεις έως και **{permissible_vol_loss*100:.1f}%** των πελατών σου και να έχεις το ΙΔΙΟ κέρδος."
     else:
         color = "inverse"
+        # Στην περίπτωση μείωσης τιμής, το permissible_vol_loss είναι αρνητικό, 
+        # άρα δείχνει πόσο volume ΠΡΕΠΕΙ να κερδίσεις.
         msg = f"Πρέπει να αυξήσεις το Volume κατά **{abs(permissible_vol_loss)*100:.1f}%** για να καλύψεις τη μείωση τιμής."
         
-    col2.metric("Επιτρεπτή Μεταβολή Volume", f"{permissible_vol_loss*100:+.1;f}%", delta_color=color)
+    col2.metric(
+        "Επιτρεπτή Μεταβολή Volume", 
+        f"{permissible_vol_loss*100:+.1f}%", # <-- ΕΔΩ ΗΤΑΝ ΤΟ ΣΦΑΛΜΑ
+        delta_color=color
+    )
 
     st.info(msg)
 
     
 
-    # 5. Reset Button για το Tool
+    # 5. Navigation
     if st.button("Back to Library Hub"):
         st.session_state.selected_tool = None
         st.session_state.mode = "library"
