@@ -8,8 +8,8 @@ def show_cash_fragility_index():
     # 1. READ FROM CORE & ENGINE (Shared Data)
     metrics = compute_core_metrics()
     
-    # Χρήση του 'cash_wall' από τον Engine που περιλαμβάνει Fixed Costs + Loan Payments
-    # Αυτό είναι το πραγματικό "Daily Burn" για επιβίωση
+    # Use 'cash_wall' from Engine (Fixed Costs + Debt Service)
+    # This represents the true structural "Burn" for survival.
     total_survival_burn_annual = metrics.get('cash_wall', 0.0)
     daily_burn_rate = total_survival_burn_annual / 365
 
@@ -38,20 +38,17 @@ def show_cash_fragility_index():
     
     if days_to_zero < 30:
         status = "CRITICAL FRAGILITY"
-        color = "red"
         st.error(f"🚨 {status}")
     elif days_to_zero < 60:
         status = "LOW BUFFER"
-        color = "orange"
         st.warning(f"⚠️ {status}")
     else:
         status = "STABLE"
-        color = "green"
         st.success(f"✅ {status}")
 
     st.metric("Days of Survival", f"{int(days_to_zero)} Days", delta=f"{status}")
     
-    # Progress bar μέχρι τις 120 μέρες (το ιδανικό buffer)
+    # Progress bar mapped to a 120-day ideal buffer
     progress_val = min(days_to_zero / 120, 1.0)
     st.progress(progress_val)
     st.caption("Safety threshold: 60-90 days of fixed obligations. Target: 120 days.")
@@ -68,18 +65,18 @@ def show_cash_fragility_index():
     
     if gap > 0:
         st.markdown(f"""
-        Για να φτάσετε σε ένα επίπεδο 'Ασφαλείας' (90 ημέρες αυτονομίας), χρειάζεστε συνολική ρευστότητα **{safe_liquidity:,.2f} €**.
+        To achieve a 'Safe' status (90 days of autonomy), you require a total liquidity of **{safe_liquidity:,.2f} €**.
         
-        **Έλλειμμα Ρευστότητας:** **{gap:,.2f} €**.
+        **Liquidity Gap:** **{gap:,.2f} €**.
         
-        **Προτεινόμενες Ενέργειες:**
-        1. **Επιτάχυνση Εισπράξεων:** Μείωση του DSO (Receivables Manager).
-        2. **Μείωση Αποθεμάτων:** Απελευθέρωση μετρητών από αργά κινούμενο στοκ (Inventory Manager).
-        3. **Αναδιάρθρωση Δανεισμού:** Μείωση της ημερήσιας δόσης (Daily Burn).
+        **Recommended Actions:**
+        1. **Accelerate Collections:** Reduce DSO using the Receivables Manager.
+        2. **Inventory Liquidation:** Release cash from slow-moving stock using the Inventory Manager.
+        3. **Debt Restructuring:** Negotiate lower installments to reduce the Daily Burn rate.
         """)
     else:
         st.markdown(f"""
-        Η επιχείρηση βρίσκεται σε **θέση ισχύος**. Διαθέτετε επαρκή ρευστότητα για να απορροφήσετε σοβαρούς κλυδωνισμούς στην αγορά χωρίς να κινδυνεύσει η λειτουργία σας.
+        The business is in a **Position of Strength**. You possess sufficient liquidity to absorb significant market shocks without jeopardizing operational continuity.
         """)
 
     if st.button("Back to Library Hub"):
