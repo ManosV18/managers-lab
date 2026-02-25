@@ -71,6 +71,10 @@ def show_library():
                 st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
                 st.rerun()
 
+            if st.button("📊 Receivables NPV Analyzer", use_container_width=True):
+                st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
+                st.rerun()
+
         with t4:
             st.subheader("Risk & Command Center")
             if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
