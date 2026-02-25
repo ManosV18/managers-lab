@@ -3,7 +3,7 @@ import streamlit as st
 def show_library():
     st.title("📚 Strategic Tool Library")
     
-    # 1. ΔΥΝΑΜΙΚΟΣ ΚΑΤΑΛΟΓΟΣ ΕΡΓΑΛΕΙΩΝ (Dictionary-based)
+    # 1. DYNAMIC TOOL CATALOG (Dictionary-based)
     categories = {
         "📈 Pricing & Break-Even": [
             ("Break-Even Shift Analysis", "break_even_shift_calculator", "show_break_even_shift_calculator"),
@@ -13,14 +13,12 @@ def show_library():
         
         "💰 Finance & Cash Flow": [
             ("Cash Cycle Calculator", "cash_cycle", "run_cash_cycle_app"),
-            # Εδώ προσέχουμε το αρχείο και τη συνάρτηση NPV
             ("Receivables Strategic Control", "receivables_analyzer", "show_receivables_analyzer_ui"), 
             ("Inventory Strategic Control", "inventory_manager", "show_inventory_manager"),
-            # Εδώ προσέχουμε το αρχείο και τη συνάρτηση Leasing
             ("Loan vs Leasing Analysis", "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
             ("Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
             ("Payables Strategic Control", "payables_manager", "show_payables_manager"),
-            ("executive dashboard",    "executive_dashboard",    "show_executive_dashboard",
+            ("Executive Dashboard", "executive_dashboard", "show_executive_dashboard") # FIXED: Added closing parenthesis
         ],
         
         "👥 Customer & Strategy": [
@@ -35,10 +33,10 @@ def show_library():
         ],       
     }
 
-    # 2. UI ΓΙΑ ΕΠΙΛΟΓΗ ΚΑΤΗΓΟΡΙΑΣ & ΕΡΓΑΛΕΙΟΥ
+    # 2. UI FOR CATEGORY & TOOL SELECTION
     cat_names = list(categories.keys())
     
-    # Διαχείριση Session State για να θυμάται πού ήμασταν
+    # Handle Session State to remember position
     if "lib_cat" not in st.session_state:
         st.session_state.lib_cat = cat_names[0]
 
@@ -58,18 +56,18 @@ def show_library():
 
     st.divider()
 
-    # ΕΚΤΕΛΕΣΗ ΤΟΥ ΕΡΓΑΛΕΙΟΥ
+    # EXECUTE THE TOOL
     try:
-        # Dynamic import
+        # Dynamic import from the 'tools' folder
         module = __import__(f"tools.{file_name}", fromlist=[function_name])
         func = getattr(module, function_name)
         func()
     except ModuleNotFoundError:
-        st.error(f"❌ Το αρχείο `tools/{file_name}.py` δεν βρέθηκε.")
+        st.error(f"❌ File `tools/{file_name}.py` was not found.")
     except AttributeError:
-        st.error(f"❌ Η συνάρτηση `{function_name}` δεν υπάρχει στο `tools/{file_name}.py`.")
+        st.error(f"❌ Function `{function_name}` does not exist in `tools/{file_name}.py`.")
     except Exception as e:
-        st.error(f"❌ Σφάλμα κατά την εκτέλεση: {e}")
+        st.error(f"❌ Execution Error: {e}")
         st.exception(e)
 
     # 4. GLOBAL ACTION
