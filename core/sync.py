@@ -27,5 +27,8 @@ def sync_global_state():
 def lock_baseline():
     """Freezes current session state values as a baseline for comparisons."""
     if 'baseline' not in st.session_state:
+        # 1. Παίρνουμε τα τρέχοντα metrics
         st.session_state.baseline = sync_global_state()
+        # 2. Ενημερώνουμε το flag για το Sidebar
+        st.session_state.baseline_locked = True 
         st.success("✅ Baseline Locked. Scenario analysis is now active.")
