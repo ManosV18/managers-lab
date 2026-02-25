@@ -2,45 +2,41 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def run_stage2():
-    st.title("💳 Stage 2: Capital Structure & WACC")
+    st.header("💳 Stage 2: Capital Structure & Debt Sustainability")
     
     # 1. FETCH DATA
     m = sync_global_state()
     s = st.session_state
 
-    st.markdown("""
-    Ανάλυση του κόστους κεφαλαίου και της εξυπηρέτησης του χρέους. 
-    Εδώ εξετάζουμε αν η απόδοση της επιχείρησης καλύπτει τις απαιτήσεις των επενδυτών και των τραπεζών.
-    """)
+    st.caption("Evaluating the cost of capital and the system's ability to service financial obligations.")
+    st.divider()
 
-    # 2. FINANCIAL METRICS
+    # 2. FINANCIAL DATA
     c1, c2, c3 = st.columns(3)
     
+    # Secure access using .get()
     wacc = s.get('wacc', 0.15)
-    annual_debt = s.get('annual_loan_payment', 0.0)
+    debt_service = s.get('annual_loan_payment', 0.0)
     ebit = m.get('ebit', 0.0)
     
-    c1.metric("WACC (Cost of Capital)", f"{wacc:.1%}")
-    c2.metric("Annual Debt Service", f"{annual_debt:,.0f} €")
+    c1.metric("WACC", f"{wacc:.1%}", help="Weighted Average Cost of Capital")
+    c2.metric("Annual Debt Load", f"{debt_service:,.0f} €")
     
-    # Debt Service Coverage Ratio (DSCR)
-    dscr = (ebit / annual_debt) if annual_debt > 0 else 5.0 # default high if no debt
-    c3.metric("Debt Coverage (DSCR)", f"{dscr:.2f}x", 
-              delta="Safe" if dscr > 1.2 else "Critical",
-              delta_color="normal" if dscr > 1.2 else "inverse")
+    dscr = (ebit / debt_service) if debt_service > 0 else 5.0
+    c3.metric("DSCR", f"{dscr:.2f}x", 
+              delta="Optimal" if dscr > 1.25 else "Distressed",
+              delta_color="normal" if dscr > 1.25 else "inverse")
 
-    # 3. ANALYTICAL INSIGHT
-    st.divider()
-    st.subheader("Capital Leverage Insights")
-    
-    if dscr < 1:
-        st.error(f"🚨 **CASH FLOW ALERT:** Το EBIT ({ebit:,.0f}€) δεν καλύπτει τις δόσεις των δανείων ({annual_debt:,.0f}€). Η επιχείρηση 'καίει' μετρητά για να εξυπηρετήσει το χρέος.")
-    elif dscr < 1.2:
-        st.warning("⚠️ **FRAGILE LIQUIDITY:** Η κάλυψη χρέους είναι οριακή. Οποιαδήποτε πτώση πωλήσεων θα προκαλέσει αδυναμία πληρωμής.")
+    # 3. ANALYSIS
+    st.subheader("Solvency Assessment")
+    if dscr < 1.0:
+        st.error("🚨 **CRITICAL FAIL:** Operating profit is insufficient to cover debt. System is insolvent without external funding.")
+    elif dscr < 1.25:
+        st.warning("⚠️ **VULNERABILITY:** Minimal cushion for error. Cash flow volatility may lead to default.")
     else:
-        st.success("✅ **DEBT SUSTAINABILITY:** Η επιχείρηση παράγει επαρκή κέρδη για την εξυπηρέτηση των δανειακών της υποχρεώσεων.")
+        st.success("✅ **STABLE STRUCTURE:** Debt service is well-covered by operating performance.")
 
-    # 4. NAVIGATION (Διασφάλιση ροής προς Stage 3)
+    # 4. NAVIGATION
     st.divider()
     col_prev, col_next = st.columns(2)
     with col_prev:
