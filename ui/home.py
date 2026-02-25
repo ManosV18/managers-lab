@@ -50,4 +50,4 @@ def show_home():
 
         with st.expander("System Configuration"):
             st.write(f"**Survival BEP:** {metrics['survival_bep']:,.0f} units")
-            st.write(f"**Cash Conversion Cycle:** {metrics['ccc']} days")
+            st.write(f"**Cash Conversion Cycle:** {metrics.get('ccc', 0)} days")
