@@ -36,6 +36,11 @@ def show_library():
             if st.button("📉 WACC Optimizer", use_container_width=True):
                 st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
                 st.rerun()
+            with col_t2b:
+                # ΣΥΝΔΕΣΗ ΤΟΥ AFN CALCULATOR
+                if st.button("📈 Growth Funding (AFN)", use_container_width=True):
+                    st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
+                    st.rerun()
             st.info("Additional finance tools pending...")
 
         with t3:
