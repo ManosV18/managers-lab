@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state
 
 def run_stage3():
     st.header("🫁 Stage 3: Liquidity Collapse Timeline")
