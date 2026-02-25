@@ -1,8 +1,13 @@
 import streamlit as st
 import plotly.graph_objects as go
 from core.sync import sync_global_state # FIXED: Use sync
+     
+    
+    # Μετά χρησιμοποιείς τα metrics κανονικά, π.χ.:
+    st.write(metrics.get('ebit', 0))
 
 def show_cash_fragility_index():
+    metrics = sync_global_state()
     st.header("🛡️ Cash Fragility & Survival Analysis")
     st.info("Analyze business resilience by linking cash reserves to the Cash Conversion Cycle.")
 
