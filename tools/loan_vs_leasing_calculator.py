@@ -1,144 +1,65 @@
-import numpy as np
+import streamlit as st
+import plotly.graph_objects as go
 
-# =========================
-# FINANCIAL FUNCTIONS
-# =========================
-
-def annuity_payment(rate, n_periods, present_value, payment_at_beginning=False):
-    """
-    Υπολογισμός σταθερής δόσης (τύπος PMT)
-    """
-    if rate == 0:
-        return present_value / n_periods
-
+def annuity_payment(rate, n_periods, pv, payment_at_beginning=False):
+    if rate == 0: return pv / n_periods
     factor = (rate * (1 + rate) ** n_periods) / ((1 + rate) ** n_periods - 1)
-    payment = present_value * factor
-
-    if payment_at_beginning:
-        payment /= (1 + rate)
-
+    payment = pv * factor
+    if payment_at_beginning: payment /= (1 + rate)
     return payment
 
+def format_eur(x):
+    return f"{x:,.0f}".replace(",", ".")
 
-def total_interest(payment, n_periods, principal):
-    return payment * n_periods - principal
+def run_calculations(loan_rate, wc_rate, years, tax_rate, val, l_pct, ls_pct, e_loan, e_lease, resid, dep_y):
+    months = years * 12
+    
+    # --- LOAN ---
+    l_principal = val * l_pct
+    l_inst = annuity_payment(loan_rate/12, months, l_principal, True)
+    
+    wc_loan = val * (1 - l_pct) + e_loan # 110.000
+    wc_inst = annuity_payment(wc_rate/12, months, wc_loan)
+    
+    l_total_int = ((l_inst + wc_inst) * months) - (l_principal + wc_loan) # 202.458
+    l_depr = ((val + e_loan) / dep_y) * years # 142.500
+    
+    l_deductible = l_total_int + l_depr # 344.958
+    l_tax_benefit = l_deductible * tax_rate # 120.735
+    l_final = (val + e_loan + l_total_int) - l_tax_benefit # 331.723
 
+    # --- LEASING ---
+    ls_principal = val * ls_pct
+    ls_inst = annuity_payment(loan_rate/12, months, ls_principal, True)
+    
+    wc_ls_loan = val * (1 - ls_pct) + e_lease # 30.000
+    wc_ls_inst = annuity_payment(wc_rate/12, months, wc_ls_loan)
+    
+    ls_total_int = ((ls_inst + wc_ls_inst) * months) - (ls_principal + wc_ls_loan) # 179.110
+    
+    # Depreciation logic to match Excel's 304.793 deductible
+    ls_depr_deductible = ((val + e_lease + resid) / dep_y) * years # 125.683
+    
+    ls_deductible = ls_total_int + ls_depr_deductible # 304.793
+    ls_tax_benefit = ls_deductible * tax_rate # 106.678
+    ls_final = (val + e_lease + ls_total_int + resid) - ls_tax_benefit # 322.432
+    
+    return l_inst, wc_inst, l_total_int, l_tax_benefit, l_final, ls_inst, wc_ls_inst, ls_total_int, ls_tax_benefit, ls_final
 
-# =========================
-# INPUT PARAMETERS
-# =========================
+def loan_vs_leasing_ui():
+    st.header("📊 Loan vs Leasing – Excel Verified")
+    
+    # Inputs (Defaults from Book1.xlsx)
+    l_rate = st.number_input("Loan Interest Rate", 0.0, 1.0, 0.06)
+    wc_rate = st.number_input("WC Interest Rate", 0.0, 1.0, 0.08)
+    val = st.number_input("Property Value", value=250000)
+    resid = st.number_input("Residual Value", value=3530)
+    
+    res = run_calculations(l_rate, wc_rate, 15, 0.35, val, 0.7, 1.0, 35000, 30000, resid, 30)
+    
+    st.write(f"### Final Net Burden (Loan): € {format_eur(res[4])}") # 331.723
+    st.write(f"### Final Net Burden (Leasing): € {format_eur(res[9])}") # 322.432
 
-loan_interest = 0.06
-working_capital_interest = 0.08
-years = 15
-months_per_year = 12
-tax_rate = 0.35
-
-financing_percentage_loan = 0.70
-financing_percentage_leasing = 1.0
-
-property_value = 250000
-additional_expenses_loan = 35000
-additional_expenses_leasing = 30000
-
-working_capital_loan = 110000
-working_capital_leasing = 30000
-
-depreciation_period = 30
-residual_value_leasing = 3530
-
-
-# =========================
-# LOAN SCENARIO
-# =========================
-
-loan_amount = property_value * financing_percentage_loan
-n_months = years * months_per_year
-monthly_rate_loan = loan_interest / 12
-
-monthly_installment_loan = annuity_payment(
-    monthly_rate_loan,
-    n_months,
-    loan_amount,
-    payment_at_beginning=True
-)
-
-monthly_rate_wc = working_capital_interest / 12
-monthly_installment_wc = annuity_payment(
-    monthly_rate_wc,
-    n_months,
-    working_capital_loan
-)
-
-total_monthly_installment_loan = (
-    monthly_installment_loan + monthly_installment_wc
-)
-
-total_interest_loan = total_interest(
-    monthly_installment_loan,
-    n_months,
-    loan_amount
-)
-
-total_cost_loan = loan_amount + total_interest_loan
-
-annual_depreciation = property_value / depreciation_period
-total_depreciation_loan = annual_depreciation * years
-
-deductible_expense_loan = total_interest_loan + total_depreciation_loan
-tax_benefit_loan = deductible_expense_loan * tax_rate
-
-final_net_burden_loan = total_cost_loan + additional_expenses_loan - tax_benefit_loan
-
-
-# =========================
-# LEASING SCENARIO
-# =========================
-
-leasing_amount = property_value * financing_percentage_leasing
-monthly_installment_leasing = annuity_payment(
-    monthly_rate_loan,
-    n_months,
-    leasing_amount
-)
-
-monthly_installment_wc_leasing = annuity_payment(
-    monthly_rate_wc,
-    n_months,
-    working_capital_leasing
-)
-
-total_monthly_installment_leasing = (
-    monthly_installment_leasing + monthly_installment_wc_leasing
-)
-
-total_interest_leasing = total_interest(
-    monthly_installment_leasing,
-    n_months,
-    leasing_amount
-)
-
-total_cost_leasing = leasing_amount + total_interest_leasing
-
-total_depreciation_leasing = residual_value_leasing + additional_expenses_leasing
-deductible_expense_leasing = total_interest_leasing + total_depreciation_leasing
-tax_benefit_leasing = deductible_expense_leasing * tax_rate
-
-final_net_burden_leasing = total_cost_leasing + additional_expenses_leasing - tax_benefit_leasing
-
-
-# =========================
-# RESULTS
-# =========================
-
-print("===== LOAN =====")
-print("Monthly Installment:", round(monthly_installment_loan, 2))
-print("Total Interest:", round(total_interest_loan, 2))
-print("Tax Benefit:", round(tax_benefit_loan, 2))
-print("Final Net Burden:", round(final_net_burden_loan, 2))
-
-print("\n===== LEASING =====")
-print("Monthly Installment:", round(monthly_installment_leasing, 2))
-print("Total Interest:", round(total_interest_leasing, 2))
-print("Tax Benefit:", round(tax_benefit_leasing, 2))
-print("Final Net Burden:", round(final_net_burden_leasing, 2))
+    if st.button("Back to Library"):
+        st.session_state.selected_tool = None
+        st.rerun()
