@@ -5,91 +5,77 @@ from core.engine import compute_core_metrics
 
 def show_inventory_manager():
     st.header("📦 Strategic Inventory Analyzer")
-    st.markdown("---")
+    st.info("Note: For Cash Cycle calculations, weighting is performed strictly by Value (€).")
     
-    # 1. CORE LOGIC: USER-DEFINED SEGMENTATION
-    st.subheader("1. Inventory Segments (Data from ERP)")
-    st.write("Input the inventory value and collection days for each category as reported in your accounting system.")
-
-    # User choice for sorting/evaluation
-    eval_basis = st.radio("Evaluation Basis:", ["By Value (€)", "By Quantity / Volume"], horizontal=True)
-
-    # Categories based on your input
-    categories = [
-        {"label": "Fast Moving (e.g. 30 days)", "val": 300000.0, "days": 30},
-        {"label": "Standard Flow (e.g. 45 days)", "val": 400000.0, "days": 45},
-        {"label": "Slow Flow (e.g. 70 days)", "val": 200000.0, "days": 70},
-        {"label": "Non-Moving/Obsolete (e.g. 170 days)", "val": 50000.0, "days": 170},
+    # 1. SEGMENTATION DATA ENTRY
+    st.subheader("1. ERP Inventory Data")
+    
+    # Pre-defined segments for ease of use
+    default_segments = [
+        {"label": "Fast Moving", "val": 300000.0, "days": 30},
+        {"label": "Standard Flow", "val": 400000.0, "days": 45},
+        {"label": "Slow Moving", "val": 200000.0, "days": 75},
+        {"label": "Obsolete/Dead Stock", "val": 50000.0, "days": 180},
     ]
 
     inventory_data = []
     cols = st.columns([2, 2, 1])
     cols[0].write("**Segment Description**")
-    cols[1].write(f"**Total {eval_basis}**")
-    cols[2].write("**Days in Stock**")
+    cols[1].write("**Total Value (€)**")
+    cols[2].write("**Inventory Days**")
 
-    for i, cat in enumerate(categories):
+    for i, cat in enumerate(default_segments):
         c = st.columns([2, 2, 1])
-        name = c[0].text_input(f"Name {i}", cat['label'], key=f"inv_name_{i}", label_visibility="collapsed")
-        val = c[1].number_input(f"Value {i}", value=cat['val'], key=f"inv_val_{i}", label_visibility="collapsed")
-        days = c[2].number_input(f"Days {i}", value=cat['days'], key=f"inv_days_{i}", label_visibility="collapsed")
+        name = c[0].text_input(f"Name {i}", cat['label'], key=f"inv_n_{i}", label_visibility="collapsed")
+        val = c[1].number_input(f"Value {i}", value=cat['val'], key=f"inv_v_{i}", label_visibility="collapsed")
+        days = c[2].number_input(f"Days {i}", value=cat['days'], key=f"inv_d_{i}", label_visibility="collapsed")
         inventory_data.append({"Category": name, "Value": val, "Days": days})
 
-    # 2. STRATEGIC CALCULATIONS
+    # 2. STRATEGIC WEIGHTING (BY VALUE)
     df = pd.DataFrame(inventory_data)
     total_val = df["Value"].sum()
     
-    # Weighted Average DSO (DSI) - This is the "Master Average" you mentioned
+    # Weighted Average DSI - The critical input for Cash Cycle
     weighted_dsi = (df["Value"] * df["Days"]).sum() / total_val if total_val > 0 else 0
     
-    # Pareto Logic: Find which segment "hurts" most (Value * Days)
-    df["Financial_Impact"] = df["Value"] * df["Days"]
-    df["Impact_Share"] = (df["Financial_Impact"] / df["Financial_Impact"].sum() * 100) if total_val > 0 else 0
-    
+    # Save to session_state to be picked up by Cash Cycle Tool
+    st.session_state.global_inventory_dsi = weighted_dsi
+    st.session_state.inventory_value = total_val
+
     st.divider()
 
-    # 3. EXECUTIVE DASHBOARD
+    # 3. OUTPUT METRICS
     m1, m2, m3 = st.columns(3)
-    m1.metric(f"Total Portfolio ({eval_basis})", f"{total_val:,.0f}")
-    m2.metric("Weighted Average DSI", f"{weighted_dsi:.1f} Days")
-    m3.metric("Critical Segment", df.loc[df['Impact_Share'].idxmax()]['Category'] if total_val > 0 else "N/A")
+    m1.metric("Total Inventory Value", f"€ {total_val:,.0f}")
+    m2.metric("Weighted Avg DSI", f"{weighted_dsi:.1f} Days", help="This value is used in Cash Cycle calculations.")
+    m3.metric("Capital Pressure Index", f"{(weighted_dsi/365*100):.1f}%", help="Percentage of the year capital is trapped.")
 
-    # Save to session state for use in other functions/tools
-    st.session_state.global_inventory_dsi = weighted_dsi
-    st.session_state.global_inventory_value = total_val
-
-    # 4. PARETO VISUALIZATION (Which segment traps most capital?)
-    st.subheader("2. Financial Impact Analysis (Pareto)")
     
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
+
+    # 4. PARETO IMPACT (VALUE x DAYS)
+    st.subheader("2. Financial Friction (Pareto Analysis)")
+    df["Financial_Friction"] = df["Value"] * df["Days"]
+    df["Friction_Share"] = (df["Financial_Friction"] / df["Financial_Friction"].sum() * 100) if total_val > 0 else 0
+    
+    fig = go.Figure(go.Bar(
         x=df["Category"],
-        y=df["Impact_Share"],
-        marker_color=['#EF553B' if x == df["Impact_Share"].max() else '#636EFA' for x in df["Impact_Share"]],
-        text=[f"{x:.1f}%" for x in df["Impact_Share"]],
+        y=df["Friction_Share"],
+        marker_color=['#EF553B' if x == df["Friction_Share"].max() else '#00CC96' for x in df["Friction_Share"]],
+        text=[f"{x:.1f}%" for x in df["Friction_Share"]],
         textposition='auto',
     ))
-    
-    fig.update_layout(
-        title=f"Percentage of Capital Pressure by Segment ({eval_basis} × Days)",
-        xaxis_title="Inventory Segment",
-        yaxis_title="% of Financial Pressure",
-        template="plotly_dark",
-        height=400
-    )
+    fig.update_layout(title="Capital Pressure Share by Segment", template="plotly_dark", yaxis_title="% Contribution to Cash Delay")
     st.plotly_chart(fig, use_container_width=True)
 
+    # 5. CASH CYCLE INTEGRATION STATUS
+    st.subheader("3. Integration Status")
+    if 'global_inventory_dsi' in st.session_state:
+        st.success(f"✔️ Weighted DSI ({weighted_dsi:.1f} days) is now linked to the Cash Cycle Calculator.")
     
-
-    # 5. COLD ANALYTICAL VERDICT
-    st.subheader("3. Analytical Verdict")
+    # Cold Analytical Insight
     wacc = compute_core_metrics().get('wacc', 0.15)
-    daily_cost = (total_val * wacc) / 365
-    
-    st.warning(f"""
-        **Insight:** Your weighted average DSI of **{weighted_dsi:.1f} days** represents a daily opportunity cost of **€ {daily_cost:,.2f}**. 
-        The **{df.loc[df['Impact_Share'].idxmax()]['Category']}** segment is your primary source of cash flow friction, responsible for **{df['Impact_Share'].max():.1f}%** of your inventory-related capital pressure.
-    """)
+    annual_cost = total_val * wacc
+    st.warning(f"**Strategic Note:** Holding this inventory costs **€ {annual_cost:,.2f}** per year in capital cost alone. Reducing the DSI by 10 days would improve NPV by approximately **€ {(total_val/365 * 10 * wacc):,.2f}**.")
 
 if __name__ == "__main__":
     show_inventory_manager()
