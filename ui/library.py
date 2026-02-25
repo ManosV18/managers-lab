@@ -34,6 +34,10 @@ def show_library():
             if st.button("🎯 Pricing Power Radar", use_container_width=True):
                 st.session_state.selected_tool = ("pricing_radar", "show_pricing_power_radar")
                 st.rerun()
+
+            if st.button("🎯 Pricing Elasticity & Complements", use_container_width=True):
+                st.session_state.selected_tool = ("pricing_elasticity", "show_pricing_strategy_tool")
+                st.rerun()
         
         with t2:
             st.subheader("Finance & Capital")
