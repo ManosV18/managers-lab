@@ -13,7 +13,7 @@ def run_stage3():
 
     # Liquidity Physics:
     # monthly_net = (OCF - Debt Service) / 12
-    monthly_net = (m["ocf"] - s.annual_loan_payment) / 12
+    # Safe retrieval of session state values annual_loan = s.get('annual_loan_payment', 0.0) ocf = m.get('ocf', 0.0)  monthly_net = (ocf - annual_loan) / 12
     
     # Net Initial Cash = Opening Cash - Working Capital Lock
     # Χρησιμοποιούμε το max(0, ...) για να μην ξεκινάμε με αρνητικά αν δεν έχουμε λεφτά
