@@ -7,7 +7,7 @@ def run_stage4():
     st.divider()
 
     # 1. BASELINE SYNC
-    m = compute_core_metrics()
+    m = sync_global_state()
     s = st.session_state
     
     # Baseline Metrics (Current State)
