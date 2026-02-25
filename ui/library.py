@@ -22,13 +22,17 @@ def show_library():
                 st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
                 st.rerun()
 
-            # ΣΥΝΔΕΣΗ ΤΟΥ LOSS THRESHOLD
             if st.button("📉 Loss Threshold", use_container_width=True):
                 st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
                 st.rerun()
                 
             if st.button("👥 CLV Simulator", use_container_width=True):
                 st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
+                st.rerun()
+
+            # --- ΝΕΟ ΕΡΓΑΛΕΙΟ ---
+            if st.button("🎯 Pricing Power Radar", use_container_width=True):
+                st.session_state.selected_tool = ("pricing_radar", "show_pricing_power_radar")
                 st.rerun()
         
         with t2:
@@ -37,11 +41,10 @@ def show_library():
                 st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
                 st.rerun()
 
-            # ΣΥΝΔΕΣΗ ΤΟΥ LOAN VS LEASING
             if st.button("⚖️ Loan vs Leasing", use_container_width=True):
                 st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
                 st.rerun()
-            # ΔΙΟΡΘΩΣΗ: Αφαίρεση του col_t2b που προκαλούσε το error
+
             if st.button("📈 Growth Funding (AFN)", use_container_width=True):
                 st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
                 st.rerun()
@@ -52,12 +55,10 @@ def show_library():
                 st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
                 st.rerun()
                 
-            # ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΝΕΟ ΚΟΥΜΠΙ
             if st.button("🤝 Payables Manager", use_container_width=True):
                 st.session_state.selected_tool = ("payables_manager", "show_payables_manager")
                 st.rerun()
                 
-            # ΣΥΝΔΕΣΗ ΤΟΥ INVENTORY MANAGER
             if st.button("📦 Inventory Analyzer", use_container_width=True):
                 st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
                 st.rerun()
@@ -83,7 +84,7 @@ def show_library():
         st.divider()
         mod_name, func_name = st.session_state.selected_tool
         try:
-            # Δυναμική φόρτωση από το φάκελο tools/
+            # Δυναμική φόρτωσης από το φάκελο tools/
             module = importlib.import_module(f"tools.{mod_name}")
             tool_func = getattr(module, func_name)
             tool_func()
