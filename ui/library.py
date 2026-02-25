@@ -1,107 +1,72 @@
 import streamlit as st
-import importlib
+import pandas as pd
+import plotly.graph_objects as go
+from decimal import Decimal, getcontext
+from core.sync import sync_global_state
 
-def show_library():
-    # 1. Sidebar navigation
-    if st.sidebar.button("🏠 Exit Library"):
-        st.session_state.mode = "path"
-        st.session_state.flow_step = "home"
-        st.session_state.selected_tool = None
-        st.rerun()
+# --- NPV ENGINE (FIXED SYNTAX) ---
+def calculate_discount_npv_full(
+    current_sales, extra_sales, discount_trial, prc_clients_take_disc,
+    days_take_old, days_no_take_old, new_days_take, cogs, wacc, avg_days_suppliers
+):
+    getcontext().prec = 20
+    i = wacc / 365 
 
-    st.title("🏛️ Strategic Tool Library")
+    prc_no_take = 1 - prc_clients_take_disc
+    avg_current_days = (prc_clients_take_disc * days_take_old) + (prc_no_take * days_no_take_old)
+    current_receivables = current_sales * avg_current_days / 365
 
-    # 2. Tool Routing
-    if st.session_state.get('selected_tool') is None:
-        # Δημιουργία των Tabs
-        t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "📉 Risk"])
-        
-        with t1:
-            st.subheader("Strategy & Growth")
-            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
-                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
-                st.rerun()
+    total_sales = current_sales + extra_sales
+    prcnt_new_policy = ((current_sales * prc_clients_take_disc) + extra_sales) / total_sales
+    prcnt_old_policy = 1 - prcnt_new_policy
 
-            if st.button("📉 Loss Threshold", use_container_width=True):
-                st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
-                st.rerun()
-                
-            if st.button("👥 CLV Simulator", use_container_width=True):
-                st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
-                st.rerun()
+    new_avg_days = (prcnt_new_policy * new_days_take) + (prcnt_old_policy * days_no_take_old)
+    new_receivables = total_sales * new_avg_days / 365
+    free_capital = current_receivables - new_receivables
 
-            # --- ΝΕΟ ΕΡΓΑΛΕΙΟ ---
-            if st.button("🎯 Pricing Power Radar", use_container_width=True):
-                st.session_state.selected_tool = ("pricing_radar", "show_pricing_power_radar")
-                st.rerun()
+    # Inflow calculations
+    inflow = (total_sales * prcnt_new_policy * (1 - discount_trial)) / ((1 + i) ** new_days_take)
+    inflow += (total_sales * prcnt_old_policy) / ((1 + i) ** days_no_take_old)
+    
+    # Outflow calculations (Fixed brackets)
+    outflow = ((cogs / current_sales) * extra_sales) / ((1 + i) ** avg_days_suppliers)
+    outflow += current_sales / ((1 + i) ** avg_current_days)
+    
+    npv = float(inflow - outflow)
 
-            if st.button("🎯 Pricing Elasticity & Complements", use_container_width=True):
-                st.session_state.selected_tool = ("pricing_elasticity", "show_pricing_strategy_tool")
-                st.rerun()
+    return {
+        "avg_current_days": float(avg_current_days),
+        "new_avg_days": float(new_avg_days),
+        "free_capital": float(free_capital),
+        "npv": npv,
+        "discount_cost": float(total_sales * prcnt_new_policy * discount_trial),
+        "targeted_dso": float(days_take_old)
+    }
 
-            if st.button("🧭 QSPM Strategy Comparison", use_container_width=True):
-                st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool")
-                st.rerun()
-        
-        with t2:
-            st.subheader("Finance & Capital")
-            if st.button("📉 WACC Optimizer", use_container_width=True):
-                st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
-                st.rerun()
-
-            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
-                st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
-                st.rerun()
-
-            if st.button("📈 Growth Funding (AFN)", use_container_width=True):
-                st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
-                st.rerun()
-
-        with t3:
-            st.subheader("Operations & Efficiency")
-            if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
-                st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
-                st.rerun()
-                
-            if st.button("🤝 Payables Manager", use_container_width=True):
-                st.session_state.selected_tool = ("payables_manager", "show_payables_manager")
-                st.rerun()
-                
-            if st.button("📦 Inventory Analyzer", use_container_width=True):
-                st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
-                st.rerun()
-
-            if st.button("📊 Receivables NPV Analyzer", use_container_width=True):
-                st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
-                st.rerun()
-
-        with t4:
-            st.subheader("Risk & Command Center")
-            if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
-                st.session_state.selected_tool = ("resilience_map", "show_resilience_map")
-                st.rerun()
-            if st.button("🚨 Cash Fragility Index", use_container_width=True):
-                st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
-                st.rerun()
-            if st.button("🏁 Executive Command Center", use_container_width=True):
-                st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard")
-                st.rerun()
-
-    else:
-        # 3. Tool Execution Mode
-        if st.button("⬅️ Back to Library Hub"):
-            st.session_state.selected_tool = None
-            st.rerun()
-        
-        st.divider()
-        mod_name, func_name = st.session_state.selected_tool
-        try:
-            # Δυναμική φόρτωσης από το φάκελο tools/
-            module = importlib.import_module(f"tools.{mod_name}")
-            tool_func = getattr(module, func_name)
-            tool_func()
-        except Exception as e:
-            st.error(f"❌ Σφάλμα φόρτωσης εργαλείου '{mod_name}': {e}")
-            if st.button("Reset Selection"):
-                st.session_state.selected_tool = None
-                st.rerun()
+def show_receivables_analyzer_ui():
+    st.header("📊 Receivables Strategic Control (NPV Mode)")
+    
+    # 1. SEGMENTATION & TARGETING
+    st.subheader("1. Portfolio Segmentation & Targeting")
+    
+    m = sync_global_state()
+    
+    default_segments = [
+        {"Cat": "A", "Amt": 300000.0, "Days": 60},
+        {"Cat": "B", "Amt": 400000.0, "Days": 85},
+        {"Cat": "C", "Amt": 550000.0, "Days": 115},
+        {"Cat": "D", "Amt": 75000.0, "Days": 160},
+    ]
+    
+    seg_data = []
+    cols = st.columns([1, 2, 1])
+    cols[0].write("**Target?**")
+    cols[1].write("**Amount (€)**")
+    cols[2].write("**Current Days**")
+    
+    for s in default_segments:
+        c = st.columns([1, 2, 1])
+        is_targeted = c[0].checkbox(f"Offer to {s['Cat']}", value=(s['Cat'] in ['C', 'D']), key=f"target_{s['Cat']}")
+        amt = c[1].number_input(f"Amount {s['Cat']}", value=s['Amt'], key=f"amt_{s['Cat']}", label_visibility="collapsed")
+        days = c[2].number_input(f"Days {s['Cat']}", value=s['Days'], key=f"day_{s['Cat']}", label_visibility="collapsed")
+        seg_data.append({"Cat": s['
