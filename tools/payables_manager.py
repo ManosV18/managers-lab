@@ -1,72 +1,79 @@
 import streamlit as st
-from core.sync import sync_global_state  # Χρήση του sync για να αποφύγουμε το σφάλμα
+from core.sync import sync_global_state
 
-def show_payables_manager():
-    st.header("🤝 Payables Strategic Control")
-    st.info("Using Corporate WACC as the hurdle rate to optimize supplier payment strategies and cash retention.")
-    
+def show_receivables_optimizer():
+    st.header("🎯 Receivables Strategic Optimizer")
+    st.info("Ανάλυση NPV για την προσφορά έκπτωσης σε πελάτες με σκοπό την επιτάχυνση των εισπράξεων.")
+
     # 1. FETCH GLOBAL DATA
-    # Αντικατάσταση του compute_core_metrics() με sync_global_state() για σταθερότητα
     metrics = sync_global_state()
-    q = st.session_state.get('volume', 0)
-    vc = st.session_state.get('variable_cost', 0.0)
+    s = st.session_state
+
+    # INPUTS (Από το πάνω μέρος της εικόνας σου)
+    col1, col2 = st.columns(2)
     
-    # Annual purchases estimated based on Variable Cost
-    annual_purchases = q * vc
-    current_ap_days = st.session_state.get('ap_days', 30) # Χρήση του ap_days όπως στην engine
+    with col1:
+        current_sales = st.number_input("Current Sales (€)", value=float(s.get('sales', 1000.0)))
+        extra_sales = st.number_input("Extra Sales from Policy (€)", value=250.0)
+        discount_trial = st.number_input("Discount Offered (%)", value=2.0, step=0.1) / 100
+        prc_take_disc = st.number_input("% Clients Taking Discount", value=40.0) / 100
+        wacc = metrics.get('wacc', 0.20)
+        st.write(f"**WACC (Cost of Capital):** {wacc:.1%}")
+
+    with col2:
+        days_take_disc = st.number_input("Days (Clients taking discount)", value=60)
+        days_not_take_disc = st.number_input("Days (Clients NOT taking discount)", value=120)
+        new_days_take_disc = st.number_input("New Payment Term for Discount (Days)", value=10)
+        cogs_val = st.number_input("COGS (€)", value=800.0)
+
+    # 2. CALCULATIONS (ΑΚΡΙΒΩΣ ΟΠΩΣ ΣΤΗΝ ΕΙΚΟΝΑ ΣΟΥ)
+    # ---------------------------------------------------------
+    prc_not_take_disc = 1 - prc_take_disc
     
-    # Using WACC as the opportunity cost of cash
-    hurdle_rate = metrics.get('wacc', 0.15) 
+    # Current State
+    avg_collection_days = (days_take_disc * prc_take_disc) + (days_not_take_disc * prc_not_take_disc)
+    current_receivables = (current_sales * avg_collection_days) / 365 # 365 βάσει οδηγίας σας
+
+    # New Policy State
+    total_new_sales = current_sales + extra_sales
+    prcnt_new_clients_in_new_policy = ((current_sales * prc_take_disc) + extra_sales) / total_new_sales
+    prcnt_new_clients_in_old_policy = 1 - prcnt_new_clients_in_new_policy
     
-    st.write(f"**🔗 Opportunity Cost (WACC):** {hurdle_rate:.1%}")
+    new_avg_collection_period = (prcnt_new_clients_in_new_policy * new_days_take_disc) + (prcnt_new_clients_in_old_policy * days_not_take_disc)
+    new_receivables = (total_new_sales * new_avg_collection_period) / 365
+    
+    # Financial Impacts
+    free_capital = current_receivables - new_receivables
+    profit_from_extra_sales = extra_sales * (1 - (cogs_val / current_sales))
+    profit_from_free_capital = free_capital * wacc
+    discount_cost = total_new_sales * prcnt_new_clients_in_new_policy * discount_trial
+    
+    # FINAL NPV
+    npv = profit_from_extra_sales + profit_from_free_capital - discount_cost
 
-    tab1, tab2 = st.tabs(["💰 Cash Flow Impact", "⚖️ Discount vs. Cost of Capital"])
-
-    with tab1:
-        st.subheader("Liquidity Optimization")
-        new_ap_days = st.slider("Target Payment Terms (Days)", 0, 150, int(current_ap_days), key="ap_slider")
-        
-        # Calculation of cash released/trapped
-        cash_impact = ((new_ap_days - current_ap_days) / 365) * annual_purchases
-        value_benefit = cash_impact * hurdle_rate
-        
-        c1, c2 = st.columns(2)
-        c1.metric("Net Cash Impact", f"€ {cash_impact:,.2f}", 
-                  delta=f"{new_ap_days - current_ap_days} Days Shift")
-        
-        c2.metric("Annual Value Benefit", f"€ {max(0.0, value_benefit):,.2f}")
-
-    with tab2:
-        st.subheader("Early Payment Discount (EPD) Evaluator")
-        
-        col1, col2, col3 = st.columns(3)
-        epd_pct = col1.number_input("Discount Offered (%)", value=2.0, min_value=0.0, max_value=10.0, step=0.1, key="epd_p") / 100
-        epd_days = col2.number_input("Discount Period (Days)", value=10, key="epd_d")
-        net_days = col3.number_input("Full Term (Days)", value=30, key="epd_n")
-
-        if net_days > epd_days:
-            # Formula: (Discount / (1-Discount)) * (365 / (Net - Discount Days))
-            implied_rate = (epd_pct / (1 - epd_pct)) * (365 / (net_days - epd_days))
-            
-            st.divider()
-            st.write(f"Implied Annual Return from Discount: **{implied_rate:.1%}**")
-            st.write(f"Your Internal Cost of Capital (WACC): **{hurdle_rate:.1%}**")
-
-            if implied_rate > hurdle_rate:
-                st.success("✅ **Verdict: TAKE THE DISCOUNT.** The discount rate is higher than your cost of capital.")
-            else:
-                st.error("🚨 **Verdict: DELAY PAYMENT.** It is more profitable to keep the cash until the final due date.")
-
+    # 3. DISPLAY RESULTS (Yellow Box in your Image)
     st.divider()
+    st.subheader("📊 Strategic Analysis Results")
     
-    # NAVIGATION & SYNC
-    col_nav1, col_nav2 = st.columns(2)
-    with col_nav1:
-        if st.button("Sync Target Days to Global Strategy"):
-            st.session_state.ap_days = new_ap_days
-            st.success(f"Global Payables Days updated to {new_ap_days} days.")
+    res1, res2, res3 = st.columns(3)
+    res1.metric("Current Receivables", f"€ {current_receivables:,.2f}")
+    res1.metric("New Receivables", f"€ {new_receivables:,.2f}")
+    res1.metric("Free Capital", f"€ {free_capital:,.2f}")
+
+    res2.metric("Profit from Extra Sales", f"€ {profit_from_extra_sales:,.2f}")
+    res2.metric("Profit from Free Capital", f"€ {profit_from_free_capital:,.2f}")
+    res2.metric("Discount Cost (Loss)", f"€ {discount_cost:,.2f}", delta_color="inverse")
+
+    st.info(f"### 💎 NPV of New Policy: € {npv:,.2f}")
+
+    # 4. OPTIMUM DISCOUNT (NPV Break Even logic)
+    st.divider()
+    # Σύμφωνα με την εικόνα σας για το Break Even
+    max_disc = 1 - (1 / (1 + (wacc/365))**(avg_collection_days - new_days_take_disc)) # Προσέγγιση
     
-    with col_nav2:
-        if st.button("Back to Library Hub"):
-            st.session_state.selected_tool = None
-            st.rerun()
+    st.write(f"**Maximum Allowable Discount (Break Even):** {max_disc:.2%}")
+
+    # ACTIONS
+    if st.button("Back to Library"):
+        st.session_state.selected_tool = None
+        st.rerun()
