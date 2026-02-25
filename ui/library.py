@@ -19,7 +19,13 @@ def show_library():
                 st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
                 st.rerun()
         
-        with t2: st.info("Finance tools pending...")
+        with tab2:
+            st.subheader("Finance & Capital")
+            # ΠΡΟΣΘΗΚΗ ΤΟΥ WACC OPTIMIZER
+            if st.button("📉 WACC Optimizer", use_container_width=True):
+                st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
+                st.rerun()
+            st.info("Additional finance tools pending...")
     else:
         # Εκτέλεση του επιλεγμένου εργαλείου
         if st.button("⬅️ Back to Library"):
