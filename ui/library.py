@@ -32,7 +32,12 @@ def show_library():
 
         with t3:
             st.subheader("Operations & Efficiency")
-            st.info("Operations tools pending...")
+            # ΣΥΝΔΕΣΗ ΤΟΥ CASH CYCLE
+            if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
+                st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
+                st.rerun()
+            
+            st.info("Additional operations tools pending...")
 
         with t4:
             st.subheader("Risk & Vulnerability")
