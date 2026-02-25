@@ -8,29 +8,27 @@ def show_inventory_manager():
     st.title("📦 Strategic Inventory Optimizer")
     st.info("Direct Excel Integration: Validation for Best Quantity and Order Frequency.")
 
-    # 1. DATA ENTRY SECTION (Aligned with Excel Cells)
+    # 1. DATA ENTRY SECTION
     st.subheader("1. Input Parameters")
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("**Core Order Data**")
-        M = st.number_input("Annual Needs (M) - [C30]", value=10000.0, format="%.2f")
-        kf = st.number_input("Order Cost (kf) - [C31]", value=600.0, format="%.2f")
-        unit_p = st.number_input("Unit Price (q) - [C29]", value=30.0, format="%.2f")
-        r_disc = st.number_input("Discount % (r) - [C32]", value=0.0, step=0.1) / 100
+        M = st.number_input("Annual Needs (M)", value=10000.0, format="%.2f")
+        kf = st.number_input("Order Cost (kf)", value=600.0, format="%.2f")
+        unit_p = st.number_input("Unit Price (q)", value=30.0, format="%.2f")
+        r_disc = st.number_input("Discount % (r)", value=0.0, step=0.1) / 100
 
     with col2:
         st.markdown("**Holding & Capital Costs**")
         storage_m = st.number_input("Monthly Storage/Rent", value=600.0, format="%.2f")
         insurance_m = st.number_input("Monthly Insurance", value=150.0, format="%.2f")
-        interest_rate = st.number_input("Annual Interest Rate (%) - [C41]", value=5.0, step=0.1) / 100
+        interest_rate = st.number_input("Annual Interest Rate (%)", value=5.0, step=0.1) / 100
 
-    # 2. CALCULATION ENGINE (The exact IF logic)
-    # C42 Calculation: Total Overheads / (M * Unit Price)
+    # 2. CALCULATION ENGINE
     annual_overheads = (storage_m + insurance_m) * 12
     overhead_ratio = annual_overheads / (M * unit_p)
 
-    # Applying the user formula
     if r_disc == 0:
         q_opt = math.sqrt((2 * M * kf) / (unit_p * (interest_rate + overhead_ratio)))
     else:
@@ -43,21 +41,20 @@ def show_inventory_manager():
     st.subheader("2. Optimization Results")
     
     m1, m2, m3 = st.columns(3)
-    m1.metric("Best Quantity (q)", f"{q_opt:,.4f}")
-    m2.metric("Orders per Year", f"{num_orders:,.4f}")
-    m3.metric("Overhead Ratio (C42)", f"{overhead_ratio:.6f}")
+    # Κράτησα 2 δεκαδικά για καθαρότητα
+    m1.metric("Best Quantity (q)", f"{q_opt:,.2f}")
+    m2.metric("Orders per Year", f"{num_orders:,.2f}")
+    m3.metric("Overhead Ratio", f"{overhead_ratio:.6f}")
 
-    # 4. AUDIT TABLE (Step-by-Step validation)
+    # 4. AUDIT TABLE (Simplified as requested)
     st.subheader("3. Audit Trail & Cost Breakdown")
     
-    # Calculate costs at optimal point
     KF = (M / q_opt) * kf
     KL = (q_opt / 2) * unit_p * (overhead_ratio + (1 - r_disc) * interest_rate)
     
     audit_df = pd.DataFrame({
         "Component": ["Ordering Cost (KF)", "Holding Cost (KL)", "Total Annual Cost (K)"],
-        "Excel Result (€)": [f"{KF:,.4f}", f"{KL:,.4f}", f"{(KF + KL):,.4f}"],
-        "Formula Logic": ["(M/q)*kf", "(q/2)*u*(C42+(1-r)*i)", "KF + KL"]
+        "Result (€)": [f"{KF:,.2f}", f"{KL:,.2f}", f"{(KF + KL):,.2f}"]
     })
     st.table(audit_df)
 
