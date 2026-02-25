@@ -14,7 +14,7 @@ def show_library():
             ("Cash Cycle Calculator", "cash_cycle", "run_cash_cycle_app"),
             ("Receivables Strategic Control", "receivables_manager", "show_receivables_manager"),
             ("Inventory Strategic Control", "inventory_manager", "show_inventory_manager"),
-            ("Loan vs Leasing Analysis", "loan_vs_leasing_calculator", "show_loan_vs_leasing_calculator"),
+            ("Loan vs Leasing Analysis", "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
             # Τα παρακάτω χρειάζονται τα αντίστοιχα .py αρχεία για να μην βγάλουν Error
             ("Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
             ("Payables Strategic Control", "payables_manager", "show_payables_manager"),
