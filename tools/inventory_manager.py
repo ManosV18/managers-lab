@@ -1,18 +1,16 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state  # FIXED: Use sync instead of raw engine
 
 def show_inventory_manager():
     st.header("📦 Strategic Inventory Analyzer")
     
-    # Warning for Cash Cycle Integration
     st.warning("⚠️ **Important:** While you can track Quantity for logistics, the **Cash Cycle** requires **Total Value (€)** to calculate financial impact correctly.")
     
     # 1. SEGMENTATION DATA ENTRY
     st.subheader("1. Inventory Data Input")
     
-    # Expanded segments to include Quantity
     default_segments = [
         {"label": "Fast Moving", "val": 300000.0, "qty": 5000, "days": 30},
         {"label": "Standard Flow", "val": 400000.0, "qty": 2500, "days": 45},
@@ -21,7 +19,6 @@ def show_inventory_manager():
     ]
 
     inventory_data = []
-    # Grid Layout for 4 columns
     cols = st.columns([2, 1.5, 1, 1])
     cols[0].write("**Category**")
     cols[1].write("**Total Value (€)**")
@@ -41,11 +38,10 @@ def show_inventory_manager():
     total_val = df["Value"].sum()
     total_qty = df["Quantity"].sum()
     
-    # Weighted Average DSI (Weighted by VALUE for Finance)
     weighted_dsi = (df["Value"] * df["Days"]).sum() / total_val if total_val > 0 else 0
     
-    # Save to session_state for Cash Cycle Tool
-    st.session_state.global_inventory_dsi = weighted_dsi
+    # Syncing keys with the global model
+    st.session_state.inventory_days = weighted_dsi # matching engine key
     st.session_state.inventory_value = total_val
 
     st.divider()
@@ -56,19 +52,13 @@ def show_inventory_manager():
     m2.metric("Weighted Avg DSI", f"{weighted_dsi:.1f} Days")
     m3.metric("Total Items", f"{total_qty:,.0f} units")
 
-    
-
-    # 4. PARETO: VALUE VS QUANTITY ANALYSIS
+    # 4. PARETO ANALYSIS
     st.subheader("2. Strategic Pareto: Value vs. Volume")
-    
     fig = go.Figure()
-    # Bars for Value
     fig.add_trace(go.Bar(name='Value (€)', x=df["Category"], y=df["Value"], marker_color='#636EFA'))
-    # Line for Days (Secondary Axis)
     fig.add_trace(go.Scatter(name='DSI (Days)', x=df["Category"], y=df["Days"], yaxis="y2", line=dict(color='#EF553B', width=3)))
 
     fig.update_layout(
-        title="Inventory Concentration Analysis",
         template="plotly_dark",
         yaxis=dict(title="Total Value (€)"),
         yaxis2=dict(title="Days in Stock", overlaying='y', side='right'),
@@ -76,17 +66,25 @@ def show_inventory_manager():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # 5. INTEGRATION STATUS
-    st.subheader("3. System Integration")
+    # 5. INTEGRATION & COLD INSIGHT
+    st.subheader("3. System Integration & Cost of Carry")
+    
+    # Fetch global metrics safely
+    global_metrics = sync_global_state()
+    wacc = st.session_state.get('wacc', 0.15)
+    
     if total_val > 0:
-        st.success(f"✔️ **Cash Cycle Synced:** The weighted DSI of **{weighted_dsi:.1f} days** is now available for global calculations.")
+        daily_bleed = (total_val * wacc) / 365
+        st.success(f"✔️ **Cash Cycle Synced:** Weighted DSI of **{weighted_dsi:.1f} days** is active.")
+        
+        
+        
+        st.markdown(f"""
+        > **Analytical Note:** Every day this inventory sits on the shelf, it consumes **€ {daily_bleed:,.2f}** in capital cost (WACC). 
+        > High friction segments (High Value × Days) should be prioritized for liquidation or lean optimization.
+        """)
     else:
-        st.error("❌ **Incomplete Data:** Please enter Value (€) to enable Cash Cycle calculations.")
-
-    # Cold Insight on Liquidity
-    wacc = compute_core_metrics().get('wacc', 0.15)
-    daily_bleed = (total_val * wacc) / 365
-    st.markdown(f"> **Analytical Note:** Every day this inventory sits on the shelf, it consumes **€ {daily_bleed:,.2f}** in capital cost. The highest friction is caused by segments with high Value × Days.")
+        st.error("❌ **Incomplete Data:** Please enter Value (€) to enable calculations.")
 
 if __name__ == "__main__":
     show_inventory_manager()
