@@ -1,45 +1,72 @@
 import streamlit as st
-from core.sync import sync_global_state  # FIXED IMPORT
+from core.sync import sync_global_state
+
+# Import των εργαλείων σου (Βεβαιώσου ότι τα ονόματα αρχείων/συναρτήσεων συμπίπτουν)
+from tools.break_even_shift_calculator import show_break_even_shift_calculator
+from tools.pricing_power_radar import show_pricing_power_radar
+from tools.cash_fragility_index import show_cash_fragility_index
+from tools.clv_calculator import show_clv_calculator
 
 def show_library():
+    # 1. ΣΥΓΧΡΟΝΙΣΜΟΣ & METRICS
+    metrics = sync_global_state()
+    s = st.session_state
+
+    # 2. HEADER ΜΕ ΤΑ ΒΑΣΙΚΑ METRICS (Εδώ θα δεις το WACC)
     st.title("📚 Strategic Tool Library")
     
-    # 1. ENFORCE REFRESH BEFORE LOADING TOOLS
-    sync_global_state()  # UPDATED CALL
-      
-    # 2. TOOL CATALOG
-    categories = {
-        "💰 Finance & Capital": [
-            ("Capital Structure Control", "wacc_optimizer", "show_wacc_optimizer"),
-            ("Executive Dashboard", "executive_dashboard", "show_executive_dashboard"),
-            ("Cash Cycle Calculator", "cash_cycle", "run_cash_cycle_app"),
-            ("Receivables Strategic Control", "receivables_analyzer", "show_receivables_analyzer_ui"), 
-            ("Inventory Strategic Control", "inventory_manager", "show_inventory_manager"),
-            ("Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
-        ],
-        "📈 Strategy & Growth": [
-            ("Break-Even Shift Analysis", "break_even_shift_calculator", "show_break_even_shift_calculator"),
-            ("Pricing Power Radar", "pricing_power_radar", "show_pricing_power_radar"),
-            ("CLV Analysis", "clv_calculator", "show_clv_calculator"),
-        ]
-    }
-
-    cat_names = list(categories.keys())
-    selected_cat = st.sidebar.selectbox("Select Category", cat_names)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Current WACC", f"{s.get('wacc', 0.15):.2%}")
+    m2.metric("Unit Margin", f"{metrics.get('unit_contribution', 0.0):,.2f} €")
+    m3.metric("Break-even", f"{metrics.get('survival_bep', 0):,.0f} units")
+    m4.metric("Cash Runway", f"{metrics.get('cash_runway', 0):,.0f} days")
     
-    tool_list = categories[selected_cat]
-    tool_names = [t[0] for t in tool_list]
-    selected_tool_name = st.radio("Select Tool", tool_names, horizontal=True)
-
-    # 3. DYNAMIC LOADING
-    tool_data = next(t for t in tool_list if t[0] == selected_tool_name)
-    file_name, function_name = tool_data[1], tool_data[2]
-
     st.divider()
 
-    try:
-        module = __import__(f"tools.{file_name}", fromlist=[function_name])
-        func = getattr(module, function_name)
-        func()
-    except Exception as e:
-        st.error(f"Execution Error: {e}")
+    # 3. ΕΠΙΛΟΓΗ ΕΡΓΑΛΕΙΟΥ (Αν δεν έχει επιλεγεί ήδη κάποιο)
+    if s.get('selected_tool') is None:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("🚀 Strategy & Growth")
+            if st.button("⚖️ Break-even Shift Analysis", use_container_width=True):
+                s.selected_tool = "break_even"
+                st.rerun()
+            if st.button("🎯 Pricing Power Radar", use_container_width=True):
+                s.selected_tool = "pricing"
+                st.rerun()
+            if st.button("👥 CLV Simulator", use_container_width=True):
+                s.selected_tool = "clv"
+                st.rerun()
+
+        with col2:
+            st.subheader("💰 Finance & Capital")
+            if st.button("🛡️ Cash Fragility Index", use_container_width=True):
+                s.selected_tool = "fragility"
+                st.rerun()
+            # Πρόσθεσε εδώ μελλοντικά εργαλεία Finance
+
+    # 4. ROUTER ΕΡΓΑΛΕΙΩΝ
+    else:
+        tool = s.selected_tool
+        
+        if st.button("⬅️ Back to Library"):
+            s.selected_tool = None
+            st.rerun()
+            
+        st.divider()
+
+        if tool == "break_even":
+            show_break_even_shift_calculator()
+        elif tool == "pricing":
+            show_pricing_power_radar()
+        elif tool == "clv":
+            show_clv_calculator()
+        elif tool == "fragility":
+            show_cash_fragility_index()
+
+    # 5. ΕΠΙΣΤΡΟΦΗ ΣΤΟ PATH
+    st.sidebar.divider()
+    if st.sidebar.button("🚀 Return to Strategic Path", use_container_width=True):
+        s.mode = "path"
+        st.rerun()
