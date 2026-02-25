@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.sync import sync_global_state
+from core.sync import sync_global_state # Corrected Import
 
 def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, realization, risk_p, cac):
-    metrics = sync_global_state()
-    # Adjusted discount rate for risk: (Base Discount + Risk Premium)
+    # Adjusted discount rate for risk
     adj_disc = (discount / 100) + (risk_p / 100)
     churn_rate = churn / 100
     cum_npv = -cac
@@ -33,16 +32,15 @@ def show_clv_calculator():
     st.info("Advanced Customer Lifetime Value modeling: Syncing Unit Economics with Risk-Adjusted NPV.")
 
     # 1. SYNC WITH SHARED CORE
-    metrics = compute_core_metrics()
-    p = st.session_state.get('price', 0.0)
-    vc = st.session_state.get('variable_cost', 0.0)
+    # Χρησιμοποιούμε τη sync_global_state() για να πάρουμε τα 11 ορίσματα αυτόματα
+    metrics = sync_global_state()
+    s = st.session_state
     
-    # Τραβάμε το WACC απευθείας από τον Engine (που το παίρνει από το Sidebar)
-    wacc_global = metrics.get('wacc', 0.10) * 100 
+    # Τραβάμε το WACC και το Margin από το συγχρονισμένο metrics
+    wacc_global = s.get('wacc', 0.10) * 100 
+    unit_margin = metrics.get('unit_contribution', 0.0)
     
-    unit_margin = metrics['unit_contribution']
     st.write(f"**🔗 Core Baseline Linked:** Current Unit Margin: **{unit_margin:,.2f} €**")
-
     st.divider()
 
     # 2. SCENARIO INPUTS
@@ -58,21 +56,16 @@ def show_clv_calculator():
     with col_b:
         st.subheader("🚀 Scenario B (Target)")
         purch_b = st.number_input("Purchases / Year (B)", value=5.0, key="pb")
-        units_b = st.number_input("Units / Order (B)", value=1.2, key="ub") # Default 1.2 για να δούμε διαφορά
+        units_b = st.number_input("Units / Order (B)", value=1.2, key="ub")
         cac_b = st.number_input("CAC (€) (B)", value=180.0, key="cacb")
         churn_b = st.slider("Annual Churn % (B)", 0, 100, 8, key="chb")
 
     # 3. STRUCTURAL ASSUMPTIONS (NPV Logic)
     with st.expander("⚙️ NPV & Risk-Adjusted WACC Settings"):
-        st.markdown("""
-        **NPV Logic:** Προεξοφλούμε τις μελλοντικές ροές κάθε πελάτη στο σήμερα, αφαιρώντας το κόστος απόκτησης (CAC).
-        """)
-        
         c1, c2 = st.columns(2)
-        # Χρήση του παγκόσμιου WACC με δυνατότητα τοπικής υπέρβασης
         disc = c1.number_input("Base WACC (%)", value=float(wacc_global))
-        risk_p = c1.number_input("Risk Premium (%)", value=3.0, help="Extra risk for this segment.")
-        real = c2.number_input("Realization Rate (0-1)", value=0.90, help="Probability of collecting the full margin.")
+        risk_p = c1.number_input("Risk Premium (%)", value=3.0)
+        real = c2.number_input("Realization Rate (0-1)", value=0.90)
         horizon = c2.slider("Analysis Horizon (Years)", 1, 10, 5)
         
         total_rate = disc + risk_p
@@ -86,9 +79,7 @@ def show_clv_calculator():
     df_b, final_b, pb_b = get_clv_data(purch_b, margin_b, horizon, disc, churn_b, real, risk_p, cac_b)
 
     # 5. RESULTS COMPARISON
-    st.divider()
     res_a, res_b = st.columns(2)
-    
     with res_a:
         st.metric("NPV CLV (A)", f"{final_a:,.2f} €")
         ltv_a = final_a + cac_a
@@ -105,22 +96,20 @@ def show_clv_calculator():
 
     # 6. VISUALIZATION
     st.subheader("📉 Cumulative NPV Projection")
+    
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A', line=dict(color='#EF553B', dash='dash')))
     fig.add_trace(go.Scatter(x=df_b['Year'], y=df_b['Cumulative_NPV'], name='Scenario B', line=dict(color='#00CC96', width=4)))
     fig.add_hline(y=0, line_dash="dot", line_color="white")
-    fig.update_layout(xaxis_title="Years", yaxis_title="Cumulative Value (€)", height=400, template="plotly_dark")
+    fig.update_layout(template="plotly_dark", height=400, margin=dict(l=20, r=20, t=20, b=20))
     st.plotly_chart(fig, use_container_width=True)
 
-    
-
     # 7. STRATEGIC VERDICT
-    st.divider()
     if ratio_b >= 3.0:
-        st.success("🎯 **Strategy B is Scalable:** The LTV is at least 3x the CAC, which is the industry standard for healthy growth.")
+        st.success("🎯 **Scalable:** LTV/CAC ≥ 3x. Healthy growth threshold.")
     else:
-        st.warning("⚠️ **Efficiency Risk:** LTV/CAC ratio is below 3.0. You are buying customers too expensively for the value they return.")
+        st.warning("⚠️ **Efficiency Risk:** LTV/CAC < 3x. Unit economics are tight.")
 
-    if st.button("Back to Library Hub"):
+    if st.button("Back to Library Hub", use_container_width=True):
         st.session_state.selected_tool = None
         st.rerun()
