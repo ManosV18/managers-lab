@@ -1,66 +1,48 @@
 import streamlit as st
-from core.unit_economics import compute_unit_economics
-from core.working_capital import compute_working_capital
-from core.fragility import compute_fragility
-from core.leverage import compute_leverage
+
+def refresh_global_metrics():
+    """
+    The Single Source of Truth. 
+    This calculates all core numbers and locks the baseline.
+    """
+    # FETCH INPUTS
+    price = st.session_state.get('price', 100.0)
+    volume = st.session_state.get('volume', 1000)
+    variable_cost = st.session_state.get('variable_cost', 60.0)
+    fixed_costs = st.session_state.get('fixed_costs', 20000.0)
+    wacc = st.session_state.get('wacc', 0.15)
+
+    # CORE CALCULATIONS
+    revenue = price * volume
+    total_vc = variable_cost * volume
+    contribution_margin = revenue - total_vc
+    ebit = contribution_margin - fixed_costs
+    margin_pct = (contribution_margin / revenue) if revenue > 0 else 0
+    break_even = fixed_costs / (price - variable_cost) if (price - variable_cost) > 0 else 0
+
+    # BASELINE LOCK LOGIC (Saves the 'Original' state)
+    if not st.session_state.get('baseline_locked', False):
+        st.session_state.baseline = {
+            'revenue': revenue,
+            'ebit': ebit,
+            'margin_pct': margin_pct,
+            'wacc': wacc
+        }
+    
+    # UPDATE GLOBAL STATE
+    # This makes these variables available everywhere
+    st.session_state.revenue = revenue
+    st.session_state.ebit = ebit
+    st.session_state.contribution_margin = contribution_margin
+    st.session_state.break_even_units = break_even
+    
+    return True
 
 def compute_core_metrics():
-    """
-    The Orchestrator: Integrates all sub-modules into a single 
-    Institutional-Grade financial truth.
-    """
-    s = st.session_state
-
-    # 1. ATOMIC LAYER: Unit Economics
-    unit = compute_unit_economics(s.price, s.variable_cost, s.volume)
-    
-    # 2. OPERATIONAL LAYER
-    revenue = s.price * s.volume
-    total_vc = s.variable_cost * s.volume
-    ebitda = unit["total_cm"] - s.fixed_cost
-    
-    # 3. LIQUIDITY LAYER: Working Capital
-    wc = compute_working_capital(
-        revenue, 
-        total_vc, 
-        s.ar_days, 
-        s.inventory_days, 
-        s.ap_days
-    )
-    
-    # 4. CASH FLOW LAYER
-    tax_impact = max(0, ebitda * s.tax_rate)
-    ocf = ebitda - tax_impact
-    fcf = ocf - s.annual_loan_payment
-    
-    # 5. RISK & LEVERAGE LAYER
-    monthly_net = fcf / 12
-    current_cash_reserve = s.get('opening_cash', 0.0) - wc["total_wc_requirement"]
-    
-    risk = compute_fragility(fcf, current_cash_reserve, monthly_net)
-    debt_risk = compute_leverage(max(1, ocf), s.annual_loan_payment)
-    
-    # 6. STRATEGIC LAYER
-    cash_wall = s.fixed_cost + s.annual_loan_payment + wc["total_wc_requirement"]
-    survival_bep = cash_wall / unit["unit_contribution"] if unit["unit_contribution"] > 0 else float('inf')
-
-    # 7. CONSOLIDATED OUTPUT
+    # Helper to return the variables we just updated
     return {
-        "unit_contribution": unit["unit_contribution"],
-        "contribution_ratio": unit["contribution_ratio"],
-        "total_cm": unit["total_cm"],
-        "revenue": revenue,
-        "ebitda": ebitda,
-        "ocf": ocf,
-        "fcf": fcf,
-        "wacc": s.get('wacc', 0.10),  # <--- ΠΡΟΣΘΗΚΗ WACC (Default 10%)
-        "wc_requirement": wc["total_wc_requirement"],
-        "ccc": wc["ccc"],
-        "cash_reserve": current_cash_reserve,
-        "fragility_score": risk["fragility_score"],
-        "runway_months": risk["coverage_months"],
-        "dscr": debt_risk["dscr"],
-        "survival_bep": survival_bep,
-        "cash_wall": cash_wall,
-        "is_non_viable": unit["is_non_viable"]
+        'revenue': st.session_state.get('revenue', 0),
+        'ebit': st.session_state.get('ebit', 0),
+        'contribution_margin': st.session_state.get('contribution_margin', 0),
+        'wacc': st.session_state.get('wacc', 0.15)
     }
