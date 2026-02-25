@@ -2,153 +2,121 @@ import streamlit as st
 import plotly.graph_objects as go
 from decimal import Decimal, getcontext
 
-# --- NPV LOGIC ENGINE ---
 def calculate_discount_npv(
     current_sales, extra_sales, discount_trial, prc_clients_take_disc,
     days_curently_paying_clients_take_discount, days_curently_paying_clients_not_take_discount,
     new_days_payment_clients_take_disc, cogs, wacc, avg_days_pay_suppliers
 ):
-    getcontext().prec = 20
+    getcontext().prec = 50 # Αυξημένη ακρίβεια για ταύτιση με Excel
     
-    # Conversion to float for logic handling
-    prc_clients_not_take_disc = 1 - prc_clients_take_disc
-    avg_current_collection_days = (
-        prc_clients_take_disc * days_curently_paying_clients_take_discount +
-        prc_clients_not_take_disc * days_curently_paying_clients_not_take_discount
-    )
-    current_receivables = current_sales * avg_current_collection_days / 365
-
-    total_sales = current_sales + extra_sales
-    prcnt_new_policy = ((current_sales * prc_clients_take_disc) + extra_sales) / total_sales
+    # Μετατροπή σε Decimal για απόλυτη ακρίβεια πράξεων
+    cs = Decimal(str(current_sales))
+    es = Decimal(str(extra_sales))
+    dt = Decimal(str(discount_trial))
+    pct_take = Decimal(str(prc_clients_take_disc))
+    d_take_old = Decimal(str(days_curently_paying_clients_take_discount))
+    d_no_take_old = Decimal(str(days_curently_paying_clients_not_take_discount))
+    d_new_policy = Decimal(str(new_days_payment_clients_take_disc))
+    cg = Decimal(str(cogs))
+    wc = Decimal(str(wacc))
+    d_supp = Decimal(str(avg_days_pay_suppliers))
+    
+    # Ενδιάμεσοι υπολογισμοί (Base: 365)
+    pct_no_take = 1 - pct_take
+    avg_curr_days = (pct_take * d_take_old) + (pct_no_take * d_no_take_old)
+    curr_rec = (cs * avg_curr_days) / 365
+    
+    total_sales = cs + es
+    prcnt_new_policy = ((cs * pct_take) + es) / total_sales
     prcnt_old_policy = 1 - prcnt_new_policy
-
-    new_avg_collection_period = (
-        prcnt_new_policy * new_days_payment_clients_take_disc +
-        prcnt_old_policy * days_curently_paying_clients_not_take_discount
-    )
-    new_receivables = total_sales * new_avg_collection_period / 365
-    free_capital = current_receivables - new_receivables
-
-    profit_from_extra_sales = extra_sales * (1 - cogs / current_sales)
-    profit_from_free_capital = free_capital * wacc
-    discount_cost = total_sales * prcnt_new_policy * discount_trial
-
-    i = wacc / 365
-    inflow = (
-        total_sales * prcnt_new_policy * (1 - discount_trial) /
-        ((1 + i) ** new_days_payment_clients_take_disc)
-    )
-    inflow += (
-        total_sales * prcnt_old_policy /
-        ((1 + i) ** days_curently_paying_clients_not_take_discount)
-    )
     
-    # Outflow strictly following your provided logic
-    outflow = (
-        (cogs / current_sales) * (extra_sales / current_sales) * current_sales /
-        ((1 + i) ** avg_days_pay_suppliers)
-    )
-    outflow += current_sales / ((1 + i) ** avg_current_collection_days)
-
+    new_avg_period = (prcnt_new_policy * d_new_policy) + (prcnt_old_policy * d_no_take_old)
+    new_rec = (total_sales * new_avg_period) / 365
+    free_cap = curr_rec - new_rec
+    
+    # Profit metrics
+    prof_extra = es * (1 - (cg / cs))
+    prof_free_cap = free_cap * wc
+    dist_cost = total_sales * prcnt_new_policy * dt
+    
+    # NPV Calculation - Strict Excel Logic
+    i = wc / 365
+    
+    # Inflow 1 & 2
+    term1 = (total_sales * prcnt_new_policy * (1 - dt)) / ((1 + i) ** d_new_policy)
+    term2 = (total_sales * prcnt_old_policy) / ((1 + i) ** d_no_take_old)
+    inflow = term1 + term2
+    
+    # Outflow 1 & 2 (Excel Cell 25 formula)
+    term3 = (cg / cs) * (es / cs) * cs / ((1 + i) ** d_supp)
+    term4 = cs / ((1 + i) ** avg_curr_days)
+    outflow = term3 + term4
+    
     npv = inflow - outflow
 
-    max_discount = 1 - (
-        (1 + i) ** (new_days_payment_clients_take_disc - days_curently_paying_clients_not_take_discount) * (
-            (1 - 1 / prcnt_new_policy) + (
-                (1 + i) ** (days_curently_paying_clients_not_take_discount - avg_current_collection_days) +
-                (cogs / current_sales) * (extra_sales / current_sales) * (1 + i) ** (days_curently_paying_clients_not_take_discount - avg_days_pay_suppliers)
-            ) / (prcnt_new_policy * (1 + extra_sales / current_sales))
+    # Limits (Excel Formulas)
+    max_d = 1 - (
+        (1 + i)**(d_new_policy - d_no_take_old) * (
+            (1 - 1/prcnt_new_policy) + (
+                (1 + i)**(d_no_take_old - avg_curr_days) + 
+                (cg/cs)*(es/cs)*(1 + i)**(d_no_take_old - d_supp)
+            ) / (prcnt_new_policy * (1 + es/cs))
         )
     )
-
-    optimum_discount = (1 - ((1 + i) ** (new_days_payment_clients_take_disc - avg_current_collection_days))) / 2
+    
+    opt_d = (1 - ((1 + i)**(d_new_policy - avg_curr_days))) / 2
 
     return {
-        "avg_current_collection_days": round(float(avg_current_collection_days), 2),
-        "current_receivables": round(float(current_receivables), 2),
-        "new_avg_collection_period": round(float(new_avg_collection_period), 2),
-        "new_receivables": round(float(new_receivables), 2),
-        "free_capital": round(float(free_capital), 2),
-        "profit_from_extra_sales": round(float(profit_from_extra_sales), 2),
-        "profit_from_free_capital": round(float(profit_from_free_capital), 2),
-        "discount_cost": round(float(discount_cost), 2),
-        "npv": round(float(npv), 2),
-        "max_discount": round(float(max_discount * 100), 2),
-        "optimum_discount": round(float(optimum_discount * 100), 2),
+        "avg_current_collection_days": float(avg_curr_days),
+        "current_receivables": float(curr_rec),
+        "new_avg_collection_period": float(new_avg_period),
+        "new_receivables": float(new_rec),
+        "free_capital": float(free_cap),
+        "profit_from_extra_sales": float(prof_extra),
+        "profit_from_free_capital": float(prof_free_cap),
+        "discount_cost": float(dist_cost),
+        "npv": float(npv),
+        "max_discount": float(max_d * 100),
+        "optimum_discount": float(opt_d * 100)
     }
 
 def show_receivables_analyzer_ui():
-    st.title("📊 Cash Discount Performance Analysis (NPV)")
-    
-    # Try to fetch global data if available
-    g_sales = st.session_state.get('annual_revenue', 1000000.0)
-    g_cogs = st.session_state.get('total_cogs', 800000.0)
-    g_wacc = st.session_state.get('wacc', 20.0) / 100 if st.session_state.get('wacc') else 0.20
-    g_ap = st.session_state.get('ap_days', 30)
+    st.title("📊 Strategic Receivables Analyzer (NPV Mode)")
+    st.info("Aligned with Excel Model calculations (365-day basis).")
 
-    with st.form("discount_npv_form"):
+    with st.form("npv_form"):
         col1, col2 = st.columns(2)
-
         with col1:
-            st.subheader("Sales & Terms")
-            current_sales = st.number_input("Current Sales (€)", value=float(g_sales), step=1000.0)
-            extra_sales = st.number_input("Extra Sales due to Discount (€)", value=current_sales*0.1, step=500.0)
-            discount_trial = st.number_input("Proposed Discount (%)", value=2.0, step=0.1) / 100
-            prc_clients_take_disc = st.number_input("% Clients Accepting Discount", value=40.0, step=1.0) / 100
-            days_clients_take_discount = st.number_input("Current Days (for those who will take it)", value=60, step=1)
-
+            c_sales = st.number_input("Current Sales (€)", value=1000.0)
+            e_sales = st.number_input("Extra Sales (€)", value=250.0)
+            d_trial = st.number_input("Discount %", value=2.0) / 100
+            p_take = st.number_input("% Clients Take Discount", value=40.0) / 100
+            d_take = st.number_input("Days (Current - for Take group)", value=60)
         with col2:
-            st.subheader("Financial & Operations")
-            days_clients_no_discount = st.number_input("Current Days (for those who won't take it)", value=120, step=1)
-            new_days_cash_payment = st.number_input("New Payment Days (for Discount)", value=10, step=1)
-            cogs = st.number_input("Cost of Goods Sold (COGS €)", value=float(g_cogs), step=1000.0)
-            wacc = st.number_input("Cost of Capital (WACC %)", value=float(g_wacc * 100), step=0.1) / 100
-            avg_days_pay_suppliers = st.number_input("Avg. Supplier Payment Days", value=int(g_ap), step=1)
-
-        submitted = st.form_submit_button("Calculate Analytical Results", use_container_width=True)
+            d_no_take = st.number_input("Days (Current - for No-Take group)", value=120)
+            d_new = st.number_input("New Payment Days (Target)", value=10)
+            cogs_val = st.number_input("COGS (€)", value=800.0)
+            wacc_val = st.number_input("WACC %", value=20.0) / 100
+            d_supps = st.number_input("Supplier Payment Days", value=30)
+        
+        submitted = st.form_submit_button("Run Analysis", use_container_width=True)
 
     if submitted:
-        res = calculate_discount_npv(
-            current_sales, extra_sales, discount_trial, prc_clients_take_disc,
-            days_clients_take_discount, days_clients_no_discount,
-            new_days_cash_payment, cogs, wacc, avg_days_pay_suppliers
-        )
-
-        # Main Metrics
+        r = calculate_discount_npv(c_sales, e_sales, d_trial, p_take, d_take, d_no_take, d_new, cogs_val, wacc_val, d_supps)
+        
         st.divider()
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Net Present Value (NPV)", f"€ {res['npv']:,.2f}")
-        m2.metric("Max Discount (BEP)", f"{res['max_discount']}%")
-        m3.metric("Optimum Discount", f"{res['optimum_discount']}%")
-
-        # Detailed Analysis
-        st.subheader("Detailed Breakdown")
-        col_a, col_b = st.columns(2)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("NPV", f"€{r['npv']:,.2f}")
+        c2.metric("Max Discount", f"{r['max_discount']:.2f}%")
+        c3.metric("Optimum Discount", f"{r['optimum_discount']:.2f}%")
         
-        with col_a:
-            st.write(f"**Current DSO:** {res['avg_current_collection_days']} days")
-            st.write(f"**New Targeted DSO:** {res['new_avg_collection_period']} days")
-            st.write(f"**Free Capital:** € {res['free_capital']:,.2f}")
-        
-        with col_b:
-            st.write(f"**Profit from Growth:** € {res['profit_from_extra_sales']:,.2f}")
-            st.write(f"**Liquidity Benefit:** € {res['profit_from_free_capital']:,.2f}")
-            st.write(f"**Total Discount Cost:** € {res['discount_cost']:,.2f}")
+        with st.expander("View Full Calculations (Excel Match)"):
+            st.write(f"Current Receivables: €{r['current_receivables']:,.2f}")
+            st.write(f"New Receivables: €{r['new_receivables']:,.2f}")
+            st.write(f"Free Capital: €{r['free_capital']:,.2f}")
+            st.write(f"Profit from Growth: €{r['profit_from_extra_sales']:,.2f}")
+            st.write(f"Discount Cost: €{r['discount_cost']:,.2f}")
 
-        # Sensitivity Chart
-        st.subheader("NPV Sensitivity: Acceptance vs Profit")
-        test_rates = [r/100 for r in range(0, 101, 10)]
-        npv_values = [calculate_discount_npv(current_sales, extra_sales, discount_trial, tr,
-                      days_clients_take_discount, days_clients_no_discount,
-                      new_days_cash_payment, cogs, wacc, avg_days_pay_suppliers)['npv'] for tr in test_rates]
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=[r*100 for r in test_rates], y=npv_values, mode='lines+markers', line=dict(color="#00CC96")))
-        fig.add_hline(y=0, line_dash="dash", line_color="red")
-        fig.update_layout(template="plotly_dark", xaxis_title="Acceptance Rate (%)", yaxis_title="NPV (€)")
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.divider()
-    if st.button("⬅️ Back to Library Hub"):
+    if st.button("⬅️ Back to Library"):
         st.session_state.selected_tool = None
         st.rerun()
