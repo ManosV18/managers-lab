@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state
 
 def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, realization, risk_p, cac):
+    metrics = sync_global_state()
     # Adjusted discount rate for risk: (Base Discount + Risk Premium)
     adj_disc = (discount / 100) + (risk_p / 100)
     churn_rate = churn / 100
