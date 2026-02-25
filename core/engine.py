@@ -1,37 +1,38 @@
-def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, ar_days, inv_days, ap_days, annual_debt):
-    """
-    Pure Logic Layer. 
-    Calculates everything from P&L to Cash Flow metrics.
-    """
-    # P&L Metrics
+def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, ar_days, inv_days, ap_days, annual_debt, opening_cash):
+    # P&L Logic
+    unit_contribution = price - variable_cost
     revenue = price * volume
     total_vc = variable_cost * volume
-    contribution_margin = revenue - total_vc
-    ebit = contribution_margin - fixed_cost
+    ebit = (unit_contribution * volume) - fixed_cost
     
-    # Ratios
-    contribution_ratio = (contribution_margin / revenue) if revenue > 0 else 0
-    margin_pct = contribution_ratio * 100
-    
-    # Cash Flow & Survival
-    # Simplified FCF: EBIT - Tax - Debt Service
+    # Cash Flow Logic
     tax_payment = max(0, ebit * tax_rate)
-    fcf = ebit - tax_payment - annual_debt
+    ocf = ebit - tax_payment
+    fcf = ocf - annual_debt
     
-    # Efficiency metrics
-    ccc = ar_days + inv_days - ap_days
+    # Liquidity Logic
+    daily_rev = revenue / 365
+    daily_costs = (total_vc + fixed_cost) / 365
+    wc_requirement = (daily_rev * ar_days) + (daily_costs * inv_days) - (daily_costs * ap_days)
     
-    # Break-even
-    # Survival BEP includes debt coverage
-    survival_bep = (fixed_cost + annual_debt) / (price - variable_cost) if (price - variable_cost) > 0 else 0
+    cash_reserve = opening_cash - wc_requirement
+    monthly_net = fcf / 12
     
+    # Runway Calculation
+    if monthly_net >= 0:
+        runway = 100.0 # Σύμβολο σταθερότητας
+    else:
+        runway = max(0.0, cash_reserve / abs(monthly_net))
+        
     return {
+        'unit_contribution': unit_contribution,
         'revenue': revenue,
         'ebit': ebit,
-        'contribution_margin': contribution_margin,
-        'contribution_ratio': contribution_ratio,
         'fcf': fcf,
-        'ccc': ccc,
-        'survival_bep': survival_bep,
-        'wacc': wacc
+        'ocf': ocf,
+        'wc_requirement': wc_requirement,
+        'cash_reserve': cash_reserve,
+        'runway_months': runway,
+        'survival_bep': (fixed_cost + annual_debt) / unit_contribution if unit_contribution > 0 else 0,
+        'cash_wall': fixed_cost + annual_debt # Συνολικό σταθερό βάρος
     }
