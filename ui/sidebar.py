@@ -1,5 +1,10 @@
 import streamlit as st
-from core.sync import lock_baseline, sync_global_state
+# Do NOT import from core.sync if the file isn't ready. 
+# But since we need them, ensure the path is correct:
+try:
+    from core.sync import lock_baseline, sync_global_state
+except ImportError:
+    st.error("Critical Error: core/sync.py is missing or corrupted.")
 
 def show_sidebar():
     with st.sidebar:
