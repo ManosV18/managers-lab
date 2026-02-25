@@ -18,10 +18,18 @@ def show_library():
         
         with t1:
             st.subheader("Strategy & Growth")
-            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
-                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
-                st.rerun()
-        
+            col_t1a, col_t1b = st.columns(2)
+            
+            with col_t1a:
+                if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+                    st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
+                    st.rerun()
+            
+            with col_t1b:
+                # ΣΥΝΔΕΣΗ ΤΟΥ CLV SIMULATOR
+                if st.button("👥 CLV Simulator", use_container_width=True):
+                    st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
+                    st.rerun()
         with t2:
             st.subheader("Finance & Capital")
             # Σωστή κλήση του t2 (όχι tab2)
