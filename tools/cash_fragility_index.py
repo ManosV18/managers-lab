@@ -1,84 +1,101 @@
 import streamlit as st
+import plotly.graph_objects as go
 from core.engine import compute_core_metrics
 
 def show_cash_fragility_index():
-    st.header("🛡️ Cash Fragility Index")
-    st.info("Stress Test: How many days can the business survive if all inflows (collections) stop today?")
+    st.header("🛡️ Cash Fragility & Survival Analysis")
+    st.info("Αυτός ο δείκτης αναλύει την αντοχή της επιχείρησης σε ταμειακά σοκ, συνδέοντας τα διαθέσιμα με τον Ταμειακό Κύκλο.")
 
-    # 1. READ FROM CORE & ENGINE (Shared Data)
+    # 1. FETCH DATA FROM ENGINE & SESSION STATE
     metrics = compute_core_metrics()
+    revenue = metrics['revenue']
+    total_costs = metrics['total_costs']
     
-    # Use 'cash_wall' from Engine (Fixed Costs + Debt Service)
-    # This represents the true structural "Burn" for survival.
-    total_survival_burn_annual = metrics.get('cash_wall', 0.0)
-    daily_burn_rate = total_survival_burn_annual / 365
+    # Τραβάμε τον Ταμειακό Κύκλο (CCC) από το Executive Dashboard (ή βάζουμε default)
+    ccc_days = st.session_state.get('ar_days', 60.0) + \
+               st.session_state.get('global_inventory_dsi', 45.0) - \
+               st.session_state.get('payables_days', 30.0)
 
-    st.write(f"**Annual Cash Obligations (Fixed Costs + Debt Service):** {total_survival_burn_annual:,.2f} €/year")
-    st.write(f"**Calculated Daily Burn Rate:** {daily_burn_rate:,.2f} €/day")
-
-    st.divider()
-
-    # 2. USER INPUTS (Liquidity Assessment)
+    # 2. USER INPUTS FOR CASH RESERVES
+    st.subheader("1. Current Liquidity Position")
     col1, col2 = st.columns(2)
-    with col1:
-        current_cash = st.number_input("Current Cash in Bank (€)", min_value=0.0, value=10000.0)
-    with col2:
-        unused_credit_lines = st.number_input("Available Credit Lines / Overdraft (€)", min_value=0.0, value=5000.0)
-
-    total_liquidity = current_cash + unused_credit_lines
-
-    # 3. CALCULATIONS
-    if daily_burn_rate > 0:
-        days_to_zero = total_liquidity / daily_burn_rate
-    else:
-        days_to_zero = float('inf')
-
-    # 4. RESULTS & VISUALS
-    st.subheader("Survival Runway")
     
-    if days_to_zero < 30:
-        status = "CRITICAL FRAGILITY"
-        st.error(f"🚨 {status}")
-    elif days_to_zero < 60:
-        status = "LOW BUFFER"
-        st.warning(f"⚠️ {status}")
-    else:
-        status = "STABLE"
-        st.success(f"✅ {status}")
-
-    st.metric("Days of Survival", f"{int(days_to_zero)} Days", delta=f"{status}")
+    cash_on_hand = col1.number_input("Current Cash & Equivalents (€)", value=max(10000.0, total_costs * 0.1), step=5000.0)
+    unused_credit = col2.number_input("Unused Credit Lines / Overdraft (€)", value=0.0, step=5000.0)
     
-    # Progress bar mapped to a 120-day ideal buffer
-    progress_val = min(days_to_zero / 120, 1.0)
-    st.progress(progress_val)
-    st.caption("Safety threshold: 60-90 days of fixed obligations. Target: 120 days.")
+    total_liquidity = cash_on_hand + unused_credit
+    daily_burn_rate = total_costs / 365
 
+    # 3. CALCULATE FRAGILITY METRICS
+    # Cash Runway: Πόσες μέρες αντέχουμε χωρίς εισπράξεις
+    cash_runway = total_liquidity / daily_burn_rate if daily_burn_rate > 0 else 0
     
+    # Fragility Ratio: Σχέση Cash Runway προς Cash Conversion Cycle
+    # Αν ο κύκλος είναι μεγαλύτερος από το runway, η επιχείρηση είναι "Fragile"
+    fragility_score = (ccc_days / cash_runway) if cash_runway > 0 else 999
 
     st.divider()
 
-    # 5. COLD INSIGHT & STRATEGIC VERDICT
-    st.subheader("🧠 Strategic Verdict")
+    # 4. DASHBOARD METRICS
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Cash Runway", f"{cash_runway:.1f} Days", help="Days of operations covered by current cash.")
+    m2.metric("Cash Conversion Cycle", f"{ccc_days:.1f} Days", delta="Needs Financing", delta_color="inverse")
     
-    safe_liquidity = daily_burn_rate * 90
-    gap = max(0.0, safe_liquidity - total_liquidity)
+    # Χρωματισμός Fragility Score
+    status = "SAFE"
+    color = "green"
+    if fragility_score > 1.2:
+        status = "CRITICAL"
+        color = "red"
+    elif fragility_score > 0.8:
+        status = "WARNING"
+        color = "orange"
+        
+    m3.metric("Fragility Status", status, delta=f"Score: {fragility_score:.2f}", delta_color="inverse")
+
+    # 5. VISUAL SURVIVAL GAUGE
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = cash_runway,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "Survival Days (Runway)"},
+        gauge = {
+            'axis': {'range': [None, max(180, ccc_days * 1.5)]},
+            'steps': [
+                {'range': [0, ccc_days], 'color': "red"},
+                {'range': [ccc_days, ccc_days * 1.5], 'color': "orange"},
+                {'range': [ccc_days * 1.5, 1000], 'color': "lightgreen"}],
+            'threshold': {
+                'line': {'color': "black", 'width': 4},
+                'value': ccc_days} # Το όριο ασφαλείας είναι ο ταμειακός κύκλος
+        }
+    ))
+    fig.update_layout(template="plotly_dark", height=350)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # 6. ANALYTICAL VERDICT (Cold & Analytical)
+    st.subheader("2. Strategic Verdict")
     
-    if gap > 0:
-        st.markdown(f"""
-        To achieve a 'Safe' status (90 days of autonomy), you require a total liquidity of **{safe_liquidity:,.2f} €**.
-        
-        **Liquidity Gap:** **{gap:,.2f} €**.
-        
-        **Recommended Actions:**
-        1. **Accelerate Collections:** Reduce DSO using the Receivables Manager.
-        2. **Inventory Liquidation:** Release cash from slow-moving stock using the Inventory Manager.
-        3. **Debt Restructuring:** Negotiate lower installments to reduce the Daily Burn rate.
+    if fragility_score > 1:
+        st.error(f"""
+        **Ανάλυση:** Η επιχείρηση βρίσκεται σε **Ταμειακή Ασφυξία**. 
+        Ο Ταμειακός Κύκλος ({ccc_days:.1f} ημέρες) είναι μεγαλύτερος από τα αποθέματα ρευστότητας ({cash_runway:.1f} ημέρες). 
+        **Κίνδυνος:** Αν σταματήσουν οι πωλήσεις ή καθυστερήσει ένας μεγάλος πελάτης, η επιχείρηση δεν θα μπορεί να καλύψει τις υποχρεώσεις της σε {cash_runway:.0f} ημέρες.
         """)
+        st.markdown("👉 **Action:** Χρειάζεται άμεση μείωση του Inventory ή χρήση του Receivables Analyzer για επιτάχυνση εισπράξεων.")
     else:
-        st.markdown(f"""
-        The business is in a **Position of Strength**. You possess sufficient liquidity to absorb significant market shocks without jeopardizing operational continuity.
+        st.success(f"""
+        **Ανάλυση:** Η επιχείρηση διαθέτει **Ταμειακό Μαξιλάρι**. 
+        Τα διαθέσιμα καλύπτουν πλήρως τον Ταμειακό Κύκλο. Έχετε ένα περιθώριο ασφαλείας {(cash_runway - ccc_days):.1f} ημερών πέρα από τη συνήθη λειτουργία σας.
         """)
 
-    if st.button("Back to Library Hub"):
-        st.session_state.selected_tool = None
-        st.rerun()
+    # 7. STRESS TEST SCENARIO
+    st.subheader("3. Shock Resistance Test")
+    drop_pct = st.slider("Scenario: Sudden Increase in Operating Costs (%)", 0, 50, 20)
+    new_burn = daily_burn_rate * (1 + drop_pct/100)
+    new_runway = total_liquidity / new_burn
+    
+    st.write(f"Σε περίπτωση αύξησης εξόδων κατά {drop_pct}%, το Runway μειώνεται στις **{new_runway:.1f} ημέρες**.")
+
+if __name__ == "__main__":
+    show_cash_fragility_index()
