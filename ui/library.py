@@ -59,6 +59,9 @@ def show_library():
             if st.button("🧭 QSPM Strategy Matrix", use_container_width=True, key="btn_qspm"):
                 st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool")
                 st.rerun()
+            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True, key="btn_pricing"):
+                st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool")
+                st.rerun()
         
         with t2:
             st.subheader("Finance & Capital")
