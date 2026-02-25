@@ -29,13 +29,11 @@ def show_sidebar():
             st.session_state.tax_rate = st.slider("Tax Rate", 0.0, 0.5, float(st.session_state.tax_rate))
             
             # ΠΡΟΣΘΗΚΗ WACC ΩΣ ΠΑΡΑΔΟΧΗ
-            st.session_state.wacc = st.slider(
-                "WACC (Cost of Capital %)", 
-                0.0, 0.30, 
-                float(st.session_state.get('wacc', 0.10)), 
-                step=0.01,
-                help="The required rate of return for the business."
-            )
+            # Inside your Sidebar logic in app.py
+            if st.session_state.get('wacc_locked', False):
+                st.sidebar.info(f"WACC locked by Optimizer: {st.session_state.wacc:.2%}")
+            else:
+                st.session_state.wacc = st.sidebar.slider("WACC (%)", 5.0, 25.0, 15.0) / 100
 
         st.divider()
         
