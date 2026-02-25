@@ -58,6 +58,14 @@ def show_sidebar():
         st.divider()
         
         # Lock Baseline Button
+        # ... (μέσα στο sidebar.py, στο κουμπί του Lock)
+        from core.sync import lock_baseline
+
+        if not st.session_state.get('baseline_locked', False):
+        if st.button("🔒 Lock Baseline for Analysis", use_container_width=True):
+        lock_baseline() # Explicitly write the baseline once
+        st.rerun()
+        
         if not st.session_state.get('baseline_locked', False):
             if st.button("🔒 Lock Baseline for Analysis", use_container_width=True):
                 st.session_state.baseline_locked = True
