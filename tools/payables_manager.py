@@ -53,7 +53,7 @@ def show_payables_manager():
             implied_rate = (epd_pct / (1 - epd_pct)) * (365 / (net_days - epd_days))
             
             st.divider()
-            st.write(f"Implied Annual Return from Discount: **{implied_rate:.1% Rose}**")
+            st.write(f"Implied Annual Return from Discount: **{implied_rate:.1% }**")
             st.write(f"Your Internal Cost of Capital (WACC): **{hurdle_rate:.1%}**")
 
             # THE COLD VERDICT
