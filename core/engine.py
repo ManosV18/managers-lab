@@ -1,9 +1,9 @@
-def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, 
-                      ar_days, inv_days, ap_days, annual_debt, opening_cash):
-    """
-    Pure Mathematical Engine. 
-    Υπολογίζει το Operating Model 365 ημερών.
-    """
+def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, ar_days, inv_days, ap_days, annual_debt, opening_cash):
+    # P&L Logic
+    unit_contribution = price - variable_cost
+    contribution_margin = unit_contribution * volume  # <--- ΑΥΤΟ ΧΡΕΙΑΖΕΤΑΙ ΤΟ STAGE 1
+    ebit = contribution_margin - fixed_cost
+  
     # 1. P&L Mechanics
     unit_contribution = price - variable_cost
     revenue = price * volume
@@ -30,8 +30,14 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate,
     monthly_net = fcf / 12
     runway = max(0.0, cash_reserve / abs(monthly_net)) if monthly_net < 0 else 100.0
 
-    return {
+    
+  return {
         'unit_contribution': unit_contribution,
+        'contribution_margin': contribution_margin, # Προσθήκη για το Stage 1
+        'ebit': ebit,
+        'fcf': (ebit * (1 - tax_rate)) - annual_debt,
+        'ccc': ar_days + inv_days - ap_days,
+        'survival_bep': (fixed_cost + annual_debt) / unit_contribution if unit_contribution > 0 else 0,
         'revenue': revenue,
         'ebit': ebit,
         'fcf': fcf,
@@ -39,7 +45,6 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate,
         'wc_requirement': wc_requirement,
         'cash_reserve': cash_reserve,
         'runway_months': runway,
-        'survival_bep': (fixed_cost + annual_debt) / unit_contribution if unit_contribution > 0 else 0,
         'cash_wall': fixed_cost + annual_debt,
         'accounts_receivable': accounts_receivable,
         'contribution_ratio': unit_contribution / price if price > 0 else 0
