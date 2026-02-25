@@ -1,18 +1,20 @@
 import streamlit as st
 import plotly.graph_objects as go
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state # FIXED: Use sync
 
 def show_break_even_shift_calculator():
     st.header("⚖️ Break-even Shift Analysis")
     st.info("Analyze how changes in fixed costs or unit margins shift your survival threshold.")
 
-    # 1. FETCH BASELINE DATA
-    metrics = compute_core_metrics()
+    # 1. FETCH BASELINE DATA SAFELY
+    # Η sync_global_state καλεί τον κινητήρα με τα 11 ορίσματα εσωτερικά
+    metrics = sync_global_state()
     s = st.session_state
     
+    # Secure variable retrieval
     current_fixed = s.get('fixed_cost', 0.0) + s.get('annual_loan_payment', 0.0)
-    current_unit_cm = metrics['unit_contribution']
-    current_bep = metrics['survival_bep']
+    current_unit_cm = metrics.get('unit_contribution', 0.0)
+    current_bep = metrics.get('survival_bep', 0.0)
 
     # 2. SHIFT PARAMETERS
     st.subheader("🛠️ Shift Scenarios")
@@ -25,8 +27,8 @@ def show_break_even_shift_calculator():
     new_fixed = current_fixed * (1 + fixed_change_pct / 100)
     new_unit_cm = current_unit_cm * (1 + margin_change_pct / 100)
     
-    # New Break-even Point (Volume)
-    new_bep = new_fixed / new_unit_cm if new_unit_cm > 0 else float('inf')
+    # New Break-even Point calculation
+    new_bep = new_fixed / new_unit_cm if new_unit_cm > 0 else 0.0
     bep_shift = new_bep - current_bep
     bep_shift_pct = (bep_shift / current_bep * 100) if current_bep > 0 else 0
 
@@ -42,13 +44,13 @@ def show_break_even_shift_calculator():
               delta="Risk Impact", 
               delta_color="inverse")
 
-    # 5. VISUALIZATION: BEP SHIFT CHART
+    # 5. VISUALIZATION
+    
     st.subheader("📈 Break-even Sensitivity")
     
     fig = go.Figure()
-    # Baseline Bar
     fig.add_trace(go.Bar(
-        x=['Current', 'Scenario'],
+        x=['Current Baseline', 'Future Scenario'],
         y=[current_bep, new_bep],
         marker_color=['#636EFA', '#EF553B'],
         text=[f"{current_bep:,.0f}", f"{new_bep:,.0f}"],
@@ -56,24 +58,24 @@ def show_break_even_shift_calculator():
     ))
 
     fig.update_layout(
-        yaxis_title="Units needed to Break-even",
+        yaxis_title="Units to Break-even",
         template="plotly_dark",
-        height=400
+        height=400,
+        margin=dict(l=20, r=20, t=40, b=20)
     )
     st.plotly_chart(fig, use_container_width=True)
-
-    
 
     # 6. COLD ANALYSIS
     st.subheader("🧠 Analyst's Verdict")
     if bep_shift_pct > 20:
-        st.error(f"🚨 **DANGER:** Your break-even point has increased by **{bep_shift_pct:.1f}%**. Your business is becoming significantly more fragile. You need a massive volume increase to justify these new costs.")
+        st.error(f"🚨 **DANGER:** Break-even increased by **{bep_shift_pct:.1f}%**. Business fragility is escalating. Volume must increase significantly to offset this shift.")
     elif bep_shift_pct < 0:
-        st.success(f"✅ **EFFICIENCY GAIN:** Your break-even point dropped by **{abs(bep_shift_pct):.1f}%**. Your 'Safety Margin' has expanded.")
+        st.success(f"✅ **EFFICIENCY GAIN:** Break-even dropped by **{abs(bep_shift_pct):.1f}%**. Your safety margin has expanded.")
     else:
-        st.info("ℹ️ **NEUTRAL:** No significant shift in structural risk.")
+        st.info("ℹ️ **NEUTRAL:** No significant structural risk shift detected.")
 
     # 7. NAVIGATION
-    if st.button("Back to Library Hub"):
+    st.divider()
+    if st.button("Back to Library Hub", use_container_width=True):
         st.session_state.selected_tool = None
         st.rerun()
