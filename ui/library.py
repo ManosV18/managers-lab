@@ -51,7 +51,12 @@ def show_library():
             if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
                 st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
                 st.rerun()
-            
+                
+            # ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΝΕΟ ΚΟΥΜΠΙ
+            if st.button("🤝 Payables Manager", use_container_width=True):
+                st.session_state.selected_tool = ("payables_manager", "show_payables_manager")
+                st.rerun()
+                
             # ΣΥΝΔΕΣΗ ΤΟΥ INVENTORY MANAGER
             if st.button("📦 Inventory Analyzer", use_container_width=True):
                 st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
