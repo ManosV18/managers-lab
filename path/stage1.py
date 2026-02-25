@@ -1,64 +1,51 @@
 import streamlit as st
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state
 
 def run_stage1():
-    st.header("📈 Stage 1: Efficiency & Unit Economics")
-    st.caption("The Atomic Level: Analyzing the profitability of a single transaction.")
-    st.divider()
-
-    # 1. FETCH METRICS
-    m = compute_core_metrics()
+    st.title("⚖️ Stage 1: Operating Leverage & Break-Even")
+    
+    # 1. FETCH DATA (Συγχρονισμός με τον νέο κινητήρα)
+    m = sync_global_state()
     s = st.session_state
 
-    # 2. KEY PERFORMANCE INDICATORS (Unit Level)
+    st.markdown("""
+    Ανάλυση του σημείου μηδέν (Break-Even) και της λειτουργικής μόχλευσης. 
+    Εδώ εξετάζουμε πόσο "ευαίσθητο" είναι το EBIT στις μεταβολές του όγκου πωλήσεων.
+    """)
+
+    # 2. KEY PERFORMANCE INDICATORS (KPIs)
     c1, c2, c3 = st.columns(3)
     
-    # Unit Contribution
-    c1.metric("Unit Contribution", f"{m['unit_contribution']:,.2f} €", 
-              help="Money left to cover fixed costs after variable costs are paid.")
+    # Χρησιμοποιούμε τα ονόματα μεταβλητών από τον νέο κινητήρα
+    c1.metric("Break-Even Units", f"{m['survival_bep']:,.0f}", help="Units to cover Fixed Costs + Debt")
     
-    # Contribution Ratio
-    c2.metric("Margin Ratio", f"{m['contribution_ratio']*100:.1f}%", 
-              help="Percentage of each Euro that contributes to fixed cost coverage.")
+    safety_margin = ((s.volume - m['survival_bep']) / s.volume) if s.volume > 0 else 0
+    c2.metric("Margin of Safety", f"{safety_margin:.1%}", delta=None)
     
-    # Efficiency Score (Custom Insight)
-    efficiency_status = "OPTIMAL" if m['contribution_ratio'] > 0.4 else "THIN"
-    c3.metric("Efficiency Status", efficiency_status, 
-              delta="Check Pricing" if efficiency_status == "THIN" else "Strong")
+    c3.metric("Annual EBIT", f"{m['ebit']:,.0f} €")
 
-    # 3. VISUALIZATION: PRICE VS COSTS
-    st.subheader("Unit Cost Structure")
-    
-    # Δημιουργία δεδομένων για το γράφημα
-    cost_data = {
-        "Category": ["Variable Cost", "Unit Contribution"],
-        "Value": [s.variable_cost, m['unit_contribution']]
-    }
-    st.bar_chart(data=cost_data, x="Category", y="Value")
-
-    
-
-    # 4. COLD ASSESSMENT
+    # 3. VISUAL ANALYSIS (Optional Placeholder for Chart)
     st.divider()
-    st.subheader("🔬 Managerial Insight")
+    st.subheader("Operating Leverage Insights")
     
-    if m['contribution_ratio'] < 0.2:
-        st.warning("⚠️ **Low Margin Trap:** Your margins are dangerously thin. A small increase in variable costs or a slight price drop could turn this unit non-viable.")
-    elif m['contribution_ratio'] > 0.5:
-        st.success("💎 **High Value Unit:** You have significant pricing power or cost efficiency. This unit is a strong engine for scaling.")
-    else:
-        st.info("⚖️ **Standard Efficiency:** Your unit economics are within typical operational bounds.")
+    # Cold Analytical Logic: 
+    # Υπολογίζουμε τη μόχλευση: Contribution Margin / EBIT
+    dol = (m['contribution_margin'] / m['ebit']) if m['ebit'] > 0 else 0
+    
+    st.write(f"**Degree of Operating Leverage (DOL):** {dol:.2f}")
+    st.info(f"Για κάθε 1% μεταβολή στις πωλήσεις, το λειτουργικό κέρδος (EBIT) θα μεταβάλλεται κατά {dol:.2f}%.")
 
-    # 5. NAVIGATION
+    # 4. NAVIGATION
     st.divider()
-    col_prev, col_next = st.columns([1, 1])
+    col_prev, col_next = st.columns(2)
     
     with col_prev:
-        if st.button("⬅️ Back to Control Center", use_container_width=True):
-            st.session_state.flow_step = 0
+        if st.button("⬅️ Back to Stage 0"):
+            st.session_state.flow_step = "stage0"
             st.rerun()
             
     with col_next:
-        if st.button("Next: Volume Shock Simulation 📉", type="primary", use_container_width=True):
-            st.session_state.flow_step = 2
+        # Επιτρέπουμε τη μετάβαση μόνο αν η επιχείρηση είναι κερδοφόρα (ή αν το επιλέξει ο χρήστης)
+        if st.button("Proceed to Stage 2 ➡️"):
+            st.session_state.flow_step = "stage2"
             st.rerun()
