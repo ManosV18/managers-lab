@@ -1,69 +1,71 @@
 import streamlit as st
-from core.sync import sync_global_state
 
-def show_payables_manager():
-    st.header("🤝 Receivables Strategic Optimizer")
-    
-    # 1. FETCH DATA
-    metrics = sync_global_state()
-    s = st.session_state
-    
-    # INPUTS
-    c1, c2 = st.columns(2)
-    with c1:
-        current_sales = st.number_input("current_sales", value=1000.0)
-        extra_sales = st.number_input("extra_sales", value=250.0)
-        discount_trial = st.number_input("discount_trial (%)", value=2.0) / 100
-        prc_clients_take_disc = st.number_input("prc_clients_take_disc (%)", value=40.0) / 100
-        cogs = st.number_input("COGS", value=800.0)
-        wacc = st.number_input("WACC (%)", value=20.0) / 100
+def calculate_supplier_credit_gain(SupplierCreditDays, Discount, CashPrc, CurrentSales, UnitPrice, TotalUnitCost, InterestRateOnDebt):
+    # Convert percentages to decimals
+    Discount = Discount / 100
+    CashPrc = CashPrc / 100
+    InterestRateOnDebt = InterestRateOnDebt / 100
 
-    with c2:
-        days_take_disc = st.number_input("days_curently_paying_clients_take_discount", value=60)
-        days_curr_not_take = st.number_input("days_curently_paying_clients_not_take_discount", value=120)
-        new_days_limit = st.number_input("new_days_payment_clients_take_disc", value=10)
+    # 1. Gain from the discount on purchases (assuming purchases correlate with sales volume)
+    # Using 365 days as per user instructions
+    discount_gain = CurrentSales * Discount * CashPrc
 
-    # --- ΥΠΟΛΟΓΙΣΜΟΙ NPV ΒΑΣΕΙ ΕΙΚΟΝΑΣ ---
-    prc_not_take = 1.0 - prc_clients_take_disc
-    avg_curr_days = (days_take_disc * prc_clients_take_disc) + (days_curr_not_take * prc_not_take)
-    curr_receiv = (current_sales * avg_curr_days) / 365
+    # 2. Opportunity cost from losing supplier credit
+    # Benefit = (Average Payables balance) * Cost of Capital
+    average_cost_ratio = TotalUnitCost / UnitPrice
     
-    total_sales = current_sales + extra_sales
-    prc_new_policy = ((current_sales * prc_clients_take_disc) + extra_sales) / total_sales
-    
-    new_avg_period = (prc_new_policy * new_days_limit) + ((1 - prc_new_policy) * days_curr_not_take)
-    new_receiv = (total_sales * new_avg_period) / 365
-    
-    free_cap = curr_receiv - new_receiv
-    
-    prof_extra = extra_sales * (1 - (cogs / current_sales))
-    prof_free_cap = free_cap * wacc
-    disc_cost = total_sales * prc_new_policy * discount_trial
-    npv_result = prof_extra + prof_free_cap - disc_cost
+    # Cost of using own cash instead of supplier's interest-free credit
+    credit_benefit_lost = ((CurrentSales / (365 / SupplierCreditDays)) * average_cost_ratio * CashPrc) * InterestRateOnDebt
 
-    # --- ΥΠΟΛΟΓΙΣΜΟΣ THRESHOLDS (Χειρουργική Ακρίβεια) ---
-    base = 1.0 + (wacc / 365.0)
-    
-    # 1. Maximum Discount: 1 - (Base ^ (10 - 96))
-    exp_max = float(new_days_limit - avg_curr_days)
-    max_d = 1.0 - (base ** exp_max)
-    
-    # 2. Optimum Discount: 1 - (Base ^ (10 - 120))
-    exp_opt = float(new_days_limit - days_curr_not_take)
-    opt_d = 1.0 - (base ** exp_opt)
+    net_gain = discount_gain - credit_benefit_lost
+    return discount_gain, credit_benefit_lost, net_gain
 
-    # --- DISPLAY ---
+def format_currency(amount):
+    return f"€ {amount:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+def show_supplier_credit_analysis():
+    st.header("🏦 Supplier Credit & Cash Discount Analysis")
+    st.markdown("Evaluate whether paying **cash for a discount** is more profitable than utilizing **supplier credit lines**.")
+
+    with st.form("supplier_credit_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Credit Terms")
+            SupplierCreditDays = st.number_input("📆 Supplier Credit Period (Days)", min_value=0, value=60)
+            Discount = st.number_input("💸 Cash Discount Offered (%)", min_value=0.0, value=2.0)
+            CashPrc = st.number_input("👥 % of Purchases Paid in Cash", min_value=0.0, max_value=100.0, value=50.0)
+
+        with col2:
+            st.subheader("Financial Data")
+            CurrentSales = st.number_input("💰 Annual Sales / Purchases Volume (€)", min_value=0, value=2000000)
+            UnitPrice = st.number_input("📦 Unit Sale Price (€)", min_value=0.01, value=20.0)
+            TotalUnitCost = st.number_input("🧾 Total Unit Cost (€)", min_value=0.01, value=18.0)
+            InterestRateOnDebt = st.number_input("🏦 Annual Cost of Debt/Capital (%)", min_value=0.0, value=10.0)
+
+        submitted = st.form_submit_button("🔍 Run Analysis", use_container_width=True)
+
+    if submitted:
+        discount_gain, credit_cost, net_gain = calculate_supplier_credit_gain(
+            SupplierCreditDays, Discount, CashPrc,
+            CurrentSales, UnitPrice, TotalUnitCost, InterestRateOnDebt
+        )
+
+        st.divider()
+        st.subheader("📊 Financial Impact")
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Total Discount Gain", format_currency(discount_gain))
+        m2.metric("Lost Credit Opportunity Cost", f"-{format_currency(credit_cost)}")
+        m3.metric("Net Financial Benefit", format_currency(net_gain), 
+                  delta=f"{net_gain:,.0f} €", 
+                  delta_color="normal" if net_gain >= 0 else "inverse")
+
+        if net_gain > 0:
+            st.success("✅ **Verdict:** The cash discount outweighs the cost of capital. **Switch to Cash Payments.**")
+        else:
+            st.error("⚠️ **Verdict:** The supplier credit is more valuable than the discount. **Maintain Credit Terms.**")
+
     st.divider()
-    st.subheader(f"NPV Result: € {npv_result:.2f}")
-    
-    res_col1, res_col2 = st.columns(2)
-    with res_col1:
-        st.metric("Maximum Discount (Break Even)", f"{max_d:.2%}")
-    with res_col2:
-        st.metric("Optimum Discount", f"{opt_d:.2%}")
-
-    st.info(f"Free Capital Released: € {free_cap:,.2f}")
-    
-    if st.button("Back to Hub"):
+    if st.button("Back to Library Hub"):
         st.session_state.selected_tool = None
         st.rerun()
