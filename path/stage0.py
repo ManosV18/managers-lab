@@ -1,10 +1,16 @@
 import streamlit as st
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state  # FIXED: Changed from core.engine
 
 def run_stage0():
-    st.header("🏗️ Stage 0: Structural Baseline Definition")
-    st.caption("Establish the core economic DNA of the enterprise before starting the simulation.")
-    st.divider()
+    st.title("🎯 Stage 0: Structural Baseline")
+    
+    # Force a sync to ensure we have data
+    metrics = sync_global_state()
+    
+    st.markdown("""
+    Define the fundamental economic engine of your business. 
+    This setup creates the 'Control snapshot' used for all future stress tests.
+    """)
 
     # 1. Fetch Current State (Initial or from Sidebar)
     m = compute_core_metrics()
