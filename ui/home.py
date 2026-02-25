@@ -42,6 +42,8 @@ def show_home():
             if st.button("Enter War Room Path", use_container_width=True, type="primary"):
                 st.session_state.mode = "path"
                 st.rerun()
+                st.session_state.flow_step = "stage1" 
+                st.rerun()
         with col_b:
             if st.button("Open Tool Library", use_container_width=True):
                 st.session_state.mode = "library"
