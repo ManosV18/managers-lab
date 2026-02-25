@@ -2,65 +2,52 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def run_stage2():
-    st.header("📉 Stage 2: Volume Shock Simulation")
-    st.caption("Sensitivity Analysis: Assessing how sales volatility impacts Free Cash Flow.")
+    st.title("💳 Stage 2: Capital Structure & WACC")
+    
+    # 1. FETCH DATA
+    m = sync_global_state()
+    s = st.session_state
+
+    st.markdown("""
+    Ανάλυση του κόστους κεφαλαίου και της εξυπηρέτησης του χρέους. 
+    Εδώ εξετάζουμε αν η απόδοση της επιχείρησης καλύπτει τις απαιτήσεις των επενδυτών και των τραπεζών.
+    """)
+
+    # 2. FINANCIAL METRICS
+    c1, c2, c3 = st.columns(3)
+    
+    wacc = s.get('wacc', 0.15)
+    annual_debt = s.get('annual_loan_payment', 0.0)
+    ebit = m.get('ebit', 0.0)
+    
+    c1.metric("WACC (Cost of Capital)", f"{wacc:.1%}")
+    c2.metric("Annual Debt Service", f"{annual_debt:,.0f} €")
+    
+    # Debt Service Coverage Ratio (DSCR)
+    dscr = (ebit / annual_debt) if annual_debt > 0 else 5.0 # default high if no debt
+    c3.metric("Debt Coverage (DSCR)", f"{dscr:.2f}x", 
+              delta="Safe" if dscr > 1.2 else "Critical",
+              delta_color="normal" if dscr > 1.2 else "inverse")
+
+    # 3. ANALYTICAL INSIGHT
     st.divider()
-
-    # 1. BASELINE CAPTURE
-    # Χρησιμοποιούμε τη ΝΕΑ συνάρτηση sync_global_state()
-    baseline_metrics = sync_global_state()
-    baseline_fcf = baseline_metrics['fcf']
-    original_vol = st.session_state.volume
-
-    # 2. STRESS TEST CONTROL
-    st.subheader("Apply Market Shock")
-    st.write("Simulate a drop in sales volume (e.g., due to competition or market downturn).")
-    shock_pct = st.slider("Simulated Volume Drop (%)", 0, 80, 25)
+    st.subheader("Capital Leverage Insights")
     
-    # Προσωρινή εφαρμογή του σοκ στο state
-    st.session_state.volume = original_vol * (1 - shock_pct/100)
-    
-    # Επανυπολογισμός μέσω της ΝΕΑΣ συνάρτησης
-    stressed_metrics = sync_global_state()
-    fcf_shocked = stressed_metrics['fcf']
-
-    # 3. IMPACT ANALYSIS
-    delta_pct = (fcf_shocked - baseline_fcf) / abs(baseline_fcf) if baseline_fcf != 0 else 0.0
-
-    # 4. RESULTS DISPLAY
-    st.divider()
-    c1, c2 = st.columns(2)
-    
-    c1.metric("Original Annual FCF", f"{baseline_fcf:,.0f} €")
-    c2.metric(
-        label="Stressed Annual FCF", 
-        value=f"{fcf_shocked:,.0f} €", 
-        delta=f"{delta_pct:.1%} vs Baseline", 
-        delta_color="inverse"
-    )
-
-    # 5. MANAGER'S COLD INSIGHT
-    st.subheader("🔬 Fragility Assessment")
-    if fcf_shocked < 0:
-        st.error(f"🚨 **Terminal Shock:** At a -{shock_pct}% volume drop, the enterprise enters a deficit state.")
+    if dscr < 1:
+        st.error(f"🚨 **CASH FLOW ALERT:** Το EBIT ({ebit:,.0f}€) δεν καλύπτει τις δόσεις των δανείων ({annual_debt:,.0f}€). Η επιχείρηση 'καίει' μετρητά για να εξυπηρετήσει το χρέος.")
+    elif dscr < 1.2:
+        st.warning("⚠️ **FRAGILE LIQUIDITY:** Η κάλυψη χρέους είναι οριακή. Οποιαδήποτε πτώση πωλήσεων θα προκαλέσει αδυναμία πληρωμής.")
     else:
-        st.success(f"✅ **Resilience Confirmed:** The system remains FCF-positive even with a -{shock_pct}% reduction.")
+        st.success("✅ **DEBT SUSTAINABILITY:** Η επιχείρηση παράγει επαρκή κέρδη για την εξυπηρέτηση των δανειακών της υποχρεώσεων.")
 
-    # 6. STATE RECOVERY (Critical!)
-    # Επαναφέρουμε την τιμή και ξανακάνουμε sync για να μη "χαλάσουμε" τα επόμενα stages
-    st.session_state.volume = original_vol
-    sync_global_state()
-
-    # 7. NAVIGATION
+    # 4. NAVIGATION (Διασφάλιση ροής προς Stage 3)
     st.divider()
     col_prev, col_next = st.columns(2)
-    
     with col_prev:
-        if st.button("⬅️ Back to Stage 1", use_container_width=True):
-            st.session_state.flow_step = 1
+        if st.button("⬅️ Back to Stage 1"):
+            st.session_state.flow_step = "stage1"
             st.rerun()
-            
     with col_next:
-        if st.button("Next: Liquidity Collapse (Stage 3) 🫁", type="primary", use_container_width=True):
-            st.session_state.flow_step = 3
+        if st.button("Proceed to Stage 3 ➡️"):
+            st.session_state.flow_step = "stage3"
             st.rerun()
