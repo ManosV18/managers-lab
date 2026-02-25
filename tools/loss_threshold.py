@@ -1,62 +1,90 @@
 import streamlit as st
-from core.sync import sync_global_state  # <--- ΑΥΤΟ ΜΟΝΟ
+from utils import format_number_gr, parse_gr_number, format_percentage_gr
+
+def calculate_sales_loss_threshold(
+    competitor_old_price,
+    competitor_new_price,
+    our_price,
+    unit_cost
+):
+    try:
+        # Numerator: Percentage change in competitor's price
+        top = (competitor_new_price - competitor_old_price) / competitor_old_price
+        # Denominator: (Unit Cost - Our Price) / Our Price -> Negative CM ratio
+        bottom = (unit_cost - our_price) / our_price
+        
+        if bottom == 0:
+            return None
+            
+        # Result as a percentage
+        result = top / bottom
+        return result * 100 
+    except ZeroDivisionError:
+        return None
 
 def show_loss_threshold_before_price_cut():
-    # Καλούμε τη συνάρτηση-γέφυρα που φτιάξαμε παραπάνω
-    metrics = sync_global_state() 
-    
-    if not metrics:
-        st.error("Engine failed to synchronize. Check your session state keys.")
-        return
+    st.header("📉 Sales Loss Threshold Analysis")
+    st.write("Determine the maximum volume loss sustainable before matching a competitor's price cut.")
 
-    # 1. FETCH DATA VIA SYNC (Αυτό γεμίζει τα 11 ορίσματα αυτόματα)
-    metrics = sync_global_state() 
-    s = st.session_state
-    
-    # Ανάκτηση παραμέτρων από το state
-    p = s.get('price', 0.0)
-    vc = s.get('variable_cost', 0.0)
-    q = s.get('volume', 0)
-    
-    # Ανάκτηση αποτελεσμάτων από την engine
-    current_margin_per_unit = metrics.get('unit_contribution', 0.0)
-    
-    # Σταθερές υποχρεώσεις (Fixed Costs + Debt)
-    fixed_costs = s.get('fixed_cost', 0.0)
-    debt_service = s.get('annual_debt', 0.0) 
-    fixed_obligations = fixed_costs + debt_service
+    st.markdown("""
+    ### 🧠 Strategic Context
+    When a competitor lowers their price, matching them immediately might destroy your margin. 
+    This tool calculates the **indifference point**: the exact percentage of sales volume you can afford to lose 
+    while maintaining the same total contribution profit as you would if you had matched their price.
+    """)
 
-    # 2. ANALYSIS
-    be_price = (fixed_obligations / q) + vc if q > 0 else 0
-    max_price_cut = p - be_price
-    max_price_cut_pct = (max_price_cut / p) * 100 if p > 0 else 0
+    with st.form("loss_threshold_form"):
+        col1, col2 = st.columns(2)
 
-    # UI Metrics
-    st.subheader("Current Structural Resistance")
-    c1, c2 = st.columns(2)
-    c1.metric("Current Unit Margin", f"{current_margin_per_unit:,.2f} €")
-    c1.metric("Break-even Price", f"{be_price:,.2f} €")
-    
-    c2.metric("Max Price Cut Allowed", 
-              f"{max_price_cut:,.2f} €", 
-              delta=f"-{max_price_cut_pct:.1f}%", 
-              delta_color="inverse" if max_price_cut > 0 else "normal")
-    
+        with col1:
+            st.subheader("🏁 Competitor Status")
+            competitor_old_price_input = st.text_input("Competitor Initial Price (€)", value="8,00")
+            competitor_new_price_input = st.text_input("Competitor New Price (€)", value="7,20")
+
+        with col2:
+            st.subheader("🏢 Our Economics")
+            our_price_input = st.text_input("Our Current Selling Price (€)", value="8,00")
+            unit_cost_input = st.text_input("Our Unit Cost (COGS) (€)", value="4,50")
+
+        submitted = st.form_submit_button("Calculate Threshold", use_container_width=True)
+
+    if submitted:
+        # Parsing using your existing GR format utils
+        comp_old = parse_gr_number(competitor_old_price_input)
+        comp_new = parse_gr_number(competitor_new_price_input)
+        our_p = parse_gr_number(our_price_input)
+        u_cost = parse_gr_number(unit_cost_input)
+
+        if None in (comp_old, comp_new, our_p, u_cost):
+            st.error("⚠️ Validation Error: Please ensure all fields are numeric.")
+            return
+
+        # Core Calculation
+        result = calculate_sales_loss_threshold(comp_old, comp_new, our_p, u_cost)
+
+        st.divider()
+        
+        if result is None:
+            st.error("⚠️ Calculation Error: Check your input values (Price must be higher than Unit Cost).")
+        elif result <= 0:
+            st.warning("❗ No Margin for Loss: Your price/cost structure is already at parity or below the competitor's move.")
+        else:
+            # Executive Result Display
+            st.subheader("Analytical Verdict")
+            st.success(f"### Maximum Allowable Volume Loss: {result:.2f}%")
+            
+            st.info(f"""
+            **Insight:** You can lose up to **{result:.2f}%** of your customers to the competitor 
+            and still be more profitable than you would be if you lowered your price to **€{comp_new:.2f}**.
+            """)
+            
+            # Comparative Metrics
+            m1, m2 = st.columns(2)
+            current_cm = our_p - u_cost
+            m1.metric("Current Unit Margin", f"€{current_cm:.2f}")
+            m2.metric("Competitor Price Cut", f"{((comp_new-comp_old)/comp_old)*100:.1f}%")
+
     st.divider()
-
-    # 3. INTERACTIVE SLIDER
-    new_price = st.slider("Simulated Price (€)", float(vc), float(p * 1.5), float(p))
-    
-    new_margin = new_price - vc
-    new_ebitda = (new_margin * q) - fixed_costs
-    new_tax = max(0, new_ebitda * s.get('tax_rate', 0.22))
-    new_fcf = new_ebitda - new_tax - debt_service
-    
-    if new_fcf < 0:
-        st.error(f"🚨 **Deficit Alert:** Annual deficit of **{abs(new_fcf):,.2f} €**.")
-    else:
-        st.success(f"✅ **Safe Zone:** Surplus of **{new_fcf:,.2f} €**.")
-
     if st.button("Back to Library Hub", use_container_width=True):
         st.session_state.selected_tool = None
         st.rerun()
