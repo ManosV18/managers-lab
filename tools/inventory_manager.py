@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.sync import sync_global_state  # FIXED: Use sync instead of raw engine
+from core.sync import sync_global_state  
 
 def show_inventory_manager():
     st.header("📦 Strategic Inventory Analyzer")
@@ -41,7 +41,7 @@ def show_inventory_manager():
     weighted_dsi = (df["Value"] * df["Days"]).sum() / total_val if total_val > 0 else 0
     
     # Syncing keys with the global model
-    st.session_state.inventory_days = weighted_dsi # matching engine key
+    st.session_state.inventory_days = weighted_dsi 
     st.session_state.inventory_value = total_val
 
     st.divider()
@@ -69,15 +69,11 @@ def show_inventory_manager():
     # 5. INTEGRATION & COLD INSIGHT
     st.subheader("3. System Integration & Cost of Carry")
     
-    # Fetch global metrics safely
-    global_metrics = sync_global_state()
-    wacc = st.session_state.get('wacc', 0.15)
+    wacc = st.session_state.get('wacc_val', 15.0) / 100 # Adjusted key to match your WACC input
     
     if total_val > 0:
         daily_bleed = (total_val * wacc) / 365
         st.success(f"✔️ **Cash Cycle Synced:** Weighted DSI of **{weighted_dsi:.1f} days** is active.")
-        
-        
         
         st.markdown(f"""
         > **Analytical Note:** Every day this inventory sits on the shelf, it consumes **€ {daily_bleed:,.2f}** in capital cost (WACC). 
@@ -85,6 +81,11 @@ def show_inventory_manager():
         """)
     else:
         st.error("❌ **Incomplete Data:** Please enter Value (€) to enable calculations.")
+
+    st.divider()
+    if st.button("⬅️ Back to Library Hub", key="inv_back_btn"):
+        st.session_state.selected_tool = None
+        st.rerun()
 
 if __name__ == "__main__":
     show_inventory_manager()
