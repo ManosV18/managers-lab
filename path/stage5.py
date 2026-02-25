@@ -8,7 +8,7 @@ def run_stage5():
 
     # 1. FINAL SYNC (Single Source of Truth)
     # This pulls metrics after all Stage 4 interventions have been applied
-    m = compute_core_metrics()
+    m = sync_global_state()
     s = st.session_state
 
     # Current Liquidity Status
