@@ -38,20 +38,20 @@ def show_pricing_strategy_tool():
         
         c1, c2 = st.columns(2)
         with c1:
-            main_price = st.number_input("Main Product Price (€)", value=200.0, key="main_p")
-            main_profit = st.number_input("Main Product Profit (€)", value=60.0, key="main_prof")
-            discount = st.slider("Proposed Discount (%)", 0.0, 40.0, 10.0) / 100
+            main_price = st.number_input("Main Product Price (€)", value=200.0, key="pr_main_p")
+            main_profit = st.number_input("Main Product Profit (€)", value=60.0, key="pr_main_prof")
+            discount = st.slider("Proposed Discount (%)", 0.0, 40.0, 10.0, key="pr_discount_slider") / 100
         
         with c2:
             st.write("**Complements (Profit & Attach Rate)**")
             comp_list = []
             for item in ["Item 1", "Item 2", "Item 3", "Item 4"]:
                 col_a, col_b = st.columns(2)
-                p = col_a.number_input(f"Profit {item}", value=15.0, key=f"p_{item}")
-                r = col_b.slider(f"Attach Rate %", 0, 100, 50, key=f"r_{item}") / 100
+                p = col_a.number_input(f"Profit {item}", value=15.0, key=f"pr_p_{item}")
+                r = col_b.slider(f"Attach Rate %", 0, 100, 50, key=f"pr_r_{item}") / 100
                 comp_list.append((p, r))
 
-        if st.button("Calculate Cross-Sell Impact", use_container_width=True):
+        if st.button("Calculate Cross-Sell Impact", use_container_width=True, key="pr_calc_cross"):
             res, avg_extra = calculate_cross_sell_impact(main_price, -discount, main_profit, comp_list)
             
             if res and res > 0:
@@ -75,20 +75,20 @@ def show_pricing_strategy_tool():
         
         col1, col2 = st.columns(2)
         with col1:
-            old_p = st.number_input("Current Price Product A (€)", value=1.50, key="old_pa")
-            p_A = st.number_input("Unit Profit Product A (€)", value=0.30, key="pa_prof")
-            p_inc = st.slider("Price Increase (%)", 0.0, 50.0, 10.0, key="p_inc_slider") / 100
+            old_p = st.number_input("Current Price Product A (€)", value=1.50, key="pr_old_pa")
+            p_A = st.number_input("Unit Profit Product A (€)", value=0.30, key="pr_pa_prof")
+            p_inc = st.slider("Price Increase (%)", 0.0, 50.0, 10.0, key="pr_p_inc_slider") / 100
         
         with col2:
             st.write("**Substitution Logic**")
             sub_list = []
             for i in range(3):
                 col_sub_a, col_sub_b = st.columns(2)
-                sp = col_sub_a.number_input(f"Profit Sub {i+1}", value=0.20, key=f"sp_{i}")
-                sr = col_sub_b.slider(f"Switch Rate to {i+1} %", 0, 100, 20, key=f"sr_{i}") / 100
+                sp = col_sub_a.number_input(f"Profit Sub {i+1}", value=0.20, key=f"pr_sp_{i}")
+                sr = col_sub_b.slider(f"Switch Rate to {i+1} %", 0, 100, 20, key=f"pr_sr_{i}") / 100
                 sub_list.append((sp, sr))
 
-        if st.button("Calculate Substitution Limit", use_container_width=True):
+        if st.button("Calculate Substitution Limit", use_container_width=True, key="pr_calc_sub"):
             total_switch = sum(x[1] for x in sub_list)
             if total_switch > 1.0:
                 st.error("Total probabilities cannot exceed 100%")
@@ -101,9 +101,15 @@ def show_pricing_strategy_tool():
                 
                 fig = go.Figure(data=[go.Pie(labels=['Switching to Own Subs', 'Pure Market Loss'], 
                                             values=[total_switch, 1-total_switch], hole=.4)])
+                fig.update_layout(template="plotly_dark")
                 st.plotly_chart(fig, use_container_width=True)
 
                 if abs(max_drop) > 15:
                     st.success("🟢 Strong Pricing Power: High buffer for volume loss.")
                 else:
                     st.error("🔴 Fragile Margin: Minimal room for volume loss.")
+
+    st.divider()
+    if st.button("⬅️ Back to Library Hub", key="pr_back_btn"):
+        st.session_state.selected_tool = None
+        st.rerun()
