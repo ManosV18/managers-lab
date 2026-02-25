@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from decimal import Decimal, getcontext
+from core.sync import sync_global_state
 
-# --- NPV ENGINE (UNTOUCHED) ---
+# --- NPV ENGINE (UNTOUCHED AS REQUESTED) ---
 def calculate_discount_npv_full(
     current_sales, extra_sales, discount_trial, prc_clients_take_disc,
     days_take_old, days_no_take_old, new_days_take, cogs, wacc, avg_days_suppliers
@@ -46,8 +47,8 @@ def show_receivables_analyzer_ui():
     # 1. SEGMENTATION & TARGETING
     st.subheader("1. Portfolio Segmentation & Targeting")
     
-    # SYNC ADDITION: Use global session state for base amounts if available
-    base_sales = st.session_state.get('price', 0) * st.session_state.get('volume', 0)
+    # Sync with global state
+    m = sync_global_state()
     
     default_segments = [
         {"Cat": "A", "Amt": 300000.0, "Days": 60},
@@ -84,13 +85,11 @@ def show_receivables_analyzer_ui():
     with col1:
         discount_val = st.slider("Cash Discount Offered (%)", 0.0, 5.0, 2.0, step=0.1) / 100
         new_days_target = st.number_input("Target Payment Days (for Discount)", value=10)
-        # SYNC ADDITION: Pull WACC from sidebar state
         wacc = st.session_state.get('wacc', 0.15)
         
     with col2:
         take_rate_targeted = st.slider("% Acceptance within Targeted Segment", 0, 100, 60) / 100
         extra_sales_growth = st.number_input("Est. Sales Growth (%)", value=5.0) / 100
-        # SYNC ADDITION: Pull Variable Cost from sidebar state
         vc = st.session_state.get('variable_cost', 0.0)
         vol = st.session_state.get('volume', 0)
         cogs_input = st.number_input("Total COGS (€)", value=float(vc * vol) if vc*vol > 0 else total_sales * 0.7)
@@ -107,35 +106,8 @@ def show_receivables_analyzer_ui():
         new_days_take=new_days_target,
         cogs=cogs_input,
         wacc=wacc,
-        avg_days_suppliers=st.session_state.get('ap_days', 45) # SYNC ADDITION
+        avg_days_suppliers=st.session_state.get('ap_days', 45)
     )
 
-    # 3. RESULTS & SYNC BUTTON
-    st.divider()
-    r1, r2, r3 = st.columns(3)
-    r1.metric("Net Present Value (NPV)", f"€ {res['npv']:,.2f}")
-    r2.metric("Free Capital (Liquidity)", f"€ {res['free_capital']:,.0f}")
-    r3.metric("New Portfolio DSO", f"{res['new_avg_days']:.1f} Days")
-
-    # SYNC ADDITION: The Sync Button
-    if st.button("🔄 Sync Results to Cash Cycle", use_container_width=True):
-        st.session_state.ar_days = res['new_avg_days'] # Updates the global AR Days
-        st.success(f"Global DSO updated to {res['new_avg_days']:.1f} days for all calculations!")
-
-    if res['npv'] > 0:
-        st.success(f"**Verdict:** Positive NPV. Capital benefit outweighs discount cost.")
-    else:
-        st.error(f"**Verdict:** Negative NPV. Strategy destroys value.")
-
-    # 4. SENSITIVITY CHART
-    st.subheader("NPV Sensitivity: Acceptance Rate vs Profitability")
-    test_rates = [r/100 for r in range(0, 101, 10)]
-    npvs = [calculate_discount_npv_full(total_sales, total_sales*extra_sales_growth, discount_val, 
-            (targeted_sales*tr)/total_sales, targeted_weighted_dso, current_weighted_dso, 
-            new_days_target, cogs_input, wacc, 45)['npv'] for tr in test_rates]
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=[r*100 for r in test_rates], y=npvs, mode='lines+markers', line=dict(color="#00CC96")))
-    fig.add_hline(y=0, line_dash="dash", line_color="red")
-    fig.update_layout(xaxis_title="Acceptance Rate in Targeted Segment (%)", yaxis_title="NPV (€)", template="plotly_dark")
-    st.plotly_chart(fig, use_container_width=True)
+    # 3. RESULTS & SYNC
+    st.
