@@ -22,9 +22,9 @@ def show_qspm_tool():
     # 2. DEFINE STRATEGIES
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        strat1_name = st.text_input("Strategy A", value="Operational Optimization")
+        strat1_name = st.text_input("Strategy A", value="Operational Optimization", key="qspm_strat_a")
     with col_s2:
-        strat2_name = st.text_input("Strategy B", value="Aggressive Market Expansion")
+        strat2_name = st.text_input("Strategy B", value="Aggressive Market Expansion", key="qspm_strat_b")
 
     # 3. CRITICAL SUCCESS FACTORS (CSFs)
     factors = [
@@ -47,11 +47,11 @@ def show_qspm_tool():
         st.markdown(f"**{factor}** (Weight: {weight:.0%})")
         c1, c2 = st.columns(2)
         with c1:
-            s_a = st.slider(f"Score A", 1, 4, 2, key=f"q_a_{factor}")
+            s_a = st.slider(f"Score A - {factor}", 1, 4, 2, key=f"q_a_{factor}_slider")
             raw_a.append(s_a)
             scores_a.append(s_a * weight)
         with c2:
-            s_b = st.slider(f"Score B", 1, 4, 2, key=f"q_b_{factor}")
+            s_b = st.slider(f"Score B - {factor}", 1, 4, 2, key=f"q_b_{factor}_slider")
             raw_b.append(s_b)
             scores_b.append(s_b * weight)
 
@@ -77,6 +77,8 @@ def show_qspm_tool():
     fig.add_trace(go.Scatterpolar(r=raw_a, theta=categories, fill='toself', name=strat1_name))
     fig.add_trace(go.Scatterpolar(r=raw_b, theta=categories, fill='toself', name=strat2_name))
 
+    
+
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 4])),
         showlegend=True,
@@ -88,12 +90,4 @@ def show_qspm_tool():
     # 7. ANALYST'S VERDICT
     st.subheader("🧠 Analyst's Verdict")
     if abs(total_a - total_b) < 0.2:
-        st.warning("**Strategic Stalemate:** The options are very close. Reassess the weights or consider a Phased Execution approach.")
-    elif total_a > total_b:
-        st.success(f"**Winner: {strat1_name}** – This choice aligns better with current constraints and the business risk profile.")
-    else:
-        st.success(f"**Winner: {strat2_name}** – This strategy quantitatively outperforms, potentially offering higher ROI despite risk.")
-
-    if st.button("Back to Library Hub", use_container_width=True):
-        st.session_state.selected_tool = None
-        st.rerun()
+        st.warning("**Strategic Stalemate:** The
