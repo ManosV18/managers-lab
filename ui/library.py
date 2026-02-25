@@ -39,9 +39,16 @@ def show_library():
             
             st.info("Additional operations tools pending...")
 
+        
         with t4:
             st.subheader("Risk & Vulnerability")
-            st.info("Risk tools pending...")
+            # ΣΥΝΔΕΣΗ ΤΟΥ CASH FRAGILITY INDEX
+            if st.button("🛡️ Cash Fragility Index", use_container_width=True):
+                st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
+                st.rerun()
+           
+            st.info("Additional risk assessment tools pending...")
+      
 
     else:
         # Εκτέλεση του επιλεγμένου εργαλείου
