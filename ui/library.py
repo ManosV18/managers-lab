@@ -15,7 +15,7 @@ def show_payables_manager_internal():
         annual_purch = st.number_input("Annual Purchase Volume (€)", value=1000000, key="int_ann_purch")
         wacc = st.number_input("Cost of Capital / Interest (%)", value=10.0, key="int_wacc") / 100
 
-    # Calculation
+    # Calculation based on instruction [2026-02-18] (365 days)
     disc_gain = annual_purch * disc_prc * cash_take
     opp_cost = (annual_purch * cash_take * (cred_days / 365)) * wacc
     net_benefit = disc_gain - opp_cost
@@ -43,88 +43,86 @@ def show_library():
 
     # 2. Tool Routing
     if st.session_state.get('selected_tool') is None:
-        t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "📉 Risk"])
+        t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
         
         with t1:
-            st.subheader("Strategy & Growth")
-            if st.button("⚖️ BEP Shift Analysis", use_container_width=True, key="btn_bep"):
-                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
+            st.subheader("Core Strategy & Growth")
+            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True, key="btn_pricing"):
+                st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool")
                 st.rerun()
-            if st.button("📉 Loss Threshold", use_container_width=True, key="btn_loss"):
+            if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True, key="btn_loss"):
                 st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
                 st.rerun()
-            if st.button("👥 CLV Simulator", use_container_width=True, key="btn_clv"):
-                st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
+            if st.button("⚖️ BEP Shift Analysis", use_container_width=True, key="btn_bep"):
+                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
                 st.rerun()
             if st.button("🧭 QSPM Strategy Matrix", use_container_width=True, key="btn_qspm"):
                 st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool")
                 st.rerun()
-            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True, key="btn_pricing"):
-                st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool")
+            if st.button("👥 CLV Simulator", use_container_width=True, key="btn_clv"):
+                st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
                 st.rerun()
         
         with t2:
-            st.subheader("Finance & Capital")
+            st.subheader("Financial Engineering")
             if st.button("📉 WACC Optimizer", use_container_width=True, key="btn_wacc"):
                 st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
-                st.rerun()
-            if st.button("⚖️ Loan vs Leasing", use_container_width=True, key="btn_lvl"):
-                st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
                 st.rerun()
             if st.button("📈 Growth Funding (AFN)", use_container_width=True, key="btn_afn"):
                 st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
                 st.rerun()
+            if st.button("⚖️ Loan vs Leasing Analyzer", use_container_width=True, key="btn_lvl"):
+                st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
+                st.rerun()
 
         with t3:
-            st.subheader("Operations & Efficiency")
-            if st.button("🔄 Cash Conversion Cycle", use_container_width=True, key="btn_ccc"):
+            st.subheader("Tactical Execution")
+            if st.button("🔄 Cash Conversion Cycle (CCC)", use_container_width=True, key="btn_ccc"):
                 st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
-                st.rerun()
-            if st.button("🤝 Payables Manager", use_container_width=True, key="btn_payables"):
-                st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
-                st.rerun()
-            if st.button("📦 Inventory Analyzer", use_container_width=True, key="btn_inv"):
-                st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
-                st.rerun()
-            if st.button("📊 Unit Cost Analyzer", use_container_width=True, key="btn_uc"):
-                st.session_state.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app")
                 st.rerun()
             if st.button("📊 Receivables Analyzer (NPV)", use_container_width=True, key="btn_receivables"):
                 st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
                 st.rerun()
+            if st.button("📦 Inventory Optimizer (EOQ)", use_container_width=True, key="btn_inv"):
+                st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
+                st.rerun()
+            if st.button("🤝 Payables Manager", use_container_width=True, key="btn_payables"):
+                st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
+                st.rerun()
+            if st.button("🔢 Unit Cost Analyzer", use_container_width=True, key="btn_uc"):
+                st.session_state.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app")
+                st.rerun()
 
         with t4:
-            st.subheader("Risk & Command Center")
-            if st.button("🛡️ Resilience & Shock Map", use_container_width=True, key="btn_res"):
-                st.session_state.selected_tool = ("resilience_map", "show_resilience_map")
+            st.subheader("Executive Command & Risk")
+            if st.button("🏁 Executive Command Center", use_container_width=True, key="btn_exec"):
+                st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard")
                 st.rerun()
             if st.button("🚨 Cash Fragility Index", use_container_width=True, key="btn_frag"):
                 st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
                 st.rerun()
-            if st.button("🏁 Executive Command Center", use_container_width=True, key="btn_exec"):
-                st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard")
+            if st.button("🛡️ Resilience & Shock Map", use_container_width=True, key="btn_res"):
+                st.session_state.selected_tool = ("resilience_map", "show_resilience_map")
                 st.rerun()
 
     else:
         # 3. Execution Mode
         mod_name, func_name = st.session_state.selected_tool
         
-        # Check if it's the internal tool
-        if mod_name == "INTERNAL":
-            globals()[func_name]()
-        else:
+        # Back button for non-internal tools
+        if mod_name != "INTERNAL":
             if st.button("⬅️ Back to Library Hub", key="global_back"):
                 st.session_state.selected_tool = None
                 st.rerun()
             st.divider()
+
+        # Execute
+        if mod_name == "INTERNAL":
+            globals()[func_name]()
+        else:
             try:
-                # Δυναμικό import του αρχείου
                 module = importlib.import_module(f"tools.{mod_name}")
-                
-                # FORCE RELOAD: Αναγκάζει την Python να διαβάσει το αρχείο από το δίσκο
-                # Αυτό λύνει το πρόβλημα με το "No attribute" αν είχες σώσει παλιά έκδοση
-                importlib.reload(module) 
-                
+                importlib.reload(module)  # Essential for current development
                 tool_func = getattr(module, func_name)
                 tool_func()
             except Exception as e:
