@@ -8,16 +8,15 @@ def show_payables_manager_internal():
     
     col1, col2 = st.columns(2)
     with col1:
-        cred_days = st.number_input("Supplier Credit Period (Days)", value=60)
-        disc_prc = st.number_input("Cash Discount Offered (%)", value=2.0) / 100
-        cash_take = st.number_input("% of Purchases for Discount", value=50.0) / 100
+        cred_days = st.number_input("Supplier Credit Period (Days)", value=60, key="int_cred_days")
+        disc_prc = st.number_input("Cash Discount Offered (%)", value=2.0, key="int_disc_prc") / 100
+        cash_take = st.number_input("% of Purchases for Discount", value=50.0, key="int_cash_prc") / 100
     with col2:
-        annual_purch = st.number_input("Annual Purchase Volume (€)", value=1000000)
-        wacc = st.number_input("Cost of Capital / Interest (%)", value=10.0) / 100
+        annual_purch = st.number_input("Annual Purchase Volume (€)", value=1000000, key="int_ann_purch")
+        wacc = st.number_input("Cost of Capital / Interest (%)", value=10.0, key="int_wacc") / 100
 
     # Calculation
     disc_gain = annual_purch * disc_prc * cash_take
-    # Opportunity cost of using cash instead of credit
     opp_cost = (annual_purch * cash_take * (cred_days / 365)) * wacc
     net_benefit = disc_gain - opp_cost
 
@@ -27,14 +26,14 @@ def show_payables_manager_internal():
     c2.metric("Credit Opp. Cost", f"-€{opp_cost:,.0f}")
     c3.metric("Net Benefit", f"€{net_benefit:,.0f}", delta=f"{net_benefit:,.0f}")
 
-    if st.button("Back to Library Hub"):
+    if st.button("⬅️ Back to Library Hub", key="back_from_internal"):
         st.session_state.selected_tool = None
         st.rerun()
 
 # --- MAIN LIBRARY FUNCTION ---
 def show_library():
     # 1. Sidebar navigation
-    if st.sidebar.button("🏠 Exit Library"):
+    if st.sidebar.button("🏠 Exit Library", key="exit_lib"):
         st.session_state.mode = "path"
         st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
@@ -48,65 +47,55 @@ def show_library():
         
         with t1:
             st.subheader("Strategy & Growth")
-            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+            if st.button("⚖️ BEP Shift Analysis", use_container_width=True, key="btn_bep"):
                 st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
                 st.rerun()
-            if st.button("📉 Loss Threshold", use_container_width=True):
+            if st.button("📉 Loss Threshold", use_container_width=True, key="btn_loss"):
                 st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
                 st.rerun()
-            if st.button("👥 CLV Simulator", use_container_width=True):
+            if st.button("👥 CLV Simulator", use_container_width=True, key="btn_clv"):
                 st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
                 st.rerun()
-            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
+            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True, key="btn_qspm"):
                 st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool")
                 st.rerun()
         
         with t2:
             st.subheader("Finance & Capital")
-            if st.button("📉 WACC Optimizer", use_container_width=True):
+            if st.button("📉 WACC Optimizer", use_container_width=True, key="btn_wacc"):
                 st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
                 st.rerun()
-            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
+            if st.button("⚖️ Loan vs Leasing", use_container_width=True, key="btn_lvl"):
                 st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
                 st.rerun()
-            if st.button("📈 Growth Funding (AFN)", use_container_width=True):
+            if st.button("📈 Growth Funding (AFN)", use_container_width=True, key="btn_afn"):
                 st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
-                st.rerun()
-                2. Κλήση του Loan vs Leasing
-            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
-            # ("όνομα_αρχείου_στο_tools", "όνομα_συνάρτησης_μέσα_στο_αρχείο")
-                st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
                 st.rerun()
 
         with t3:
             st.subheader("Operations & Efficiency")
-            if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
+            if st.button("🔄 Cash Conversion Cycle", use_container_width=True, key="btn_ccc"):
                 st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
                 st.rerun()
-                
-            # ΤΩΡΑ ΤΟ ΚΟΥΜΠΙ ΔΟΥΛΕΥΕΙ ΕΣΩΤΕΡΙΚΑ
-            if st.button("🤝 Payables Manager", use_container_width=True):
+            if st.button("🤝 Payables Manager", use_container_width=True, key="btn_payables"):
                 st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
                 st.rerun()
-                
-            if st.button("📦 Inventory Analyzer", use_container_width=True):
+            if st.button("📦 Inventory Analyzer", use_container_width=True, key="btn_inv"):
                 st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
                 st.rerun()
-
-            # Πρόσθεσε αυτό το κουμπί:
-            if st.button("📊 Unit Cost Analyzer", use_container_width=True):
+            if st.button("📊 Unit Cost Analyzer", use_container_width=True, key="btn_uc"):
                 st.session_state.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app")
                 st.rerun()
 
         with t4:
             st.subheader("Risk & Command Center")
-            if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
+            if st.button("🛡️ Resilience & Shock Map", use_container_width=True, key="btn_res"):
                 st.session_state.selected_tool = ("resilience_map", "show_resilience_map")
                 st.rerun()
-            if st.button("🚨 Cash Fragility Index", use_container_width=True):
+            if st.button("🚨 Cash Fragility Index", use_container_width=True, key="btn_frag"):
                 st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
                 st.rerun()
-            if st.button("🏁 Executive Command Center", use_container_width=True):
+            if st.button("🏁 Executive Command Center", use_container_width=True, key="btn_exec"):
                 st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard")
                 st.rerun()
 
@@ -118,7 +107,8 @@ def show_library():
         if mod_name == "INTERNAL":
             globals()[func_name]()
         else:
-            if st.button("⬅️ Back to Library Hub"):
+            # Σημαντικό: Το "Back" button εδώ είναι για τα εξωτερικά modules
+            if st.button("⬅️ Back to Library Hub", key="global_back"):
                 st.session_state.selected_tool = None
                 st.rerun()
             st.divider()
@@ -128,6 +118,6 @@ def show_library():
                 tool_func()
             except Exception as e:
                 st.error(f"❌ Error loading '{mod_name}': {e}")
-                if st.button("Reset Selection"):
+                if st.button("Reset Selection", key="error_reset"):
                     st.session_state.selected_tool = None
                     st.rerun()
