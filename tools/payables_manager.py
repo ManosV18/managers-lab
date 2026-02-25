@@ -8,9 +8,9 @@ def show_payables_manager():
     metrics = sync_global_state()
     s = st.session_state
     
-    # INPUTS
-    col1, col2 = st.columns(2)
-    with col1:
+    # INPUTS - Τιμές από την εικόνα σου
+    c1, c2 = st.columns(2)
+    with c1:
         current_sales = st.number_input("current_sales", value=1000.0)
         extra_sales = st.number_input("extra_sales", value=250.0)
         discount_trial = st.number_input("discount_trial (%)", value=2.0) / 100
@@ -23,7 +23,7 @@ def show_payables_manager():
         days_curr_not_take = st.number_input("days_curently_paying_clients_not_take_discount", value=120)
         new_days_limit = st.number_input("new_days_payment_clients_take_disc", value=10)
 
-    # --- ΥΠΟΛΟΓΙΣΜΟΙ ΒΑΣΕΙ ΕΙΚΟΝΑΣ ---
+    # --- ΥΠΟΛΟΓΙΣΜΟΙ NPV ---
     prc_not_take = 1.0 - prc_clients_take_disc
     avg_curr_days = (days_take_disc * prc_clients_take_disc) + (days_curr_not_take * prc_not_take)
     curr_receiv = (current_sales * avg_curr_days) / 365
@@ -39,33 +39,30 @@ def show_payables_manager():
     prof_extra = extra_sales * (1 - (cogs / current_sales))
     prof_free_cap = free_cap * wacc
     disc_cost = total_sales * prc_new_policy * discount_trial
-    npv = prof_extra + prof_free_cap - disc_cost
+    npv_result = prof_extra + prof_free_cap - disc_cost
 
-    # --- ΔΙΟΡΘΩΣΗ THRESHOLDS (Step-by-Step Power Calculation) ---
+    # --- ΥΠΟΛΟΓΙΣΜΟΣ THRESHOLDS (Χειρουργική Ακρίβεια) ---
+    # Βάση: (1 + WACC/365)
     base = 1.0 + (wacc / 365.0)
     
-    # Max Discount: 1 - (Base ^ (10 - 96))
-    exponent_max = float(new_days_limit - avg_curr_days)
-    max_d = 1.0 - (base ** exponent_max)
+    # 1. Maximum Discount (Break Even)
+    # Φόρμουλα Excel: 1 - (Base ^ (new_days - avg_curr_days))
+    exp_max = float(new_days_limit - avg_curr_days) # 10 - 96 = -86
+    max_d = 1.0 - (base ** exp_max)
     
-    # Optimum Discount: 1 - (Base ^ (10 - 120))
-    exponent_opt = float(new_days_limit - days_curr_not_take)
-    opt_d = 1.0 - (base ** exponent_opt)
+    # 2. Optimum Discount
+    # Φόρμουλα Excel: 1 - (Base ^ (new_days - days_curr_not_take))
+    exp_opt = float(new_days_limit - days_curr_not_take) # 10 - 120 = -110
+    opt_d = 1.0 - (base ** exp_opt)
 
     # DISPLAY
     st.divider()
-    res1, res2 = st.columns(2)
-    with res1:
-        st.write(f"**Current Receivables:** € {curr_receiv:,.2f}")
-        st.write(f"**New Receivables:** € {new_receiv:,.2f}")
-        st.info(f"**Free Capital:** € {free_cap:,.2f}")
+    st.subheader(f"NPV Result: € {npv_result:.2f}")
     
-    with res2:
-        st.write(f"**Profit from Extra Sales:** € {prof_extra:,.2f}")
-        st.write(f"**Profit from Free Capital:** € {prof_free_cap:,.2f}")
-        st.success(f"**NPV:** € {npv:,.2f}")
+    c_res1, c_res2 = st.columns(2)
+    with c_res1:
+        st.metric("Maximum Discount (Break Even)", f"{max_d:.2%}")
+    with c_res2:
+        st.metric("Optimum Discount", f"{opt_d:.2%}")
 
-    st.divider()
-    st.subheader("💡 Threshold Analysis")
-    st.metric("Maximum Discount (Break Even)", f"{max_d:.2%}")
-    st.metric("Optimum Discount", f"{opt_d:.2%}")
+    st.info(f"Free Capital Released: € {free_cap:,.2f}")
