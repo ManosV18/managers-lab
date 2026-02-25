@@ -50,6 +50,10 @@ def show_library():
         
         with t4:
             st.subheader("Risk & Vulnerability")
+            # ΣΥΝΔΕΣΗ ΤΟΥ RESILIENCE MAP
+            if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
+                st.session_state.selected_tool = ("resilience_map", "show_resilience_map")
+                st.rerun()
             # ΣΥΝΔΕΣΗ ΤΟΥ CASH FRAGILITY INDEX
             if st.button("🛡️ Cash Fragility Index", use_container_width=True):
                 st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
