@@ -107,13 +107,18 @@ def show_library():
         if mod_name == "INTERNAL":
             globals()[func_name]()
         else:
-            # Σημαντικό: Το "Back" button εδώ είναι για τα εξωτερικά modules
             if st.button("⬅️ Back to Library Hub", key="global_back"):
                 st.session_state.selected_tool = None
                 st.rerun()
             st.divider()
             try:
+                # Δυναμικό import του αρχείου
                 module = importlib.import_module(f"tools.{mod_name}")
+                
+                # FORCE RELOAD: Αναγκάζει την Python να διαβάσει το αρχείο από το δίσκο
+                # Αυτό λύνει το πρόβλημα με το "No attribute" αν είχες σώσει παλιά έκδοση
+                importlib.reload(module) 
+                
                 tool_func = getattr(module, func_name)
                 tool_func()
             except Exception as e:
