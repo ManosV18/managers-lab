@@ -46,3 +46,6 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, 
         'accounts_receivable': accounts_receivable,
         'contribution_ratio': unit_contribution / price if price > 0 else 0
     }
+    # Στο τέλος του core/engine.py
+# Alias για συμβατότητα με τα παλιά εργαλεία
+compute_core_metrics = calculate_metrics
