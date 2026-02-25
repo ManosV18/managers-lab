@@ -1,7 +1,7 @@
 # tools/payables_manager.py
 """
 Payables Strategic Control
-Optimize supplier payment strategies using WACC and NPV analysis
+Optimize supplier payment strategies using WACC
 """
 
 import streamlit as st
@@ -32,7 +32,7 @@ def show_payables_manager():
     # ═══════════════════════════════════════════════════════════
     # 2. TABS
     # ═══════════════════════════════════════════════════════════
-    tab1, tab2 = st.tabs(["💰 Cash Flow Impact", "⚖️ NPV Optimizer (Excel View)"])
+    tab1, tab2 = st.tabs(["💰 Cash Flow Impact", "⚖️ Discount vs. Cost of Capital"])
     
     # ───────────────────────────────────────────────────────────
     # TAB 1: Cash Flow Impact
@@ -65,131 +65,47 @@ def show_payables_manager():
         )
     
     # ───────────────────────────────────────────────────────────
-    # TAB 2: NPV Optimizer (Excel Logic)
+    # TAB 2: Discount vs. Cost of Capital
     # ───────────────────────────────────────────────────────────
     with tab2:
-        st.subheader("Early Payment Discount Analysis")
-        st.caption("NPV-based evaluation of early payment discount strategies")
+        st.subheader("Early Payment Discount (EPD) Evaluator")
         
-        # Current sales from system
-        current_sales = st.session_state.get('price', 0) * st.session_state.get('volume', 0)
-        cogs = annual_purchases  # COGS = annual purchases
+        col1, col2, col3 = st.columns(3)
         
-        # Input columns
-        col_a, col_b = st.columns(2)
+        epd_pct = col1.number_input(
+            "Discount Offered (%)", 
+            value=2.0, 
+            min_value=0.0, 
+            max_value=10.0, 
+            step=0.1, 
+            key="epd_p"
+        ) / 100
         
-        with col_a:
-            st.markdown("**📊 Strategic Parameters**")
-            e_sales = st.number_input(
-                "Extra Sales (€)", 
-                value=250.0, 
-                step=10.0,
-                help="Additional sales from taking early payment discount"
-            )
-            disc_trial = st.number_input(
-                "Discount Offered (%)", 
-                value=2.0,
-                min_value=0.0,
-                max_value=10.0,
-                step=0.1
-            ) / 100
-            prc_take = st.number_input(
-                "% Clients Taking Discount", 
-                value=40.0,
-                min_value=0.0,
-                max_value=100.0,
-                step=1.0
-            ) / 100
+        epd_days = col2.number_input(
+            "Discount Period (Days)", 
+            value=10, 
+            key="epd_d"
+        )
         
-        with col_b:
-            st.markdown("**📅 Payment Timing**")
-            d_take = st.number_input(
-                "Days if Taking Discount", 
-                value=10,
-                min_value=0,
-                max_value=365
-            )
-            d_not = st.number_input(
-                "Days if NOT Taking Discount", 
-                value=30,
-                min_value=0,
-                max_value=365
-            )
-            n_days = st.number_input(
-                "New Policy Days Limit", 
-                value=10,
-                min_value=0,
-                max_value=365
-            )
+        net_days = col3.number_input(
+            "Full Term (Days)", 
+            value=30, 
+            key="epd_n"
+        )
         
-        # ═══════════════════════════════════════════════════════════
-        # EXCEL FORMULAS (One-to-One)
-        # ═══════════════════════════════════════════════════════════
-        prc_not_take = 1.0 - prc_take
-        
-        # Current average collection period
-        avg_curr_days = (d_take * prc_take) + (d_not * prc_not_take)
-        curr_receiv = (current_sales * avg_curr_days) / 365
-        
-        # New scenario
-        total_sales = current_sales + e_sales
-        prc_new_pol = ((current_sales * prc_take) + e_sales) / total_sales if total_sales > 0 else 0
-        prc_old_pol = 1.0 - prc_new_pol
-        
-        new_avg_period = (prc_new_pol * n_days) + (prc_old_pol * d_not)
-        new_receiv = (total_sales * new_avg_period) / 365
-        
-        free_cap = curr_receiv - new_receiv
-        
-        # Yellow Fields (Profit components)
-        gross_margin = 1.0 - (cogs / current_sales) if current_sales > 0 else 0
-        prof_extra = e_sales * gross_margin
-        prof_free_cap = free_cap * hurdle_rate
-        cost_disc = total_sales * prc_new_pol * disc_trial
-        
-        final_npv = prof_extra + prof_free_cap - cost_disc
-        
-        # Thresholds
-        daily_wacc = 1.0 + (hurdle_rate / 365)
-        max_d = 1.0 - (daily_wacc ** (n_days - avg_curr_days))
-        opt_d = 1.0 - (daily_wacc ** (n_days - d_not))
-        
-        # ═══════════════════════════════════════════════════════════
-        # RESULTS DISPLAY
-        # ═══════════════════════════════════════════════════════════
-        st.divider()
-        st.subheader("📈 NPV Analysis Results")
-        
-        # Metrics display
-        res1, res2, res3 = st.columns(3)
-        
-        res1.metric("Free Capital", f"€ {free_cap:,.2f}")
-        res2.metric("Profit from Extra Sales", f"€ {prof_extra:,.2f}")
-        res3.metric("Profit from Free Capital", f"€ {prof_free_cap:,.2f}")
-        
-        st.divider()
-        
-        col_npv1, col_npv2 = st.columns(2)
-        
-        with col_npv1:
-            st.metric(
-                "💰 Net Present Value (NPV)",
-                f"€ {final_npv:,.2f}",
-                delta="Total Value Created"
-            )
-            st.metric("Discount Cost", f"€ {cost_disc:,.2f}")
-        
-        with col_npv2:
-            st.metric("Maximum Discount", f"{max_d:.2%}")
-            st.metric("Optimum Discount", f"{opt_d:.2%}")
-        
-        # Strategic verdict
-        st.divider()
-        
-        if final_npv > 0:
-            st.success(f"✅ **Verdict: ACCEPT STRATEGY.** NPV is positive (€{final_npv:,.2f}). The discount strategy creates value.")
-        else:
-            st.error(f"🚨 **Verdict: REJECT STRATEGY.** NPV is negative (€{final_npv:,.2f}). The discount cost exceeds the benefits.")
+        if net_days > epd_days:
+            # Formula: (Discount / (1-Discount)) * (365 / (Net - Discount Days))
+            implied_rate = (epd_pct / (1 - epd_pct)) * (365 / (net_days - epd_days))
+            
+            st.divider()
+            
+            st.write(f"Implied Annual Return from Discount: **{implied_rate:.1%}**")
+            st.write(f"Your Internal Cost of Capital (WACC): **{hurdle_rate:.1%}**")
+            
+            if implied_rate > hurdle_rate:
+                st.success("✅ **Verdict: TAKE THE DISCOUNT.** The discount rate is higher than your cost of capital.")
+            else:
+                st.error("🚨 **Verdict: DELAY PAYMENT.** It is more profitable to keep the cash until the final due date.")
     
     # ═══════════════════════════════════════════════════════════
     # 3. SYNC BUTTON
