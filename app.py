@@ -17,44 +17,31 @@ if 'mode' not in st.session_state:
     st.session_state.mode = "path"
 if 'flow_step' not in st.session_state:
     st.session_state.flow_step = "home"
+if 'baseline_locked' not in st.session_state:
+    st.session_state.baseline_locked = False
 
 # 3. Sidebar
 show_sidebar()
 
-# --- DEBUG SECTION (Προσωρινό) ---
-# st.sidebar.write(f"DEBUG: Mode = {st.session_state.mode}")
-# st.sidebar.write(f"DEBUG: Step = {st.session_state.flow_step}")
-# --------------------------------
-
 # 4. ROUTER (The Decider)
 if st.session_state.mode == "library":
     show_library()
-
 else:
-    # Μετατροπή σε string για να αποφύγουμε Type Errors
     current_step = str(st.session_state.flow_step)
 
-    if current_step == "home" or current_step == "0":
+    if current_step == "home":
         show_home()
-    
     elif current_step == "stage0":
         run_stage0()
-        
     elif current_step == "stage1":
         run_stage1()
-        
     elif current_step == "stage2":
         run_stage2()
-        
     elif current_step == "stage3":
         run_stage3()
-        
     elif current_step == "stage4":
         run_stage4()
-        
     elif current_step == "stage5":
         run_stage5()
-        
     else:
-        # Αν χαθεί το σύστημα, γύρνα στην αρχή
         show_home()
