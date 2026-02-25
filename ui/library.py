@@ -20,6 +20,7 @@ def show_library():
             ("Loan vs Leasing Analysis", "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
             ("Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
             ("Payables Strategic Control", "payables_manager", "show_payables_manager"),
+            ("executive dashboard",    "executive_dashboard",    "show_executive_dashboard",
         ],
         
         "👥 Customer & Strategy": [
