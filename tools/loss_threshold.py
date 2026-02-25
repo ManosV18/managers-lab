@@ -1,9 +1,13 @@
 import streamlit as st
-from core.sync import sync_global_state  # Η μοναδική πηγή δεδομένων
+from core.sync import sync_global_state  # <--- ΑΥΤΟ ΜΟΝΟ
 
 def show_loss_threshold_before_price_cut():
-    st.header("📉 Loss Threshold Analysis")
-    st.info("Calculate the maximum allowable price reduction or volume drop before the business enters a deficit.")
+    # Καλούμε τη συνάρτηση-γέφυρα που φτιάξαμε παραπάνω
+    metrics = sync_global_state() 
+    
+    if not metrics:
+        st.error("Engine failed to synchronize. Check your session state keys.")
+        return
 
     # 1. FETCH DATA VIA SYNC (Αυτό γεμίζει τα 11 ορίσματα αυτόματα)
     metrics = sync_global_state() 
