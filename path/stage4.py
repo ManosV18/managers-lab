@@ -1,5 +1,5 @@
 import streamlit as st
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state
 
 def run_stage4():
     st.header("💉 Stage 4: Financing Intervention Lab")
