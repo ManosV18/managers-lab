@@ -3,7 +3,6 @@ import plotly.graph_objects as go
 from core.sync import sync_global_state # FIXED: Use sync
      
 def show_cash_fragility_index():
-    metrics = sync_global_state()
     st.header("🛡️ Cash Fragility & Survival Analysis")
     st.info("Analyze business resilience by linking cash reserves to the Cash Conversion Cycle.")
 
