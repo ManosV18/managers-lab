@@ -1,12 +1,12 @@
 import streamlit as st
-from core.engine import refresh_global_metrics
+from core.sync import sync_global_state  # FIXED IMPORT
 
 def show_library():
     st.title("📚 Strategic Tool Library")
     
     # 1. ENFORCE REFRESH BEFORE LOADING TOOLS
-    refresh_global_metrics()
-    
+    sync_global_state()  # UPDATED CALL
+      
     # 2. TOOL CATALOG
     categories = {
         "💰 Finance & Capital": [
