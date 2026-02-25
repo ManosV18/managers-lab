@@ -1,10 +1,11 @@
 import streamlit as st
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state
 
 def show_home():
-    # PHASE A: Entry Mode (Baseline Not Defined)
-    if not st.session_state.get('baseline_locked', False):
-        st.title("🧪 Managers’ Lab")
+    # Ensure metrics are calculated before showing the home summary
+    sync_global_state()
+    
+        st.title("🚀 Welcome to Managers' Lab")
         st.subheader("System Status: Baseline Not Defined")
         st.divider()
         st.write(
