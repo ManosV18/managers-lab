@@ -1,8 +1,9 @@
 import streamlit as st
+from core.sync import sync_global_state
 
 def run_cash_cycle_app():
     """Stage 2: Cash Conversion Cycle Analysis"""
-    
+    metrics = sync_global_state()
     st.header("💰 Cash Conversion Cycle (CCC)")
     st.caption("Strategic Liquidity Analysis: Measuring the efficiency of working capital.")
     
@@ -92,3 +93,4 @@ def run_cash_cycle_app():
     if st.button("Apply & Back to Library Hub", type="primary"):
         st.session_state.selected_tool = None
         st.rerun()
+
