@@ -7,8 +7,8 @@ def run_stage2():
     st.divider()
 
     # 1. BASELINE CAPTURE
-    # Παίρνουμε τα metrics πριν την αλλαγή για σύγκριση
-    baseline_metrics = compute_core_metrics()
+    # Χρησιμοποιούμε τη ΝΕΑ συνάρτηση sync_global_state()
+    baseline_metrics = sync_global_state()
     baseline_fcf = baseline_metrics['fcf']
     original_vol = st.session_state.volume
 
@@ -20,15 +20,14 @@ def run_stage2():
     # Προσωρινή εφαρμογή του σοκ στο state
     st.session_state.volume = original_vol * (1 - shock_pct/100)
     
-    # Επανυπολογισμός μέσω Orchestrator
-    stressed_metrics = compute_core_metrics()
+    # Επανυπολογισμός μέσω της ΝΕΑΣ συνάρτησης
+    stressed_metrics = sync_global_state()
     fcf_shocked = stressed_metrics['fcf']
 
     # 3. IMPACT ANALYSIS
-    # Υπολογισμός της ελαστικότητας του FCF σε σχέση με το Volume
     delta_pct = (fcf_shocked - baseline_fcf) / abs(baseline_fcf) if baseline_fcf != 0 else 0.0
 
-    # 4. RESULTS DISPLAY (Layout Consistency)
+    # 4. RESULTS DISPLAY
     st.divider()
     c1, c2 = st.columns(2)
     
@@ -37,19 +36,20 @@ def run_stage2():
         label="Stressed Annual FCF", 
         value=f"{fcf_shocked:,.0f} €", 
         delta=f"{delta_pct:.1%} vs Baseline", 
-        delta_color="inverse" # Κόκκινο αν πέφτει, πράσινο αν ανεβαίνει
+        delta_color="inverse"
     )
 
     # 5. MANAGER'S COLD INSIGHT
     st.subheader("🔬 Fragility Assessment")
     if fcf_shocked < 0:
-        st.error(f"🚨 **Terminal Shock:** At a -{shock_pct}% volume drop, the enterprise enters a deficit state (Burn Rate: {abs(fcf_shocked/12):,.0f}€/mo).")
+        st.error(f"🚨 **Terminal Shock:** At a -{shock_pct}% volume drop, the enterprise enters a deficit state.")
     else:
-        st.success(f"✅ **Resilience Confirmed:** The system remains FCF-positive even with a -{shock_pct}% reduction in sales.")
+        st.success(f"✅ **Resilience Confirmed:** The system remains FCF-positive even with a -{shock_pct}% reduction.")
 
     # 6. STATE RECOVERY (Critical!)
-    # Επαναφέρουμε τον όγκο στην αρχική του τιμή για να μην επηρεαστούν τα επόμενα stages
+    # Επαναφέρουμε την τιμή και ξανακάνουμε sync για να μη "χαλάσουμε" τα επόμενα stages
     st.session_state.volume = original_vol
+    sync_global_state()
 
     # 7. NAVIGATION
     st.divider()
