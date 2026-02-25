@@ -1,13 +1,6 @@
 import streamlit as st
 from core.sync import sync_global_state
 
-def show_your_tool_name(): # π.χ. show_executive_dashboard
-    # ΑΥΤΗ Η ΓΡΑΜΜΗ ΤΑ ΦΤΙΑΧΝΕΙ ΟΛΑ
-    metrics = sync_global_state()
-
-
-
-
 def show_break_even_shift_calculator():
     metrics = sync_global_state()
     st.header("⚖️ Break-even Shift Analysis")
