@@ -2,16 +2,17 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def show_home():
-    # Ensure metrics are calculated before showing the home summary
-    sync_global_state()
+    # Force sync and get current metrics
+    metrics = sync_global_state()
     
+    # PHASE A: Initial Setup
+    if not st.session_state.get('baseline_locked', False):
         st.title("🚀 Welcome to Managers' Lab")
         st.subheader("System Status: Baseline Not Defined")
         st.divider()
         st.write(
             "The system requires a structural baseline before analysis can begin. "
-            "Define revenue structure, cost behavior, and operating assumptions "
-            "to activate the decision environment."
+            "Define revenue structure, cost behavior, and operating assumptions."
         )
 
         if st.button("Define Baseline (Stage 0)", use_container_width=True, type="primary"):
@@ -19,69 +20,33 @@ def show_home():
             st.session_state.flow_step = "stage0"
             st.rerun()
 
-    # PHASE B: Control Center Mode (System Operational)
+    # PHASE B: Control Center Mode
     else:
         st.title("🧪 Managers’ Lab — Control Center")
         st.caption("Structural Overview — 365-Day Operating Model")
         st.markdown("---")
 
-        # 1. FETCH DATA VIA ENGINE (Single Source of Truth)
-        metrics = compute_core_metrics()
-        
-        # 2. EXECUTIVE METRICS DISPLAY
         c1, c2, c3 = st.columns(3)
-        
-        # Total Sales
         c1.metric("Annual Revenue", f"{metrics['revenue']:,.0f} €")
-        
-        # Free Cash Flow (The cold truth of survival)
-        # Χρησιμοποιούμε το 'fcf' αντί για 'net_profit' ή 'ebit'
-        fcf_val = metrics['fcf']
-        c2.metric(
-            "Free Cash Flow (FCF)", 
-            f"{fcf_val:,.0f} €", 
-            help="Final liquidity after taxes, operating costs, and debt service."
-        )
-        
-        # Contribution Margin (Using Engine-calculated Ratio)
-        margin_pct = metrics['contribution_ratio'] * 100
-        c3.metric("Contribution Margin", f"{margin_pct:.1f}%")
+        c2.metric("Free Cash Flow (FCF)", f"{metrics['fcf']:,.0f} €", help="Net liquidity after all obligations.")
+        c3.metric("Contribution Margin", f"{metrics['contribution_ratio']*100:.1f}%")
 
-        # 3. STATUS VERDICT
         st.divider()
-        if fcf_val > 0:
-            st.success(f"✅ **System Status: Functional.** The enterprise is generating a net surplus of {fcf_val:,.0f}€ above its structural obligations.")
+        if metrics['fcf'] > 0:
+            st.success(f"✅ **System Status: Functional.** Surplus of {metrics['fcf']:,.0f}€.")
         else:
-            st.error(f"🚨 **System Status: Deficit.** The enterprise is currently consuming capital at a rate of {abs(fcf_val/12):,.0f}€ per month.")
+            st.error(f"🚨 **System Status: Deficit.** Monthly burn: {abs(metrics['fcf']/12):,.0f}€.")
 
-        # 4. NAVIGATION HUB
-        st.subheader("Analysis Environment")
         col_a, col_b = st.columns(2)
         with col_a:
             if st.button("Enter War Room Path", use_container_width=True, type="primary"):
                 st.session_state.mode = "path"
-                st.session_state.flow_step = 1
                 st.rerun()
         with col_b:
             if st.button("Open Tool Library", use_container_width=True):
                 st.session_state.mode = "library"
                 st.rerun()
 
-        st.divider()
-        
-        # 5. SYSTEM CONFIGURATION (Expander)
         with st.expander("System Configuration"):
-            st.write(
-                "The baseline defines the structural mechanics of the system. "
-                "Modifying it will recalibrate all analytical modules."
-            )
-            
-            # Additional Cold Metrics for the Expander
             st.write(f"**Survival BEP:** {metrics['survival_bep']:,.0f} units")
             st.write(f"**Cash Conversion Cycle:** {metrics['ccc']} days")
-            
-            if st.button("Unlock Baseline & Recalibrate", use_container_width=True):
-                st.session_state.baseline_locked = False
-                st.session_state.mode = "path"
-                st.session_state.flow_step = 0
-                st.rerun()
