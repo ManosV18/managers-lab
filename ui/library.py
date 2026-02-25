@@ -21,6 +21,12 @@ def show_library():
             if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
                 st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
                 st.rerun()
+
+            # ΣΥΝΔΕΣΗ ΤΟΥ LOSS THRESHOLD
+            if st.button("📉 Loss Threshold", use_container_width=True):
+                st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
+                st.rerun()
+                
             if st.button("👥 CLV Simulator", use_container_width=True):
                 st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
                 st.rerun()
