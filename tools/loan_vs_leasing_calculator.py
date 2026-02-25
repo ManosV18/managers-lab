@@ -1,12 +1,9 @@
 import streamlit as st
 import plotly.graph_objects as go
 
-# -------------------------------------------------
-# Financial Logic Helpers
-# -------------------------------------------------
+# 1. PMT Math Replacement (to avoid numpy_financial dependency)
 def calculate_pmt(rate, nper, pv, fv=0, type=0):
-    if rate == 0:
-        return -(pv + fv) / nper
+    if rate == 0: return -(pv + fv) / nper
     pv_factor = (1 + rate) ** nper
     payment = (rate * (pv * pv_factor + fv)) / ((pv_factor - 1) * (1 + rate * type))
     return payment
@@ -14,118 +11,93 @@ def calculate_pmt(rate, nper, pv, fv=0, type=0):
 def format_eur(x):
     return f"€ {x:,.0f}"
 
-# -------------------------------------------------
-# CALCULATION ENGINE
-# -------------------------------------------------
+# 2. CALCULATION ENGINE (Your Original Formulas)
 def run_calculations(loan_rate, wc_rate, years, tax_rate, when, value, loan_pct, lease_pct, exp_loan, exp_lease, residual, dep_years):
     months = years * 12
     
-    # --- LOAN CALCULATIONS ---
-    loan_principal = value * loan_pct
-    loan_inst = calculate_pmt(loan_rate / 12, months, loan_principal, 0, when)
-    
-    wc_loan_principal = value * (1 - loan_pct) + exp_loan
-    wc_inst = calculate_pmt(wc_rate / 12, months, wc_loan_principal, 0, when)
+    # --- LOAN (Your exact formula) ---
+    loan_inst = calculate_pmt(loan_rate / 12, months, value * loan_pct, 0, when)
+    wc_loan = value * (1 - loan_pct) + exp_loan
+    wc_inst = calculate_pmt(wc_rate / 12, months, wc_loan, 0, when)
 
-    total_loan_cash_out = (loan_inst + wc_inst) * months
-    loan_interest_total = total_loan_cash_out - (value * loan_pct + wc_loan_principal)
-    
-    annual_depr = (value + exp_loan) / dep_years
-    total_depr_shield = (annual_depr * years) * tax_rate
-    loan_interest_shield = loan_interest_total * tax_rate
-    
-    loan_net_burden = total_loan_cash_out - (loan_interest_shield + total_depr_shield)
+    loan_cash = (loan_inst + wc_inst) * months
+    loan_interest = loan_cash - value
+    loan_depr = (value + exp_loan) / dep_years * years
+    loan_tax = (loan_interest + loan_depr) * tax_rate
+    loan_final = value + loan_interest - loan_tax
 
-    # --- LEASING CALCULATIONS ---
-    lease_principal = value * lease_pct
-    lease_inst = calculate_pmt(loan_rate / 12, months, lease_principal, 0, when)
-    
-    wc_lease_principal = value * (1 - lease_pct) + exp_lease
-    wc_lease_inst = calculate_pmt(wc_rate / 12, months, wc_lease_principal, 0, when)
+    # --- LEASING (Your exact formula) ---
+    lease_inst = calculate_pmt(loan_rate / 12, months, value * lease_pct, 0, when)
+    wc_lease = value * (1 - lease_pct) + exp_lease
+    wc_lease_inst = calculate_pmt(wc_rate / 12, months, wc_lease, 0, when)
 
-    total_lease_cash_out = (lease_inst + wc_lease_inst) * months
-    
-    # Logic: Leasing payments are typically 100% tax deductible as operating expenses
-    lease_tax_shield = total_lease_cash_out * tax_rate
-    
-    # Net Burden = Total Payments - Tax Shield + Residual Buyout
-    lease_net_burden = total_lease_cash_out - lease_tax_shield + residual
+    lease_cash = (lease_inst + wc_lease_inst) * months
+    lease_interest = lease_cash - value
+    lease_depr = value + exp_lease + residual
+    lease_tax = ((wc_lease_inst * months - wc_lease) + lease_depr) * tax_rate
+    lease_final = value + lease_interest - lease_tax
     
     return {
-        "loan_final": loan_net_burden,
-        "lease_final": lease_net_burden,
-        "loan_cash": total_loan_cash_out,
-        "loan_tx": (loan_interest_shield + total_depr_shield),
-        "lease_cash": total_lease_cash_out,
-        "lease_tx": lease_tax_shield
+        "l_final": loan_final, "ls_final": lease_final,
+        "l_cash": loan_cash, "l_int": loan_interest, "l_tx": loan_tax,
+        "ls_cash": lease_cash, "ls_int": lease_interest, "ls_tx": lease_tax
     }
 
-# -------------------------------------------------
-# MAIN INTERFACE
-# -------------------------------------------------
+# 3. INTERFACE
 def loan_vs_leasing_ui():
     st.header("📊 Loan vs Leasing – Analytical Comparison")
-    st.info("Compare financing strategies based on Net Financial Burden (after tax shields).")
+    st.info("Independent evaluation based on your specific financial formulas.")
 
     col_in1, col_in2 = st.columns(2)
     
     with col_in1:
         st.subheader("Financial Terms")
-        loan_rate_input = st.number_input("Interest Rate (%)", value=6.0, key="lvl_loan_r") / 100
-        wc_rate_input = st.number_input("WC Opportunity Cost (%)", value=8.0, key="lvl_wc_r") / 100
-        years_input = st.number_input("Term (years)", value=10, key="lvl_years")
-        tax_rate_input = st.number_input("Tax Rate (%)", value=22.0, key="lvl_tax") / 100
-        timing = st.radio("Payment Timing", ["End of Period", "Beginning of Period"], key="lvl_timing")
+        loan_r = st.number_input("Interest Rate (%)", value=6.0, key="r1") / 100
+        wc_r = st.number_input("Working Capital Interest Rate (%)", value=8.0, key="r2") / 100
+        years = st.number_input("Duration (years)", value=15, key="y1")
+        tax = st.number_input("Corporate Tax Rate (%)", value=35.0, key="t1") / 100
+        timing = st.radio("Payment Timing", ["End of Period", "Beginning of Period"])
         when_val = 1 if timing == "Beginning of Period" else 0
 
     with col_in2:
-        st.subheader("Asset Details")
-        value_input = st.number_input("Asset Value (€)", value=100000.0, key="lvl_val")
-        loan_pct_input = st.number_input("Loan LTV (%)", value=80.0, key="lvl_loan_p") / 100
-        lease_pct_input = st.number_input("Leasing Fin (%)", value=100.0, key="lvl_lease_p") / 100
-        exp_loan_input = st.number_input("Loan Fees (€)", value=2000.0, key="lvl_exp_l")
-        residual_input = st.number_input("Residual Value (€)", value=1000.0, key="lvl_res")
-        dep_years_input = st.number_input("Depr. Life (years)", value=10, key="lvl_dep")
+        st.subheader("Asset & Costs")
+        val = st.number_input("Property Value (€)", value=250000.0, key="v1")
+        loan_p = st.number_input("Loan Financing (%)", value=70.0, key="p1") / 100
+        lease_p = st.number_input("Leasing Financing (%)", value=100.0, key="p2") / 100
+        e_loan = st.number_input("Acquisition Costs – Loan (€)", value=35000.0)
+        e_lease = st.number_input("Acquisition Costs – Leasing (€)", value=30000.0)
+        resid = st.number_input("Residual Value (€)", value=3530.0)
+        dep_y = st.number_input("Depreciation Period (years)", value=30)
 
     st.divider()
     
-    # Execute calculations
-    res = run_calculations(
-        loan_rate_input, wc_rate_input, years_input, tax_rate_input, when_val, 
-        value_input, loan_pct_input, lease_pct_input, exp_loan_input, 0, 
-        residual_input, dep_years_input
-    )
+    res = run_calculations(loan_r, wc_r, years, tax, when_val, val, loan_p, lease_p, e_loan, e_lease, resid, dep_y)
 
-    # Dashboard display
     c1, c2 = st.columns(2)
-    with c1:
-        st.metric("🏦 Loan Net Cost", format_eur(res['loan_final']))
-        st.caption(f"Gross: {format_eur(res['loan_cash'])} | Shield: {format_eur(res['loan_tx'])}")
-    with c2:
-        st.metric("🧾 Leasing Net Cost", format_eur(res['lease_final']))
-        st.caption(f"Gross: {format_eur(res['lease_cash'])} | Shield: {format_eur(res['lease_tx'])}")
+    c1.metric("🏦 Loan Final Burden", format_eur(res['l_final']))
+    c1.write(f"Cash Outflow: {format_eur(res['l_cash'])}")
+    
+    c2.metric("🧾 Leasing Final Burden", format_eur(res['ls_final']))
+    c2.write(f"Cash Outflow: {format_eur(res['ls_cash'])}")
 
     
 
-    # Sensitivity Analysis
-    st.subheader("📈 Sensitivity to Interest Rate")
-    test_rates = [loan_rate_input + (i/200) for i in range(-10, 11)]
-    ls_costs = [run_calculations(r, wc_rate_input, years_input, tax_rate_input, when_val, value_input, loan_pct_input, lease_pct_input, exp_loan_input, 0, residual_input, dep_years_input)['lease_final'] for r in test_rates]
-    l_costs = [run_calculations(r, wc_rate_input, years_input, tax_rate_input, when_val, value_input, loan_pct_input, lease_pct_input, exp_loan_input, 0, residual_input, dep_years_input)['loan_final'] for r in test_rates]
+    # Sensitivity Logic
+    st.subheader("📈 Rate Sensitivity")
+    test_rates = [loan_r + (i/1000) for i in range(-50, 55, 5)]
+    ls_burdens = [run_calculations(r, wc_r, years, tax, when_val, val, loan_p, lease_p, e_loan, e_lease, resid, dep_y)['ls_final'] for r in test_rates]
     
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=[r*100 for r in test_rates], y=ls_costs, name="Leasing Net Burden", line=dict(color="#00CC96")))
-    fig.add_trace(go.Scatter(x=[r*100 for r in test_rates], y=l_costs, name="Loan Net Burden", line=dict(color="#636EFA")))
-    fig.update_layout(template="plotly_dark", height=400, xaxis_title="Rate (%)", yaxis_title="Net Cost (€)")
+    fig.add_trace(go.Scatter(x=[r*100 for r in test_rates], y=ls_burdens, name="Leasing Burden"))
+    fig.add_hline(y=res['l_final'], line_dash="dash", line_color="red", annotation_text="Loan Fixed Burden")
+    fig.update_layout(template="plotly_dark", xaxis_title="Leasing Rate (%)", yaxis_title="Final Burden (€)")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Verdict
-    st.divider()
-    if res['loan_final'] < res['lease_final']:
-        st.success(f"⚖️ **Verdict: LOAN** is cheaper by {format_eur(res['lease_final'] - res['loan_final'])}.")
+    if res['l_final'] < res['ls_final']:
+        st.success("✅ **Verdict: Loan results in a lower net financial burden.**")
     else:
-        st.success(f"⚖️ **Verdict: LEASING** is cheaper by {format_eur(res['loan_final'] - res['lease_final'])}.")
+        st.success("✅ **Verdict: Leasing results in a lower net financial burden.**")
 
-    if st.button("Back to Library"):
+    if st.button("Back to Library Hub"):
         st.session_state.selected_tool = None
         st.rerun()
