@@ -12,7 +12,7 @@ def show_library():
         ],
         
         "💰 Finance & Cash Flow": [
-            ("Capital Structure Control", "wacc_optimizer", "show_wacc_optimizer"), # Τοποθέτηση ως Layer 0
+            ("Capital Structure Control", "wacc_optimizer", "show_wacc_optimizer"),
             ("Executive Dashboard", "executive_dashboard", "show_executive_dashboard"),
             ("Cash Cycle Calculator", "cash_cycle", "run_cash_cycle_app"),
             ("Receivables Strategic Control", "receivables_analyzer", "show_receivables_analyzer_ui"), 
