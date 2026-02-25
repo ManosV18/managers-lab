@@ -68,4 +68,76 @@ def show_receivables_analyzer_ui():
         is_targeted = c[0].checkbox(f"Offer to {s['Cat']}", value=(s['Cat'] in ['C', 'D']), key=f"target_{s['Cat']}")
         amt = c[1].number_input(f"Amount {s['Cat']}", value=s['Amt'], key=f"amt_{s['Cat']}", label_visibility="collapsed")
         days = c[2].number_input(f"Days {s['Cat']}", value=s['Days'], key=f"day_{s['Cat']}", label_visibility="collapsed")
-        seg_data.append({"
+        seg_data.append({"Cat": s['Cat'], "Amount": amt, "Days": days, "Targeted": is_targeted})
+
+    # Portfolio Metrics
+    total_sales = sum(d["Amount"] for d in seg_data)
+    targeted_sales = sum(d["Amount"] for d in seg_data if d["Targeted"])
+    
+    # Portfolio DSO
+    current_weighted_dso = sum(d["Amount"] * d["Days"] for d in seg_data) / total_sales if total_sales > 0 else 0
+    # Targeted Segment DSO
+    targeted_weighted_dso = sum(d["Amount"] * d["Days"] for d in seg_data if d["Targeted"]) / targeted_sales if targeted_sales > 0 else 0
+
+    st.markdown(f"**Total Portfolio:** € {total_sales:,.0f} | **Targeted Segment:** € {targeted_sales:,.0f} ({(targeted_sales/total_sales)*100:.1f}%)")
+
+    
+
+    # 2. NPV SIMULATION SETTINGS
+    st.subheader("2. Targeted Discount Parameters")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        discount_val = st.slider("Cash Discount Offered (%)", 0.0, 5.0, 2.0, step=0.1) / 100
+        new_days_target = st.number_input("Target Payment Days (for Discount)", value=10)
+        wacc = st.session_state.get('wacc', 0.15)
+        
+    with col2:
+        take_rate_targeted = st.slider("% Acceptance within Targeted Segment", 0, 100, 60) / 100
+        extra_sales_growth = st.number_input("Est. Sales Growth (%)", value=5.0) / 100
+        cogs_input = st.number_input("Total COGS (€)", value=total_sales * 0.7)
+
+    # Map Selective targeting to the Global NPV Function
+    # The 'global' take rate is relative to total sales
+    total_take_rate = (targeted_sales * take_rate_targeted) / total_sales if total_sales > 0 else 0
+
+    res = calculate_discount_npv_full(
+        current_sales=total_sales,
+        extra_sales=total_sales * extra_sales_growth,
+        discount_trial=discount_val,
+        prc_clients_take_disc=total_take_rate,
+        days_take_old=targeted_weighted_dso, # Only the targeted segments speed up
+        days_no_take_old=current_weighted_dso, # The rest stay at the weighted average
+        new_days_take=new_days_target,
+        cogs=cogs_input,
+        wacc=wacc,
+        avg_days_suppliers=45
+    )
+
+    # 3. ANALYTICAL VERDICT
+    st.divider()
+    r1, r2, r3 = st.columns(3)
+    
+    r1.metric("Net Present Value (NPV)", f"€ {res['npv']:,.2f}", 
+              delta="Value Creation" if res['npv'] > 0 else "Value Loss")
+    r2.metric("Free Capital (Liquidity)", f"€ {res['free_capital']:,.0f}")
+    r3.metric("New Portfolio DSO", f"{res['new_avg_days']:.1f} Days")
+
+    # Strategic Commentary
+    if res['npv'] > 0:
+        st.success(f"**Verdict:** Positive NPV. Selective targeting of late payers (DSO: {res['targeted_dso']:.0f} days) generates sufficient liquidity value to offset the € {res['discount_cost']:,.0f} discount cost.")
+    else:
+        st.error(f"**Verdict:** Negative NPV. The cost of the discount (€ {res['discount_cost']:,.0f}) exceeds the capital benefit.")
+
+    # 4. SENSITIVITY CHART
+    st.subheader("NPV Sensitivity: Acceptance Rate vs Profitability")
+    test_rates = [r/100 for r in range(0, 101, 10)]
+    npvs = [calculate_discount_npv_full(total_sales, total_sales*extra_sales_growth, discount_val, 
+            (targeted_sales*tr)/total_sales, targeted_weighted_dso, current_weighted_dso, 
+            new_days_target, cogs_input, wacc, 45)['npv'] for tr in test_rates]
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[r*100 for r in test_rates], y=npvs, mode='lines+markers', line=dict(color="#00CC96")))
+    fig.add_hline(y=0, line_dash="dash", line_color="red")
+    fig.update_layout(xaxis_title="Acceptance Rate in Targeted Segment (%)", yaxis_title="NPV (€)", template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
