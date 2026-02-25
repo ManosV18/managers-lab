@@ -1,16 +1,21 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state
 
 def show_qspm_tool():
     st.header("🧭 QSPM – Strategy Comparison")
-    st.info("Quantitative Strategic Planning Matrix: Evaluate which strategy best fits your current business reality.")
+    st.info("Quantitative Strategic Planning Matrix: Evaluate which strategy best fits your current business reality based on weighted Success Factors.")
 
-    # 1. LOAD SYSTEM CONTEXT (For Cold Analysis)
-    metrics = compute_core_metrics()
-    survival_margin = (metrics['revenue'] / metrics['cash_wall']) - 1 if metrics['cash_wall'] > 0 else 0
-    cash_cycle = metrics['ccc']
+    # 1. LOAD SYSTEM CONTEXT (Analytical Grounding)
+    # Χρήση του sync_global_state για ομοιομορφία με την υπόλοιπη εφαρμογή
+    m = sync_global_state()
+    
+    # Υπολογισμός Survival Margin & Cash Cycle από τα κεντρικά δεδομένα
+    revenue = m.get('revenue', 0)
+    cash_wall = m.get('cash_wall', 0)
+    survival_margin = (revenue / cash_wall) - 1 if cash_wall > 0 else 0
+    cash_cycle = m.get('ccc', 0)
 
     st.write(f"**Current Strategic Context:** Survival Margin: {survival_margin:.1%} | Cash Conversion Cycle: {int(cash_cycle)} Days")
 
@@ -40,6 +45,7 @@ def show_qspm_tool():
     raw_a = []
     raw_b = []
 
+    # Δημιουργία των Sliders για κάθε παράγοντα
     for factor, weight in factors:
         st.markdown(f"**{factor}** (Weight: {weight:.0%})")
         c1, c2 = st.columns(2)
@@ -63,14 +69,15 @@ def show_qspm_tool():
     with res_a:
         st.metric(f"Total Score: {strat1_name}", f"{total_a:.2f}")
     with res_b:
+        delta_val = total_b - total_a
         st.metric(f"Total Score: {strat2_name}", f"{total_b:.2f}", 
-                  delta=f"{total_b - total_a:.2f}" if total_b != total_a else None)
+                  delta=f"{delta_val:.2f}" if total_b != total_a else None)
 
     # 6. VISUAL RADAR CHART
     st.subheader("📊 Strategic Alignment Radar")
     
-    fig = go.Figure()
     categories = [f[0] for f in factors]
+    fig = go.Figure()
     
     fig.add_trace(go.Scatterpolar(r=raw_a, theta=categories, fill='toself', name=strat1_name))
     fig.add_trace(go.Scatterpolar(r=raw_b, theta=categories, fill='toself', name=strat2_name))
@@ -86,12 +93,12 @@ def show_qspm_tool():
     # 7. STRATEGIC VERDICT
     st.subheader("🧠 Analyst's Verdict")
     if abs(total_a - total_b) < 0.2:
-        st.warning("**Strategic Stalemate:** The options are very close. Reassess the weights or consider whether the strategies can be implemented gradually (Phased Execution).")
+        st.warning("**Strategic Stalemate:** The options are very close. Reassess the weights or consider a Phased Execution approach.")
     elif total_a > total_b:
-        st.success(f"**Winner: {strat1_name}** – This choice aligns better with the success factors and the current risk profile.")
+        st.success(f"**Winner: {strat1_name}** – This choice aligns better with current constraints and the business risk profile.")
     else:
-        st.success(f"**Winner: {strat2_name}** – This strategy quantitatively outperforms, even if it carries potentially higher risk.")
+        st.success(f"**Winner: {strat2_name}** – This strategy quantitatively outperforms, potentially offering higher ROI despite risk.")
 
-    if st.button("Back to Library Hub"):
+    if st.button("Back to Library Hub", use_container_width=True):
         st.session_state.selected_tool = None
         st.rerun()
