@@ -54,7 +54,10 @@ def show_library():
             if st.button("🛡️ Cash Fragility Index", use_container_width=True):
                 st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
                 st.rerun()
-           
+           # ΣΥΝΔΕΣΗ ΤΟΥ EXECUTIVE DASHBOARD
+            if st.button("🏁 Executive Liquidity Command", use_container_width=True):
+                st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard")
+                st.rerun()
             st.info("Additional risk assessment tools pending...")
       
 
