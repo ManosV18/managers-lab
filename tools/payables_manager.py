@@ -9,7 +9,7 @@ def show_payables_manager():
     metrics = sync_global_state()
     s = st.session_state
     
-    # Βασικές παράμετροι από το σύστημα
+    # Δεδομένα από το σύστημα
     q = s.get('volume', 0)
     vc = s.get('variable_cost', 0.0)
     annual_purchases = q * vc
@@ -21,6 +21,8 @@ def show_payables_manager():
     with tab1:
         st.subheader("Liquidity Optimization")
         new_ap_days = st.slider("Target Payment Terms (Days)", 0, 150, int(current_ap_days), key="ap_slider")
+        
+        # Υπολογισμός Cash Impact (365 ημέρες - Οδηγία 2026-02-18)
         cash_impact = ((new_ap_days - current_ap_days) / 365) * annual_purchases
         value_benefit = cash_impact * wacc_val
         
@@ -60,16 +62,14 @@ def show_payables_manager():
         n_receiv = (total_n_sales * n_avg_coll) / 365
         
         free_cap = curr_receiv - n_receiv
-        
-        # Yellow Fields
         prof_extra = e_sales * (1 - (cogs / c_sales))
         prof_free_cap = free_cap * wacc
         disc_cost = total_n_sales * prc_n_policy * disc_trial
         
-        npv = prof_extra + prof_free_cap - disc_cost
+        # Υπολογισμός NPV
+        npv_result = prof_extra + prof_free_cap - disc_cost
         
-        # Υπολογισμός Maximum & Optimum Discount με καθαρή σύνταξη Python
-        # Formula: 1 - (1 + (WACC/365)) ^ (Days_Diff)
+        # Υπολογισμός Maximum & Optimum Discount
         max_disc = 1 - ((1 + (wacc/365))**(n_days - avg_curr_coll))
         opt_disc = 1 - ((1 + (wacc/365))**(n_days - d_not))
 
@@ -81,4 +81,23 @@ def show_payables_manager():
             st.write(f"**current_receivables:** €{curr_receiv:,.2f}")
             st.write(f"**new_avg_collection_period:** {n_avg_coll:.2f}")
             st.write(f"**new_receivables:** €{n_receiv:,.2f}")
-            st.markdown(f"**free_capital: €
+            st.markdown(f"**free_capital: €{free_cap:,.2f}**")
+
+        with res2:
+            st.write(f"**profit_from_extra_sales:** €{prof_extra:,.2f}")
+            st.write(f"**profit_from_free_capital:** €{prof_free_cap:,.2f}")
+            st.write(f"**discount_cost:** €{disc_cost:,.2f}")
+            st.subheader(f"NPV: €{npv_result:,.2f}")
+
+        st.divider()
+        st.write(f"**maximum_discount (NPV Break Even):** {max_disc:.2%}")
+        st.write(f"**optimum_discount:** {opt_disc:.2%}")
+
+    st.divider()
+    if st.button("Sync Target Days to Global Strategy"):
+        st.session_state.ap_days = float(new_ap_days)
+        st.success("Global Strategy Updated.")
+        
+    if st.button("Back to Library Hub"):
+        st.session_state.selected_tool = None
+        st.rerun()
