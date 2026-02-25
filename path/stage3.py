@@ -14,30 +14,29 @@ def run_stage3():
     # Liquidity Physics:
     # monthly_net = (OCF - Debt Service) / 12
     monthly_net = (m["ocf"] - s.annual_loan_payment) / 12
+    
     # Net Initial Cash = Opening Cash - Working Capital Lock
+    # Χρησιμοποιούμε το max(0, ...) για να μην ξεκινάμε με αρνητικά αν δεν έχουμε λεφτά
     cash_after_wc = s.opening_cash - m["wc_requirement"]
 
-    # 2. RUNWAY CALCULATION (Cold Stop Logic)
+    # 2. RUNWAY CALCULATION
     timeline = []
     current_cash = cash_after_wc
     death_month = None
 
-    # Simulation for 36 months
     for month in range(0, 37):
-        timeline.append({"Month": month, "Cash Balance": current_cash})
+        timeline.append({"Month": month, "Cash Balance": float(current_cash)})
         if current_cash <= 0 and death_month is None:
             death_month = month
         current_cash += monthly_net
 
     # 3. EXECUTIVE DASHBOARD
     c1, c2, c3 = st.columns(3)
-    
-    c1.metric("Cash After WC Lock", f"{cash_after_wc:,.0f} €", help="Liquid assets available after operational setup.")
+    c1.metric("Cash After WC Lock", f"{cash_after_wc:,.0f} €")
     
     status = "Surplus" if monthly_net >= 0 else "Burn"
     c2.metric("Monthly Net Flow", f"{monthly_net:,.0f} €", delta=status, delta_color="normal" if monthly_net >= 0 else "inverse")
     
-    # Runway Label
     if monthly_net >= 0:
         runway_val = "Stable (∞)"
         delta_label = "No Depletion"
@@ -47,32 +46,28 @@ def run_stage3():
     
     c3.metric("Survival Runway", runway_val, delta=delta_label, delta_color="inverse" if monthly_net < 0 else "normal")
 
-    # 4. VISUALIZATION: THE DEATH CROSS
+    # 4. VISUALIZATION
     st.subheader("📉 Cash Runway Projection")
     df_timeline = pd.DataFrame(timeline).set_index("Month")
     st.line_chart(df_timeline)
-    
-    
 
     # 5. MANAGERIAL VERDICT
     st.divider()
     if death_month is not None:
-        st.error(f"💀 **TERMINAL ALERT:** Liquidity exhaustion predicted in **Month {death_month}**. Immediate financing or structural intervention required.")
+        st.error(f"💀 **TERMINAL ALERT:** Liquidity exhaustion predicted in **Month {death_month}**.")
     elif monthly_net < 0:
-        st.warning("⚠️ **CONTROLLED BURN:** The system is consuming cash, but reserves cover more than 36 months. Long-term pivot necessary.")
+        st.warning("⚠️ **CONTROLLED BURN:** Cash reserves cover more than 36 months.")
     else:
-        st.success("✅ **LIQUIDITY SURPLUS:** The system is self-sustaining. Cash reserves are growing monthly.")
+        st.success("✅ **LIQUIDITY SURPLUS:** The system is self-sustaining.")
 
     # 6. NAVIGATION
     st.divider()
     col_prev, col_next = st.columns(2)
-    
     with col_prev:
         if st.button("⬅️ Back to Stage 2", use_container_width=True):
-            st.session_state.flow_step = 2
+            st.session_state.flow_step = "stage2" # Χρήση string για συνέπεια
             st.rerun()
-            
     with col_next:
         if st.button("Next: Financing Intervention 💉", type="primary", use_container_width=True):
-            st.session_state.flow_step = 4
+            st.session_state.flow_step = "stage4"
             st.rerun()
