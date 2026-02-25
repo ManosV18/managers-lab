@@ -10,14 +10,18 @@ def show_library():
             ("Loss Threshold Analysis", "loss_threshold", "show_loss_threshold_before_price_cut"),
             ("Pricing Power Radar", "pricing_power_radar", "show_pricing_power_radar"),
         ],
+        
         "💰 Finance & Cash Flow": [
             ("Cash Cycle Calculator", "cash_cycle", "run_cash_cycle_app"),
-            ("Receivables Strategic Control", "receivables_analyzer", "show_receivables_analyzer_ui"),
+            # Εδώ προσέχουμε το αρχείο και τη συνάρτηση NPV
+            ("Receivables Strategic Control", "receivables_analyzer", "show_receivables_analyzer_ui"), 
             ("Inventory Strategic Control", "inventory_manager", "show_inventory_manager"),
+            # Εδώ προσέχουμε το αρχείο και τη συνάρτηση Leasing
             ("Loan vs Leasing Analysis", "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
             ("Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
             ("Payables Strategic Control", "payables_manager", "show_payables_manager"),
-        ],  
+        ],
+        
         "👥 Customer & Strategy": [
             ("CLV Analysis", "clv_calculator", "show_clv_calculator"),
             ("QSPM Strategy Tool", "qspm_two_strategies", "show_qspm_tool"),
