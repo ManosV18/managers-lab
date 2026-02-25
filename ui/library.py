@@ -57,6 +57,9 @@ def show_library():
             if st.button("👥 CLV Simulator", use_container_width=True):
                 st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
                 st.rerun()
+            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
+                st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool")
+                st.rerun()
         
         with t2:
             st.subheader("Finance & Capital")
