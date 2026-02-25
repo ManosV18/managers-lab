@@ -40,6 +40,11 @@ def show_library():
             if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
                 st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
                 st.rerun()
+            
+            # ΣΥΝΔΕΣΗ ΤΟΥ INVENTORY MANAGER
+            if st.button("📦 Inventory Analyzer", use_container_width=True):
+                st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
+                st.rerun()
 
         with t4:
             st.subheader("Risk & Command Center")
