@@ -72,6 +72,11 @@ def show_library():
             if st.button("📈 Growth Funding (AFN)", use_container_width=True):
                 st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
                 st.rerun()
+                2. Κλήση του Loan vs Leasing
+            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
+            # ("όνομα_αρχείου_στο_tools", "όνομα_συνάρτησης_μέσα_στο_αρχείο")
+                st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
+                st.rerun()
 
         with t3:
             st.subheader("Operations & Efficiency")
