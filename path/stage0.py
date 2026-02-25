@@ -56,25 +56,26 @@ def run_stage0():
         ]
     }
     st.table(data)
-
+    
     # 5. LOCKING MECHANISM
     st.divider()
     st.warning("Once you lock the baseline, these parameters will be saved as the 'Healthy State' for comparison.")
     
-    # Δημιουργούμε δύο στήλες για να έχει ο χρήστης επιλογές
     col_lock, col_next = st.columns(2)
 
     with col_lock:
-        if st.button("🔒 Lock Baseline", use_container_width=True, type="primary", disabled=is_non_viable):
+        if st.button("🔒 Lock Baseline & Sync", use_container_width=True, type="primary", disabled=is_non_viable):
             lock_baseline()
-            st.success("Baseline Locked!")
-            # Εδώ ΔΕΝ κάνουμε rerun ακόμα, αφήνουμε τον χρήστη να δει την επιτυχία
+            # ΑΥΤΗ Η ΓΡΑΜΜΗ ΕΙΝΑΙ ΤΟ ΚΛΕΙΔΙ:
+            st.session_state.baseline_locked = True 
+            st.success("✅ Baseline Secured! You can now use the Library.")
 
     with col_next:
-        # ΑΥΤΟ ΤΟ ΚΟΥΜΠΙ ΘΑ ΣΕ ΠΑΕΙ ΣΤΟ STAGE 1
         if st.button("Next: Strategic Diagnostic ➡️", use_container_width=True):
-            st.session_state.mode = "path"      # Βεβαιωνόμαστε ότι είμαστε στο Path
-            st.session_state.flow_step = "stage1" # Αλλάζουμε το step σε stage1
+            # Εξασφαλίζουμε ότι αν προχωρήσει, θεωρείται κλειδωμένο
+            st.session_state.baseline_locked = True 
+            st.session_state.mode = "path"
+            st.session_state.flow_step = "stage1"
             st.rerun()
 
     # 6. RESET OPTION
