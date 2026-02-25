@@ -4,93 +4,92 @@ import plotly.graph_objects as go
 from core.engine import compute_core_metrics
 
 def show_inventory_manager():
-    st.header("📦 Inventory Strategic Control & Segmentation")
-    st.info("Analyze inventory efficiency by segment and calculate the cost of trapped capital.")
-
-    # 1. FETCH GLOBAL METRICS
-    metrics = compute_core_metrics()
-    wacc = metrics.get('wacc', 0.15)
+    st.header("📦 Strategic Inventory Analyzer")
+    st.markdown("---")
     
-    # Get COGS from session state
-    v = st.session_state.get('volume', 0)
-    vc = st.session_state.get('variable_cost', 0.0)
-    annual_cogs = v * vc
+    # 1. CORE LOGIC: USER-DEFINED SEGMENTATION
+    st.subheader("1. Inventory Segments (Data from ERP)")
+    st.write("Input the inventory value and collection days for each category as reported in your accounting system.")
 
-    # 2. INVENTORY SEGMENTATION (A-D or by Type)
-    st.subheader("1. Inventory Portfolio Segmentation")
-    
-    default_segments = [
-        {"Type": "Raw Materials", "Value": annual_cogs * 0.05, "Days": 30},
-        {"Type": "Work in Progress", "Value": annual_cogs * 0.03, "Days": 15},
-        {"Type": "Finished Goods (Fast)", "Value": annual_cogs * 0.07, "Days": 45},
-        {"Type": "Finished Goods (Slow/Obsolete)", "Value": annual_cogs * 0.02, "Days": 180},
+    # User choice for sorting/evaluation
+    eval_basis = st.radio("Evaluation Basis:", ["By Value (€)", "By Quantity / Volume"], horizontal=True)
+
+    # Categories based on your input
+    categories = [
+        {"label": "Fast Moving (e.g. 30 days)", "val": 300000.0, "days": 30},
+        {"label": "Standard Flow (e.g. 45 days)", "val": 400000.0, "days": 45},
+        {"label": "Slow Flow (e.g. 70 days)", "val": 200000.0, "days": 70},
+        {"label": "Non-Moving/Obsolete (e.g. 170 days)", "val": 50000.0, "days": 170},
     ]
 
-    seg_data = []
+    inventory_data = []
     cols = st.columns([2, 2, 1])
-    cols[0].write("**Inventory Category**")
-    cols[1].write("**Current Value (€)**")
-    cols[2].write("**Days in Stock (DSI)**")
+    cols[0].write("**Segment Description**")
+    cols[1].write(f"**Total {eval_basis}**")
+    cols[2].write("**Days in Stock**")
 
-    for i, s in enumerate(default_segments):
+    for i, cat in enumerate(categories):
         c = st.columns([2, 2, 1])
-        name = c[0].text_input(f"Cat {i}", s['Type'], key=f"inv_n_{i}", label_visibility="collapsed")
-        val = c[1].number_input(f"Val {i}", value=float(s['Value']), key=f"inv_v_{i}", label_visibility="collapsed")
-        days = c[2].number_input(f"Days {i}", value=int(s['Days']), key=f"inv_d_{i}", label_visibility="collapsed")
-        seg_data.append({"Category": name, "Value": val, "Days": days})
+        name = c[0].text_input(f"Name {i}", cat['label'], key=f"inv_name_{i}", label_visibility="collapsed")
+        val = c[1].number_input(f"Value {i}", value=cat['val'], key=f"inv_val_{i}", label_visibility="collapsed")
+        days = c[2].number_input(f"Days {i}", value=cat['days'], key=f"inv_days_{i}", label_visibility="collapsed")
+        inventory_data.append({"Category": name, "Value": val, "Days": days})
 
-    # Global Calculations from Segmentation
-    total_inventory_value = sum(d["Value"] for d in seg_data)
+    # 2. STRATEGIC CALCULATIONS
+    df = pd.DataFrame(inventory_data)
+    total_val = df["Value"].sum()
     
-    # Weighted Average Days Sales in Inventory (DSI)
-    if total_inventory_value > 0:
-        weighted_dsi = sum(d["Value"] * d["Days"] for d in seg_data) / total_inventory_value
-    else:
-        weighted_dsi = 0
+    # Weighted Average DSO (DSI) - This is the "Master Average" you mentioned
+    weighted_dsi = (df["Value"] * df["Days"]).sum() / total_val if total_val > 0 else 0
     
-    inventory_turnover = annual_cogs / total_inventory_value if total_inventory_value > 0 else 0
-
+    # Pareto Logic: Find which segment "hurts" most (Value * Days)
+    df["Financial_Impact"] = df["Value"] * df["Days"]
+    df["Impact_Share"] = (df["Financial_Impact"] / df["Financial_Impact"].sum() * 100) if total_val > 0 else 0
+    
     st.divider()
-    
-    # 3. EFFICIENCY METRICS
+
+    # 3. EXECUTIVE DASHBOARD
     m1, m2, m3 = st.columns(3)
-    m1.metric("Total Inventory Value", f"€ {total_inventory_value:,.2f}")
-    m2.metric("Weighted Avg DSI", f"{weighted_dsi:.1f} Days")
-    m3.metric("Inventory Turnover", f"{inventory_turnover:.2f}x")
+    m1.metric(f"Total Portfolio ({eval_basis})", f"{total_val:,.0f}")
+    m2.metric("Weighted Average DSI", f"{weighted_dsi:.1f} Days")
+    m3.metric("Critical Segment", df.loc[df['Impact_Share'].idxmax()]['Category'] if total_val > 0 else "N/A")
+
+    # Save to session state for use in other functions/tools
+    st.session_state.global_inventory_dsi = weighted_dsi
+    st.session_state.global_inventory_value = total_val
+
+    # 4. PARETO VISUALIZATION (Which segment traps most capital?)
+    st.subheader("2. Financial Impact Analysis (Pareto)")
+    
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=df["Category"],
+        y=df["Impact_Share"],
+        marker_color=['#EF553B' if x == df["Impact_Share"].max() else '#636EFA' for x in df["Impact_Share"]],
+        text=[f"{x:.1f}%" for x in df["Impact_Share"]],
+        textposition='auto',
+    ))
+    
+    fig.update_layout(
+        title=f"Percentage of Capital Pressure by Segment ({eval_basis} × Days)",
+        xaxis_title="Inventory Segment",
+        yaxis_title="% of Financial Pressure",
+        template="plotly_dark",
+        height=400
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
     
 
-    # 4. FINANCIAL CARRYING COST (The "Bleed" Rate)
-    st.subheader("2. Carrying Cost Analysis (WACC Based)")
+    # 5. COLD ANALYTICAL VERDICT
+    st.subheader("3. Analytical Verdict")
+    wacc = compute_core_metrics().get('wacc', 0.15)
+    daily_cost = (total_val * wacc) / 365
     
-    col_l, col_r = st.columns(2)
-    other_holding_costs = col_l.slider("Additional Holding Costs % (Storage, Insurance, Obsolescence)", 0.0, 20.0, 5.0) / 100
-    total_carrying_rate = wacc + other_holding_costs
-    
-    annual_carrying_cost = total_inventory_value * total_carrying_rate
-    daily_bleed = annual_carrying_cost / 365
-
-    st.warning(f"**Financial Bleed:** Your inventory is costing you **€ {daily_bleed:,.2f} per day** in interest and holding expenses.")
-
-    # 5. OPTIMIZATION SIMULATOR
-    st.subheader("3. Strategic Optimization Simulator")
-    
-    target_reduction = st.slider("Target Inventory Reduction (%)", 0, 50, 15)
-    
-    cash_released = total_inventory_value * (target_reduction / 100)
-    annual_savings = cash_released * total_carrying_rate
-    
-    st.success(f"""
-        **Optimization Result:**
-        - **Cash Released to Balance Sheet:** € {cash_released:,.2f}
-        - **Permanent Annual Cost Savings:** € {annual_savings:,.2f}
-        - **New Target DSI:** {weighted_dsi * (1 - target_reduction/100):.1f} Days
+    st.warning(f"""
+        **Insight:** Your weighted average DSI of **{weighted_dsi:.1f} days** represents a daily opportunity cost of **€ {daily_cost:,.2f}**. 
+        The **{df.loc[df['Impact_Share'].idxmax()]['Category']}** segment is your primary source of cash flow friction, responsible for **{df['Impact_Share'].max():.1f}%** of your inventory-related capital pressure.
     """)
 
-    # Visual Chart: Value Distribution
-    fig = go.Figure(data=[go.Pie(labels=[d["Category"] for d in seg_data], 
-                                 values=[d["Value"] for d in seg_data], 
-                                 hole=.4,
-                                 marker_colors=["#00CC96", "#636EFA", "#EF553B", "#AB63FA"])])
-    fig.update_layout(title="Inventory Value Distribution", template="plotly_dark", height=400)
-    st.plotly_chart(fig, use_container_width=True)
+if __name__ == "__main__":
+    show_inventory_manager()
