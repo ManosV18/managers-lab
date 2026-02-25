@@ -1,17 +1,17 @@
 import streamlit as st
+import plotly.graph_objects as go  # FIXED: Added missing import
 from core.sync import sync_global_state
 
 def show_break_even_shift_calculator():
-    metrics = sync_global_state()
-    st.header("⚖️ Break-even Shift Analysis")
-    st.info("Analyze how changes in fixed costs or unit margins shift your survival threshold.")
-
-    # 1. FETCH BASELINE DATA SAFELY
-    # Η sync_global_state καλεί τον κινητήρα με τα 11 ορίσματα εσωτερικά
+    # 1. FETCH DATA ONCE
+    # Η sync_global_state αναλαμβάνει τη σύνδεση με τον κινητήρα (11 arguments)
     metrics = sync_global_state()
     s = st.session_state
     
-    # Secure variable retrieval
+    st.header("⚖️ Break-even Shift Analysis")
+    st.info("Analyze how changes in fixed costs or unit margins shift your survival threshold.")
+
+    # Secure variable retrieval από το session state και τα metrics
     current_fixed = s.get('fixed_cost', 0.0) + s.get('annual_loan_payment', 0.0)
     current_unit_cm = metrics.get('unit_contribution', 0.0)
     current_bep = metrics.get('survival_bep', 0.0)
@@ -27,7 +27,7 @@ def show_break_even_shift_calculator():
     new_fixed = current_fixed * (1 + fixed_change_pct / 100)
     new_unit_cm = current_unit_cm * (1 + margin_change_pct / 100)
     
-    # New Break-even Point calculation
+    # New Break-even Point calculation (Safety for division by zero)
     new_bep = new_fixed / new_unit_cm if new_unit_cm > 0 else 0.0
     bep_shift = new_bep - current_bep
     bep_shift_pct = (bep_shift / current_bep * 100) if current_bep > 0 else 0
@@ -58,7 +58,7 @@ def show_break_even_shift_calculator():
     ))
 
     fig.update_layout(
-        yaxis_title="Units to Break-even",
+        yaxis_title="Units needed to Break-even",
         template="plotly_dark",
         height=400,
         margin=dict(l=20, r=20, t=40, b=20)
