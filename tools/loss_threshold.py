@@ -6,16 +6,22 @@ def show_loss_threshold_before_price_cut():
     st.info("Calculate the maximum allowable price reduction or volume drop before the business enters a deficit.")
 
     # 1. FETCH BASELINE DATA (Institutional Sync)
-    metrics = compute_core_metrics()
-    p = st.session_state.get('price', 0.0)
-    vc = st.session_state.get('variable_cost', 0.0)
-    q = st.session_state.get('volume', 0)
+    from core.sync import sync_global_state # Βεβαιώσου ότι το import είναι σωστό
     
-    current_margin_per_unit = metrics['unit_contribution']
+    # Η sync_global_state() καλεί την engine με τα 11 ορίσματα αυτόματα
+    metrics = sync_global_state() 
+    s = st.session_state
     
-    # Χρήση των παγκόσμιων σταθερών υποχρεώσεων από το Sidebar
-    fixed_costs = st.session_state.get('fixed_cost', 0.0)
-    debt_service = st.session_state.get('annual_loan_payment', 0.0)
+    # Ανάκτηση δεδομένων με ασφάλεια (.get)
+    p = s.get('price', 0.0)
+    vc = s.get('variable_cost', 0.0)
+    q = s.get('volume', 0)
+    
+    current_margin_per_unit = metrics.get('unit_contribution', 0.0)
+    
+    # Χρήση των σταθερών υποχρεώσεων
+    fixed_costs = s.get('fixed_cost', 0.0)
+    debt_service = s.get('annual_loan_payment', 0.0) # Ή 'annual_debt' ανάλογα το key σου
     fixed_obligations = fixed_costs + debt_service
 
     # 2. ANALYSIS: Structural Resistance
