@@ -1,11 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
-
-# -----------------------
-# CORE CALCULATIONS
-# -----------------------
 
 def calculate_cross_sell_impact(suit_price, price_decrease_pct, profit_suit, complement_data):
     # complement_data: list of tuples (profit, attach_rate)
@@ -30,13 +25,9 @@ def calculate_max_drop(old_price, price_inc_pct, profit_A, sub_data):
         return 0.0
     return (numerator / denominator) * 100
 
-# -----------------------
-# UI INTERFACE
-# -----------------------
-
 def show_pricing_strategy_tool():
     st.header("🎯 Strategic Pricing & Elasticity")
-    st.info("Choose a model to evaluate the impact of pricing changes on volume and total profitability.")
+    st.info("Evaluate the impact of pricing changes on volume and total profitability.")
 
     mode = st.tabs(["🛒 Cross-Sell / Complements", "🔁 Substitution Risk"])
 
@@ -47,8 +38,8 @@ def show_pricing_strategy_tool():
         
         c1, c2 = st.columns(2)
         with c1:
-            main_price = st.number_input("Main Product Price (€)", value=200.0)
-            main_profit = st.number_input("Main Product Profit (€)", value=60.0)
+            main_price = st.number_input("Main Product Price (€)", value=200.0, key="main_p")
+            main_profit = st.number_input("Main Product Profit (€)", value=60.0, key="main_prof")
             discount = st.slider("Proposed Discount (%)", 0.0, 40.0, 10.0) / 100
         
         with c2:
@@ -84,17 +75,17 @@ def show_pricing_strategy_tool():
         
         col1, col2 = st.columns(2)
         with col1:
-            old_p = st.number_input("Current Price Product A (€)", value=1.50)
-            p_A = st.number_input("Unit Profit Product A (€)", value=0.30)
-            p_inc = st.slider("Price Increase (%)", 0.0, 50.0, 10.0) / 100
+            old_p = st.number_input("Current Price Product A (€)", value=1.50, key="old_pa")
+            p_A = st.number_input("Unit Profit Product A (€)", value=0.30, key="pa_prof")
+            p_inc = st.slider("Price Increase (%)", 0.0, 50.0, 10.0, key="p_inc_slider") / 100
         
         with col2:
             st.write("**Substitution Logic**")
             sub_list = []
             for i in range(3):
-                col_a, col_b = st.columns(2)
-                sp = col_a.number_input(f"Profit Sub {i+1}", value=0.20, key=f"sp_{i}")
-                sr = col_b.slider(f"Switch Rate to {i+1} %", 0, 100, 20, key=f"sr_{i}") / 100
+                col_sub_a, col_sub_b = st.columns(2)
+                sp = col_sub_a.number_input(f"Profit Sub {i+1}", value=0.20, key=f"sp_{i}")
+                sr = col_sub_b.slider(f"Switch Rate to {i+1} %", 0, 100, 20, key=f"sr_{i}") / 100
                 sub_list.append((sp, sr))
 
         if st.button("Calculate Substitution Limit", use_container_width=True):
@@ -108,8 +99,7 @@ def show_pricing_strategy_tool():
                 st.subheader("Analytical Verdict")
                 st.metric("Max Allowed Volume Drop", f"{max_drop:.2f}%")
                 
-                # Visual Pie Chart
-                fig = go.Figure(data=[go.Pie(labels=['Switching', 'Lost Market'], 
+                fig = go.Figure(data=[go.Pie(labels=['Switching to Own Subs', 'Pure Market Loss'], 
                                             values=[total_switch, 1-total_switch], hole=.4)])
                 st.plotly_chart(fig, use_container_width=True)
 
