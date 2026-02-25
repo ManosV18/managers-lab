@@ -1,108 +1,88 @@
 import streamlit as st
 import pandas as pd
+import math
 import numpy as np
 import plotly.graph_objects as go
 
-def calculate_excel_logic(q_order, M, kf, r_disc, unit_price, storage_monthly, insurance_monthly, interest_rate):
-    # 1. Κόστος Εμπορεύματος (KV)
-    KV = M * unit_price * (1 - r_disc)
-    
-    # 2. Σταθερό Κόστος Προμηθειών (KF)
-    # Φόρμουλα Excel: (M/q) * kf
-    KF = (M / q_order) * kf
-    
-    # 3. Κόστος Αποθήκευσης και Τόκων (KL)
-    # Excel Logic: (q/2 * unit_price * (1-r) * interest) + (Storage_Annual + Insurance_Annual) * (q/M)
+def calculate_eoq_excel(M, kf, unit_price, r_disc, storage_monthly, insurance_monthly, interest_rate):
+    # Μετατροπή σε ετήσια βάση για να συμβαδίζουν οι μονάδες
     annual_storage = storage_monthly * 12
     annual_insurance = insurance_monthly * 12
     
-    inventory_hold_cost = (q_order / 2) * unit_price * (1 - r_disc) * interest_rate
-    overhead_impact = (annual_storage + annual_insurance) * (q_order / M)
-    KL = inventory_hold_cost + overhead_impact
+    # Ο τύπος σου από το Excel (C32=r, C30=M, C31=kf, C29=unit_price, C41=interest, C42=fixed_costs_ratio)
+    # Στο Excel σου το C42 φαίνεται να είναι το (Annual Storage + Insurance) / M
+    fixed_overhead_unit = (annual_storage + annual_insurance) / M
     
-    # 4. Συνολικό Κόστος (K) - Σύμφωνα με το Excel είναι KF + KL (το KV είναι το κόστος αγοράς)
-    K = KF + KL
+    if r_disc == 0:
+        # SQRT((2 * M * kf) / (unit_price * (interest_rate + fixed_overhead_unit)))
+        q_opt = math.sqrt((2 * M * kf) / (unit_price * (interest_rate + fixed_overhead_unit)))
+    else:
+        # SQRT((2 * M * kf) / (unit_price * (fixed_overhead_unit + (1 - r_disc) * interest_rate)))
+        q_opt = math.sqrt((2 * M * kf) / (unit_price * (fixed_overhead_unit + (1 - r_disc) * interest_rate)))
     
-    return {
-        "q": q_order,
-        "KF": float(KF),
-        "KL": float(KL),
-        "KV": float(KV),
-        "K_Total": float(K)
-    }
+    return q_opt
 
 def show_inventory_manager():
-    st.title("📦 Strategic Inventory & Cost Optimizer")
+    st.title("📦 Strategic Inventory Optimizer (EOQ Model)")
     
-    # Inputs Section
-    st.subheader("1. Excel Parameters Input")
+    st.subheader("1. Parameters from Excel (inv.xlsx)")
     col1, col2 = st.columns(2)
     
     with col1:
-        M = st.number_input("Annual Needs (M)", value=10000.0, step=100.0)
-        unit_q = st.number_input("Unit Price (q)", value=30.0, step=1.0)
-        kf_val = st.number_input("Order Cost per Order (kf)", value=600.0, step=10.0)
-        r_val = st.number_input("Discount % (r)", value=0.0, step=0.1) / 100
-    
+        M = st.number_input("Annual Needs (M)", value=10000.0)
+        unit_p = st.number_input("Unit Price (q)", value=30.0)
+        kf = st.number_input("Order Cost (kf)", value=600.0)
     with col2:
-        st_m = st.number_input("Monthly Storage Costs", value=600.0, step=50.0)
-        ins_m = st.number_input("Monthly Insurance", value=150.0, step=10.0)
-        int_rate = st.number_input("Annual Interest Rate (%)", value=5.0, step=0.5) / 100
-        q_selected = st.slider("Select Order Quantity (q) for Detail Analysis", 100, 5000, 2230)
+        r = st.number_input("Discount % (r)", value=0.0) / 100
+        storage = st.number_input("Monthly Storage", value=600.0)
+        insurance = st.number_input("Monthly Insurance", value=150.0)
+        interest = st.number_input("Annual Interest Rate (%)", value=5.0) / 100
 
-    # 2. Detailed Calculation Table (The "Boss" View)
-    res_detail = calculate_excel_logic(q_selected, M, kf_val, r_val, unit_q, st_m, ins_m, int_rate)
+    # 2. Calculation using your exact IF formula
+    q_opt = calculate_eoq_excel(M, kf, unit_p, r, storage, insurance, interest)
     
-    st.subheader("2. Detailed Step-by-Step Calculation (Audit)")
-    
-    audit_data = {
-        "Description": [
-            "Order Quantity (q)",
-            "Fixed Ordering Costs (KF)",
-            "Holding & Interest Costs (KL)",
-            "Total Procurement Cost (K = KF + KL)",
-            "Inventory Purchase Cost (KV)"
-        ],
-        "Formula": [
-            "Input",
-            "(M/q) * kf",
-            "(q/2 * unit_price * (1-r) * interest) + (Overheads * q/M)",
-            "KF + KL",
-            "M * unit_price * (1-r)"
-        ],
-        "Result (€)": [
-            f"{res_detail['q']}",
-            f"{res_detail['KF']:,.2f}",
-            f"{res_detail['KL']:,.2f}",
-            f"{res_detail['K_Total']:,.2f}",
-            f"{res_detail['KV']:,.2f}"
-        ]
-    }
-    st.table(pd.DataFrame(audit_data))
-
-    # 3. Simulation for Optimal Point
-    q_range = np.arange(500, 5001, 10)
-    sim_results = [calculate_excel_logic(q, M, kf_val, r_val, unit_q, st_m, ins_m, int_rate) for q in q_range]
-    
-    costs_total = [r['K_Total'] for r in sim_results]
-    best_idx = np.argmin(costs_total)
-    best_q = q_range[best_idx]
-    best_cost = costs_total[best_idx]
+    # 3. Validation Audit (Detailed Costing for the Optimal Q)
+    # KF = (M/q) * kf
+    kf_total = (M / q_opt) * kf
+    # KL = (q/2 * unit_p * (1-r) * interest) + (Annual_Overheads * q/M)
+    annual_overheads = (storage + insurance) * 12
+    kl_total = (q_opt / 2 * unit_p * (1 - r) * interest) + (annual_overheads * q_opt / M)
+    total_k = kf_total + kl_total
 
     st.divider()
-    st.success(f"🎯 **Optimal Result:** Order **{int(best_q)} units** to minimize total costs at **€{best_cost:,.2f}**")
+    
+    # Executive Results
+    res_col1, res_col2, res_col3 = st.columns(3)
+    res_col1.metric("Optimal Order Quantity (q)", f"{int(q_opt)} units")
+    res_col2.metric("Min Total Cost (K)", f"€ {total_k:,.2f}")
+    res_col3.metric("Annual Order Freq", f"{M/q_opt:.1f} orders")
 
-    # 4. Optimization Chart
+    # 4. Detailed Audit Table
+    st.subheader("2. Detailed Audit Trail (Validation)")
+    audit_df = pd.DataFrame({
+        "Metric": ["Fixed Ordering Cost (KF)", "Holding & Interest (KL)", "Total Cost (K)"],
+        "Excel Formula Logic": ["(M/q)*kf", "(q/2*u*i) + (OH*q/M)", "KF + KL"],
+        "Value (€)": [f"{kf_total:,.2f}", f"{kl_total:,.2f}", f"{total_k:,.2f}"]
+    })
+    st.table(audit_df)
+
+    # 5. Sensitivity Analysis Chart
+    st.subheader("3. Cost Trade-off Visualization")
+    q_range = np.arange(max(100, int(q_opt*0.5)), int(q_opt*2), 10)
+    
+    kf_curve = [(M / q) * kf for q in q_range]
+    kl_curve = [(q / 2 * unit_p * (1 - r) * interest) + (annual_overheads * q / M) for q in q_range]
+    total_curve = [f + l for f, l in zip(kf_curve, kl_curve)]
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=list(q_range), y=costs_total, name="Total Cost (K)", line=dict(color="#00CC96", width=3)))
-    fig.add_trace(go.Scatter(x=list(q_range), y=[r['KF'] for r in sim_results], name="Ordering Cost (KF)", line=dict(dash='dash')))
-    fig.add_trace(go.Scatter(x=list(q_range), y=[r['KL'] for r in sim_results], name="Holding Cost (KL)", line=dict(dash='dash')))
+    fig.add_trace(go.Scatter(x=list(q_range), y=total_curve, name="Total Cost (K)", line=dict(color="gold", width=4)))
+    fig.add_trace(go.Scatter(x=list(q_range), y=kf_curve, name="Ordering Cost (KF)", line=dict(color="cyan", dash="dash")))
+    fig.add_trace(go.Scatter(x=list(q_range), y=kl_curve, name="Holding Cost (KL)", line=dict(color="magenta", dash="dash")))
     
-    fig.add_vline(x=best_q, line_dash="dot", line_color="orange", annotation_text="Optimal Q")
-    
-    fig.update_layout(template="plotly_dark", xaxis_title="Order Quantity (q)", yaxis_title="Cost (€)", height=500)
+    fig.add_vline(x=q_opt, line_dash="dot", line_color="white", annotation_text="EOQ Point")
+    fig.update_layout(template="plotly_dark", xaxis_title="Order Quantity", yaxis_title="Annual Cost (€)")
     st.plotly_chart(fig, use_container_width=True)
 
-    if st.button("⬅️ Back to Library Hub"):
+    if st.button("⬅️ Back to Library"):
         st.session_state.selected_tool = None
         st.rerun()
