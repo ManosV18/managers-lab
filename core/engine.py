@@ -1,3 +1,5 @@
+import streamlit as st
+
 def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc):
     """
     Pure Logic Layer. No session_state access.
