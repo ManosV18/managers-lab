@@ -13,7 +13,7 @@ def show_payables_manager():
     q = s.get('volume', 0)
     vc = s.get('variable_cost', 0.0)
     annual_purchases = q * vc
-    current_ap_days = s.get('ap_days', 30)
+    current_ap_days = s.get('ap_days', 30.0)
     wacc_val = metrics.get('wacc', 0.20) 
 
     tab1, tab2 = st.tabs(["💰 Cash Flow Impact", "⚖️ Discount vs. Cost of Capital"])
@@ -68,11 +68,12 @@ def show_payables_manager():
         
         npv = prof_extra + prof_free_cap - disc_cost
         
-        # Maximum & Optimum Discount (Με τις δυνάμεις από την εικόνα)
-        max_disc = 1 - (1 + (wacc/365))**(n_days - avg_curr_coll)
-        opt_disc = 1 - (1 + (wacc/365))**(n_days - d_not)
+        # Υπολογισμός Maximum & Optimum Discount με καθαρή σύνταξη Python
+        # Formula: 1 - (1 + (WACC/365)) ^ (Days_Diff)
+        max_disc = 1 - ((1 + (wacc/365))**(n_days - avg_curr_coll))
+        opt_disc = 1 - ((1 + (wacc/365))**(n_days - d_not))
 
-        # --- ΕΜΦΑΝΙΣΗ ΑΠΟΤΕΛΕΣΜΑΤΩΝ ---
+        # --- ΕΜΦΑΝΙΣΗ ΑΠΟΤΕΛΕΣΜΑΤΩΝ (EXCEL STYLE) ---
         st.divider()
         res1, res2 = st.columns(2)
         with res1:
@@ -80,8 +81,4 @@ def show_payables_manager():
             st.write(f"**current_receivables:** €{curr_receiv:,.2f}")
             st.write(f"**new_avg_collection_period:** {n_avg_coll:.2f}")
             st.write(f"**new_receivables:** €{n_receiv:,.2f}")
-            st.markdown(f"**free_capital: €{free_cap:,.2f}**")
-
-        with res2:
-            st.write(f"**profit_from_extra_sales:** €{prof_extra:,.2f}")
-            st.
+            st.markdown(f"**free_capital: €
