@@ -110,7 +110,7 @@ def show_receivables_analyzer_ui():
         c2.metric("Max Discount", f"{r['max_discount']:.2f}%")
         c3.metric("Optimum Discount", f"{r['optimum_discount']:.2f}%")
         
-        with st.expander("View Full Calculations (Excel Match)"):
+        with st.expander("View Full Calculations"):
             st.write(f"Current Receivables: €{r['current_receivables']:,.2f}")
             st.write(f"New Receivables: €{r['new_receivables']:,.2f}")
             st.write(f"Free Capital: €{r['free_capital']:,.2f}")
