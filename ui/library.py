@@ -15,7 +15,6 @@ def show_library():
             ("Receivables Strategic Control", "receivables_analyzer", "show_receivables_analyzer_ui"),
             ("Inventory Strategic Control", "inventory_manager", "show_inventory_manager"),
             ("Loan vs Leasing Analysis", "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
-            # Τα παρακάτω χρειάζονται τα αντίστοιχα .py αρχεία για να μην βγάλουν Error
             ("Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
             ("Payables Strategic Control", "payables_manager", "show_payables_manager"),
         ],  
