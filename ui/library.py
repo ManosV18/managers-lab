@@ -85,6 +85,11 @@ def show_library():
                 st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
                 st.rerun()
 
+        # Πρόσθεσε αυτό το κουμπί:
+            if st.button("📊 Unit Cost Analyzer", use_container_width=True):
+                st.session_state.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app")
+                st.rerun()
+
         with t4:
             st.subheader("Risk & Command Center")
             if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
