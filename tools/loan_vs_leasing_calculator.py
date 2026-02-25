@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import plotly.graph_objects as go
 
 # -------------------------------------------------
@@ -24,15 +23,13 @@ def run_calculations(loan_rate, wc_rate, years, tax_rate, when, value, loan_pct,
     months = years * 12
     
     # --- LOAN CALCULATIONS ---
-    # Monthly payment for the bank loan portion
     loan_inst = calculate_pmt(loan_rate / 12, months, value * loan_pct, 0, when)
-    # The equity part + acquisition costs are financed by Working Capital (opportunity cost)
     wc_loan_principal = value * (1 - loan_pct) + exp_loan
     wc_inst = calculate_pmt(wc_rate / 12, months, wc_loan_principal, 0, when)
 
     total_loan_cash_out = (loan_inst + wc_inst) * months
     loan_interest = total_loan_cash_out - (value + exp_loan)
-    # Depreciation provides a tax shield (Straight Line)
+    
     annual_depr = (value + exp_loan) / dep_years
     total_depr_during_term = annual_depr * years
     
@@ -46,13 +43,7 @@ def run_calculations(loan_rate, wc_rate, years, tax_rate, when, value, loan_pct,
 
     total_lease_cash_out = (lease_inst + wc_lease_inst) * months
     
-    # In leasing, the whole payment is usually tax-deductible as an expense
-    # or Interest + Depreciation if capitalized (IFRS 16). 
-    # Here we use the standard operational tax benefit logic.
-    lease_interest = total_lease_cash_out - (value + exp_lease)
-    lease_depr_benefit = (value + exp_lease + residual) # Simplified full deduction
-    lease_tax_shield = (total_lease_cash_out - (value * (1-lease_pct))) * tax_rate
-    
+    lease_tax_shield = (total_lease_cash_out - (value * (1 - lease_pct))) * tax_rate
     lease_net_burden = total_lease_cash_out - lease_tax_shield + residual
     
     return {
@@ -96,7 +87,6 @@ def loan_vs_leasing_ui():
 
     st.divider()
     
-    # Execution
     results = run_calculations(
         loan_rate_input, wc_rate_input, years_input, tax_rate_input, when_val, 
         value_input, loan_pct_input, lease_pct_input, exp_loan_input, exp_lease_input, 
@@ -117,28 +107,29 @@ def loan_vs_leasing_ui():
         st.caption(f"Total Outflow: {format_eur(results['lease_cash'])}")
         st.caption(f"Tax Shield: -{format_eur(results['lease_tx'])}")
 
-    
+    st.divider()
 
     # SENSITIVITY CHART
     st.subheader("📈 Rate Sensitivity Analysis")
     test_rates = [loan_rate_input + (i/200) for i in range(-10, 11)]
-    ls_burdens = []
-    l_burdens = []
-    
-    for r in test_rates:
-        res_test = run_calculations(r, wc_rate_input, years_input, tax_rate_input, when_val, 
-                                    value_input, loan_pct_input, lease_pct_input, exp_loan_input, 
-                                    exp_lease_input, residual_input, dep_years_input)
-        ls_burdens.append(res_test['lease_final'])
-        l_burdens.append(res_test['loan_final'])
+    ls_burdens = [run_calculations(r, wc_rate_input, years_input, tax_rate_input, when_val, value_input, loan_pct_input, lease_pct_input, exp_loan_input, exp_lease_input, residual_input, dep_years_input)['lease_final'] for r in test_rates]
+    l_burdens = [run_calculations(r, wc_rate_input, years_input, tax_rate_input, when_val, value_input, loan_pct_input, lease_pct_input, exp_loan_input, exp_lease_input, residual_input, dep_years_input)['loan_final'] for r in test_rates]
         
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=[r*100 for r in test_rates], y=ls_burdens, name="Leasing Cost", line=dict(color="#00CC96")))
     fig.add_trace(go.Scatter(x=[r*100 for r in test_rates], y=l_burdens, name="Loan Cost", line=dict(color="#636EFA")))
-    
     fig.update_layout(template="plotly_dark", xaxis_title="Interest Rate (%)", yaxis_title="Total Net Burden (€)", height=400)
     st.plotly_chart(fig, use_container_width=True)
 
     # COLD VERDICT
     st.divider()
-    if results['
+    if results['loan_final'] < results['lease_final']:
+        diff = results['lease_final'] - results['loan_final']
+        st.success(f"⚖️ **Analyst Verdict:** **LOAN** is superior by {format_eur(diff)}.")
+    else:
+        diff = results['loan_final'] - results['lease_final']
+        st.success(f"⚖️ **Analyst Verdict:** **LEASING** is superior by {format_eur(diff)}.")
+
+    if st.button("Back to Library Hub"):
+        st.session_state.selected_tool = None
+        st.rerun()
