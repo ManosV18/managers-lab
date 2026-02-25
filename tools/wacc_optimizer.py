@@ -3,66 +3,71 @@ from core.engine import compute_core_metrics
 
 def show_wacc_optimizer():
     st.header("🏗️ Capital Structure Control Layer")
-    st.markdown("Καθορισμός του Hurdle Rate (WACC) βάσει κλαδικού κινδύνου και χρηματοοικονομικής μόχλευσης.")
+    st.info("Define the business hurdle rate (WACC) based on debt composition and industry risk proxies.")
+
+    # 1. DEBT MIX ANALYSIS (The Multi-Layer Approach)
+    st.subheader("1. Debt Composition")
+    col1, col2 = st.columns(2)
     
-    # Industry Data (Unlevered Beta Proxies)
+    with col1:
+        st.markdown("**Short-term Debt**")
+        st.caption("Overdrafts, Factoring, Working Capital Loans")
+        st_debt = st.number_input("Principal Amount (€)", value=50000.0, key="st_d", step=5000.0)
+        st_rate = st.slider("Interest Rate (%)", 3.0, 18.0, 8.5, key="st_r") / 100
+        
+    with col2:
+        st.markdown("**Long-term Debt**")
+        st.caption("Investment Loans, Mortgages, Bonds")
+        lt_debt = st.number_input("Principal Amount (€) ", value=150000.0, key="lt_d", step=5000.0)
+        lt_rate = st.slider("Interest Rate (%) ", 1.0, 12.0, 5.5, key="lt_r") / 100
+
+    total_debt = st_debt + lt_debt
+    
+    # Weighted Average Cost of Debt (Pre-tax)
+    if total_debt > 0:
+        avg_interest_rate = ((st_debt * st_rate) + (lt_debt * lt_rate)) / total_debt
+    else:
+        avg_interest_rate = 0.0
+
+    # 2. EQUITY & INDUSTRY PROXY
+    st.subheader("2. Equity & Sector Risk")
+    equity_val = st.number_input("Owner's Equity / Net Worth (€)", value=300000.0, step=10000.0)
+    
     industry_data = {
         "Retail": 0.85, "Manufacturing": 0.95, "Services": 1.05,
-        "Technology": 1.25, "F&B": 0.75, "Construction": 1.10
+        "Technology": 1.25, "F&B": 0.75, "Construction": 1.10, "General SME": 1.00
     }
-
-    # 1. CAPITAL MIX INPUTS
-    st.subheader("1. Capital Composition")
+    
     c1, c2 = st.columns(2)
+    sector = c1.selectbox("Industry Benchmark (Unlevered Beta)", list(industry_data.keys()))
+    rf = c2.number_input("Risk-Free Rate (e.g., 10Y Gov Bond) %", value=3.5) / 100
     
-    debt_val = c1.number_input("Total Interest-Bearing Debt (€)", value=150000.0, step=10000.0)
-    equity_val = c2.number_input("Shareholder Equity (Book Value) (€)", value=300000.0, step=10000.0)
-    
-    # 2. COST OF DEBT (Rd)
-    st.subheader("2. Debt Risk Profile")
-    interest_rate = st.slider("Pre-tax Average Interest Rate (%)", 1.0, 15.0, 6.5) / 100
-    tax_rate = 0.22 
-    rd_after_tax = interest_rate * (1 - tax_rate)
-
-    # 3. COST OF EQUITY (Re) - THE PROXY LAYER
-    st.subheader("3. Equity Risk & Market Proxy")
-    col_a, col_b = st.columns(2)
-    sector = col_a.selectbox("Industry Benchmark", list(industry_data.keys()))
-    rf = col_b.number_input("Risk-Free Rate (10Y Bond) %", value=3.5) / 100
-    
+    # 3. ANALYTICAL ENGINE: LEVERED BETA & CAPM
+    tax_rate = 0.22 # Standard Corporate Tax
     u_beta = industry_data[sector]
-    erp = 0.055 # Equity Risk Premium
     
-    # Leverage Logic: Re-levering Beta based on D/E
-    de_ratio = debt_val / equity_val if equity_val > 0 else 0
+    # Hamada Equation logic for Levered Beta
+    de_ratio = total_debt / equity_val if equity_val > 0 else 0
     l_beta = u_beta * (1 + (1 - tax_rate) * de_ratio)
+    
+    # Cost of Equity (CAPM) using a standard 5.5% Equity Risk Premium
+    erp = 0.055 
     re = rf + (l_beta * erp)
+    
+    # After-tax Cost of Debt
+    rd_after_tax = avg_interest_rate * (1 - tax_rate)
 
-    # 4. WACC CALCULATION
-    total_cap = debt_val + equity_val
-    w_d = debt_val / total_cap if total_cap > 0 else 0
-    w_e = equity_val / total_cap if total_cap > 0 else 0
-    wacc = (w_e * re) + (w_d * rd_after_tax)
+    # 4. FINAL WACC WEIGHTING
+    total_cap = total_debt + equity_val
+    if total_cap > 0:
+        wacc = ((equity_val/total_cap) * re) + ((total_debt/total_cap) * rd_after_tax)
+    else:
+        wacc = 0.15 # Fallback
 
     st.divider()
 
     # 5. CONTROL PANEL METRICS
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Levered Beta", f"{l_beta:.2f}", help="Risk volatility adjusted for your debt.")
-    m2.metric("Cost of Equity", f"{re:.2%}")
-    m3.metric("Strategic WACC", f"{wacc:.2%}", delta="Hurdle Rate")
-
-    # 6. ANALYTICAL VERDICT
-    st.subheader("💡 Strategic Verdict")
-    if de_ratio > 1.5:
-        st.warning(f"**High Leverage Alert:** Your D/E ratio ({de_ratio:.2f}) is elevating your Cost of Equity. The market perceives your equity as high-risk due to debt levels.")
-    
-    st.info(f"To create value, any strategic move (Inventory, Receivables) must provide a return > **{wacc:.2%}**.")
-
-    if st.button("Sync Capital Structure to Global Engine", use_container_width=True):
-        st.session_state.wacc = wacc
-        st.session_state.debt_to_equity = de_ratio
-        st.success("Capital Structure Control Layer updated.")
-
-if __name__ == "__main__":
-    show_wacc_optimizer()
+    res1, res2, res3 = st.columns(3)
+    res1.metric("W.A. Interest Rate", f"{avg_interest_rate:.2%}", help="Pre-tax weighted average of all debt tranches.")
+    res2.metric("Cost of Equity (Re)", f"{re:.2%}", help="The return required by shareholders based on systemic risk.")
+    res3.metric("Strategic WACC", f"{wacc:.2%}", delta
