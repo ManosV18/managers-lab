@@ -8,10 +8,8 @@ def show_qspm_tool():
     st.info("Quantitative Strategic Planning Matrix: Evaluate which strategy best fits your current business reality based on weighted Success Factors.")
 
     # 1. LOAD SYSTEM CONTEXT (Analytical Grounding)
-    # Χρήση του sync_global_state για ομοιομορφία με την υπόλοιπη εφαρμογή
     m = sync_global_state()
     
-    # Υπολογισμός Survival Margin & Cash Cycle από τα κεντρικά δεδομένα
     revenue = m.get('revenue', 0)
     cash_wall = m.get('cash_wall', 0)
     survival_margin = (revenue / cash_wall) - 1 if cash_wall > 0 else 0
@@ -45,7 +43,6 @@ def show_qspm_tool():
     raw_a = []
     raw_b = []
 
-    # Δημιουργία των Sliders για κάθε παράγοντα
     for factor, weight in factors:
         st.markdown(f"**{factor}** (Weight: {weight:.0%})")
         c1, c2 = st.columns(2)
@@ -75,10 +72,8 @@ def show_qspm_tool():
 
     # 6. VISUAL RADAR CHART
     st.subheader("📊 Strategic Alignment Radar")
-    
     categories = [f[0] for f in factors]
     fig = go.Figure()
-    
     fig.add_trace(go.Scatterpolar(r=raw_a, theta=categories, fill='toself', name=strat1_name))
     fig.add_trace(go.Scatterpolar(r=raw_b, theta=categories, fill='toself', name=strat2_name))
 
@@ -90,7 +85,7 @@ def show_qspm_tool():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # 7. STRATEGIC VERDICT
+    # 7. ANALYST'S VERDICT
     st.subheader("🧠 Analyst's Verdict")
     if abs(total_a - total_b) < 0.2:
         st.warning("**Strategic Stalemate:** The options are very close. Reassess the weights or consider a Phased Execution approach.")
