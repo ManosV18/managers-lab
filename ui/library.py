@@ -12,13 +12,14 @@ def show_library():
         ],
         
         "💰 Finance & Cash Flow": [
+            ("Capital Structure Control", "wacc_optimizer", "show_wacc_optimizer"), # Τοποθέτηση ως Layer 0
+            ("Executive Dashboard", "executive_dashboard", "show_executive_dashboard"),
             ("Cash Cycle Calculator", "cash_cycle", "run_cash_cycle_app"),
             ("Receivables Strategic Control", "receivables_analyzer", "show_receivables_analyzer_ui"), 
             ("Inventory Strategic Control", "inventory_manager", "show_inventory_manager"),
-            ("Loan vs Leasing Analysis", "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
-            ("Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
             ("Payables Strategic Control", "payables_manager", "show_payables_manager"),
-            ("Executive Dashboard", "executive_dashboard", "show_executive_dashboard") # FIXED: Added closing parenthesis
+            ("Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
+            ("Loan vs Leasing Analysis", "loan_vs_leasing_calculator", "loan_vs_leasing_ui"),
         ],
         
         "👥 Customer & Strategy": [
