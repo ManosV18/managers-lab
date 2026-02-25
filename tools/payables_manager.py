@@ -1,20 +1,19 @@
 import streamlit as st
 
 def calculate_supplier_credit_gain(SupplierCreditDays, Discount, CashPrc, CurrentSales, UnitPrice, TotalUnitCost, InterestRateOnDebt):
-    # Convert percentages to decimals
+    # Μετατροπή ποσοστών σε δεκαδικούς
     Discount = Discount / 100
     CashPrc = CashPrc / 100
     InterestRateOnDebt = InterestRateOnDebt / 100
 
-    # 1. Gain from the discount on purchases (assuming purchases correlate with sales volume)
-    # Using 365 days as per user instructions
+    # 1. Gain from the discount on purchases
+    # Χρήση 365 ημερών βάσει των οδηγιών σου
     discount_gain = CurrentSales * Discount * CashPrc
 
     # 2. Opportunity cost from losing supplier credit
-    # Benefit = (Average Payables balance) * Cost of Capital
     average_cost_ratio = TotalUnitCost / UnitPrice
     
-    # Cost of using own cash instead of supplier's interest-free credit
+    # Κόστος χρήσης ιδίων κεφαλαίων αντί για την άτοκη πίστωση του προμηθευτή
     credit_benefit_lost = ((CurrentSales / (365 / SupplierCreditDays)) * average_cost_ratio * CashPrc) * InterestRateOnDebt
 
     net_gain = discount_gain - credit_benefit_lost
@@ -23,8 +22,9 @@ def calculate_supplier_credit_gain(SupplierCreditDays, Discount, CashPrc, Curren
 def format_currency(amount):
     return f"€ {amount:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def show_supplier_credit_analysis():
-    st.header("🏦 Supplier Credit & Cash Discount Analysis")
+# ΑΛΛΑΓΗ ΟΝΟΜΑΤΟΣ ΕΔΩ ΓΙΑ ΝΑ ΤΑΙΡΙΑΖΕΙ ΜΕ ΤΟ LIBRARY
+def show_payables_manager():
+    st.header("🤝 Payables Manager: Supplier Credit Analysis")
     st.markdown("Evaluate whether paying **cash for a discount** is more profitable than utilizing **supplier credit lines**.")
 
     with st.form("supplier_credit_form"):
