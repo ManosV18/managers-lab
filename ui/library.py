@@ -34,3 +34,10 @@ def show_library():
             tool_func()
         except Exception as e:
             st.error(f"Δεν ήταν δυνατή η φόρτωση του εργαλείου: {e}")
+
+        with tab2:
+            if st.button("🛡️ Cash Fragility"): 
+                st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
+            # ΠΡΟΣΘΗΚΗ WACC OPTIMIZER:
+            if st.button("📉 WACC Optimizer"): 
+                st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
