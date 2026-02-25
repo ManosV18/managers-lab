@@ -32,9 +32,9 @@ def show_library():
                 st.rerun()
 
             # ΣΥΝΔΕΣΗ ΤΟΥ LOAN VS LEASING
-                if st.button("⚖️ Loan vs Leasing", use_container_width=True):
-                    st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
-                    st.rerun()
+            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
+                st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
+                st.rerun()
             # ΔΙΟΡΘΩΣΗ: Αφαίρεση του col_t2b που προκαλούσε το error
             if st.button("📈 Growth Funding (AFN)", use_container_width=True):
                 st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
