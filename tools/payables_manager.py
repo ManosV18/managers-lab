@@ -88,3 +88,12 @@ def show_payables_manager():
     c_break1, c_break2 = st.columns(2)
     c_break1.write(f"**maximum_discount (NPV Break Even):**")
     c_break1.info(f"{max_discount_val:.2%}")
+    
+    c_break2.write(f"**optimum_discount:**")
+    c_break2.success(f"{opt_discount_val:.2%}")
+
+    st.divider()
+    
+    if st.button("Back to Library Hub", use_container_width=True):
+        st.session_state.selected_tool = None
+        st.rerun()
