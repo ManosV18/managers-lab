@@ -8,7 +8,7 @@ def run_stage3():
     st.divider()
 
     # 1. FETCH REAL-TIME PHYSICS
-    m = compute_core_metrics()
+    m = sync_global_state()
     s = st.session_state
 
     # Liquidity Physics:
