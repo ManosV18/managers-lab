@@ -89,6 +89,9 @@ def show_library():
             if st.button("📊 Unit Cost Analyzer", use_container_width=True, key="btn_uc"):
                 st.session_state.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app")
                 st.rerun()
+            if st.button("📊 Receivables Analyzer (NPV)", use_container_width=True, key="btn_receivables"):
+                st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
+                st.rerun()
 
         with t4:
             st.subheader("Risk & Command Center")
