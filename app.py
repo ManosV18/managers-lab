@@ -18,35 +18,30 @@ if 'flow_step' not in st.session_state: st.session_state.flow_step = "home"
 
 show_sidebar()
 
-# ROUTER LOGIC
+# --- IN YOUR app.py ---
 if st.session_state.mode == "library":
-    from ui.library import show_library
     show_library()
 else:
     step = str(st.session_state.flow_step)
     
     if step == "home":
         show_home()
-    
     elif step == "stage0":
         run_stage0()
-        
     elif step == "stage1":
-        run_stage1() # Εδώ τρέχει το Leverage & BEP
-        
+        run_stage1()
     elif step == "stage2":
-        run_stage2() # Εδώ τρέχει το Liquidity Dashboard (Working Capital)
-        
+        from tools.executive_dashboard import show_executive_dashboard
+        show_executive_dashboard()
     elif step == "stage3":
-        # Εδώ θα μπει το Capital Allocation Matrix που ζήτησες
-        st.header("💰 Stage 3: Capital Allocation Matrix")
-        st.info("Coming Soon: Διάθεση της ρευστότητας σε στρατηγικές επενδύσεις.")
-        if st.button("Back to Stage 2"):
-            st.session_state.flow_step = "stage2"
-            st.rerun()
-            
-    else:
-        st.warning(f"Unknown Stage: {step}")
-        if st.button("Reset to Home"):
-            st.session_state.flow_step = "home"
-            st.rerun()
+        from path.stage3 import run_stage3
+        run_stage3()
+    elif step == "stage4":
+        from path.stage4 import run_stage4
+        run_stage4()
+    elif step == "stage5":
+        from path.stage5 import run_stage5
+        run_stage5()
+    elif step == "qspm":
+        from tools.qspm_analyzer import show_qspm_analyzer
+        show_qspm_analyzer()
