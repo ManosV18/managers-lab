@@ -32,7 +32,9 @@ def show_sidebar():
         st.divider()
         st.subheader("💳 Financials & WC")
         st.session_state.annual_debt_service = st.number_input("Annual Debt Service (€)", value=float(st.session_state.get('annual_debt_service', 0.0)))
-        st.session_state.tax_rate = st.number_input("Tax Rate (%)", value=float(st.session_state.get('tax_rate', 0.22)) * 100) / 100
+        st.session_state.opening_cash = st.number_input("Opening Cash (€)", value=float(st.session_state.get('opening_cash', 10000.0)))
+        tax_percent = st.number_input("Tax Rate (%)", value=float(st.session_state.get('tax_rate', 0.22)) * 100) 
+        st.session_state.tax_rate = tax_percent / 100
 
         st.subheader("⏳ Operating Cycle (Days)")
         st.session_state.ar_days = st.number_input("AR Days (Collection)", value=float(st.session_state.get('ar_days', 45.0)))
