@@ -85,25 +85,25 @@ def show_sidebar():
         st.session_state.price = st.number_input(
             "Unit Price (€)",
             value=float(st.session_state.get('price', 100.0)),
-            on_change=st.rerun
+            
         )
 
         st.session_state.variable_cost = st.number_input(
             "Variable Cost (€)",
             value=float(st.session_state.get('variable_cost', 60.0)),
-            on_change=st.rerun
+            
         )
 
         st.session_state.volume = st.number_input(
             "Annual Volume",
             value=int(st.session_state.get('volume', 1000)),
-            on_change=st.rerun
+            
         )
 
         st.session_state.fixed_cost = st.number_input(
             "Annual Fixed Costs",
             value=float(st.session_state.get('fixed_cost', 20000.0)),
-            on_change=st.rerun
+            
         )
 
         # =====================================================
@@ -114,19 +114,19 @@ def show_sidebar():
         st.session_state.annual_debt_service = st.number_input(
             "Annual Debt Service (€)",
             value=float(st.session_state.get('annual_debt_service', 0.0)),
-            on_change=st.rerun
+            
         )
 
         st.session_state.opening_cash = st.number_input(
             "Opening Cash (€)",
             value=float(st.session_state.get('opening_cash', 10000.0)),
-            on_change=st.rerun
+            
         )
 
         tax_percent = st.number_input(
             "Tax Rate (%)",
             value=float(st.session_state.get('tax_rate', 0.22)) * 100,
-            on_change=st.rerun
+            
         )
         st.session_state.tax_rate = tax_percent / 100
 
@@ -142,7 +142,7 @@ def show_sidebar():
                 max_value=100.0,
                 value=st.session_state.wacc * 100,
                 step=0.1,
-                on_change=st.rerun
+                
             )
             st.session_state.wacc = wacc_percent / 100
         else:
@@ -156,19 +156,19 @@ def show_sidebar():
         st.session_state.ar_days = st.number_input(
             "AR Days (Collection)",
             value=float(st.session_state.get('ar_days', 45.0)),
-            on_change=st.rerun
+            
         )
 
         st.session_state.inventory_days = st.number_input(
             "Inventory Days",
             value=float(st.session_state.get('inventory_days', 60.0)),
-            on_change=st.rerun
+            
         )
 
         st.session_state.ap_days = st.number_input(
             "AP Days (Payment)",
             value=float(st.session_state.get('ap_days', 30.0)),
-            on_change=st.rerun
+            
         )
 
         st.divider()
