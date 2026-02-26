@@ -166,9 +166,10 @@ def show_sidebar():
                 st.session_state.flow_step = "stage1"
                 st.rerun()
         
-        # ΔΙΟΡΘΩΜΕΝΟ RESET
+        # ΔΙΟΡΘΩΜΕΝΟ RESET (Πιο στιβαρό)
         if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
             st.session_state.clear()
-            # Instruction: Επαναφορά βασικών μεταβλητών μετά το clear
+            # Άμεση επαναφορά κρίσιμων μεταβλητών για να μην προλάβει να κρασάρει ο router
             st.session_state.flow_step = "home" 
+            st.session_state.wacc = 0.15
             st.rerun()
