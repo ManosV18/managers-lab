@@ -15,7 +15,7 @@ try:
 except ImportError as e:
     st.error(f"Module Loading Error: {e}")
 
-st.set_page_config(page_title="Executive War Room", layout="wide")
+st.set_page_config(page_title="Strategic Decision Room", layout="wide")
 
 # DNA Initialization
 if 'flow_step' not in st.session_state:
