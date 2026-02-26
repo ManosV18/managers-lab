@@ -3,6 +3,8 @@ from core.sync import lock_baseline
 
 def show_sidebar():
     # 1. Defaults
+    if "wacc" not in st.session_state:
+        st.session_state.wacc = 0.15  # Default 15%
     if "flow_step" not in st.session_state:
         st.session_state.flow_step = "home"
 
