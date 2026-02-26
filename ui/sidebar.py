@@ -7,7 +7,7 @@ def show_sidebar():
         st.session_state.flow_step = "home"
 
     with st.sidebar:
-        st.title("🚀 War Room Command")
+        st.title("🚀 Strategy Command")
         
         # 2. Navigation Logic
         nav_options = {
