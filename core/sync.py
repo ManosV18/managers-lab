@@ -3,25 +3,28 @@ from core.engine import calculate_metrics
 
 def sync_global_state():
     """
-    Orchestrator: Συλλέγει τα δεδομένα από το session_state και τροφοδοτεί 
-    την engine με τα 11 υποχρεωτικά ορίσματα θέσης.
+    Orchestrator: Συλλέγει τα δεδομένα και τροφοδοτεί την engine.
+    Επιστρέφει metrics μόνο αν το baseline είναι κλειδωμένο.
     """
     s = st.session_state
     
-    # Defaults για αποφυγή KeyErrors κατά την πρώτη φόρτωση
+    if not s.get('baseline_locked', False):
+        return {}
+
     try:
+        # Instruction [2026-02-18]: Logic based on 365 days
         metrics = calculate_metrics(
-            float(s.get('price', 100.0)),                   # 1. Τιμή
-            int(s.get('volume', 1000)),                     # 2. Όγκος
-            float(s.get('variable_cost', 50.0)),            # 3. Μεταβλητό Κόστος
-            float(s.get('fixed_cost', 20000.0)),            # 4. Σταθερά Έξοδα
-            float(s.get('wacc', 0.15)),                     # 5. Κόστος Κεφαλαίου
-            float(s.get('tax_rate', 0.22)),                 # 6. Φορολογία
-            float(s.get('ar_days', 45.0)),                  # 7. Ημέρες Είσπραξης
-            float(s.get('inventory_days', 60.0)),           # 8. Ημέρες Αποθέματος
-            float(s.get('ap_days', 30.0)),                  # 9. Ημέρες Πληρωμής
-            float(s.get('annual_debt_service', 0.0)),       # 10. Ετήσιο Τοκοχρεολύσιο
-            float(s.get('opening_cash', 10000.0))           # 11. Αρχικά Μετρητά
+            float(s.get('price', 100.0)),
+            int(s.get('volume', 1000)),
+            float(s.get('variable_cost', 50.0)),
+            float(s.get('fixed_cost', 20000.0)),
+            float(s.get('wacc', 0.15)),
+            float(s.get('tax_rate', 0.22)),
+            float(s.get('ar_days', 45.0)),
+            float(s.get('inventory_days', 60.0)),
+            float(s.get('ap_days', 30.0)),
+            float(s.get('annual_debt_service', 0.0)),
+            float(s.get('opening_cash', 10000.0))
         )
         return metrics
     except Exception as e:
@@ -29,17 +32,21 @@ def sync_global_state():
         return {}
 
 def lock_baseline():
-    """
-    Scenario Baseline: Κλειδώνει την τρέχουσα κατάσταση ως σημείο αναφοράς
-    για Scenario Analysis.
-    """
-    if 'baseline' not in st.session_state:
-        current_metrics = sync_global_state()
-        if current_metrics:
-            st.session_state.baseline = current_metrics
-            st.session_state.baseline_locked = True
-            st.success("✅ Baseline Locked. Scenario analysis is now active.")
+    """Κλειδώνει το Baseline χρησιμοποιώντας τα τρέχοντα δεδομένα της οθόνης."""
+    s = st.session_state
+    # Άμεσος υπολογισμός για το κλείδωμα
+    current_metrics = calculate_metrics(
+        float(s.get('price', 100.0)), int(s.get('volume', 1000)),
+        float(s.get('variable_cost', 50.0)), float(s.get('fixed_cost', 20000.0)),
+        float(s.get('wacc', 0.15)), float(s.get('tax_rate', 0.22)),
+        float(s.get('ar_days', 45.0)), float(s.get('inventory_days', 60.0)),
+        float(s.get('ap_days', 30.0)), float(s.get('annual_debt_service', 0.0)),
+        float(s.get('opening_cash', 10000.0))
+    )
+    if current_metrics:
+        st.session_state.baseline = current_metrics
+        st.session_state.baseline_locked = True
 
 def compute_core_metrics():
-    """Alias για συμβατότητα με τα εργαλεία της βιβλιοθήκης (QSPM κλπ)"""
+    """Interface compatibility layer για τη βιβλιοθήκη εργαλείων."""
     return sync_global_state()
