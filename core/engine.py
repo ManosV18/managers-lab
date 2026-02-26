@@ -1,4 +1,4 @@
-def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, ar_days, inv_days, ap_days, annual_debt_service_service, opening_cash):
+def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, ar_days, inv_days, ap_days, annual_debt_service, opening_cash):
     # P&L Logic
     unit_contribution = price - variable_cost
     revenue = price * volume
