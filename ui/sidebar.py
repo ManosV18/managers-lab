@@ -1,42 +1,24 @@
 import streamlit as st
-
-# Do NOT import from core.sync if the file isn't ready. 
-try:
-    from core.sync import lock_baseline, sync_global_state
-except ImportError:
-    st.error("Critical Error: core/sync.py is missing or corrupted.")
+from core.sync import lock_baseline
 
 def show_sidebar():
-
-    # =====================================================
-    # SAFE INITIALIZATION (Cold Start Protection)
-    # =====================================================
-    if "wacc" not in st.session_state:
-        st.session_state.wacc = 0.15  # Default 15%
-    
+    # 1. Defaults
     if "flow_step" not in st.session_state:
         st.session_state.flow_step = "home"
 
     with st.sidebar:
         st.title("🚀 War Room Command")
         
-        # =====================================================
-        # 0. QUICK NAVIGATION
-        # =====================================================
-        st.subheader("📍 Navigation")
-        
+        # 2. Navigation Logic
         nav_options = {
             "🏠 Home": "home",
-            "🏗️ Stage 1: Setup & BEP": "stage1",
-            "🏁 Stage 2: Liquidity Dashboard": "stage2",
-            "💰 Stage 3: Capital Allocation": "stage3",
-            "🌪️ Stage 4: Stress Testing": "stage4",
-            "⚖️ Stage 5: Strategic QSPM": "stage5", # Το QSPM πλέον είναι το Stage 5
-            "📚 Tools Library": "library"           # Η βιβλιοθήκη ως αυτόνομο Tool
+            "🏗️ Stage 0: Setup": "stage0",
+            "📊 Stage 1: Survival & BEP": "stage1",
+            "🏁 Stage 2: Dashboard": "stage2",
+            "📚 Tools Library": "library"
         }
         
-        # Syncing the selectbox with the current session state
-        current_step = st.session_state.get('flow_step', 'home')
+        current_step = st.session_state.flow_step
         options_list = list(nav_options.keys())
         values_list = list(nav_options.values())
         
@@ -45,20 +27,23 @@ def show_sidebar():
         except ValueError:
             default_idx = 0
 
-        # Refined Tool Selection
         selection = st.selectbox("Tool Selection:", options_list, index=default_idx)
         
-        # If user changes selection, trigger rerun to update the Router
+        # Αν αλλάξει η επιλογή, αλλάζουμε ΜΟΝΟ το flow_step
         if nav_options[selection] != current_step:
             st.session_state.flow_step = nav_options[selection]
-            # Mode management
-            if nav_options[selection] == "library":
-                st.session_state.mode = "library"
-            else:
-                st.session_state.mode = "path"
             st.rerun()
 
         st.divider()
+        
+        # --- Baseline Status Indicator ---
+        if st.session_state.get('baseline_locked', False):
+            st.success("✅ Baseline: LOCKED")
+        else:
+            st.warning("🔓 Baseline: OPEN")
+            
+        st.divider()
+        # (Εδώ συνεχίζουν τα number_inputs για Price, Volume κλπ όπως τα είχες)
 
         # =====================================================
         # 1. SYSTEM INTEGRITY MONITOR
