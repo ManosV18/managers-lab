@@ -23,12 +23,13 @@ def run_stage0():
         st.info(f"Total VC: €{st.session_state.variable_cost:,.2f}")
 
     with col_b:
-        st.markdown("**Fixed Costs**")
-        f1 = st.number_input("Monthly Rent (€)", value=1000.0, key='in_rent') * 12
-        f2 = st.number_input("Annual Salaries (€)", value=10000.0, key='in_sal')
+        st.markdown("**Fixed Costs (Annual)**")
+        # Αφαιρούμε το * 12 και αλλάζουμε την κεφαλίδα για απόλυτη καθαρότητα
+        f1 = st.number_input("Annual Rent & Utilities (€)", value=12000.0, key='in_rent')
+        f2 = st.number_input("Annual Salaries & Admin (€)", value=8000.0, key='in_sal')
         st.session_state.fixed_cost = f1 + f2
-        st.info(f"Total FC: €{st.session_state.fixed_cost:,.2f}")
-
+        st.info(f"Total Fixed: €{st.session_state.fixed_cost:,.2f}")
+    
     st.divider()
     
     # LOCK LOGIC
