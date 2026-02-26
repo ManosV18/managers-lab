@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.sync import sync_global_state # Corrected Import
+from core.sync import sync_global_state  # Συνδεδεμένο με engine
 
 def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, realization, risk_p, cac):
-    # Adjusted discount rate for risk
+    """
+    Υπολογισμός NPV Customer Lifetime Value για κάθε έτος
+    """
     adj_disc = (discount / 100) + (risk_p / 100)
     churn_rate = churn / 100
     cum_npv = -cac
@@ -12,16 +14,11 @@ def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, 
     payback = None
     
     for t in range(1, int(retention_years) + 1):
-        # Survival probability: (1 - churn)^t
         survival = (1 - churn_rate) ** t
-        # Realized cash flow after risk and survival
         annual_flow = (purchases * margin_per_order * realization) * survival
-        # Discounted to present value
         discounted_flow = annual_flow / ((1 + adj_disc) ** t)
-        
         cum_npv += discounted_flow
         data.append({"Year": t, "Cumulative_NPV": cum_npv})
-        
         if cum_npv >= 0 and payback is None:
             payback = t
             
@@ -31,21 +28,22 @@ def show_clv_calculator():
     st.header("👥 Executive CLV Simulator")
     st.info("Advanced Customer Lifetime Value modeling: Syncing Unit Economics with Risk-Adjusted NPV.")
 
-    # 1. SYNC WITH SHARED CORE
-    # Χρησιμοποιούμε τη sync_global_state() για να πάρουμε τα 11 ορίσματα αυτόματα
+    # --- ΣΥΝΔΕΣΗ ΜΕ ENGINE ---
+    if not st.session_state.get('baseline_locked', False):
+        st.warning("🔓 Please lock your baseline in Stage 0 before using CLV Calculator.")
+        return  # Σταματά αν το baseline δεν είναι κλειδωμένο
+
     metrics = sync_global_state()
     s = st.session_state
     
-    # Τραβάμε το WACC και το Margin από το συγχρονισμένο metrics
     wacc_global = s.get('wacc', 0.10) * 100 
     unit_margin = metrics.get('unit_contribution', 0.0)
     
     st.write(f"**🔗 Core Baseline Linked:** Current Unit Margin: **{unit_margin:,.2f} €**")
     st.divider()
 
-    # 2. SCENARIO INPUTS
+    # --- SCENARIOS ---
     col_a, col_b = st.columns(2)
-    
     with col_a:
         st.subheader("📊 Scenario A (Base)")
         purch_a = st.number_input("Purchases / Year (A)", value=4.0, key="pa")
@@ -60,25 +58,23 @@ def show_clv_calculator():
         cac_b = st.number_input("CAC (€) (B)", value=180.0, key="cacb")
         churn_b = st.slider("Annual Churn % (B)", 0, 100, 8, key="chb")
 
-    # 3. STRUCTURAL ASSUMPTIONS (NPV Logic)
+    # --- NPV & Risk Settings ---
     with st.expander("⚙️ NPV & Risk-Adjusted WACC Settings"):
         c1, c2 = st.columns(2)
         disc = c1.number_input("Base WACC (%)", value=float(wacc_global))
         risk_p = c1.number_input("Risk Premium (%)", value=3.0)
         real = c2.number_input("Realization Rate (0-1)", value=0.90)
         horizon = c2.slider("Analysis Horizon (Years)", 1, 10, 5)
-        
-        total_rate = disc + risk_p
-        st.caption(f"**Effective Discount Rate:** {total_rate:.2f}%")
+        st.caption(f"**Effective Discount Rate:** {disc + risk_p:.2f}%")
 
-    # 4. EXECUTION
+    # --- Υπολογισμοί ---
     margin_a = unit_margin * units_a
     margin_b = unit_margin * units_b
 
     df_a, final_a, pb_a = get_clv_data(purch_a, margin_a, horizon, disc, churn_a, real, risk_p, cac_a)
     df_b, final_b, pb_b = get_clv_data(purch_b, margin_b, horizon, disc, churn_b, real, risk_p, cac_b)
 
-    # 5. RESULTS COMPARISON
+    # --- Αποτελέσματα ---
     res_a, res_b = st.columns(2)
     with res_a:
         st.metric("NPV CLV (A)", f"{final_a:,.2f} €")
@@ -94,17 +90,18 @@ def show_clv_calculator():
         st.write(f"LTV/CAC Ratio: **{ratio_b:.2f}x**")
         st.caption(f"Payback: {f'{pb_b} Yrs' if pb_b else 'Never'}")
 
-    # 6. VISUALIZATION
+    # --- Visualization ---
     st.subheader("📉 Cumulative NPV Projection")
-    
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A', line=dict(color='#EF553B', dash='dash')))
-    fig.add_trace(go.Scatter(x=df_b['Year'], y=df_b['Cumulative_NPV'], name='Scenario B', line=dict(color='#00CC96', width=4)))
+    fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A',
+                             line=dict(color='#EF553B', dash='dash')))
+    fig.add_trace(go.Scatter(x=df_b['Year'], y=df_b['Cumulative_NPV'], name='Scenario B',
+                             line=dict(color='#00CC96', width=4)))
     fig.add_hline(y=0, line_dash="dot", line_color="white")
     fig.update_layout(template="plotly_dark", height=400, margin=dict(l=20, r=20, t=20, b=20))
     st.plotly_chart(fig, use_container_width=True)
 
-    # 7. STRATEGIC VERDICT
+    # --- Strategic Verdict ---
     if ratio_b >= 3.0:
         st.success("🎯 **Scalable:** LTV/CAC ≥ 3x. Healthy growth threshold.")
     else:
@@ -113,3 +110,4 @@ def show_clv_calculator():
     if st.button("Back to Library Hub", use_container_width=True):
         st.session_state.selected_tool = None
         st.rerun()
+
