@@ -33,15 +33,15 @@ def run_stage1():
     # 3. VISUAL BREAK-EVEN GAUGE
     # =====================================================
     st.subheader("📊 Break-Even Status")
-    if vol > 0:
-        progress_value = min(max(vol / bep, 0.0), 2.0)  # Clip for 0-200%
+    if vol > 0 and bep > 0:
+        progress_value = min(max(vol / bep, 0.0), 2.0)  # Clip 0-200%
         st.progress(progress_value if progress_value <= 1 else 1)
         if vol < bep:
             st.warning(f"⚠️ Current volume ({vol:,.0f}) is below BEP ({bep:,.0f})! High risk.")
         else:
             st.success(f"✅ Current volume ({vol:,.0f}) is above BEP ({bep:,.0f}).")
     else:
-        st.info("No volume data to display visual BEP.")
+        st.info("Cannot display visual BEP: Volume or BEP data missing or zero.")
 
     # =====================================================
     # 4. LEVERAGE INSIGHTS (DOL)
