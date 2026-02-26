@@ -2,26 +2,21 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def run_home():
-    # 1. Ανάκτηση Metrics μέσω του Orchestrator
     metrics = sync_global_state()
     is_locked = st.session_state.get('baseline_locked', False)
     
     st.title("🛡️ Strategic War Room")
     st.markdown("### Decision Support & Risk Analysis Engine")
     
-    # Status Alert: Ενημερώνει τον χρήστη για την κατάσταση του συστήματος
     if not is_locked:
-        st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters and activate analytics.")
+        st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
     else:
-        st.success("✅ **Baseline Active:** All strategic simulations are synced with your locked configuration.")
+        st.success("✅ **Baseline Active:** All systems synced.")
 
     st.divider()
 
-    # --- KPI DASHBOARD (Safe View Logic) ---
-    # Εμφανίζει τιμές μόνο αν έχει γίνει Lock, αλλιώς εμφανίζει παύλα (—)
-    st.subheader("Key Performance Indicators (Current Baseline)")
+    # --- KPI DASHBOARD ---
     c1, c2, c3, c4 = st.columns(4)
-    
     rev_val = metrics.get('revenue') if is_locked else None
     ebit_val = metrics.get('ebit') if is_locked else None
     bep_val = metrics.get('bep_units') if is_locked else None
@@ -34,27 +29,20 @@ def run_home():
 
     st.divider()
 
-    # --- QUICK ACTIONS (Navigation Fixes) ---
+    # --- QUICK ACTIONS (The Navigation Fix) ---
     st.subheader("Strategic Navigation")
     col1, col2 = st.columns(2)
     
     with col1:
         with st.expander("🚀 Getting Started", expanded=True):
-            st.write("Define your unit economics, fixed costs, and sales volume to initialize the engine.")
-            # Κουμπί για Stage 0: Επιβάλλει mode='path' για να δουλέψει ο Router
+            st.write("Define your unit economics and fixed costs.")
             if st.button("Go to Stage 0", key="h_btn_s0", use_container_width=True):
-                st.session_state.mode = "path"
-                st.session_state.flow_step = "stage0"
+                st.session_state.flow_step = "stage0" # Καμία αναφορά σε mode
                 st.rerun()
 
     with col2:
         with st.expander("📚 Library & Tools", expanded=True):
-            st.write("Access specialized calculators for WACC, QSPM, and advanced financial modeling.")
-            # Κουμπί για Library: Επιβάλλει mode='library'
+            st.write("Access specialized calculators and strategic tools.")
             if st.button("Open Library", key="h_btn_lib", use_container_width=True):
-                st.session_state.mode = "library"
-                st.session_state.flow_step = "library" 
+                st.session_state.flow_step = "library" # Καμία αναφορά σε mode
                 st.rerun()
-
-    st.divider()
-    st.caption("Strategic Engine v2.0 | Standardized 365-day Financial Logic")
