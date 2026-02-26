@@ -14,11 +14,54 @@ def show_sidebar():
     # =====================================================
     if "wacc" not in st.session_state:
         st.session_state.wacc = 0.15  # Default 15%
+    
+    if "flow_step" not in st.session_state:
+        st.session_state.flow_step = "home"
 
     with st.sidebar:
-        st.title("⚙️ Global Controls")
+        st.title("🚀 War Room Command")
         
-        # --- SYSTEM INTEGRITY MONITOR ---
+        # =====================================================
+        # 0. QUICK NAVIGATION (Ανεξάρτητη Πλοήγηση)
+        # =====================================================
+        st.subheader("📍 Quick Access")
+        
+        nav_options = {
+            "🏠 Home": "home",
+            "🏗️ Stage 1: Setup & BEP": "stage1",
+            "🏁 Stage 2: Liquidity Dashboard": "stage2",
+            "💰 Stage 3: Capital Allocation": "stage3",
+            "⚖️ Strategic QSPM": "qspm",
+            "📚 Strategy Library": "library"
+        }
+        
+        # Συγχρονισμός του selectbox με το τρέχον flow_step
+        current_step = st.session_state.get('flow_step', 'home')
+        options_list = list(nav_options.keys())
+        values_list = list(nav_options.values())
+        
+        try:
+            default_idx = values_list.index(current_step)
+        except ValueError:
+            default_idx = 0
+
+        selection = st.selectbox("Μετάβαση σε εργαλείο:", options_list, index=default_idx)
+        
+        # Αν αλλάξει η επιλογή, κάνουμε rerun για να ενημερωθεί ο Router
+        if nav_options[selection] != current_step:
+            st.session_state.flow_step = nav_options[selection]
+            # Ειδική διαχείριση για το Library mode αν χρειάζεται
+            if nav_options[selection] == "library":
+                st.session_state.mode = "library"
+            else:
+                st.session_state.mode = "path"
+            st.rerun()
+
+        st.divider()
+
+        # =====================================================
+        # 1. SYSTEM INTEGRITY MONITOR
+        # =====================================================
         st.subheader("🛡️ System Integrity")
 
         if st.session_state.get('baseline_locked', False):
@@ -34,9 +77,9 @@ def show_sidebar():
         st.divider()
 
         # =====================================================
-        # 1. BASE PARAMETERS
+        # 2. BASE PARAMETERS (GLOBAL CONTROLS)
         # =====================================================
-        st.info(f"**Current Stage:** {st.session_state.get('flow_step', 'N/A')}")
+        st.subheader("⚙️ Global Parameters")
 
         st.session_state.price = st.number_input(
             "Unit Price (€)",
@@ -62,10 +105,8 @@ def show_sidebar():
             on_change=st.rerun
         )
 
-        st.divider()
-
         # =====================================================
-        # 2. FINANCIALS & WC
+        # 3. FINANCIALS & WC
         # =====================================================
         st.subheader("💳 Financials & WC")
 
@@ -89,7 +130,7 @@ def show_sidebar():
         st.session_state.tax_rate = tax_percent / 100
 
         # =====================================================
-        # 3. WACC INPUT
+        # 4. WACC INPUT
         # =====================================================
         st.subheader("📊 Cost of Capital")
 
@@ -107,7 +148,7 @@ def show_sidebar():
             st.info(f"WACC Locked at {st.session_state.wacc:.2%}")
 
         # =====================================================
-        # 4. OPERATING CYCLE
+        # 5. OPERATING CYCLE (Days)
         # =====================================================
         st.subheader("⏳ Operating Cycle (Days)")
 
@@ -129,13 +170,13 @@ def show_sidebar():
             on_change=st.rerun
         )
 
-        # =====================================================
-        # 5. BASELINE LOCK
-        # =====================================================
         st.divider()
 
+        # =====================================================
+        # 6. ACTIONS
+        # =====================================================
         if not st.session_state.get('baseline_locked', False):
-            if st.button("🔒 Lock Baseline for Analysis", use_container_width=True):
+            if st.button("🔒 Lock Baseline", use_container_width=True):
                 lock_baseline()
                 st.rerun()
         
