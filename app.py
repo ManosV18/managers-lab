@@ -26,7 +26,7 @@ else:
     step = str(st.session_state.flow_step)
     
     if step == "home":
-        show_home()
+        run_home()
     elif step == "stage0":
         from path.stage0 import run_stage0
         run_stage0()
