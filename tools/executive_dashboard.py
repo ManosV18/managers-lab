@@ -30,6 +30,9 @@ def show_executive_dashboard():
     # 2. SCENARIO BUILDER
     # =====================================================
     st.subheader("🚀 Strategy Optimization Scenario")
+    
+    # --- Smart Target Caption ---
+    st.caption("💡 Smart Target: Automatically suggested values based on current Sidebar settings. You can adjust manually if needed.")
 
     with st.expander("Adjust Optimization Targets", expanded=True):
         c1, c2, c3 = st.columns(3)
