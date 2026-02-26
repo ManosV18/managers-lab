@@ -31,7 +31,6 @@ def show_sidebar():
             "🏗️ Stage 1: Setup & BEP": "stage1",
             "🏁 Stage 2: Liquidity Dashboard": "stage2",
             "💰 Stage 3: Capital Allocation": "stage3",
-            "⚖️ Strategic QSPM": "qspm",
             "📚 Strategy Library": "library"
         }
         
