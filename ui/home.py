@@ -5,7 +5,7 @@ def run_home():
     metrics = sync_global_state()
     is_locked = st.session_state.get('baseline_locked', False)
     
-    st.title("🛡️ Strategic War Room")
+    st.title("🛡️ Strategic Decision Room")
     st.markdown("### Decision Support & Risk Analysis Engine")
     
     if not is_locked:
