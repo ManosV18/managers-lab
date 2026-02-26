@@ -3,66 +3,67 @@ from core.sync import lock_baseline
 
 def run_stage0():
     st.header("🏗️ Stage 0: Baseline Configuration")
-    st.caption("Strategic Phase: Defining the economic foundation and cost structure.")
+    st.caption("Strategic Phase: Decomposing cost structures for absolute precision.")
     st.divider()
 
-    # 1. ANALYSIS SELECTION
+    # 1. ANALYSIS METHOD
     input_method = st.radio(
-        "How would you like to define your unit costs?", 
-        ["Quick Entry (Sidebar)", "🧪 Advanced Unit Cost Analyzer"],
+        "How would you like to define your baseline data?", 
+        ["Quick Entry (Sidebar)", "🧪 Professional Cost Analyzer"],
         horizontal=True
     )
 
-    if input_method == "🧪 Advanced Unit Cost Analyzer":
-        st.subheader("Unit Cost Breakdown")
-        st.write("Decompose your variable costs to ensure no hidden expenses are missed.")
-        
+    if input_method == "🧪 Professional Cost Analyzer":
+        # --- VARIABLE COST ANALYZER ---
+        st.subheader("1. Variable Cost Breakdown")
         with st.container(border=True):
-            col1, col2 = st.columns(2)
+            v_col1, v_col2 = st.columns(2)
+            raw_mat = v_col1.number_input("Raw Materials (€/unit)", min_value=0.0, value=float(st.session_state.get('raw_mat', 30.0)))
+            labor = v_col2.number_input("Direct Labor (€/unit)", min_value=0.0, value=float(st.session_state.get('labor', 15.0)))
+            shipping = v_col1.number_input("Logistics (€/unit)", min_value=0.0, value=float(st.session_state.get('shipping', 5.0)))
             
-            # Sub-components of Variable Cost
-            raw_mat = col1.number_input("Raw Materials / COGS (€/unit)", min_value=0.0, value=float(st.session_state.get('raw_mat', 30.0)))
-            labor = col2.number_input("Direct Labor / Outsourcing (€/unit)", min_value=0.0, value=float(st.session_state.get('labor', 15.0)))
-            shipping = col1.number_input("Logistics & Packaging (€/unit)", min_value=0.0, value=float(st.session_state.get('shipping', 5.0)))
-            commissions = col2.number_input("Sales Commissions / Fees (€/unit)", min_value=0.0, value=float(st.session_state.get('commissions', 0.0)))
+            calc_vc = raw_mat + labor + shipping
+            st.session_state.variable_cost = calc_vc # FORCE SYNC TO SIDEBAR
+            st.info(f"**Total Variable Cost:** €{calc_vc:,.2f}")
 
-            # Save sub-components for persistence
-            st.session_state.raw_mat = raw_mat
-            st.session_state.labor = labor
-            st.session_state.shipping = shipping
-            st.session_state.commissions = commissions
-
-            # Total Calculation
-            calculated_vc = raw_mat + labor + shipping + commissions
+        # --- FIXED COST ANALYZER ---
+        st.subheader("2. Annual Fixed Cost Breakdown")
+        with st.container(border=True):
+            f_col1, f_col2 = st.columns(2)
+            rent = f_col1.number_input("Monthly Rent (€)", min_value=0.0, value=1000.0) * 12
+            salaries = f_col2.number_input("Annual Admin Salaries (€)", min_value=0.0, value=10000.0)
+            marketing = f_col1.number_input("Annual Marketing Spend (€)", min_value=0.0, value=2000.0)
             
-            # Sync with Main Variable Cost
-            st.session_state.variable_cost = calculated_vc
-            
-            st.success(f"### Total Variable Cost: €{calculated_vc:,.2f}")
-            st.caption("This value has been automatically synced to the Global Parameters.")
+            calc_fixed = rent + salaries + marketing
+            st.session_state.fixed_cost = calc_fixed # FORCE SYNC TO SIDEBAR
+            st.info(f"**Total Fixed Costs:** €{calc_fixed:,.2f} / year")
 
     else:
-        st.info("ℹ️ Using values currently defined in the Sidebar. Adjust them there or switch to the Analyzer for more precision.")
+        st.info("ℹ️ Using manual values from the Sidebar.")
 
     st.divider()
 
-    # 2. FINAL VERIFICATION BEFORE LOCK
-    st.subheader("Baseline Verification")
-    v1, v2, v3 = st.columns(3)
-    
+    # 2. FINAL VALIDATION
+    st.subheader("Final Verification")
     price = float(st.session_state.get('price', 0.0))
     vc = float(st.session_state.get('variable_cost', 0.0))
-    vol = int(st.session_state.get('volume', 0))
+    fixed = float(st.session_state.get('fixed_cost', 0.0))
+    
+    # Επιβεβαίωση Δεδομένων
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Unit Price", f"€{price:,.2f}")
+    c2.metric("Variable Cost", f"€{vc:,.2f}")
+    c3.metric("Fixed Costs", f"€{fixed:,.2f}")
 
-    v1.metric("Unit Price", f"€{price:,.2f}")
-    v2.metric("Variable Cost", f"€{vc:,.2f}")
-    v3.metric("Annual Volume", f"{vol:,}")
+    
 
-    # 3. LOCKING MECHANISM
+    # 3. LOCKING LOGIC
     if price <= vc:
-        st.error("⚠️ **Action Required:** Your Variable Cost is higher than or equal to your Price. This results in a negative margin. Please adjust before locking.")
+        st.error("⚠️ **Logic Error:** Price must be higher than Variable Cost to calculate Break-Even.")
+    elif price == 0 or vc == 0:
+        st.warning("⚠️ Enter Price and Costs to initialize.")
     else:
-        if st.button("🔒 Lock Baseline & Start Analysis", use_container_width=True):
+        if st.button("🔒 Lock Baseline & Initialize Engine", use_container_width=True):
             lock_baseline()
             st.session_state.flow_step = "stage1"
             st.rerun()
