@@ -6,7 +6,6 @@ try:
 except ImportError:
     st.error("Critical Error: core/sync.py is missing or corrupted.")
 
-
 def show_sidebar():
 
     # =====================================================
@@ -22,19 +21,21 @@ def show_sidebar():
         st.title("🚀 War Room Command")
         
         # =====================================================
-        # 0. QUICK NAVIGATION (Ανεξάρτητη Πλοήγηση)
+        # 0. QUICK NAVIGATION
         # =====================================================
-        st.subheader("📍 Quick Access")
+        st.subheader("📍 Navigation")
         
         nav_options = {
             "🏠 Home": "home",
             "🏗️ Stage 1: Setup & BEP": "stage1",
             "🏁 Stage 2: Liquidity Dashboard": "stage2",
             "💰 Stage 3: Capital Allocation": "stage3",
-            "📚 Strategy Library": "library"
+            "🌪️ Stage 4: Stress Testing": "stage4",
+            "⚖️ Stage 5: Strategic QSPM": "stage5", # Το QSPM πλέον είναι το Stage 5
+            "📚 Tools Library": "library"           # Η βιβλιοθήκη ως αυτόνομο Tool
         }
         
-        # Συγχρονισμός του selectbox με το τρέχον flow_step
+        # Syncing the selectbox with the current session state
         current_step = st.session_state.get('flow_step', 'home')
         options_list = list(nav_options.keys())
         values_list = list(nav_options.values())
@@ -44,12 +45,13 @@ def show_sidebar():
         except ValueError:
             default_idx = 0
 
+        # Refined Tool Selection
         selection = st.selectbox("Tool Selection:", options_list, index=default_idx)
         
-        # Αν αλλάξει η επιλογή, κάνουμε rerun για να ενημερωθεί ο Router
+        # If user changes selection, trigger rerun to update the Router
         if nav_options[selection] != current_step:
             st.session_state.flow_step = nav_options[selection]
-            # Ειδική διαχείριση για το Library mode αν χρειάζεται
+            # Mode management
             if nav_options[selection] == "library":
                 st.session_state.mode = "library"
             else:
@@ -177,6 +179,8 @@ def show_sidebar():
         if not st.session_state.get('baseline_locked', False):
             if st.button("🔒 Lock Baseline", use_container_width=True):
                 lock_baseline()
+                # Auto-move to Stage 1 upon locking
+                st.session_state.flow_step = "stage1"
                 st.rerun()
         
         if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
