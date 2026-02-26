@@ -3,38 +3,66 @@ from core.sync import lock_baseline
 
 def run_stage0():
     st.header("🏗️ Stage 0: Baseline Configuration")
-    st.caption("Strategic Phase: Establishing the fundamental economic reality of the model.")
-    
-    # 1. Verification Section
-    st.subheader("Current Parameter Preview")
-    st.write("Review the values from the sidebar before finalizing the baseline:")
-    
-    c1, c2, c3 = st.columns(3)
-    c1.write(f"**Price:** €{st.session_state.get('price', 0):,.2f}")
-    c2.write(f"**Var. Cost:** €{st.session_state.get('variable_cost', 0):,.2f}")
-    c3.write(f"**Fixed Costs:** €{st.session_state.get('fixed_cost', 0):,.2f}")
+    st.caption("Strategic Phase: Defining the economic foundation and cost structure.")
+    st.divider()
 
-    # 2. Clinical Integrity Check
-    price = st.session_state.get('price', 0.0)
-    vc = st.session_state.get('variable_cost', 0.0)
-    
-    if price <= vc:
-        st.error("⚠️ **CRITICAL ERROR:** Negative or Zero Contribution Margin. Selling price must exceed variable costs for the model to function.")
+    # 1. ANALYSIS SELECTION
+    input_method = st.radio(
+        "How would you like to define your unit costs?", 
+        ["Quick Entry (Sidebar)", "🧪 Advanced Unit Cost Analyzer"],
+        horizontal=True
+    )
+
+    if input_method == "🧪 Advanced Unit Cost Analyzer":
+        st.subheader("Unit Cost Breakdown")
+        st.write("Decompose your variable costs to ensure no hidden expenses are missed.")
+        
+        with st.container(border=True):
+            col1, col2 = st.columns(2)
+            
+            # Sub-components of Variable Cost
+            raw_mat = col1.number_input("Raw Materials / COGS (€/unit)", min_value=0.0, value=float(st.session_state.get('raw_mat', 30.0)))
+            labor = col2.number_input("Direct Labor / Outsourcing (€/unit)", min_value=0.0, value=float(st.session_state.get('labor', 15.0)))
+            shipping = col1.number_input("Logistics & Packaging (€/unit)", min_value=0.0, value=float(st.session_state.get('shipping', 5.0)))
+            commissions = col2.number_input("Sales Commissions / Fees (€/unit)", min_value=0.0, value=float(st.session_state.get('commissions', 0.0)))
+
+            # Save sub-components for persistence
+            st.session_state.raw_mat = raw_mat
+            st.session_state.labor = labor
+            st.session_state.shipping = shipping
+            st.session_state.commissions = commissions
+
+            # Total Calculation
+            calculated_vc = raw_mat + labor + shipping + commissions
+            
+            # Sync with Main Variable Cost
+            st.session_state.variable_cost = calculated_vc
+            
+            st.success(f"### Total Variable Cost: €{calculated_vc:,.2f}")
+            st.caption("This value has been automatically synced to the Global Parameters.")
+
     else:
-        st.info("💡 **Logic Check:** Contribution margin is positive. The system is ready for break-even and liquidity analysis.")
-
-    
+        st.info("ℹ️ Using values currently defined in the Sidebar. Adjust them there or switch to the Analyzer for more precision.")
 
     st.divider()
+
+    # 2. FINAL VERIFICATION BEFORE LOCK
+    st.subheader("Baseline Verification")
+    v1, v2, v3 = st.columns(3)
     
-    # 3. Execution Lock
-    st.write("Once locked, these parameters will serve as the benchmark for all strategic simulations and stress tests.")
-    
-    if st.button("🔒 Lock Baseline & Initialize Engine", use_container_width=True):
-        if price > vc:
-            lock_baseline()  # Sets baseline_locked = True
-            st.success("Baseline Locked. Strategic paths decrypted. Transitioning to Stage 1...")
+    price = float(st.session_state.get('price', 0.0))
+    vc = float(st.session_state.get('variable_cost', 0.0))
+    vol = int(st.session_state.get('volume', 0))
+
+    v1.metric("Unit Price", f"€{price:,.2f}")
+    v2.metric("Variable Cost", f"€{vc:,.2f}")
+    v3.metric("Annual Volume", f"{vol:,}")
+
+    # 3. LOCKING MECHANISM
+    if price <= vc:
+        st.error("⚠️ **Action Required:** Your Variable Cost is higher than or equal to your Price. This results in a negative margin. Please adjust before locking.")
+    else:
+        if st.button("🔒 Lock Baseline & Start Analysis", use_container_width=True):
+            lock_baseline()
             st.session_state.flow_step = "stage1"
             st.rerun()
-        else:
-            st.warning("Action Denied: Correct marginal errors in the sidebar first.")
