@@ -57,7 +57,7 @@ def run_stage1():
     st.subheader("💰 Capital Allocation Potential")
     fcf = float(m.get('fcf', 0.0))
     st.write(f"Current Free Cash Flow (Post-Tax/Debt): **€ {fcf:,.2f}**")
-    st.caption("Αυτό είναι το ποσό που είναι διαθέσιμο για επανεπένδυση ή αποπληρωμή κεφαλαίου.")
+    st.caption("Net liquidity available for strategic reinvestment or capital repayment.")
 
     # =====================================================
     # 5. NAVIGATION
