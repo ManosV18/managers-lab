@@ -1,6 +1,7 @@
 import streamlit as st
 from ui.sidebar import show_sidebar
 from ui.home import show_home
+from ui.library import show_library
 from path.stage0 import run_stage0
 
 # 1. ΠΡΟΣΘΗΚΗ ΤΩΝ ΝΕΩΝ IMPORTS
