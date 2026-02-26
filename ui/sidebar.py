@@ -15,9 +15,12 @@ def show_sidebar():
             "🏗️ Stage 0: Setup": "stage0",
             "📊 Stage 1: Survival & BEP": "stage1",
             "🏁 Stage 2: Dashboard": "stage2",
+            "💧 Stage 3: Liquidity Physics": "stage3",
+            "🌪️ Stage 4: Stress Testing": "stage4",
+            "⚖️ Stage 5: Strategic Decision": "stage5",
             "📚 Tools Library": "library"
         }
-        
+               
         current_step = st.session_state.flow_step
         options_list = list(nav_options.keys())
         values_list = list(nav_options.values())
