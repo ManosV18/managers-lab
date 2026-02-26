@@ -39,15 +39,6 @@ def show_sidebar():
 
         st.divider()
         
-        # --- Baseline Status Indicator ---
-        if st.session_state.get('baseline_locked', False):
-            st.success("✅ Baseline: LOCKED")
-        else:
-            st.warning("🔓 Baseline: OPEN")
-            
-        st.divider()
-        # (Εδώ συνεχίζουν τα number_inputs για Price, Volume κλπ όπως τα είχες)
-
         # =====================================================
         # 1. SYSTEM INTEGRITY MONITOR
         # =====================================================
