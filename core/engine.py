@@ -8,7 +8,7 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, 
     
     # Tax & Cash Flow
     tax_payment = max(0, ebit * tax_rate)
-    fcf = ebit - tax_payment - annual_debt_service_service
+    fcf = ebit - tax_payment - annual_debt_service
     
     # Working Capital & Liquidity
     daily_rev = revenue / 365 if revenue > 0 else 0
