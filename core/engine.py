@@ -1,4 +1,4 @@
-def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, ar_days, inv_days, ap_days, annual_debt, opening_cash):
+def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, ar_days, inv_days, ap_days, annual_debt_service_servive, opening_cash):
     # P&L Logic
     unit_contribution = price - variable_cost
     revenue = price * volume
@@ -8,7 +8,7 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, 
     
     # Tax & Cash Flow
     tax_payment = max(0, ebit * tax_rate)
-    fcf = ebit - tax_payment - annual_debt
+    fcf = ebit - tax_payment - annual_debt_service_service
     
     # Working Capital & Liquidity
     daily_rev = revenue / 365 if revenue > 0 else 0
@@ -37,12 +37,12 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, 
         'fcf': fcf,
         'ocf': ebit - tax_payment,
         'ccc': ar_days + inv_days - ap_days,
-        'survival_bep': (fixed_cost + annual_debt) / unit_contribution if unit_contribution > 0 else 0,
+        'survival_bep': (fixed_cost + annual_debt_service) / unit_contribution if unit_contribution > 0 else 0,
         'revenue': revenue,
         'wc_requirement': wc_requirement,
         'cash_reserve': cash_reserve,
         'runway_months': runway,
-        'cash_wall': fixed_cost + annual_debt,
+        'cash_wall': fixed_cost + annual_debt_service,
         'accounts_receivable': accounts_receivable,
         'contribution_ratio': unit_contribution / price if price > 0 else 0
     }
