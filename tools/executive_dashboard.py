@@ -1,6 +1,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 from core.sync import sync_global_state
+from core.engine import calculate_metrics
 
 def show_executive_dashboard():
     st.header("🏁 Executive Liquidity Command Center")
@@ -18,7 +19,6 @@ def show_executive_dashboard():
     
     wacc = s.get('wacc', 0.15)
     revenue = metrics.get('revenue', 0.0)
-    daily_sales = revenue / 365 if revenue > 0 else 0.0
 
     # 2. SCENARIO BUILDER (Optimized Inputs)
     st.subheader("🚀 Strategy Optimization Scenario")
@@ -32,10 +32,25 @@ def show_executive_dashboard():
     # 3. CALCULATIONS
     curr_ccc = curr_ar + curr_inv - curr_ap
     opt_ccc = opt_ar + opt_inv - opt_ap
-    
-    curr_gap = curr_ccc * daily_sales
-    opt_gap = opt_ccc * daily_sales
-    
+        # Current WC from engine (already synced)
+curr_gap = metrics.get('wc_requirement', 0.0)
+
+# Optimized WC via temporary engine recalculation
+optimized_metrics = calculate_metrics(
+    s.price,
+    s.volume,
+    s.variable_cost,
+    s.fixed_cost,
+    s.wacc,
+    s.tax_rate,
+    opt_ar,
+    opt_inv,
+    opt_ap,
+    s.annual_debt_service,
+    s.get('opening_cash', 10000.0)
+)
+
+opt_gap = optimized_metrics.get('wc_requirement', 0.0)
     cash_released = curr_gap - opt_gap
     annual_savings = cash_released * wacc
 
