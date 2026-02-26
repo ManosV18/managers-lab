@@ -28,18 +28,41 @@ def show_executive_dashboard():
 
     wacc = _safe_get('wacc', 0.15)
 
-    # =====================================================
-    # 2. SCENARIO BUILDER
-    # =====================================================
-    st.subheader("🚀 Strategy Optimization Scenario")
+# =====================================================
+# 2. SCENARIO BUILDER
+# =====================================================
+st.subheader("🚀 Strategy Optimization Scenario")
 
-    with st.expander("Adjust Optimization Targets", expanded=True):
-        c1, c2, c3 = st.columns(3)
+with st.expander("Adjust Optimization Targets", expanded=True):
+    c1, c2, c3 = st.columns(3)
 
-        opt_ar = c1.slider("Target AR Days", 0, 150, int(curr_ar * 0.8))
-        opt_inv = c2.slider("Target Inv. Days", 0, 150, int(curr_inv * 0.8))
-        opt_ap = c3.slider("Target AP Days", 0, 150, int(curr_ap * 1.2))
+    opt_ar = c1.slider(
+        "Target AR Days",
+        0,
+        150,
+        value=int(curr_ar * 0.8),
+        key=f"slider_ar_days_{curr_ar}",
+        on_change=st.rerun
+    )
 
+    opt_inv = c2.slider(
+        "Target Inv. Days",
+        0,
+        150,
+        value=int(curr_inv * 0.8),
+        key=f"slider_inv_days_{curr_inv}",
+        on_change=st.rerun
+    )
+
+    opt_ap = c3.slider(
+        "Target AP Days",
+        0,
+        150,
+        value=int(curr_ap * 1.2),
+        key=f"slider_ap_days_{curr_ap}",
+        on_change=st.rerun
+    )
+    
     # =====================================================
     # 3. CALCULATIONS (SAFE ENGINE CALL)
     # =====================================================
