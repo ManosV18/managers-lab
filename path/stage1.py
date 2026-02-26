@@ -1,24 +1,50 @@
 import streamlit as st
-from core.sync import sync_global_state, lock_baseline
+from core.engine import calculate_metrics
 
+# --------------------------------
+# Safe sync function (auto lock baseline)
+# --------------------------------
+def safe_sync_global_state():
+    """
+    Returns metrics from sidebar inputs.
+    If baseline not locked, lock it automatically.
+    """
+    s = st.session_state
+    if not s.get('baseline_locked', False):
+        try:
+            s.baseline = calculate_metrics(
+                float(s.get('price', 100.0)),
+                int(s.get('volume', 1000)),
+                float(s.get('variable_cost', 50.0)),
+                float(s.get('fixed_cost', 20000.0)),
+                float(s.get('wacc', 0.15)),
+                float(s.get('tax_rate', 0.22)),
+                float(s.get('ar_days', 45.0)),
+                float(s.get('inventory_days', 60.0)),
+                float(s.get('ap_days', 30.0)),
+                float(s.get('annual_debt_service', 0.0)),
+                float(s.get('opening_cash', 10000.0))
+            )
+            s.baseline_locked = True
+        except Exception as e:
+            st.error(f"Engine Error: {e}")
+            return {}
+    return s.baseline
+
+# --------------------------------
+# Stage 1
+# --------------------------------
 def run_stage1():
     st.header("⚖️ Stage 1: Operating Leverage & Break-Even Analysis")
 
     # -------------------------------
-    # 0. Ensure baseline is locked
+    # 1. Fetch metrics safely
     # -------------------------------
-    if 'baseline_locked' not in st.session_state or not st.session_state.baseline_locked:
-        st.warning("⚠️ Baseline not locked. Locking now using current sidebar inputs...")
-        lock_baseline()
-
-    # -------------------------------
-    # 1. Fetch metrics from engine
-    # -------------------------------
-    m = sync_global_state()
+    m = safe_sync_global_state()
     s = st.session_state
 
     if not m:
-        st.error("Engine returned no metrics. Check that baseline inputs are correct.")
+        st.error("Engine returned no metrics. Check sidebar inputs.")
         st.stop()
 
     # Debug info (can remove in production)
@@ -63,7 +89,7 @@ def run_stage1():
     # 4. Leverage Metrics (DOL)
     # -------------------------------
     st.subheader("Leverage Metrics")
-    total_contribution = float(m.get('total_contribution', 0.0))
+    total_contribution = float(m.get('contribution_margin', 0.0))
     dol = (total_contribution / ebit) if ebit > 0 else 0
     st.write(f"**Degree of Operating Leverage (DOL):** {dol:.2f}")
 
