@@ -11,17 +11,17 @@ def sync_global_state():
     # Defaults για αποφυγή KeyErrors κατά την πρώτη φόρτωση
     try:
         metrics = calculate_metrics(
-            float(s.get('price', 100.0)),           # 1. Τιμή
-            int(s.get('volume', 1000)),             # 2. Όγκος
-            float(s.get('variable_cost', 50.0)),    # 3. Μεταβλητό Κόστος
-            float(s.get('fixed_cost', 20000.0)),    # 4. Σταθερά Έξοδα
-            float(s.get('wacc', 0.15)),             # 5. Κόστος Κεφαλαίου
-            float(s.get('tax_rate', 0.22)),         # 6. Φορολογία
-            float(s.get('ar_days', 45.0)),          # 7. Ημέρες Είσπραξης
-            float(s.get('inventory_days', 60.0)),   # 8. Ημέρες Αποθέματος
-            float(s.get('ap_days', 30.0)),          # 9. Ημέρες Πληρωμής
-            float(s.get('annual_debt', 0.0)),       # 10. Ετήσιο Τοκοχρεολύσιο
-            float(s.get('opening_cash', 10000.0))   # 11. Αρχικά Μετρητά
+            float(s.get('price', 100.0)),                   # 1. Τιμή
+            int(s.get('volume', 1000)),                     # 2. Όγκος
+            float(s.get('variable_cost', 50.0)),            # 3. Μεταβλητό Κόστος
+            float(s.get('fixed_cost', 20000.0)),            # 4. Σταθερά Έξοδα
+            float(s.get('wacc', 0.15)),                     # 5. Κόστος Κεφαλαίου
+            float(s.get('tax_rate', 0.22)),                 # 6. Φορολογία
+            float(s.get('ar_days', 45.0)),                  # 7. Ημέρες Είσπραξης
+            float(s.get('inventory_days', 60.0)),           # 8. Ημέρες Αποθέματος
+            float(s.get('ap_days', 30.0)),                  # 9. Ημέρες Πληρωμής
+            float(s.get('annual_debt_service', 0.0)),       # 10. Ετήσιο Τοκοχρεολύσιο
+            float(s.get('opening_cash', 10000.0))           # 11. Αρχικά Μετρητά
         )
         return metrics
     except Exception as e:
