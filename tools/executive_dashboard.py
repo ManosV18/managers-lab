@@ -3,14 +3,12 @@ import plotly.graph_objects as go
 from core.sync import sync_global_state
 from core.engine import calculate_metrics
 
-
 def _safe_get(key, default=0.0):
     """Safe session_state getter with float casting."""
     try:
         return float(st.session_state.get(key, default))
     except Exception:
         return float(default)
-
 
 def show_executive_dashboard():
     st.header("🏁 Executive Liquidity Command Center")
@@ -22,51 +20,51 @@ def show_executive_dashboard():
     metrics = sync_global_state()
     s = st.session_state
 
+    # --- ΠΡΟΣΟΧΗ: οι τιμές πρέπει να οριστούν πριν το Scenario Builder ---
     curr_ar = _safe_get('ar_days', 60.0)
     curr_inv = _safe_get('inventory_days', 45.0)
     curr_ap = _safe_get('ap_days', 30.0)
-
     wacc = _safe_get('wacc', 0.15)
 
-# =====================================================
-# 2. SCENARIO BUILDER
-# =====================================================
-st.subheader("🚀 Strategy Optimization Scenario")
+    # =====================================================
+    # 2. SCENARIO BUILDER
+    # =====================================================
+    st.subheader("🚀 Strategy Optimization Scenario")
 
-with st.expander("Adjust Optimization Targets", expanded=True):
-    c1, c2, c3 = st.columns(3)
+    with st.expander("Adjust Optimization Targets", expanded=True):
+        c1, c2, c3 = st.columns(3)
 
-    opt_ar = c1.slider(
-        "Target AR Days",
-        0,
-        150,
-        value=int(curr_ar * 0.8),
-        key=f"slider_ar_days_{curr_ar}",
-        on_change=st.rerun
-    )
+        # ===== ΔΥΝΑΜΙΚΑ KEYS ΓΙΑ SYNC ΜΕ SIDEBAR =====
+        opt_ar = c1.slider(
+            "Target AR Days",
+            0,
+            150,
+            value=int(curr_ar * 0.8),
+            key=f"slider_ar_days_{curr_ar}",
+            on_change=st.rerun
+        )
 
-    opt_inv = c2.slider(
-        "Target Inv. Days",
-        0,
-        150,
-        value=int(curr_inv * 0.8),
-        key=f"slider_inv_days_{curr_inv}",
-        on_change=st.rerun
-    )
+        opt_inv = c2.slider(
+            "Target Inv. Days",
+            0,
+            150,
+            value=int(curr_inv * 0.8),
+            key=f"slider_inv_days_{curr_inv}",
+            on_change=st.rerun
+        )
 
-    opt_ap = c3.slider(
-        "Target AP Days",
-        0,
-        150,
-        value=int(curr_ap * 1.2),
-        key=f"slider_ap_days_{curr_ap}",
-        on_change=st.rerun
-    )
-    
+        opt_ap = c3.slider(
+            "Target AP Days",
+            0,
+            150,
+            value=int(curr_ap * 1.2),
+            key=f"slider_ap_days_{curr_ap}",
+            on_change=st.rerun
+        )
+
     # =====================================================
     # 3. CALCULATIONS (SAFE ENGINE CALL)
     # =====================================================
-
     curr_ccc = curr_ar + curr_inv - curr_ap
     opt_ccc = opt_ar + opt_inv - opt_ap
 
@@ -87,7 +85,6 @@ with st.expander("Adjust Optimization Targets", expanded=True):
     )
 
     opt_gap = float(optimized_metrics.get('wc_requirement', 0.0))
-
     cash_released = curr_gap - opt_gap
     annual_savings = cash_released * wacc
 
@@ -125,7 +122,6 @@ with st.expander("Adjust Optimization Targets", expanded=True):
     st.subheader("💰 Financial Upside of Optimization")
 
     m1, m2 = st.columns(2)
-
     m1.metric("Potential Cash Release", f"€ {cash_released:,.2f}")
     m2.metric("Annual WACC Savings", f"€ {annual_savings:,.2f}")
 
@@ -133,33 +129,28 @@ with st.expander("Adjust Optimization Targets", expanded=True):
     # 6. VISUAL GAP ANALYSIS
     # =====================================================
     fig = go.Figure()
-
     fig.add_trace(go.Bar(
         name='Current',
         x=['Inv', 'Rec', 'Pay'],
         y=[curr_inv, curr_ar, -curr_ap],
     ))
-
     fig.add_trace(go.Bar(
         name='Optimized',
         x=['Inv', 'Rec', 'Pay'],
         y=[opt_inv, opt_ar, -opt_ap],
     ))
-
     fig.update_layout(
         barmode='group',
         template="plotly_dark",
         height=350,
         margin=dict(l=20, r=20, t=40, b=20)
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
     # =====================================================
     # 7. VERDICT & SYNC
     # =====================================================
     st.subheader("💡 Cold Analytical Verdict")
-
     if cash_released > 0:
         st.success(
             f"Execution liberates € {cash_released:,.2f}. "
