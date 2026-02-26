@@ -155,13 +155,18 @@ def show_sidebar():
         # =====================================================
         # 6. ACTIONS
         # =====================================================
+        st.divider()
+        
         if not st.session_state.get('baseline_locked', False):
-            if st.button("🔒 Lock Baseline", use_container_width=True):
+            if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
                 lock_baseline()
-                # Auto-move to Stage 1 upon locking
+                # Μετά το κλείδωμα, στέλνουμε τον χρήστη στο Stage 1
                 st.session_state.flow_step = "stage1"
                 st.rerun()
         
+        # ΔΙΟΡΘΩΜΕΝΟ RESET
         if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
             st.session_state.clear()
+            # Instruction: Επαναφορά βασικών μεταβλητών μετά το clear
+            st.session_state.flow_step = "home" 
             st.rerun()
