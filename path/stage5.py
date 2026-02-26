@@ -6,29 +6,27 @@ def run_stage5():
     st.caption("Final Synthesis: Choosing the structural path to viability.")
     st.divider()
 
-    # 1. FINAL SYNC (Secure Access)
     m = sync_global_state()
     s = st.session_state
 
-    # Data Extraction using .get() to prevent crashes
-    fcf = m.get('fcf', 0.0)
-    bep = m.get('survival_bep', 0.0)
-    runway = m.get('runway_months', 0.0)
-    unit_cont = m.get('unit_contribution', 0.0)
-    cash_wall = m.get('cash_wall', 0.0)
-    fixed_cost = s.get('fixed_cost', 0.0)
-    loan = s.get('annual_loan_payment', 0.0)
-    volume = s.get('volume', 0)
+    # Data Extraction (Aligned with Engine)
+    fcf = float(m.get('fcf', 0.0))
+    bep = float(m.get('bep_units', 0.0)) # Διόρθωση ονόματος
+    runway = float(m.get('runway_months', 0.0))
+    unit_cont = float(m.get('unit_contribution', 0.0))
+    fixed_cost = float(s.get('fixed_cost', 0.0))
+    loan = float(s.get('annual_debt_service', 0.0)) # Διόρθωση ονόματος
+    volume = float(s.get('volume', 0))
 
     st.subheader("Current Vital Signs (Post-Intervention)")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Annual FCF", f"{fcf:,.0f} €")
+    c1.metric("Annual FCF", f"€ {fcf:,.0f}")
     c2.metric("Survival BEP", f"{bep:,.0f} Units")
     
-    runway_label = f"{runway:,.1f} Mo" if runway < 100 else "Stable (∞)"
+    runway_label = f"{runway:,.1f} Mo" if (runway < 100 and runway > 0) else "Stable (∞)"
     c3.metric("Final Runway", runway_label, 
-              delta="Target Reached" if runway >= 12 else "Critical", 
-              delta_color="normal" if runway >= 12 else "inverse")
+              delta="Target Reached" if (runway >= 12 or runway < 0) else "Critical", 
+              delta_color="normal" if (runway >= 12 or runway < 0) else "inverse")
 
     # 2. STRATEGIC PIVOT SIMULATION
     st.divider()
@@ -38,14 +36,15 @@ def run_stage5():
                        "Path B: Volume Aggression (Scale)"])
 
     if choice == "Path A: Margin Optimization (Efficiency)":
-        st.info("🎯 **Objective:** Reduce the 'Cash Wall' by improving unit contribution.")
+        st.info("🎯 **Objective:** Reduce the BEP by improving unit contribution.")
         target_inc = st.slider("Target Margin Improvement (€/unit)", 0.0, 100.0, 15.0)
         
         sim_unit_cont = unit_cont + target_inc
-        sim_bep = cash_wall / sim_unit_cont if sim_unit_cont > 0 else 0
+        # BEP = (Fixed Costs + Debt) / Unit Contribution
+        sim_bep = (fixed_cost + loan) / sim_unit_cont if sim_unit_cont > 0 else 0
         
         st.write(f"New Survival BEP: **{sim_bep:,.0f} units**")
-        st.write(f"Volume reduction needed for break-even: **{max(0.0, bep - sim_bep):,.0f} units**")
+        st.write(f"Efficiency Gain (BEP Reduction): **{max(0.0, bep - sim_bep):,.0f} units**")
         
     else:
         st.info("🚀 **Objective:** Outrun fixed costs through aggressive sales growth.")
@@ -54,20 +53,20 @@ def run_stage5():
         sim_vol = volume + target_vol_inc
         sim_fcf = (unit_cont * sim_vol) - (fixed_cost + loan)
         
-        st.write(f"New Projected FCF: **{sim_fcf:,.0f} €**")
-        st.write(f"FCF Delta from Growth: **{sim_fcf - fcf:+.0f} €**")
+        st.write(f"New Projected FCF: **€ {sim_fcf:,.0f}**")
+        st.write(f"FCF Delta from Growth: **€ {sim_fcf - fcf:+.0f}**")
+
+    # 
 
     # 3. THE COLD CONCLUSION
     st.divider()
     st.subheader("Final Mandate")
-    if fcf < 0 and runway < 6:
+    if fcf < 0 and (runway < 6 and runway > 0):
         st.error("❌ **TERMINAL FAILURE:** The system collapses in less than 6 months. Analytical conclusion: Liquidation.")
     elif fcf < 0:
         st.warning("⚠️ **FRAGILE SURVIVAL:** You have bought time, but the business remains structurally deficient.")
     else:
         st.success("✅ **STRUCTURAL VIABILITY:** The business model is now stable. Focus on surplus optimization.")
-
-    
 
     # 4. SYSTEM RESET & NAVIGATION
     st.divider()
