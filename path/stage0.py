@@ -3,23 +3,27 @@ from core.sync import lock_baseline, sync_global_state
 
 def run_stage0():
     st.header("🏗️ Stage 0: Strategic Baseline Setup")
-    st.write("Fill in your core business data below. The sidebar will update automatically.")
+    st.write("Changes made here update the system in real-time.")
     st.divider()
 
     # --- BLOCK 1: REVENUE & VOLUME ---
     st.subheader("📊 Sales & Pricing")
     c1, c2 = st.columns(2)
     
-    # Ενημερώνουμε απευθείας το session_state
-    st.session_state.price = c1.number_input(
+    # Χρησιμοποιούμε το 'key' για να γράφουμε ΑΠΕΥΘΕΙΑΣ στο session_state
+    # που διαβάζει το Sidebar και η Engine.
+    st.number_input(
         "Unit Sales Price (€)", 
+        min_value=0.0,
         value=float(st.session_state.get('price', 100.0)),
-        key="main_price"
+        key='price'  # ΑΥΤΟ ΠΡΕΠΕΙ ΝΑ ΕΙΝΑΙ ΤΟ ΙΔΙΟ ΜΕ ΤΟ SIDEBAR
     )
-    st.session_state.volume = c2.number_input(
+    
+    st.number_input(
         "Planned Annual Volume (Units)", 
+        min_value=0,
         value=int(st.session_state.get('volume', 1000)),
-        key="main_volume"
+        key='volume' # ΑΥΤΟ ΠΡΕΠΕΙ ΝΑ ΕΙΝΑΙ ΤΟ ΙΔΙΟ ΜΕ ΤΟ SIDEBAR
     )
 
     # --- BLOCK 2: COST ANALYSIS ---
@@ -27,59 +31,61 @@ def run_stage0():
     col_a, col_b = st.columns(2)
     
     with col_a:
-        st.markdown("**Variable Costs**")
-        raw_mat = st.number_input("Raw Materials (€/unit)", value=float(st.session_state.get('raw_mat', 30.0)))
-        labor = st.number_input("Direct Labor (€/unit)", value=float(st.session_state.get('labor', 15.0)))
-        ship = st.number_input("Shipping/Other (€/unit)", value=float(st.session_state.get('ship', 5.0)))
+        st.markdown("**Variable Costs Breakdown**")
+        # Εδώ χρησιμοποιούμε προσωρινές μεταβλητές για τον υπολογισμό
+        v1 = st.number_input("Raw Materials (€/unit)", value=30.0, key='tmp_raw')
+        v2 = st.number_input("Direct Labor (€/unit)", value=15.0, key='tmp_labor')
+        v3 = st.number_input("Shipping/Other (€/unit)", value=5.0, key='tmp_ship')
         
-        # Υπολογισμός και ενημέρωση Sidebar
-        total_vc = raw_mat + labor + ship
-        st.session_state.variable_cost = total_vc
-        st.session_state.raw_mat = raw_mat
-        st.session_state.labor = labor
-        st.session_state.ship = ship
-        st.info(f"Total Variable Cost: **€{total_vc:,.2f}**")
+        # Ενημέρωση του κεντρικού variable_cost που βλέπει η Engine
+        st.session_state.variable_cost = v1 + v2 + v3
+        st.info(f"Calculated Variable Cost: **€{st.session_state.variable_cost:,.2f}**")
 
     with col_b:
-        st.markdown("**Fixed Costs (Annual)**")
-        rent = st.number_input("Rent & Utilities (Annual)", value=float(st.session_state.get('rent_ann', 12000.0)))
-        salaries = st.number_input("Admin Salaries (Annual)", value=float(st.session_state.get('sal_ann', 8000.0)))
+        st.markdown("**Fixed Costs Breakdown**")
+        f1 = st.number_input("Monthly Rent (€)", value=1000.0, key='tmp_rent') * 12
+        f2 = st.number_input("Admin Salaries (Annual)", value=10000.0, key='tmp_sal')
         
-        # Υπολογισμός και ενημέρωση Sidebar
-        total_fc = rent + salaries
-        st.session_state.fixed_cost = total_fc
-        st.session_state.rent_ann = rent
-        st.session_state.sal_ann = salaries
-        st.info(f"Total Fixed Costs: **€{total_fc:,.2f}**")
+        # Ενημέρωση του κεντρικού fixed_cost που βλέπει η Engine
+        st.session_state.fixed_cost = f1 + f2
+        st.info(f"Total Fixed Costs: **€{st.session_state.fixed_cost:,.2f}**")
 
     
 
-    # --- BLOCK 3: ADVANCED TOOLS REDIRECT ---
+    # --- BLOCK 3: ENGINE SYNC CHECK ---
     st.divider()
-    st.subheader("⚙️ Advanced Parameters")
-    st.write("For Capital Structure (WACC), Taxes, or Working Capital Days, use the specialized tool:")
+    st.subheader("🔄 Real-Time Engine Sync")
     
-    if st.button("🔧 Open Advanced Capital & WC Tool"):
-        # Εδώ τον στέλνουμε στη βιβλιοθήκη ή αλλάζουμε το flow
-        st.session_state.flow_step = "library" 
-        st.rerun()
+    # Καλούμε το sync_global_state ΓΙΑ ΝΑ ΔΟΥΜΕ αν η engine πήρε τα νέα νούμερα
+    # Χωρίς να κλειδώσουμε ακόμα, απλά για preview
+    try:
+        from core.engine import calculate_metrics
+        # Προσωρινός υπολογισμός για να βλέπει ο χρήστης ότι "δουλεύει"
+        preview_metrics = calculate_metrics(
+            st.session_state.price,
+            st.session_state.volume,
+            st.session_state.variable_cost,
+            st.session_state.fixed_cost,
+            st.session_state.get('wacc', 0.15),
+            st.session_state.get('tax_rate', 0.22),
+            st.session_state.get('ar_days', 45.0),
+            st.session_state.get('inventory_days', 60.0),
+            st.session_state.get('ap_days', 30.0),
+            st.session_state.get('annual_debt_service', 0.0),
+            st.session_state.get('opening_cash', 10000.0)
+        )
+        st.write(f"**Current EBIT Preview:** €{preview_metrics['ebit']:,.2f}")
+    except:
+        st.warning("Engine is waiting for valid data inputs...")
 
     # --- FINAL LOCK ---
     st.divider()
-    st.subheader("✅ Finalize Baseline")
-    
-    # Έλεγχος Margin
-    if st.session_state.price <= st.session_state.variable_cost:
-        st.error("⚠️ Negative Margin! Check your Price vs Variable Costs.")
-    else:
-        if st.button("🔒 Lock Data & Initialize Engine", use_container_width=True):
-            lock_baseline()
-            st.session_state.flow_step = "stage1"
-            st.rerun()
-
-    if st.session_state.get('baseline_locked', False):
-        st.success("System Status: **LOCKED & READY**")
-        if st.button("Reset Baseline"):
-            st.session_state.baseline_locked = False
-            if 'baseline' in st.session_state: del st.session_state.baseline
-            st.rerun()
+    if st.button("🔒 Lock & Update All Stages", use_container_width=True):
+        # ΠΡΟΣΟΧΗ: Διαγράφουμε το παλιό baseline για να αναγκάσουμε την Engine 
+        # να πάρει τα ΦΡΕΣΚΑ νούμερα
+        if 'baseline' in st.session_state:
+            del st.session_state.baseline
+        
+        lock_baseline() 
+        st.success("System Updated! Metrics are now synced across all stages.")
+        st.rerun()
