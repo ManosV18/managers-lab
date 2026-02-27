@@ -29,7 +29,7 @@ def run_home():
 
     st.divider()
 
-    # --- QUICK ACTIONS (The Navigation Fix) ---
+    # --- QUICK ACTIONS ---
     st.subheader("Strategic Navigation")
     col1, col2 = st.columns(2)
     
@@ -37,12 +37,12 @@ def run_home():
         with st.expander("🚀 Getting Started", expanded=True):
             st.write("Define your unit economics and fixed costs.")
             if st.button("Go to Stage 0", key="h_btn_s0", use_container_width=True):
-                st.session_state.flow_step = "stage0" # Καμία αναφορά σε mode
+                st.session_state.flow_step = "stage0"
                 st.rerun()
 
     with col2:
         with st.expander("📚 Library & Tools", expanded=True):
             st.write("Access specialized calculators and strategic tools.")
             if st.button("Open Library", key="h_btn_lib", use_container_width=True):
-                st.session_state.flow_step = "library" # Καμία αναφορά σε mode
+                st.session_state.flow_step = "library"
                 st.rerun()
