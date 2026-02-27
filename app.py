@@ -2,7 +2,7 @@ import streamlit as st
 from ui.sidebar import show_sidebar
 from ui.home import run_home
 
-# Stage modules
+# Stage modules - Standard Imports
 try:
     from path.stage0 import run_stage0
     from path.stage1 import run_stage1
@@ -29,12 +29,15 @@ step = st.session_state.flow_step
 if step == "home":
     run_home()
 elif step == "library":
-    # ΔΙΟΡΘΩΣΗ: Καλούμε το αρχείο tools.py που είναι μέσα στο core
-    from core.tools import show_library
+    # ΕΔΩ Η ΑΛΛΑΓΗ: Καλούμε το νέο όνομα αρχείου
+    from core.tools_registry import show_library
     show_library()
 elif step.startswith("stage"):
-    # Δυναμική κλήση των stages για συντομία
-    globals()[f"run_{step}"]()
+    # Δυναμική κλήση των stages
+    try:
+        globals()[f"run_{step}"]()
+    except KeyError:
+        st.error(f"Function run_{step} not found.")
 else:
     st.warning(f"Step '{step}' not found. Redirecting to Home.")
     st.session_state.flow_step = "home"
