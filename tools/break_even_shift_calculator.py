@@ -3,43 +3,46 @@ import plotly.graph_objects as go
 from core.sync import sync_global_state
 
 def show_break_even_shift_calculator():
-    # 1. FETCH DATA (Η κρίσιμη σύνδεση)
+    # 1. FETCH DATA (Σύνδεση με την κεντρική Engine)
     metrics = sync_global_state()
     s = st.session_state
     
     st.header("⚖️ Break-even Shift Analysis")
     st.info("Analyze how changes in fixed costs or unit margins shift your survival threshold.")
 
-    # 2. SECURE VARIABLE RETRIEVAL (Διορθωμένα Keys)
-    # Προσθήκη loan payment αν υπάρχει, αλλιώς 0.0
-    current_fixed = float(s.get('fixed_cost', 0.0)) + float(s.get('annual_loan_payment', 0.0))
+    # 2. SECURE VARIABLE RETRIEVAL (Συγχρονισμός με Stage 0)
+    # Χρησιμοποιούμε το 'annual_debt_service' για να ταυτίζεται με το Stage 0
+    current_fixed = float(s.get('fixed_cost', 0.0)) + float(s.get('annual_debt_service', 0.0))
     
-    # Τραβάμε το Unit Contribution που υπολογίζει η Engine
+    # Unit Contribution από την Engine (Price - Variable Cost)
     current_unit_cm = float(metrics.get('unit_contribution', 0.0))
     
-    # Τραβάμε το BEP Units (το σωστό key από το Stage 5)
+    # Break-even Units από την Engine
     current_bep = float(metrics.get('bep_units', 0.0))
 
-    # Έλεγχος αν υπάρχουν δεδομένα για να προχωρήσουμε
+    # Error handling για μηδενικό περιθώριο
     if current_unit_cm <= 0:
         st.error("🚨 Unit Margin is zero or negative. Break-even cannot be calculated.")
+        st.warning("Please check your Price and Variable Cost settings in Stage 0.")
+        if st.button("Go to Stage 0"):
+            st.session_state.flow_step = "stage0"
+            st.rerun()
         return
 
-    # 3. SHIFT PARAMETERS
+    # 3. SHIFT PARAMETERS (Προσομοίωση μεταβολών)
     st.subheader("🛠️ Shift Scenarios")
     col1, col2 = st.columns(2)
     
-    # Μεταβολές +/- (όπως στο Stage 4)
-    fixed_change_pct = col1.slider("Change in Fixed Costs (%)", -50, 50, 0)
-    margin_change_pct = col2.slider("Change in Unit Margin (%)", -50, 50, 0)
+    fixed_change_pct = col1.slider("Change in Fixed Costs (%)", -50, 50, 0, key="be_fixed_shift")
+    margin_change_pct = col2.slider("Change in Unit Margin (%)", -50, 50, 0, key="be_margin_shift")
 
-    # 4. CALCULATIONS (Cold Analysis)
+    # 4. CALCULATIONS (Cold Analysis Logic)
     new_fixed = current_fixed * (1 + fixed_change_pct / 100)
     new_unit_cm = current_unit_cm * (1 + margin_change_pct / 100)
     
+    # Νέο Break-even Point
     new_bep = new_fixed / new_unit_cm if new_unit_cm > 0 else 0.0
     bep_shift = new_bep - current_bep
-    # Αποφυγή διαίρεσης με το μηδέν
     bep_shift_pct = (bep_shift / current_bep * 100) if current_bep > 0 else 0.0
 
     # 5. RESULTS DASHBOARD
@@ -74,14 +77,14 @@ def show_break_even_shift_calculator():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # 7. COLD ANALYSIS VERDICT
+    # 7. ANALYST'S VERDICT (Based on User Preference: No Emotional Charge)
     st.subheader("🧠 Analyst's Verdict")
     if bep_shift_pct > 15:
-        st.error(f"🚨 **STRUCTURAL FRAGILITY:** The survival threshold has moved up by **{bep_shift_pct:.1f}%**. This requires a radical increase in sales volume or immediate cost-cutting.")
+        st.error(f"🚨 **STRUCTURAL FRAGILITY:** The survival threshold has increased by **{bep_shift_pct:.1f}%**. This indicates higher operational leverage risk.")
     elif bep_shift_pct < -5:
-        st.success(f"✅ **RESILIENCE INCREASE:** The system's break-even dropped by **{abs(bep_shift_pct):.1f}%**. Your safety buffer is expanding.")
+        st.success(f"✅ **RESILIENCE INCREASE:** The break-even point has dropped by **{abs(bep_shift_pct):.1f}%**. Margin of safety has expanded.")
     else:
-        st.info("ℹ️ **STABLE:** The structural risk remains within historical baseline parameters.")
+        st.info("ℹ️ **STABLE:** Structural risk remains within baseline tolerance levels.")
 
     # 8. NAVIGATION
     st.divider()
