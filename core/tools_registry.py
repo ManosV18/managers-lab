@@ -34,6 +34,7 @@ def show_payables_manager_internal():
 
 # --- MAIN LIBRARY FUNCTION ---
 def show_library():
+    # 1. Sidebar navigation
     if st.sidebar.button("🏠 Exit Library", key="exit_lib"):
         st.session_state.mode = "path"
         st.session_state.flow_step = "home"
@@ -42,6 +43,7 @@ def show_library():
 
     st.title("🏛️ Strategic Tool Library")
 
+    # 2. Tool Routing
     if st.session_state.get('selected_tool') is None:
         t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
         
@@ -59,11 +61,17 @@ def show_library():
             if st.button("🧭 QSPM Strategy Matrix", use_container_width=True, key="btn_qspm"):
                 st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool")
                 st.rerun()
-
+            if st.button("👥 CLV Simulator", use_container_width=True, key="btn_clv"):
+                st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
+                st.rerun()
+        
         with t2:
             st.subheader("Financial Engineering")
             if st.button("📉 WACC Optimizer", use_container_width=True, key="btn_wacc"):
                 st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
+                st.rerun()
+            if st.button("📈 Growth Funding (AFN)", use_container_width=True, key="btn_afn"):
+                st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
                 st.rerun()
             if st.button("⚖️ Loan vs Leasing Analyzer", use_container_width=True, key="btn_lvl"):
                 st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
@@ -71,27 +79,54 @@ def show_library():
 
         with t3:
             st.subheader("Tactical Execution")
+            if st.button("🔄 Cash Conversion Cycle (CCC)", use_container_width=True, key="btn_ccc"):
+                st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
+                st.rerun()
             if st.button("📊 Receivables Analyzer (NPV)", use_container_width=True, key="btn_receivables"):
                 st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
+                st.rerun()
+            if st.button("📦 Inventory Optimizer (EOQ)", use_container_width=True, key="btn_inv"):
+                st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
                 st.rerun()
             if st.button("🤝 Payables Manager", use_container_width=True, key="btn_payables"):
                 st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
                 st.rerun()
+            if st.button("🔢 Unit Cost Analyzer", use_container_width=True, key="btn_uc"):
+                st.session_state.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app")
+                st.rerun()
 
         with t4:
             st.subheader("Executive Command & Risk")
+            if st.button("🏁 Executive Command Center", use_container_width=True, key="btn_exec"):
+                st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard")
+                st.rerun()
+            if st.button("🚨 Cash Fragility Index", use_container_width=True, key="btn_frag"):
+                st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
+                st.rerun()
             if st.button("🛡️ Resilience & Shock Map", use_container_width=True, key="btn_res"):
                 st.session_state.selected_tool = ("resilience_map", "show_resilience_map")
                 st.rerun()
 
     else:
+        # 3. Execution Mode
         mod_name, func_name = st.session_state.selected_tool
         
+        # Back button for non-internal tools
+        if mod_name != "INTERNAL":
+            if st.button("⬅️ Back to Library Hub", key="global_back"):
+                st.session_state.selected_tool = None
+                st.rerun()
+            st.divider()
+
+        # Execute
         if mod_name == "INTERNAL":
-            globals()[func_name]()
+            if func_name in globals():
+                globals()[func_name]()
+            else:
+                st.error(f"Internal function '{func_name}' not found.")
         else:
             try:
-                # Δυναμικός εντοπισμός του φακέλου tools σε σχέση με το παρόν αρχείο
+                # Δυναμικός εντοπισμός του φακέλου tools σε σχέση με το παρόν αρχείο (core/tools/)
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
                 
@@ -105,7 +140,7 @@ def show_library():
                     tool_func = getattr(module, func_name)
                     tool_func()
             except Exception as e:
-                st.error(f"❌ Σφάλμα φόρτωσης '{mod_name}': {e}")
-                if st.button("Reset Selection"):
+                st.error(f"❌ Error loading '{mod_name}': {e}")
+                if st.button("Reset Selection", key="error_reset"):
                     st.session_state.selected_tool = None
                     st.rerun()
