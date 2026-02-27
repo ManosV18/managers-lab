@@ -1,3 +1,4 @@
+import streamlit as st
 def loan_vs_leasing_ui():
     st.header("📊 Loan vs Leasing – Analytical Tool")
     
