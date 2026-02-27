@@ -95,7 +95,10 @@ def show_library():
             if st.button("🚨 Cash Fragility Index", use_container_width=True, key="btn_frag"):
                 st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
                 st.rerun()
-
+            if st.button("🛡️ Cash Flow Stress Test", use_container_width=True, key="btn_stress"):
+                st.session_state.selected_tool = ("stress_test_simulator", "show_stress_test_simulator")
+                st.rerun()
+            
     else:
         mod_name, func_name = st.session_state.selected_tool
         
