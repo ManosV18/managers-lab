@@ -29,22 +29,13 @@ step = st.session_state.flow_step
 if step == "home":
     run_home()
 elif step == "library":
-    from core.library import show_library
+    # ΔΙΟΡΘΩΣΗ: Καλούμε το αρχείο tools.py που είναι μέσα στο core
+    from core.tools import show_library
     show_library()
-elif step == "stage0":
-    run_stage0()
-elif step == "stage1":
-    run_stage1()
-elif step == "stage2":
-    run_stage2()
-elif step == "stage3":
-    run_stage3()
-elif step == "stage4":
-    run_stage4()
-elif step == "stage5":
-    run_stage5()
+elif step.startswith("stage"):
+    # Δυναμική κλήση των stages για συντομία
+    globals()[f"run_{step}"]()
 else:
     st.warning(f"Step '{step}' not found. Redirecting to Home.")
     st.session_state.flow_step = "home"
     st.rerun()
-
