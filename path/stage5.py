@@ -86,31 +86,52 @@ def run_stage5():
     else:
         st.warning("Both strategies are balanced. Professional judgment required for final selection.")
 
-    # 5. DETAILED METRICS REVIEW (Clean UI Alignment)
+    # 5. DETAILED METRICS REVIEW
     with st.expander("🔍 Detailed System Metrics Review", expanded=False):
-        st.write("Full breakdown of calculated engine outputs for internal audit:")
+        st.write("### 🔑 Key Performance Indicators")
         
-        # Προετοιμασία δεδομένων για εμφάνιση (Formatting)
+        # 1. Executive Summary Grid (Τα σημαντικά που ζήτησες)
+        col_k1, col_k2 = st.columns(2)
+        
+        # Υπολογισμός τιμών με 2 δεκαδικά
+        ebit_val = f"€ {m.get('ebit', 0):,.2f}"
+        fcf_val = f"€ {m.get('fcf', 0):,.2f}"
+        ocf_val = f"€ {m.get('ocf', 0):,.2f}"
+        ccc_val = f"{m.get('ccc', 0):,.2f} Days"
+        bep_val = f"{m.get('bep_units', 0):,.2f} Units"
+        wc_req_val = f"€ {m.get('wc_requirement', 0):,.2f}"
+
+        with col_k1:
+            st.markdown(f"**EBIT:** {ebit_val}")
+            st.markdown(f"**Free Cash Flow:** {fcf_val}")
+            st.markdown(f"**Operating Cash Flow:** {ocf_val}")
+            
+        with col_k2:
+            st.markdown(f"**Cash Conversion Cycle:** {ccc_val}")
+            st.markdown(f"**Break-Even Point (Units):** {bep_val}")
+            st.markdown(f"**Working Capital Requirements:** {wc_req_val}")
+
+        st.divider()
+        
+        # 2. Full Analytical Table (Όλα τα υπόλοιπα metrics)
+        st.write("### 📜 Full Engine Output")
         data_rows = []
         for key, value in m.items():
-            # Μετατροπή των ονομάτων από snake_case σε Title Case (π.χ. bep_units -> BEP Units)
             label = key.replace('_', ' ').title()
             
-            # Μορφοποίηση ανάλογα με το αν είναι ευρώ ή μονάδα
+            # Smart Formatting Logic
             if any(word in key for word in ['revenue', 'ebit', 'fcf', 'ocf', 'position', 'requirement', 'contribution', 'wall']):
-                formatted_value = f"€ {value:,.22f}"[:-20] # Διατήρηση 2 δεκαδικών με σωστό στρογγυλοποίηση
                 formatted_value = f"€ {value:,.2f}"
             elif 'ratio' in key or 'pct' in key:
                 formatted_value = f"{value:.2%}"
+            elif 'days' in key or 'ccc' in key:
+                formatted_value = f"{value:,.2f} Days"
             else:
                 formatted_value = f"{value:,.2f}"
             
             data_rows.append({"Metric": label, "Value": formatted_value})
 
-        # Δημιουργία DataFrame για καθαρή στοίχιση
         df_metrics = pd.DataFrame(data_rows)
-        
-        # Εμφάνιση πίνακα που καταλαμβάνει όλο το πλάτος (CSS-like styling)
         st.table(df_metrics)
 
     # 6. SYSTEM RESET
