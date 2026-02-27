@@ -1,13 +1,16 @@
+import streamlit as st
+# Η κρίσιμη γραμμή που λείπει:
+from core.sync import sync_global_state 
+
 def run_cash_cycle_app():
-    """Stage 2: Cash Conversion Cycle Analysis"""
+    # Τώρα η συνάρτηση είναι ορισμένη και θα παίξει
     metrics = sync_global_state()
     s = st.session_state
-
-    # ΑΣΦΑΛΕΙΑ: Αν δεν υπάρχουν δεδομένα, σταμάτα
+    
     if not metrics:
-        st.warning("⚠️ Baseline not locked. Please initialize Stage 0.")
+        st.warning("⚠️ Baseline not locked.")
         return
-
+    
     st.header("💰 Cash Conversion Cycle (CCC)")
     
     # 1. FETCH BASELINE DATA
@@ -77,5 +80,6 @@ def run_cash_cycle_app():
     if st.button("Apply & Back to Library Hub", type="primary"):
         st.session_state.selected_tool = None
         st.rerun()
+
 
 
