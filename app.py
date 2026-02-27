@@ -6,8 +6,7 @@ from ui.home import run_home
 try:
     from path.stage0 import run_stage0
     from path.stage1 import run_stage1
-    # Stage 2 → Executive Dashboard
-    from tools.executive_dashboard import show_executive_dashboard as run_stage2
+    from path.stage2 import run_stage2
     from path.stage3 import run_stage3
     from path.stage4 import run_stage4
     from path.stage5 import run_stage5
@@ -48,3 +47,4 @@ else:
     st.warning(f"Step '{step}' not found. Redirecting to Home.")
     st.session_state.flow_step = "home"
     st.rerun()
+
