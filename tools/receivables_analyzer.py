@@ -145,3 +145,19 @@ def show_receivables_analyzer_ui():
             
             st.info("Global Baseline Updated: AR Days and Volume synchronized.")
             st.rerun()
+
+# ΣΤΡΑΤΗΓΙΚΗ ΕΝΗΜΕΡΩΣΗ BASELINE
+        st.divider()
+        st.subheader("🎯 Συγχρονισμός με το Στρατηγικό Πλάνο")
+        
+        if st.button("🚀 Εφαρμογή Νέας Πολιτικής στο Baseline", use_container_width=True, type="primary"):
+            # 1. Ενημέρωση των Ημερών Είσπραξης (AR Days)
+            st.session_state.ar_days = d_new
+            
+            # 2. Ενημέρωση των Πωλήσεων (Extra Sales)
+            # Υπολογίζουμε πόσο % αυξάνονται οι πωλήσεις
+            growth_factor = float(1 + (e_sales / c_sales))
+            st.session_state.volume = float(st.session_state.get('volume', 0)) * growth_factor
+            
+            st.success(f"✅ Το Baseline ενημερώθηκε! Νέες Πωλήσεις: €{c_sales + e_sales:,.0f} και AR Days: {d_new}")
+            st.rerun()
