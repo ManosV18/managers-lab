@@ -86,8 +86,8 @@ def show_library():
         # TAB 2: Οικονομική Μηχανική (Πώς διαχειρίζομαι το κεφάλαιο;)
         with tabs[1]:
             st.subheader("Capital & Funding Optimization")
-            if st.button("⚖️ CAPEX: Loan vs Leasing Analyzer", use_container_width=True):
-                st.session_state.selected_tool = ("INTERNAL", "show_loan_vs_leasing_standalone")
+            if st.button("⚖️ Loan vs Leasing Analyzer", use_container_width=True):
+                st.session_state.selected_tool = ("INTERNAL", "loan_vs_leasing_ui") # <--- ΕΔΩ ΠΡΕΠΕΙ ΝΑ ΛΕΕΙ loan_vs_leasing_ui
                 st.rerun()
             if st.button("📉 WACC Optimizer (Cost of Capital)", use_container_width=True):
                 st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
