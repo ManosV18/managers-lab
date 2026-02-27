@@ -1,5 +1,5 @@
 import streamlit as st
-import importlib
+import importlib.util
 import os
 import sys
 
@@ -34,6 +34,7 @@ def show_payables_manager_internal():
 
 # --- MAIN LIBRARY FUNCTION ---
 def show_library():
+    # 1. Sidebar navigation
     if st.sidebar.button("🏠 Exit Library", key="exit_lib"):
         st.session_state.mode = "path"
         st.session_state.flow_step = "home"
@@ -42,6 +43,7 @@ def show_library():
 
     st.title("🏛️ Strategic Tool Library")
 
+    # 2. Tool Routing Logic
     if st.session_state.get('selected_tool') is None:
         t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
         
@@ -106,6 +108,7 @@ def show_library():
                 st.rerun()
 
     else:
+        # 3. Execution Logic
         mod_name, func_name = st.session_state.selected_tool
         
         if mod_name != "INTERNAL":
@@ -119,29 +122,23 @@ def show_library():
                 globals()[func_name]()
             else:
                 st.error(f"Internal function '{func_name}' not found.")
-        
         else:
             try:
-                # 1. Βρίσκουμε την ακριβή διαδρομή του αρχείου
-                # Υποθέτουμε ότι ο φάκελος 'tools' είναι στο ίδιο επίπεδο με το 'core' ή στο root
+                # Δυναμική φόρτωση από τον φάκελο /tools
                 current_dir = os.getcwd()
                 file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
                 
-                # 2. Φόρτωση του module απευθείας από το αρχείο (Spec Loading)
                 spec = importlib.util.spec_from_file_location(mod_name, file_path)
                 if spec is None:
-                    st.error(f"❌ Το αρχείο {mod_name}.py δεν βρέθηκε μέσα στο φάκελο /tools")
+                    st.error(f"❌ File tools/{mod_name}.py not found.")
                 else:
                     module = importlib.util.module_from_spec(spec)
                     sys.modules[mod_name] = module
                     spec.loader.exec_module(module)
-                    
-                    # 3. Εκτέλεση της συνάρτησης
                     tool_func = getattr(module, func_name)
                     tool_func()
-                    
             except Exception as e:
-                st.error(f"❌ Σφάλμα φόρτωσης '{mod_name}': {e}")
+                st.error(f"❌ Error loading tool '{mod_name}': {e}")
                 if st.button("Reset Selection", key="error_reset"):
                     st.session_state.selected_tool = None
                     st.rerun()
