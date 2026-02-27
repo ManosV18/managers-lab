@@ -1,35 +1,36 @@
 import streamlit as st
 from ui.sidebar import show_sidebar
 from ui.home import run_home
-from ui.library import show_library
 
-# 🛠️ Κεντρικά Imports - Εδώ είναι όλη η δύναμη του War Room
+# Stage modules
 try:
     from path.stage0 import run_stage0
     from path.stage1 import run_stage1
-    # Αν το Stage 2 είναι το Executive Dashboard
+    # Stage 2 → Executive Dashboard
     from tools.executive_dashboard import show_executive_dashboard as run_stage2
-    from path.stage3 import run_stage3  # Liquidity Physics
-    from path.stage4 import run_stage4  # Stress Testing
-    from path.stage5 import run_stage5  # Recovery/QSPM Decision
+    from path.stage3 import run_stage3
+    from path.stage4 import run_stage4
+    from path.stage5 import run_stage5
 except ImportError as e:
     st.error(f"Module Loading Error: {e}")
 
+# Page config
 st.set_page_config(page_title="Strategic Decision Room", layout="wide")
 
-# DNA Initialization
+# Initialize session
 if 'flow_step' not in st.session_state:
     st.session_state.flow_step = "home"
 
-# Εμφάνιση Sidebar (που πλέον αλλάζει μόνο το flow_step)
+# Show sidebar
 show_sidebar()
 
-# --- Ο ΚΑΘΑΡΟΣ ROUTER (Single Source of Truth) ---
+# --- ROUTER ---
 step = st.session_state.flow_step
 
 if step == "home":
     run_home()
 elif step == "library":
+    from ui.library import show_library
     show_library()
 elif step == "stage0":
     run_stage0()
@@ -47,4 +48,3 @@ else:
     st.warning(f"Step '{step}' not found. Redirecting to Home.")
     st.session_state.flow_step = "home"
     st.rerun()
-
