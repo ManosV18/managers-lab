@@ -39,24 +39,6 @@ def show_loss_threshold_before_price_cut():
             st.error("⚠️ Please ensure all inputs are valid numbers.")
             return
 
-        # 1. Scenario Table (Mirroring Excel)
-        st.subheader("📊 Scenario Overview")
-        summary_df = pd.DataFrame({
-            "Description": [
-                "Competitor Original Price",
-                "Competitor New Price",
-                "Our Selling Price",
-                "Our Unit Cost (COGS)"
-            ],
-            "Value": [
-                f"€ {c_old:,.2f}",
-                f"€ {c_new:,.2f}",
-                f"€ {o_price:,.2f}",
-                f"€ {u_cost:,.2f}"
-            ]
-        })
-        st.table(summary_df.set_index("Description"))
-
         # 2. Calculation
         result = calculate_sales_loss_threshold(c_old, c_new, o_price, u_cost)
 
