@@ -71,13 +71,22 @@ def show_library():
             globals()[func_name]()
         else:
             try:
-                # Εδώ καλούμε τα εργαλεία από τον ΦΑΚΕΛΟ core/tools/
-                module = importlib.import_module(f"core.tools.{mod_name}")
+                # 1. Καθορίζουμε το σωστό path: core.tools
+                full_module_path = f"core.tools.{mod_name}"
+                
+                # 2. Φορτώνουμε το module
+                module = importlib.import_module(full_module_path)
                 importlib.reload(module)
+                
+                # 3. Παίρνουμε τη συνάρτηση (π.χ. show_break_even_shift_calculator)
                 tool_func = getattr(module, func_name)
+                
+                # 4. Την τρέχουμε
                 tool_func()
+                
             except Exception as e:
                 st.error(f"❌ Error loading tool: {e}")
+                st.info(f"Attempted to load: core.tools.{mod_name}")
                 if st.button("Reset Selection"):
                     st.session_state.selected_tool = None
                     st.rerun()
