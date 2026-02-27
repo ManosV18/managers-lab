@@ -37,6 +37,8 @@ def show_sidebar():
         # Αν αλλάξει η επιλογή, αλλάζουμε ΜΟΝΟ το flow_step
         if nav_options[selection] != current_step:
             st.session_state.flow_step = nav_options[selection]
+            # ΠΡΟΣΘΗΚΗ: Μηδενίζουμε το εργαλείο για να ανοίγει η Library καθαρή
+            st.session_state.selected_tool = None 
             st.rerun()
 
         st.divider()
