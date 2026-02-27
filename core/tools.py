@@ -119,10 +119,12 @@ def show_library():
         # Execute
         if mod_name == "INTERNAL":
             globals()[func_name]()
+        # --- Βρες αυτό το κομμάτι στο αρχείο μέσα στον φάκελο core ---
         else:
             try:
+                # Εδώ είναι η διόρθωση:
                 module = importlib.import_module(f"core.tools.{mod_name}")
-                importlib.reload(module)  # Essential for current development
+                importlib.reload(module)
                 tool_func = getattr(module, func_name)
                 tool_func()
             except Exception as e:
