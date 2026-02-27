@@ -1,18 +1,26 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.sync import sync_global_state  # Αλλαγή εδώ
 
-def show_stress_test_simulator():
+def show_stress_test_tool():  # Renamed to match the registry exactly
     st.header("🛡️ Cash Flow Stress Test & Scenario Planning")
+    st.info("Simulate shocks to revenue, costs, and collection cycles to test your business resilience.")
     
-    # 1. FETCH DATA
-    metrics = sync_global_state() # Χρήση του sync αντί για compute_core_metrics
+    # 1. FETCH DATA DIRECTLY FROM SESSION STATE (Analytical Approach)
     s = st.session_state
     
-    base_rev = metrics.get('revenue', 0.0)
-    base_profit = metrics.get('fcf', 0.0)
-    base_dso = s.get('ar_days', 45)
+    # Base metrics from Stage 0 or defaults
+    price = float(s.get('price', 100.0))
+    vc = float(s.get('variable_cost', 60.0))
+    unit_contribution = price - vc
+    volume = float(s.get('volume', 10000))
+    
+    base_rev = price * volume
+    base_fixed_costs = float(s.get('fixed_cost', 200000.0))
+    base_ebitda = (unit_contribution * volume) - base_fixed_costs
+    base_tax = max(0, base_ebitda * 0.22)
+    base_loan = float(s.get('annual_loan_payment', 50000.0))
+    base_profit = base_ebitda - base_tax - base_loan
     
     # 2. SCENARIO INPUTS (SHOCKS)
     st.subheader("⚠️ Scenario Parameters (The Shock)")
@@ -24,16 +32,15 @@ def show_stress_test_simulator():
 
     # 3. IMPACT CALCULATIONS
     new_rev = base_rev * (1 + rev_shock)
+    new_volume = volume * (1 + rev_shock)
     
     # Liquidity Drain due to DSO delay: (Revenue/365) * extra days
     liquidity_impact = (new_rev / 365) * dso_shock
     
-    # New Profit impact: (Unit Contribution * New Volume) - New Fixed Costs - Debt - Tax
-    # Προσεγγιστικός υπολογισμός βάσει του shock
-    new_volume = s.get('volume', 0) * (1 + rev_shock)
-    new_ebitda = (metrics['unit_contribution'] * new_volume) - (s.get('fixed_cost', 0) * (1 + cost_shock))
-    new_tax = max(0, new_ebitda * s.get('tax_rate', 0.22))
-    new_profit = new_ebitda - new_tax - s.get('annual_loan_payment', 0)
+    # New Profit impact
+    new_ebitda = (unit_contribution * new_volume) - (base_fixed_costs * (1 + cost_shock))
+    new_tax = max(0, new_ebitda * 0.22)
+    new_profit = new_ebitda - new_tax - base_loan
     
     total_cash_gap = liquidity_impact + (base_profit - new_profit)
 
@@ -46,9 +53,7 @@ def show_stress_test_simulator():
     m3.metric("Total Liquidity Gap", f"€ {total_cash_gap:,.0f}", delta="Immediate Risk", delta_color="inverse")
 
     # 5. AUTOMATIC MITIGATION LOGIC
-    st.subheader("🛠️ Automatic Mitigation Strategy")
-    st.write("How to close the liquidity gap through Working Capital optimization:")
-    
+    st.subheader("🛠️ Mitigation Strategy")
     if total_cash_gap > 0:
         req_dso_reduction = (total_cash_gap * 365) / new_rev if new_rev > 0 else 0
         
@@ -56,19 +61,19 @@ def show_stress_test_simulator():
         with col_a:
             st.warning(f"**Option A: DSO Tightening**\nYou need to reduce collection time by **{req_dso_reduction:.1f} days** to offset the gap.")
         with col_b:
-            # Mitigation via Inventory (using variable costs from state)
-            approx_cogs = new_volume * s.get('variable_cost', 0)
+            approx_cogs = new_volume * vc
             req_inv_reduction = (total_cash_gap / approx_cogs * 100) if approx_cogs > 0 else 0
             st.warning(f"**Option B: Inventory Lean**\nYou need a **{req_inv_reduction:.1f}%** reduction in average stock levels.")
     else:
-        st.success("The system is self-sustaining under this scenario. No emergency mitigation required.")
+        st.success("🟢 The system is self-sustaining under this scenario. No emergency mitigation required.")
 
     # 6. SURVIVAL GAUGE
-    # Υπολογισμός Resilience βάσει του νέου Profit και του Gap
     resilience_score = 100
     if new_profit < 0: resilience_score -= 40
     if total_cash_gap > (base_rev * 0.1): resilience_score -= 40
-    resilience_score = max(0, resilience_score + (rev_shock * 50))
+    resilience_score = max(0, min(100, resilience_score + (rev_shock * 50)))
+    
+    
     
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
@@ -92,6 +97,6 @@ def show_stress_test_simulator():
     else:
         st.info("ℹ️ **MANAGEABLE STRESS:** Operational levers (DSO/Inventory) can bridge this gap.")
 
-    if st.button("Back to Library Hub"):
+    if st.button("⬅️ Back to Library Hub", use_container_width=True):
         st.session_state.selected_tool = None
         st.rerun()
