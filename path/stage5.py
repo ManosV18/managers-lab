@@ -86,9 +86,32 @@ def run_stage5():
     else:
         st.warning("Both strategies are balanced. Professional judgment required for final selection.")
 
-    # 5. RISK SUMMARY (Προσθήκη από το 1ο αρχείο για πλήρη εικόνα)
-    with st.expander("📊 Detailed Metrics Review", expanded=False):
-        st.json(m)
+    # 5. DETAILED METRICS REVIEW (Clean UI Alignment)
+    with st.expander("🔍 Detailed System Metrics Review", expanded=False):
+        st.write("Full breakdown of calculated engine outputs for internal audit:")
+        
+        # Προετοιμασία δεδομένων για εμφάνιση (Formatting)
+        data_rows = []
+        for key, value in m.items():
+            # Μετατροπή των ονομάτων από snake_case σε Title Case (π.χ. bep_units -> BEP Units)
+            label = key.replace('_', ' ').title()
+            
+            # Μορφοποίηση ανάλογα με το αν είναι ευρώ ή μονάδα
+            if any(word in key for word in ['revenue', 'ebit', 'fcf', 'ocf', 'position', 'requirement', 'contribution', 'wall']):
+                formatted_value = f"€ {value:,.22f}"[:-20] # Διατήρηση 2 δεκαδικών με σωστό στρογγυλοποίηση
+                formatted_value = f"€ {value:,.2f}"
+            elif 'ratio' in key or 'pct' in key:
+                formatted_value = f"{value:.2%}"
+            else:
+                formatted_value = f"{value:,.2f}"
+            
+            data_rows.append({"Metric": label, "Value": formatted_value})
+
+        # Δημιουργία DataFrame για καθαρή στοίχιση
+        df_metrics = pd.DataFrame(data_rows)
+        
+        # Εμφάνιση πίνακα που καταλαμβάνει όλο το πλάτος (CSS-like styling)
+        st.table(df_metrics)
 
     # 6. SYSTEM RESET
     st.divider()
