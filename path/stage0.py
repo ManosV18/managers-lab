@@ -1,5 +1,5 @@
 import streamlit as st
-from core.sync import lock_baseline, sync_global_state
+from core.sync import lock_baseline
 
 def run_stage0():
     st.header("🏗️ Stage 0: Strategic Baseline Setup")
@@ -11,22 +11,21 @@ def run_stage0():
     st.session_state.price = c1.number_input("Unit Price (€)", value=float(st.session_state.get('price', 100.0)))
     st.session_state.volume = c2.number_input("Annual Volume", value=int(st.session_state.get('volume', 1000)))
 
-    # SECTION 2: COSTS (The Analyzer)
+    # SECTION 2: COSTS
     st.subheader("💰 Cost Structure Analyzer")
     col_a, col_b = st.columns(2)
     
     with col_a:
         st.markdown("**Variable Costs**")
-        v1 = st.number_input("Materials (€/unit)", value=30.0, key='in_mat')
-        v2 = st.number_input("Labor (€/unit)", value=15.0, key='in_lab')
+        v1 = st.number_input("Materials (€/unit)", value=30.0, key='in_mat', format="%.2f")
+        v2 = st.number_input("Labor (€/unit)", value=15.0, key='in_lab', format="%.2f")
         st.session_state.variable_cost = v1 + v2
         st.info(f"Total VC: €{st.session_state.variable_cost:,.2f}")
 
     with col_b:
         st.markdown("**Fixed Costs (Annual)**")
-        # Αφαιρούμε το * 12 και αλλάζουμε την κεφαλίδα για απόλυτη καθαρότητα
-        f1 = st.number_input("Annual Rent & Utilities (€)", value=12000.0, key='in_rent')
-        f2 = st.number_input("Annual Salaries & Admin (€)", value=8000.0, key='in_sal')
+        f1 = st.number_input("Annual Rent & Utilities (€)", value=12000.0, key='in_rent', format="%.2f")
+        f2 = st.number_input("Annual Salaries & Admin (€)", value=8000.0, key='in_sal', format="%.2f")
         st.session_state.fixed_cost = f1 + f2
         st.info(f"Total Fixed: €{st.session_state.fixed_cost:,.2f}")
     
