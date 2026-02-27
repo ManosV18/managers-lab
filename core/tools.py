@@ -15,7 +15,7 @@ def show_payables_manager_internal():
         annual_purch = st.number_input("Annual Purchase Volume (€)", value=1000000, key="int_ann_purch")
         wacc = st.number_input("Cost of Capital / Interest (%)", value=10.0, key="int_wacc") / 100
 
-    # Calculation based on instruction [2026-02-18] (365 days)
+    # Calculation based on instruction [2026-02-18]
     disc_gain = annual_purch * disc_prc * cash_take
     opp_cost = (annual_purch * cash_take * (cred_days / 365)) * wacc
     net_benefit = disc_gain - opp_cost
@@ -73,7 +73,7 @@ def show_library():
             globals()[func_name]()
         else:
             try:
-                # Η ΚΡΙΣΙΜΗ ΔΙΟΡΘΩΣΗ PATH
+                # Εδώ η Python κοιτάζει μέσα στο core/tools/ για τα αρχεία .py
                 module = importlib.import_module(f"core.tools.{mod_name}")
                 importlib.reload(module)
                 tool_func = getattr(module, func_name)
