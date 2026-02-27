@@ -12,40 +12,38 @@ def run_stage4():
         st.warning("⚠️ Baseline not locked. Please return to Stage 0.")
         return
 
-    st.caption("Multi-factor sensitivity analysis for structural resilience.")
+    st.caption("Analytical focus: Multi-factor sensitivity and margin volatility analysis.")
     st.divider()
 
-    # 2. SHOCK PARAMETERS (Εδώ είναι τα νέα μέτρα που ζήτησες)
-    st.subheader("Shock Parameters")
+    # 2. SHOCK PARAMETERS (Δυνατότητα για +/- μεταβολές)
+    st.subheader("Scenario Parameters (% Change)")
     c_sh1, c_sh2 = st.columns(2)
     
     with c_sh1:
-        # Μέτρο 1: Ποσότητα
-        vol_shock = st.slider("Volume Contraction (%)", 0, 100, 20)
-        # Μέτρο 2: Τιμή
-        price_shock = st.slider("Price Erosion (%)", 0, 50, 10)
+        # Μεταβολή Ποσότητας & Τιμής (+/-)
+        vol_change = st.slider("Volume Change (%)", -50, 50, -20, help="Positive = Growth, Negative = Contraction")
+        price_change = st.slider("Price Change (%)", -50, 50, -10, help="Positive = Premium increase, Negative = Discounting")
         
     with c_sh2:
-        # Μέτρο 3: Μεταβλητά Έξοδα
-        vc_shock = st.slider("VC Inflation (%)", 0, 50, 15)
-        # Μέτρο 4: Σταθερά Έξοδα
-        fc_shock = st.slider("Fixed Cost Increase (%)", 0, 50, 10)
+        # Μεταβολή Variable & Fixed Cost (+/-)
+        vc_change = st.slider("Variable Cost Change (%)", -50, 50, 15, help="Positive = Inflation, Negative = Efficiency gains")
+        fc_change = st.slider("Fixed Cost Change (%)", -50, 50, 10, help="Positive = Expansion/Overheads, Negative = Cost cutting")
 
     # 3. DETERMINISTIC CALCULATION (Cold Analysis)
-    # Παίρνουμε τις καθαρές τιμές από το session_state
+    # Baseline Values
     b_price = float(s.get('price', 100.0))
     b_vol = float(s.get('volume', 1000.0))
     b_vc = float(s.get('variable_cost', 60.0))
     b_fc = float(s.get('fixed_cost', 20000.0))
     b_ebit = float(m.get('ebit', 0.0))
 
-    # Εφαρμογή των Shocks
-    sim_price = b_price * (1 - price_shock/100)
-    sim_vol = b_vol * (1 - vol_shock/100)
-    sim_vc = b_vc * (1 + vc_shock/100)
-    sim_fc = b_fc * (1 + fc_shock/100)
+    # Applied Changes (Simulated Values)
+    sim_price = b_price * (1 + price_change/100)
+    sim_vol = b_vol * (1 + vol_change/100)
+    sim_vc = b_vc * (1 + vc_change/100)
+    sim_fc = b_fc * (1 + fc_change/100)
 
-    # Υπολογισμός νέου EBIT
+    # Simulated EBIT Formula
     sim_ebit = ((sim_price - sim_vc) * sim_vol) - sim_fc
     delta_ebit = sim_ebit - b_ebit
 
@@ -54,16 +52,32 @@ def run_stage4():
     st.subheader("Simulation Results")
     res1, res2, res3 = st.columns(3)
     
-    res1.metric("Simulated EBIT", f"€ {sim_ebit:,.0f}", delta=f"€ {delta_ebit:,.0f}", delta_color="inverse")
+    # EBIT Impact
+    res1.metric("Simulated EBIT", f"€ {sim_ebit:,.0f}", delta=f"€ {delta_ebit:,.0f}", delta_color="normal")
     
+    # Simulated Margin
     sim_margin = (sim_price - sim_vc) / sim_price if sim_price > 0 else 0
-    res2.metric("Simulated Margin", f"{sim_margin:.1%}")
+    base_margin = (b_price - b_vc) / b_price if b_price > 0 else 0
+    res2.metric("Simulated Margin", f"{sim_margin:.1%}", delta=f"{(sim_margin - base_margin):.1%}")
     
-    status = "RESILIENT" if sim_ebit > 0 else "VULNERABLE"
-    color = "green" if status == "RESILIENT" else "red"
-    res3.markdown(f"**Status:**\n### :{color}[{status}]")
+    # System Status
+    if sim_ebit > b_ebit:
+        status, color = "OPTIMIZED", "green"
+    elif sim_ebit > 0:
+        status, color = "RESILIENT", "blue"
+    else:
+        status, color = "VULNERABLE", "red"
+        
+    res3.markdown(f"**System Status:**\n### :{color}[{status}]")
 
-    # 5. NAVIGATION
+    # 5. VISUAL IMPACT ANALYSIS
+    st.write(f"**EBIT Sensitivity Mapping:**")
+    if b_ebit != 0:
+        impact_pct = (delta_ebit / abs(b_ebit))
+        st.progress(min(max(abs(impact_pct)/2, 0.0), 1.0)) # Normalized view
+        st.caption(f"The simulated changes represent a {impact_pct:+.1%} variance from baseline EBIT.")
+
+    # 6. NAVIGATION
     st.divider()
     c_nav1, c_nav2 = st.columns(2)
     if c_nav1.button("⬅️ Back to Stage 3", use_container_width=True):
