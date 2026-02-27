@@ -78,27 +78,28 @@ def show_library():
                 import sys
                 import importlib.util
 
-                # 1. Δυναμικός εντοπισμός του αρχείου στον δίσκο
+                # 1. Βρίσκουμε το απόλυτο path του αρχείου
                 current_dir = os.path.dirname(os.path.abspath(__file__))
+                # Κατασκευάζουμε τη διαδρομή: core/tools/όνομα_αρχείου.py
                 file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
 
-                # 2. Φόρτωση του module απευθείας από το path (Brute Force)
+                # 2. Φόρτωση χωρίς να βασιζόμαστε στο "core.tools" (Direct Path Loading)
                 spec = importlib.util.spec_from_file_location(mod_name, file_path)
                 if spec is None:
-                    raise FileNotFoundError(f"Το αρχείο {mod_name}.py δεν βρέθηκε στο {file_path}")
+                    raise FileNotFoundError(f"File not found at {file_path}")
                 
                 module = importlib.util.module_from_spec(spec)
-                # Καταχώρηση στη μνήμη για αποφυγή του "parent not in sys.modules"
-                sys.modules[mod_name] = module 
+                # Το προσθέτουμε στο sys.modules για να μην βγάζει το error "not in sys.modules"
+                sys.modules[f"core.tools.{mod_name}"] = module 
                 spec.loader.exec_module(module)
                 
-                # 3. Εύρεση και εκτέλεση της συνάρτησης
+                # 3. Εκτέλεση της συνάρτησης
                 tool_func = getattr(module, func_name)
                 tool_func()
                 
             except Exception as e:
                 st.error(f"❌ Critical Load Error: {e}")
-                st.info(f"Path: {file_path if 'file_path' in locals() else 'Unknown'}")
-                if st.button("Reset Selection", key="final_reset"):
+                st.info(f"Checking Path: {file_path}")
+                if st.button("Reset Selection", key="final_res"):
                     st.session_state.selected_tool = None
                     st.rerun()
