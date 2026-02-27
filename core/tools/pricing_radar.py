@@ -1,11 +1,14 @@
 import streamlit as st
-from core.sync import sync_global_state
 import pandas as pd
 
-def show_pricing_power_radar():
-    st.header("🎯 Pricing Power Radar")
-    st.write("Resilience Analysis: How much volume can you lose if you increase the price?")
-    
+def show_pricing_radar():
+    st.header("📡 Strategic Pricing Radar")
+    st.info("Resilience Analysis: How much volume can you lose if you increase the price?")
+        
+    if st.button("⬅️ Back to Library"):
+        st.session_state.selected_tool = None
+        st.rerun()
+
     # 1. FETCH DATA SAFELY
     m = sync_global_state()
     s = st.session_state
