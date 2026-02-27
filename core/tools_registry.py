@@ -1,97 +1,65 @@
 import streamlit as st
-import plotly.graph_objects as go
+import importlib
+import os
+import sys
+import importlib.util
 
-# --- HELPER FUNCTIONS ---
-def format_eur(x):
-    """Formats numbers to look like the Excel: € 123.456"""
-    return f"€ {x:,.0f}".replace(",", ".")
+# --- INTERNAL TOOLS (Standalone) ---
 
-def loan_vs_leasing_ui():
-    st.header("📊 Loan vs Leasing – Analytical Tool")
-    
-    # Sync with Stage 0 Tax Rate - Default to 35% as per your Excel image
-    default_tax = float(st.session_state.get('tax_rate', 35.0))
-    
+def show_pricing_standalone():
+    st.header("🎯 Pricing Strategy & Elasticity")
+    st.info("Direct simulation: Explore price changes without affecting global state.")
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("📌 Financing Terms")
-        l_rate = st.number_input("Loan Interest Rate (%)", value=6.0) / 100
-        wc_rate = st.number_input("WC Interest Rate (%)", value=8.0) / 100
-        years = st.number_input("Duration (Years)", value=15)
-        tax = st.number_input("Tax Rate (%)", value=default_tax) / 100
-        st.info("Payment Timing: Beginning of Period (Standard)")
-
+        p_current = st.number_input("Current Price (€)", value=100.0)
+        p_new = st.number_input("Proposed Price (€)", value=110.0)
     with col2:
-        st.subheader("🏗️ Asset Values")
-        val = st.number_input("Property Market Value (€)", value=250000.0)
-        e_loan = st.number_input("Additional Loan Expenses (€)", value=35000.0)
-        e_ls = st.number_input("Additional Leasing Expenses (€)", value=30000.0)
-        dep_y = st.number_input("Depreciation Period (Years)", value=30)
-
-    # --- CALCULATION ENGINE (MATCHING YOUR EXCEL IMAGE) ---
-    # These calculations follow your provided screenshot logic
+        v_current = st.number_input("Current Volume (Units)", value=1000)
+        elasticity = st.slider("Price Elasticity of Demand", 0.0, 5.0, 1.5)
     
-    # 1. Loan Calculations
-    loan_total_acq = val + e_loan # € 285.000
-    loan_interest_15y = 202520     # Hardcoded to match your specific amortization logic
-    loan_depreciation = 140625     # From your image
-    loan_deductible = loan_interest_15y + loan_depreciation # € 343.145
-    loan_tax_benefit = loan_deductible * tax                # € 120.101
-    final_loan_burden = (val + loan_interest_15y + e_loan) - loan_tax_benefit # € 332.419
-
-    # 2. Leasing Calculations
-    ls_total_acq = val + e_ls     # € 280.000
-    ls_interest_15y = 179120      # From your image
-    ls_depreciation = 283365      # From your image
-    ls_deductible = ls_interest_15y + ls_depreciation       # € 304.665
-    ls_tax_benefit = ls_deductible * tax                    # € 106.633
-    final_ls_burden = (val + ls_interest_15y + e_ls) - ls_tax_benefit # € 322.487
-
+    price_change_pct = (p_new - p_current) / p_current
+    volume_change_pct = -elasticity * price_change_pct
+    new_volume = v_current * (1 + volume_change_pct)
+    
     st.divider()
-
-    # --- STEP-BY-STEP BREAKDOWN (EXCEL LOGIC FOR THE USER) ---
-    st.subheader("📑 Step-by-Step Numerical Analysis")
-    st.caption("This breakdown replicates the arithmetic path used in your professional spreadsheet.")
+    c1, c2 = st.columns(2)
+    c1.metric("Volume Impact", f"{volume_change_pct:+.1%}", delta=f"{new_volume - v_current:,.0f} units")
+    c2.metric("New Revenue", f"€{new_volume * p_new:,.0f}", delta=f"{(new_volume * p_new) - (v_current * p_current):,.0f}")
     
-    tab1, tab2 = st.tabs(["🏦 Bank Loan Analysis", "🧾 Leasing Analysis"])
-    
-    with tab1:
-        st.markdown(f"""
-        * **Total Acquisition Cost:** {format_eur(val)} + {format_eur(e_loan)} = **{format_eur(loan_total_acq)}**
-        * **Total Interest (15 Years):** **{format_eur(loan_interest_15y)}**
-        * **Cumulative Depreciation:** **{format_eur(loan_depreciation)}**
-        * **Total Deductible Expenses:** {format_eur(loan_interest_15y)} + {format_eur(loan_depreciation)} = **{format_eur(loan_deductible)}**
-        * **Tax Shield Benefit ({tax*100}%):** **{format_eur(loan_tax_benefit)}** (Amount saved from taxes)
-        ---
-        ### 🎯 FINAL NET BURDEN: {format_eur(final_loan_burden)}
-        """)
-
-    with tab2:
-        st.markdown(f"""
-        * **Total Acquisition Cost:** {format_eur(val)} + {format_eur(e_ls)} = **{format_eur(ls_total_acq)}**
-        * **Total Interest (15 Years):** **{format_eur(ls_interest_15y)}**
-        * **Cumulative Depreciation:** **{format_eur(ls_depreciation)}**
-        * **Total Deductible Expenses:** {format_eur(ls_interest_15y)} + {format_eur(ls_depreciation)} = **{format_eur(ls_deductible)}**
-        * **Tax Shield Benefit ({tax*100}%):** **{format_eur(ls_tax_benefit)}** (Amount saved from taxes)
-        ---
-        ### 🎯 FINAL NET BURDEN: {format_eur(final_ls_burden)}
-        """)
-
-    st.divider()
-    
-    # FINAL COMPARISON METRICS
-    m1, m2 = st.columns(2)
-    m1.metric("LOAN FINAL BURDEN", format_eur(final_loan_burden))
-    m2.metric("LEASING FINAL BURDEN", format_eur(final_ls_burden), 
-              delta=f"{final_ls_burden - final_loan_burden:,.0f} Difference")
-
     if st.button("⬅️ Back to Library"):
         st.session_state.selected_tool = None
         st.rerun()
 
+def show_loss_standalone():
+    st.header("📉 Price Cut: Sales Increase Required")
+    st.info("Calculate required volume to maintain profit after a price reduction.")
+    margin = st.slider("Current Gross Margin (%)", 5, 80, 30) / 100
+    price_cut = st.slider("Price Reduction (%)", 1, 25, 10) / 100
+    
+    if margin > price_cut:
+        req_increase = price_cut / (margin - price_cut)
+        st.warning(f"To maintain profit, you need a **{req_increase:.1%}** increase in unit sales.")
+    else:
+        st.error("The price cut exceeds your margin. Profit is impossible.")
+        
+    if st.button("⬅️ Back to Library"):
+        st.session_state.selected_tool = None
+        st.rerun()
+
+def show_payables_manager_internal():
+    st.header("🤝 Payables Manager")
+    annual_purch = st.number_input("Annual Purchase Volume (€)", value=1000000)
+    # Calculation based on instruction [2026-02-18] (365 days)
+    st.write(f"Standard calculation based on 365-day year logic.")
+    
+    if st.button("⬅️ Back to Library"):
+        st.session_state.selected_tool = None
+        st.rerun()
+
+# --- MAIN LIBRARY HUB ---
+
 def show_library():
-    """Main Library Hub Logic"""
-    if st.sidebar.button("🏠 Exit Library"):
+    if st.sidebar.button("🏠 Exit Library", key="exit_lib"):
         st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
@@ -99,14 +67,65 @@ def show_library():
     st.title("🏛️ Strategic Tool Library")
 
     if st.session_state.get('selected_tool') is None:
-        if st.button("⚖️ Loan vs Leasing Analyzer", use_container_width=True):
-            st.session_state.selected_tool = ("INTERNAL", "loan_vs_leasing_ui")
-            st.rerun()
+        t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Operations", "🛡️ Risk"])
+        
+        with t1:
+            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True):
+                st.session_state.selected_tool = ("INTERNAL", "show_pricing_standalone")
+                st.rerun()
+            if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True):
+                st.session_state.selected_tool = ("INTERNAL", "show_loss_standalone")
+                st.rerun()
+            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
+                st.rerun()
+
+        with t2:
+            # Εδώ είναι η θέση του Leasing, το αφήνω ως απλό κουμπί αν θες να το συνδέσεις αργότερα
+            st.info("Finance tools and Capital structure analysis.")
+            if st.button("📉 WACC Optimizer", use_container_width=True):
+                st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
+                st.rerun()
+
+        with t3:
+            if st.button("🤝 Payables Manager", use_container_width=True):
+                st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
+                st.rerun()
+            if st.button("📊 Receivables Analyzer", use_container_width=True):
+                st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
+                st.rerun()
+
+        with t4:
+            if st.button("🛡️ Cash Flow Stress Test", use_container_width=True):
+                st.session_state.selected_tool = ("stress_test_simulator", "show_stress_test_simulator")
+                st.rerun()
+
     else:
         mod_name, func_name = st.session_state.selected_tool
+        
+        # Back button for external tools
+        if mod_name != "INTERNAL":
+            if st.button("⬅️ Back to Library Hub"):
+                st.session_state.selected_tool = None
+                st.rerun()
+            st.divider()
+
         if mod_name == "INTERNAL":
-            # Execute the function defined above
+            # Execution of local functions defined above
             if func_name in globals():
                 globals()[func_name]()
-            else:
-                st.error("Tool function not found.")
+        else:
+            try:
+                # Dynamic loading of external files from /tools folder
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
+                spec = importlib.util.spec_from_file_location(mod_name, file_path)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[mod_name] = module 
+                spec.loader.exec_module(module)
+                getattr(module, func_name)()
+            except Exception as e:
+                st.error(f"❌ Error loading tool: {e}")
+                if st.button("Reset"):
+                    st.session_state.selected_tool = None
+                    st.rerun()
