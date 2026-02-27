@@ -46,7 +46,10 @@ def show_library():
             if st.button("👥 CLV Simulator", use_container_width=True, key="btn_clv"):
                 st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
                 st.rerun()
-        
+        # ΚΟΥΜΠΙ 2: ΤΟ ΝΕΟ ΣΟΥ ΕΡΓΑΛΕΙΟ (ΠΡΟΣΘΗΚΗ)
+            if st.button("⚖️ Break Even Shift Analysis", use_container_width=True, key="btn_be"):
+                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
+                st.rerun()
         with t3:
             if st.button("📊 Receivables Analyzer", use_container_width=True, key="btn_receivables"):
                 st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
