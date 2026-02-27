@@ -1,4 +1,36 @@
 import streamlit as st
+
+def format_eur(amount):
+    return f"€{amount:,.0f}"
+
+def calculate_final_burden(l_rate, wc_rate, years, val, l_fin, ls_fin, e_loan, e_ls, resid, dep_y, tax, pay_when):
+    # Loan Logic
+    loan_amount = val * l_fin
+    pmt_l = (loan_amount * l_rate) / (1 - (1 + l_rate)**-years)
+    total_int_l = (pmt_l * years) - loan_amount
+    total_dep_l = (val / dep_y) * years
+    tax_shield_l = (total_int_l + total_dep_l + e_loan) * tax
+    final_loan = (val + e_loan + total_int_l) - tax_shield_l
+    
+    # Leasing Logic
+    ls_amount = val * ls_fin
+    pmt_ls = (ls_amount * l_rate) / (1 - (1 + l_rate)**-years)
+    total_int_ls = (pmt_ls * years) - ls_amount
+    # Στο leasing συνήθως εκπίπτει όλο το μίσθωμα ή μεγάλο μέρος του
+    tax_shield_ls = (total_int_ls + (val - resid) + e_ls) * tax
+    final_ls = (val + e_ls + total_int_ls + resid) - tax_shield_ls
+
+    return {
+        'int_l': total_int_l,
+        'dep_l': total_dep_l,
+        'tax_l': tax_shield_l,
+        'final_loan': final_loan,
+        'int_ls': total_int_ls,
+        'dep_ls': (val - resid),
+        'tax_ls': tax_shield_ls,
+        'final_ls': final_ls
+    }
+
 def loan_vs_leasing_ui():
     st.header("📊 Loan vs Leasing – Analytical Tool")
     
@@ -29,7 +61,7 @@ def loan_vs_leasing_ui():
 
     st.divider()
 
-    # --- ΕΔΩ ΕΙΝΑΙ Η ΑΝΑΛΥΣΗ ΠΟΥ ΘΕΛΕΙ Ο ΧΡΗΣΤΗΣ (EXCEL STYLE) ---
+    # --- ΑΝΑΛΥΣΗ ---
     st.subheader("📑 Πώς προκύπτουν τα νούμερα (Ανάλυση)")
     
     t_l, t_ls = st.tabs(["🏦 Ανάλυση Δανείου", "🧾 Ανάλυση Leasing"])
@@ -57,6 +89,6 @@ def loan_vs_leasing_ui():
     c1.metric("🏦 ΤΕΛΙΚΟ ΒΑΡΟΣ ΔΑΝΕΙΟΥ", format_eur(res['final_loan']))
     c2.metric("🧾 ΤΕΛΙΚΟ ΒΑΡΟΣ LEASING", format_eur(res['final_ls']))
 
-    if st.button("⬅️ Επιστροφή"):
+    if st.button("⬅️ Back to Library Hub", key="lvl_back"):
         st.session_state.selected_tool = None
         st.rerun()
