@@ -86,40 +86,35 @@ def run_stage5():
     else:
         st.warning("Both strategies are balanced. Professional judgment required for final selection.")
 
-    # 5. DETAILED METRICS REVIEW
-    with st.expander("🔍 Detailed System Metrics Review", expanded=False):
-        st.write("### 🔑 Key Performance Indicators")
+    # 5. DETAILED METRICS REVIEW (Clean Table Format)
+    with st.expander("🔍 Full Engine Output Review", expanded=False):
+        st.write("Comprehensive analysis of all system variables with 2-decimal precision:")
         
-        # 1. Executive Summary Grid (Τα σημαντικά που ζήτησες)
-        col_k1, col_k2 = st.columns(2)
-        
-        # Υπολογισμός τιμών με 2 δεκαδικά
-        ebit_val = f"€ {m.get('ebit', 0):,.2f}"
-        fcf_val = f"€ {m.get('fcf', 0):,.2f}"
-        ocf_val = f"€ {m.get('ocf', 0):,.2f}"
-        ccc_val = f"{m.get('ccc', 0):,.2f} Days"
-        bep_val = f"{m.get('bep_units', 0):,.2f} Units"
-        wc_req_val = f"€ {m.get('wc_requirement', 0):,.2f}"
-
-        with col_k1:
-            st.markdown(f"**EBIT:** {ebit_val}")
-            st.markdown(f"**Free Cash Flow:** {fcf_val}")
-            st.markdown(f"**Operating Cash Flow:** {ocf_val}")
-            
-        with col_k2:
-            st.markdown(f"**Cash Conversion Cycle:** {ccc_val}")
-            st.markdown(f"**Break-Even Point (Units):** {bep_val}")
-            st.markdown(f"**Working Capital Requirements:** {wc_req_val}")
-
-        st.divider()
-        
-        # 2. Full Analytical Table (Όλα τα υπόλοιπα metrics)
-        st.write("### 📜 Full Engine Output")
+        # Λίστα για τη συλλογή των δεδομένων
         data_rows = []
+        
+        # Λογική αντιστοίχισης τεχνικών ονομάτων με επίσημους οικονομικούς όρους
+        friendly_names = {
+            'ebit': 'EBIT',
+            'fcf': 'Free Cash Flow',
+            'ocf': 'Operating Cash Flow',
+            'ccc': 'Cash Conversion Cycle',
+            'bep_units': 'Break-Even Point (Units)',
+            'wc_requirement': 'Working Capital Requirements',
+            'net_cash_position': 'Net Cash Position',
+            'runway_months': 'Cash Runway (Months)',
+            'cash_wall': 'Annual Cash Wall',
+            'revenue': 'Projected Revenue',
+            'unit_contribution': 'Unit Contribution',
+            'contribution_margin': 'Total Contribution Margin',
+            'contribution_ratio': 'Contribution Margin Ratio'
+        }
+
         for key, value in m.items():
-            label = key.replace('_', ' ').title()
+            # Χρήση του friendly name αν υπάρχει, αλλιώς μετατροπή του key
+            label = friendly_names.get(key, key.replace('_', ' ').title())
             
-            # Smart Formatting Logic
+            # Μορφοποίηση ανάλογα με τον τύπο του metric
             if any(word in key for word in ['revenue', 'ebit', 'fcf', 'ocf', 'position', 'requirement', 'contribution', 'wall']):
                 formatted_value = f"€ {value:,.2f}"
             elif 'ratio' in key or 'pct' in key:
@@ -129,8 +124,9 @@ def run_stage5():
             else:
                 formatted_value = f"{value:,.2f}"
             
-            data_rows.append({"Metric": label, "Value": formatted_value})
+            data_rows.append({"Financial Metric": label, "Value": formatted_value})
 
+        # Δημιουργία και εμφάνιση του πίνακα
         df_metrics = pd.DataFrame(data_rows)
         st.table(df_metrics)
 
