@@ -31,6 +31,19 @@ def run_stage0():
     
     st.divider()
     
+    # SECTION 3: FINANCIAL & RISK (Hidden but Important)
+    with st.expander("⚙️ Advanced Financial Settings"):
+        c1, c2, c3 = st.columns(3)
+        st.session_state.wacc = c1.number_input("Cost of Capital (WACC %)", value=float(s.get('wacc', 0.15)), format="%.2f")
+        st.session_state.tax_rate = c2.number_input("Tax Rate (%)", value=float(s.get('tax_rate', 0.22)), format="%.2f")
+        st.session_state.annual_debt_service = c3.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)))
+
+        st.markdown("**Working Capital Assumptions (Days)**")
+        d1, d2, d3 = st.columns(3)
+        st.session_state.ar_days = d1.number_input("AR Days", value=45)
+        st.session_state.inventory_days = d2.number_input("Inv Days", value=60)
+        st.session_state.ap_days = d3.number_input("AP Days", value=30)
+    
     # LOCK LOGIC
     if st.button("🔒 Lock Baseline & Initialize Engine", use_container_width=True):
         if st.session_state.price > st.session_state.variable_cost:
