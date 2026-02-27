@@ -2,48 +2,25 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def run_stage2():
-    st.header("💳 Stage 2: Capital Structure & Debt Sustainability")
+    st.header("🏁 Stage 2: Executive Dashboard")
     
-    # 1. FETCH DATA
-    m = sync_global_state()
-    s = st.session_state
+    metrics = sync_global_state()
+    is_locked = st.session_state.get('baseline_locked', False)
 
-    st.caption("Evaluating the cost of capital and the system's ability to service financial obligations.")
+    if not is_locked:
+        st.info("💡 Please complete Stage 0 to lock baseline parameters.")
+        return
+
+    st.subheader("📊 Key Metrics Overview")
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Revenue", f"€{metrics.get('revenue',0):,.0f}")
+    c2.metric("EBIT", f"€{metrics.get('ebit',0):,.0f}")
+    c3.metric("Free Cash Flow", f"€{metrics.get('fcf',0):,.0f}")
+    c4.metric("Break-Even Units", f"{metrics.get('bep_units',0):,.0f}")
+
     st.divider()
-
-    # 2. FINANCIAL DATA
-    c1, c2, c3 = st.columns(3)
-    
-    # Secure access using .get()
-    wacc = s.get('wacc', 0.15)
-    debt_service = s.get('annual_loan_payment', 0.0)
-    ebit = m.get('ebit', 0.0)
-    
-    c1.metric("WACC", f"{wacc:.1%}", help="Weighted Average Cost of Capital")
-    c2.metric("Annual Debt Load", f"{debt_service:,.0f} €")
-    
-    dscr = (ebit / debt_service) if debt_service > 0 else 5.0
-    c3.metric("DSCR", f"{dscr:.2f}x", 
-              delta="Optimal" if dscr > 1.25 else "Distressed",
-              delta_color="normal" if dscr > 1.25 else "inverse")
-
-    # 3. ANALYSIS
-    st.subheader("Solvency Assessment")
-    if dscr < 1.0:
-        st.error("🚨 **CRITICAL FAIL:** Operating profit is insufficient to cover debt. System is insolvent without external funding.")
-    elif dscr < 1.25:
-        st.warning("⚠️ **VULNERABILITY:** Minimal cushion for error. Cash flow volatility may lead to default.")
-    else:
-        st.success("✅ **STABLE STRUCTURE:** Debt service is well-covered by operating performance.")
-
-    # 4. NAVIGATION
-    st.divider()
-    col_prev, col_next = st.columns(2)
-    with col_prev:
-        if st.button("⬅️ Back to Stage 1"):
-            st.session_state.flow_step = "stage1"
-            st.rerun()
-    with col_next:
-        if st.button("Proceed to Stage 3 ➡️"):
-            st.session_state.flow_step = "stage3"
-            st.rerun()
+    st.subheader("📌 Liquidity & Runway")
+    st.write(f"Net Cash Position: €{metrics.get('net_cash_position',0):,.0f}")
+    st.write(f"Cash Runway (Months): {metrics.get('runway_months',0):.1f}")
+    st.write(f"Cash Wall: €{metrics.get('cash_wall',0):,.0f}")
