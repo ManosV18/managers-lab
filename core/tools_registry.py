@@ -1,5 +1,8 @@
 import streamlit as st
 import importlib
+import os
+import sys
+import importlib.util
 
 # --- INTERNAL TOOL: PAYABLES MANAGER ---
 def show_payables_manager_internal():
@@ -40,25 +43,57 @@ def show_library():
     st.title("🏛️ Strategic Tool Library")
 
     if st.session_state.get('selected_tool') is None:
-        t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Operations", "🛡️ Risk"])
+        t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
         
         with t1:
+            st.subheader("Core Strategy & Growth")
+            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True, key="btn_pricing"):
+                st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool")
+                st.rerun()
+            if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True, key="btn_loss"):
+                st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
+                st.rerun()
+            if st.button("⚖️ BEP Shift Analysis", use_container_width=True, key="btn_be"):
+                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
+                st.rerun()
             if st.button("👥 CLV Simulator", use_container_width=True, key="btn_clv"):
                 st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
                 st.rerun()
-        # ΚΟΥΜΠΙ 2: ΤΟ ΝΕΟ ΣΟΥ ΕΡΓΑΛΕΙΟ (ΠΡΟΣΘΗΚΗ)
-            if st.button("⚖️ Break Even Shift Analysis", use_container_width=True, key="btn_be"):
-                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
+        
+        with t2:
+            st.subheader("Financial Engineering")
+            if st.button("📉 WACC Optimizer", use_container_width=True, key="btn_wacc"):
+                st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
                 st.rerun()
+            if st.button("📈 Growth Funding (AFN)", use_container_width=True, key="btn_afn"):
+                st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
+                st.rerun()
+            if st.button("⚖️ Loan vs Leasing Analyzer", use_container_width=True, key="btn_lvl"):
+                st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui")
+                st.rerun()
+
         with t3:
+            st.subheader("Tactical Execution")
+            if st.button("🔄 Cash Conversion Cycle (CCC)", use_container_width=True, key="btn_ccc"):
+                st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
+                st.rerun()
             if st.button("📊 Receivables Analyzer", use_container_width=True, key="btn_receivables"):
                 st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
                 st.rerun()
             if st.button("📦 Inventory Optimizer", use_container_width=True, key="btn_inv"):
                 st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
                 st.rerun()
-            if st.button("🤝 Payables Manager", use_container_width=True, key="btn_payables"):
+            if st.button("🤝 Payables Manager", use_container_width=True, key="btn_pay_internal"):
                 st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
+                st.rerun()
+
+        with t4:
+            st.subheader("Executive Command & Risk")
+            if st.button("🏁 Executive Command Center", use_container_width=True, key="btn_exec"):
+                st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard")
+                st.rerun()
+            if st.button("🚨 Cash Fragility Index", use_container_width=True, key="btn_frag"):
+                st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
                 st.rerun()
 
     else:
@@ -74,32 +109,24 @@ def show_library():
             globals()[func_name]()
         else:
             try:
-                import os
-                import sys
-                import importlib.util
-
-                # 1. Βρίσκουμε το απόλυτο path του αρχείου
+                # DYNAMIC FILE LOADING (Αποφυγή ModuleNotFoundError)
                 current_dir = os.path.dirname(os.path.abspath(__file__))
-                # Κατασκευάζουμε τη διαδρομή: core/tools/όνομα_αρχείου.py
                 file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
 
-                # 2. Φόρτωση χωρίς να βασιζόμαστε στο "core.tools" (Direct Path Loading)
                 spec = importlib.util.spec_from_file_location(mod_name, file_path)
                 if spec is None:
-                    raise FileNotFoundError(f"File not found at {file_path}")
+                    raise FileNotFoundError(f"Missing file: {mod_name}.py")
                 
                 module = importlib.util.module_from_spec(spec)
-                # Το προσθέτουμε στο sys.modules για να μην βγάζει το error "not in sys.modules"
-                sys.modules[f"core.tools.{mod_name}"] = module 
+                sys.modules[mod_name] = module 
                 spec.loader.exec_module(module)
                 
-                # 3. Εκτέλεση της συνάρτησης
                 tool_func = getattr(module, func_name)
                 tool_func()
                 
             except Exception as e:
-                st.error(f"❌ Critical Load Error: {e}")
-                st.info(f"Checking Path: {file_path}")
-                if st.button("Reset Selection", key="final_res"):
+                st.error(f"❌ Error loading tool: {e}")
+                st.info(f"Checking path: core/tools/{mod_name}.py")
+                if st.button("Reset Selection"):
                     st.session_state.selected_tool = None
                     st.rerun()
