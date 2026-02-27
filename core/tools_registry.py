@@ -1,77 +1,83 @@
 import streamlit as st
+import importlib
 
-# Import all the tools we finalized today
-from tools.receivables_analyzer import show_receivables_analyzer_ui
-from tools.inventory_manager import show_inventory_manager
-from tools.resilience_map import show_resilience_map
-from tools.payables_manager import show_payables_manager
-from tools.cash_fragility import show_cash_fragility_index
-from tools.clv_calculator import show_clv_calculator
-from tools.unit_cost_analyzer import show_unit_cost_app
-
-# Define the library structure
-TOOLS_LIBRARY = {
-    "Operations & CCC": {
-        "Strategic Receivables (NPV)": {
-            "function": show_receivables_analyzer_ui,
-            "icon": "📊",
-            "description": "Optimize credit policy using NPV logic."
-        },
-        "Inventory Optimizer (EOQ)": {
-            "function": show_inventory_manager,
-            "icon": "📦",
-            "description": "Find the perfect balance between ordering and holding costs."
-        },
-        "Payables Manager": {
-            "function": show_payables_manager,
-            "icon": "🤝",
-            "description": "Analyze Cash Discounts vs. Supplier Credit value."
-        },
-        "Unit Cost Deconstruction": {
-            "function": show_unit_cost_app,
-            "icon": "⚙️",
-            "description": "Break down and sync variable cost components."
-        }
-    },
-    "Risk & Survival": {
-        "Resilience & Shock Map": {
-            "function": show_resilience_map,
-            "icon": "🛡️",
-            "description": "Map structural integrity using ROA vs Liquidity."
-        },
-        "Cash Fragility Index": {
-            "function": show_cash_fragility_index,
-            "icon": "📉",
-            "description": "Compare your Cash Runway against your CCC cycle."
-        }
-    },
-    "Strategy & Growth": {
-        "Executive CLV Simulator": {
-            "function": show_clv_calculator,
-            "icon": "👥",
-            "description": "Calculate Risk-Adjusted Customer Lifetime Value (NPV)."
-        }
-    }
-}
-
-def render_library_hub():
-    st.title("🏛️ Strategic Tools Library")
-    st.markdown("Select an advanced analytical module to stress-test your baseline.")
-    st.divider()
-
-    # Create columns for the main categories
-    cols = st.columns(len(TOOLS_LIBRARY))
+# --- INTERNAL TOOL: PAYABLES MANAGER ---
+def show_payables_manager_internal():
+    st.header("🤝 Payables Manager: Supplier Credit Analysis")
+    st.info("Evaluate cash discounts vs. supplier credit terms (365-day basis).")
     
-    for i, (category, tools) in enumerate(TOOLS_LIBRARY.items()):
-        with cols[i]:
-            st.subheader(category)
-            for tool_name, info in tools.items():
-                if st.button(f"{info['icon']} {tool_name}", 
-                             key=f"btn_{tool_name}", 
-                             use_container_width=True,
-                             help=info['description']):
-                    st.session_state.selected_tool = tool_name
-                    st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        cred_days = st.number_input("Supplier Credit Period (Days)", value=60, key="int_cred_days")
+        disc_prc = st.number_input("Cash Discount Offered (%)", value=2.0, key="int_disc_prc") / 100
+        cash_take = st.number_input("% of Purchases for Discount", value=50.0, key="int_cash_prc") / 100
+    with col2:
+        annual_purch = st.number_input("Annual Purchase Volume (€)", value=1000000, key="int_ann_purch")
+        wacc = st.number_input("Cost of Capital / Interest (%)", value=10.0, key="int_wacc") / 100
+
+    # Calculation based on instruction [2026-02-18]
+    disc_gain = annual_purch * disc_prc * cash_take
+    opp_cost = (annual_purch * cash_take * (cred_days / 365)) * wacc
+    net_benefit = disc_gain - opp_cost
 
     st.divider()
-    st.caption("All tools are hard-linked to the Global Baseline (Stage 0).")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Discount Gain", f"€{disc_gain:,.0f}")
+    c2.metric("Credit Opp. Cost", f"-€{opp_cost:,.0f}")
+    c3.metric("Net Benefit", f"€{net_benefit:,.0f}", delta=f"{net_benefit:,.0f}")
+
+    if st.button("⬅️ Back to Library Hub", key="back_from_internal"):
+        st.session_state.selected_tool = None
+        st.rerun()
+
+# --- MAIN LIBRARY FUNCTION ---
+def show_library():
+    if st.sidebar.button("🏠 Exit Library", key="exit_lib"):
+        st.session_state.flow_step = "home"
+        st.session_state.selected_tool = None
+        st.rerun()
+
+    st.title("🏛️ Strategic Tool Library")
+
+    if st.session_state.get('selected_tool') is None:
+        t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Operations", "🛡️ Risk"])
+        
+        with t1:
+            if st.button("👥 CLV Simulator", use_container_width=True, key="btn_clv"):
+                st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
+                st.rerun()
+        
+        with t3:
+            if st.button("📊 Receivables Analyzer", use_container_width=True, key="btn_receivables"):
+                st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
+                st.rerun()
+            if st.button("📦 Inventory Optimizer", use_container_width=True, key="btn_inv"):
+                st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
+                st.rerun()
+            if st.button("🤝 Payables Manager", use_container_width=True, key="btn_payables"):
+                st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
+                st.rerun()
+
+    else:
+        mod_name, func_name = st.session_state.selected_tool
+        
+        if mod_name != "INTERNAL":
+            if st.button("⬅️ Back to Library Hub", key="global_back"):
+                st.session_state.selected_tool = None
+                st.rerun()
+            st.divider()
+
+        if mod_name == "INTERNAL":
+            globals()[func_name]()
+        else:
+            try:
+                # Εδώ καλούμε τα εργαλεία από τον ΦΑΚΕΛΟ core/tools/
+                module = importlib.import_module(f"core.tools.{mod_name}")
+                importlib.reload(module)
+                tool_func = getattr(module, func_name)
+                tool_func()
+            except Exception as e:
+                st.error(f"❌ Error loading tool: {e}")
+                if st.button("Reset Selection"):
+                    st.session_state.selected_tool = None
+                    st.rerun()
