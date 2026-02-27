@@ -121,7 +121,7 @@ def show_library():
             globals()[func_name]()
         else:
             try:
-                module = importlib.import_module(f"tools.{mod_name}")
+                module = importlib.import_module(f"core.tools.{mod_name}")
                 importlib.reload(module)  # Essential for current development
                 tool_func = getattr(module, func_name)
                 tool_func()
