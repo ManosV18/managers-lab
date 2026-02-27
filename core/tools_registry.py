@@ -34,7 +34,6 @@ def show_payables_manager_internal():
 
 # --- MAIN LIBRARY FUNCTION ---
 def show_library():
-    # 1. Sidebar navigation
     if st.sidebar.button("🏠 Exit Library", key="exit_lib"):
         st.session_state.mode = "path"
         st.session_state.flow_step = "home"
@@ -43,7 +42,6 @@ def show_library():
 
     st.title("🏛️ Strategic Tool Library")
 
-    # 2. Tool Routing
     if st.session_state.get('selected_tool') is None:
         t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
         
@@ -108,17 +106,14 @@ def show_library():
                 st.rerun()
 
     else:
-        # 3. Execution Mode
         mod_name, func_name = st.session_state.selected_tool
         
-        # Back button for non-internal tools
         if mod_name != "INTERNAL":
             if st.button("⬅️ Back to Library Hub", key="global_back"):
                 st.session_state.selected_tool = None
                 st.rerun()
             st.divider()
 
-        # Execute
         if mod_name == "INTERNAL":
             if func_name in globals():
                 globals()[func_name]()
@@ -126,12 +121,15 @@ def show_library():
                 st.error(f"Internal function '{func_name}' not found.")
         else:
             try:
-                # Δυναμική φόρτωση από τον φάκελο tools
-                module_path = f"tools.{mod_name}"
-                if module_path in sys.modules:
-                    del sys.modules[module_path]
+                # Διορθωμένο Path Loading
+                # Προσθέτουμε τη διαδρομή του φακέλου tools στο σύστημα αν δεν υπάρχει
+                tools_path = os.path.join(os.getcwd(), "tools")
+                if tools_path not in sys.path:
+                    sys.path.append(tools_path)
                 
-                module = importlib.import_module(module_path)
+                # Φόρτωση του module απευθείας με το όνομα του αρχείου
+                module = importlib.import_module(mod_name)
+                importlib.reload(module)
                 tool_func = getattr(module, func_name)
                 tool_func()
             except Exception as e:
