@@ -4,106 +4,127 @@ import os
 import sys
 import importlib.util
 
-# --- INTERNAL TOOLS (Standalone) ---
+# ==========================================
+# 🛠️ INTERNAL STANDALONE TOOLS
+# ==========================================
 
 def show_pricing_standalone():
-    st.header("🎯 Pricing Strategy & Elasticity")
-    st.info("Direct simulation: Explore price changes without affecting global state.")
+    st.header("🎯 Strategic Pricing & Elasticity")
+    st.info("Simulate how price changes affect demand and total revenue.")
     col1, col2 = st.columns(2)
     with col1:
         p_current = st.number_input("Current Price (€)", value=100.0)
         p_new = st.number_input("Proposed Price (€)", value=110.0)
     with col2:
         v_current = st.number_input("Current Volume (Units)", value=1000)
-        elasticity = st.slider("Price Elasticity of Demand", 0.0, 5.0, 1.5)
+        elasticity = st.slider("Price Elasticity (Sensitivity)", 0.0, 5.0, 1.5)
     
-    price_change_pct = (p_new - p_current) / p_current
-    volume_change_pct = -elasticity * price_change_pct
-    new_volume = v_current * (1 + volume_change_pct)
+    price_change = (p_new - p_current) / p_current
+    volume_change = -elasticity * price_change
+    new_rev = (v_current * (1 + volume_change)) * p_new
+    
+    st.divider()
+    st.metric("Projected Revenue Impact", f"€{new_rev:,.0f}", delta=f"{(new_rev - (p_current*v_current)):,.0f}")
+    if st.button("⬅️ Back"): st.session_state.selected_tool = None; st.rerun()
+
+def show_loan_vs_leasing_standalone():
+    st.header("⚖️ Capital Acquisition: Loan vs Leasing")
+    tax_rate = float(st.session_state.get('tax_rate', 22.0)) / 100
+    st.caption(f"Tax Shield calculated at {tax_rate:.0%}")
+    col1, col2 = st.columns(2)
+    with col1:
+        asset_val = st.number_input("Asset Value (€)", value=50000)
+        loan_rate = st.number_input("Loan Interest (%)", value=6.5) / 100
+    with col2:
+        lease_pmt = st.number_input("Monthly Lease (€)", value=1100)
+        months = st.number_input("Duration (Months)", value=48)
+    
+    loan_cost = (asset_val + (asset_val * loan_rate * (months/12))) * (1 - (loan_rate * tax_rate))
+    lease_cost = (lease_pmt * months) * (1 - tax_rate)
     
     st.divider()
     c1, c2 = st.columns(2)
-    c1.metric("Volume Impact", f"{volume_change_pct:+.1%}", delta=f"{new_volume - v_current:,.0f} units")
-    c2.metric("New Revenue", f"€{new_volume * p_new:,.0f}", delta=f"{(new_volume * p_new) - (v_current * p_current):,.0f}")
-    
-    if st.button("⬅️ Back to Library"):
-        st.session_state.selected_tool = None
-        st.rerun()
+    c1.metric("Net Loan Cost (Post-Tax)", f"€{loan_cost:,.0f}")
+    c2.metric("Net Lease Cost (Post-Tax)", f"€{lease_cost:,.0f}")
+    if st.button("⬅️ Back"): st.session_state.selected_tool = None; st.rerun()
 
-def show_loss_standalone():
-    st.header("📉 Price Cut: Sales Increase Required")
-    st.info("Calculate required volume to maintain profit after a price reduction.")
-    margin = st.slider("Current Gross Margin (%)", 5, 80, 30) / 100
-    price_cut = st.slider("Price Reduction (%)", 1, 25, 10) / 100
-    
-    if margin > price_cut:
-        req_increase = price_cut / (margin - price_cut)
-        st.warning(f"To maintain profit, you need a **{req_increase:.1%}** increase in unit sales.")
-    else:
-        st.error("The price cut exceeds your margin. Profit is impossible.")
-        
-    if st.button("⬅️ Back to Library"):
-        st.session_state.selected_tool = None
-        st.rerun()
-
-def show_payables_manager_internal():
-    st.header("🤝 Payables Manager")
-    annual_purch = st.number_input("Annual Purchase Volume (€)", value=1000000)
-    # Calculation based on instruction [2026-02-18] (365 days)
-    st.write(f"Standard calculation based on 365-day year logic.")
-    
-    if st.button("⬅️ Back to Library"):
-        st.session_state.selected_tool = None
-        st.rerun()
-
-# --- MAIN LIBRARY HUB ---
+# ==========================================
+# 🏛️ MAIN LIBRARY HUB
+# ==========================================
 
 def show_library():
-    if st.sidebar.button("🏠 Exit Library", key="exit_lib"):
+    if st.sidebar.button("🏠 Exit Library"):
         st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
 
     st.title("🏛️ Strategic Tool Library")
+    st.markdown("---")
 
     if st.session_state.get('selected_tool') is None:
-        t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Operations", "🛡️ Risk"])
+        # ΚΑΤΗΓΟΡΙΕΣ ΜΕ ΛΟΓΙΚΗ ΣΕΙΡΑ ΡΟΗΣ
+        tabs = st.tabs([
+            "🎯 Growth & Strategy", 
+            "💰 Financial Engineering", 
+            "⚙️ Operational Efficiency", 
+            "🛡️ Risk & Resilience"
+        ])
         
-        with t1:
-            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True):
+        # TAB 1: Ανάπτυξη και Στρατηγική (Πώς βγάζω λεφτά;)
+        with tabs[0]:
+            st.subheader("Market & Revenue Strategy")
+            if st.button("🎯 Pricing & Elasticity Simulator", use_container_width=True):
                 st.session_state.selected_tool = ("INTERNAL", "show_pricing_standalone")
                 st.rerun()
-            if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True):
-                st.session_state.selected_tool = ("INTERNAL", "show_loss_standalone")
-                st.rerun()
-            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+            if st.button("⚖️ Break-Even Shift Analysis", use_container_width=True):
                 st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
                 st.rerun()
+            if st.button("👥 Customer Lifetime Value (CLV)", use_container_width=True):
+                st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
+                st.rerun()
 
-        with t2:
-            # Εδώ είναι η θέση του Leasing, το αφήνω ως απλό κουμπί αν θες να το συνδέσεις αργότερα
-            st.info("Finance tools and Capital structure analysis.")
-            if st.button("📉 WACC Optimizer", use_container_width=True):
+        # TAB 2: Οικονομική Μηχανική (Πώς διαχειρίζομαι το κεφάλαιο;)
+        with tabs[1]:
+            st.subheader("Capital & Funding Optimization")
+            if st.button("⚖️ CAPEX: Loan vs Leasing Analyzer", use_container_width=True):
+                st.session_state.selected_tool = ("INTERNAL", "show_loan_vs_leasing_standalone")
+                st.rerun()
+            if st.button("📉 WACC Optimizer (Cost of Capital)", use_container_width=True):
                 st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer")
                 st.rerun()
-
-        with t3:
-            if st.button("🤝 Payables Manager", use_container_width=True):
-                st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
+            if st.button("📈 AFN: Growth Funding Needs", use_container_width=True):
+                st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed")
                 st.rerun()
-            if st.button("📊 Receivables Analyzer", use_container_width=True):
+
+        # TAB 3: Επιχειρησιακή Αποδοτικότητα (Πώς βελτιώνω το Cash Flow;)
+        with tabs[2]:
+            st.subheader("Working Capital Management")
+            if st.button("🔄 Cash Conversion Cycle (CCC)", use_container_width=True):
+                st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app")
+                st.rerun()
+            if st.button("📊 Receivables (DSO) Analyzer", use_container_width=True):
                 st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui")
                 st.rerun()
+            if st.button("📦 Inventory & EOQ Optimizer", use_container_width=True):
+                st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager")
+                st.rerun()
 
-        with t4:
+        # TAB 4: Διαχείριση Κινδύνου (Πώς δεν θα καταρρεύσω;)
+        with tabs[3]:
+            st.subheader("Survival & Shock Protection")
             if st.button("🛡️ Cash Flow Stress Test", use_container_width=True):
                 st.session_state.selected_tool = ("stress_test_simulator", "show_stress_test_simulator")
                 st.rerun()
+            if st.button("🚨 Cash Fragility Index", use_container_width=True):
+                st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
+                st.rerun()
+            if st.button("🏁 Executive Command Center", use_container_width=True):
+                st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard")
+                st.rerun()
 
     else:
+        # EXECUTION LOGIC (Internal vs External)
         mod_name, func_name = st.session_state.selected_tool
-        
-        # Back button for external tools
         if mod_name != "INTERNAL":
             if st.button("⬅️ Back to Library Hub"):
                 st.session_state.selected_tool = None
@@ -111,12 +132,9 @@ def show_library():
             st.divider()
 
         if mod_name == "INTERNAL":
-            # Execution of local functions defined above
-            if func_name in globals():
-                globals()[func_name]()
+            globals()[func_name]()
         else:
             try:
-                # Dynamic loading of external files from /tools folder
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
                 spec = importlib.util.spec_from_file_location(mod_name, file_path)
@@ -125,7 +143,5 @@ def show_library():
                 spec.loader.exec_module(module)
                 getattr(module, func_name)()
             except Exception as e:
-                st.error(f"❌ Error loading tool: {e}")
-                if st.button("Reset"):
-                    st.session_state.selected_tool = None
-                    st.rerun()
+                st.error(f"❌ Error: {e}")
+                if st.button("Reset"): st.session_state.selected_tool = None; st.rerun()
