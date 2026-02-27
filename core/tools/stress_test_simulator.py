@@ -1,19 +1,17 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.engine import compute_core_metrics
+from core.sync import sync_global_state  # Αλλαγή εδώ
 
 def show_stress_test_simulator():
     st.header("🛡️ Cash Flow Stress Test & Scenario Planning")
-    st.info("Simulation of financial resilience with automatic mitigation logic.")
-
-    # 1. FETCH BASELINE DATA (Using the new Engine)
-    metrics = compute_core_metrics()
+    
+    # 1. FETCH DATA
+    metrics = sync_global_state() # Χρήση του sync αντί για compute_core_metrics
     s = st.session_state
     
-    base_rev = metrics['revenue']
-    # ΔΙΟΡΘΩΣΗ: Χρήση fcf αντί net_profit
-    base_profit = metrics['fcf'] 
+    base_rev = metrics.get('revenue', 0.0)
+    base_profit = metrics.get('fcf', 0.0)
     base_dso = s.get('ar_days', 45)
     
     # 2. SCENARIO INPUTS (SHOCKS)
