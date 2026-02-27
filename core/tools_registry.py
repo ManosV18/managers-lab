@@ -119,21 +119,29 @@ def show_library():
                 globals()[func_name]()
             else:
                 st.error(f"Internal function '{func_name}' not found.")
+        
         else:
             try:
-                # Διορθωμένο Path Loading
-                # Προσθέτουμε τη διαδρομή του φακέλου tools στο σύστημα αν δεν υπάρχει
-                tools_path = os.path.join(os.getcwd(), "tools")
-                if tools_path not in sys.path:
-                    sys.path.append(tools_path)
+                # 1. Βρίσκουμε την ακριβή διαδρομή του αρχείου
+                # Υποθέτουμε ότι ο φάκελος 'tools' είναι στο ίδιο επίπεδο με το 'core' ή στο root
+                current_dir = os.getcwd()
+                file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
                 
-                # Φόρτωση του module απευθείας με το όνομα του αρχείου
-                module = importlib.import_module(mod_name)
-                importlib.reload(module)
-                tool_func = getattr(module, func_name)
-                tool_func()
+                # 2. Φόρτωση του module απευθείας από το αρχείο (Spec Loading)
+                spec = importlib.util.spec_from_file_location(mod_name, file_path)
+                if spec is None:
+                    st.error(f"❌ Το αρχείο {mod_name}.py δεν βρέθηκε μέσα στο φάκελο /tools")
+                else:
+                    module = importlib.util.module_from_spec(spec)
+                    sys.modules[mod_name] = module
+                    spec.loader.exec_module(module)
+                    
+                    # 3. Εκτέλεση της συνάρτησης
+                    tool_func = getattr(module, func_name)
+                    tool_func()
+                    
             except Exception as e:
-                st.error(f"❌ Error loading '{mod_name}': {e}")
+                st.error(f"❌ Σφάλμα φόρτωσης '{mod_name}': {e}")
                 if st.button("Reset Selection", key="error_reset"):
                     st.session_state.selected_tool = None
                     st.rerun()
