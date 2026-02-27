@@ -74,22 +74,31 @@ def show_library():
             globals()[func_name]()
         else:
             try:
-                # 1. Καθορίζουμε το σωστό path: core.tools
-                full_module_path = f"core.tools.{mod_name}"
+                import os
+                import sys
+                import importlib.util
+
+                # 1. Δυναμικός εντοπισμός του αρχείου στον δίσκο
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
+
+                # 2. Φόρτωση του module απευθείας από το path (Brute Force)
+                spec = importlib.util.spec_from_file_location(mod_name, file_path)
+                if spec is None:
+                    raise FileNotFoundError(f"Το αρχείο {mod_name}.py δεν βρέθηκε στο {file_path}")
                 
-                # 2. Φορτώνουμε το module
-                module = importlib.import_module(full_module_path)
-                importlib.reload(module)
+                module = importlib.util.module_from_spec(spec)
+                # Καταχώρηση στη μνήμη για αποφυγή του "parent not in sys.modules"
+                sys.modules[mod_name] = module 
+                spec.loader.exec_module(module)
                 
-                # 3. Παίρνουμε τη συνάρτηση (π.χ. show_break_even_shift_calculator)
+                # 3. Εύρεση και εκτέλεση της συνάρτησης
                 tool_func = getattr(module, func_name)
-                
-                # 4. Την τρέχουμε
                 tool_func()
                 
             except Exception as e:
-                st.error(f"❌ Error loading tool: {e}")
-                st.info(f"Attempted to load: core.tools.{mod_name}")
-                if st.button("Reset Selection"):
+                st.error(f"❌ Critical Load Error: {e}")
+                st.info(f"Path: {file_path if 'file_path' in locals() else 'Unknown'}")
+                if st.button("Reset Selection", key="final_reset"):
                     st.session_state.selected_tool = None
                     st.rerun()
