@@ -1,105 +1,94 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+from core.sync import sync_global_state
 
-# -------------------------------------------------
-# CALCULATION LOGIC
-# -------------------------------------------------
 def analyze_resilience(profit, assets, current_assets, current_liabilities):
     roa = (profit / assets) * 100 if assets > 0 else 0
     current_ratio = current_assets / current_liabilities if current_liabilities > 0 else 0
     return round(roa, 2), round(current_ratio, 2)
 
-# -------------------------------------------------
-# UI INTERFACE
-# -------------------------------------------------
 def show_resilience_map():
+    # 1. SYNC WITH GLOBAL BASELINE
+    metrics = sync_global_state()
+    s = st.session_state
+    
+    # Auto-fetch from Stage 0 and Engine
+    sys_net_profit = float(metrics.get('net_profit', 0.0))
+    sys_assets = float(s.get('total_assets', 1.0)) # Needs to be defined in Stage 0
+    sys_c_assets = float(s.get('current_assets', 0.0))
+    sys_c_liabilities = float(s.get('current_liabilities', 1.0))
+
     st.header("🛡️ Financial Resilience & Shock Absorption Map")
-    st.caption("Mapping the system's ability to absorb economic shocks without collapsing.")
+    st.caption("Real-time mapping of the system's ability to withstand economic volatility.")
 
-    with st.sidebar:
-        st.subheader("Core Financials")
-        net_profit = st.number_input("Net Annual Profit (€)", value=50000.0)
-        total_assets = st.number_input("Total Assets (€)", value=500000.0)
-        
-        st.divider()
-        st.subheader("Liquidity Profile")
-        c_assets = st.number_input("Current Assets (€)", value=120000.0)
-        c_liabilities = st.number_input("Current Liabilities (€)", value=80000.0)
-        
-        run_map = st.button("Map System Position")
+    # 2. CALCULATION
+    roa, c_ratio = analyze_resilience(sys_net_profit, sys_assets, sys_c_assets, sys_c_liabilities)
 
-    # Resilience Logic
-    roa, c_ratio = analyze_resilience(net_profit, total_assets, c_assets, c_liabilities)
-
+    # 3. VISUALIZATION (2x2 Matrix)
     st.subheader("📍 Strategic Position")
+    fig, ax = plt.subplots(figsize=(8, 7))
     
-    # 2x2 Resilience Matrix Plot
-    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_xlim(0, 4)  
+    ax.set_ylim(-10, 30) 
     
-    # Set Axis Limits (Standardized)
-    ax.set_xlim(0, 4)  # Current Ratio Axis
-    ax.set_ylim(-10, 30) # ROA Axis
+    # Thresholds
+    ax.axhline(10, color='black', linewidth=1, linestyle='--') 
+    ax.axvline(1.5, color='black', linewidth=1, linestyle='--') 
     
-    # Draw Quadrants
-    ax.axhline(10, color='black', linewidth=1, linestyle='--') # Profitability Threshold
-    ax.axvline(1.5, color='black', linewidth=1, linestyle='--') # Liquidity Threshold
-    
-    # Label Quadrants
-    ax.text(0.5, 25, "Growth Trap\n(High Profit / Low Cash)", fontsize=10, color='orange', alpha=0.7)
-    ax.text(2.5, 25, "The Fortress\n(High Profit / High Cash)", fontsize=10, color='green', alpha=0.7)
-    ax.text(0.5, -5, "Danger Zone\n(Critical Vulnerability)", fontsize=10, color='red', alpha=0.7)
-    ax.text(2.5, -5, "Safe Storage\n(Low Efficiency)", fontsize=10, color='blue', alpha=0.7)
+    # Labels
+    ax.text(0.2, 25, "Growth Trap\n(Illiquid Profit)", fontsize=10, color='orange', fontweight='bold')
+    ax.text(2.2, 25, "The Fortress\n(Anti-Fragile)", fontsize=10, color='green', fontweight='bold')
+    ax.text(0.2, -5, "Danger Zone\n(High Risk)", fontsize=10, color='red', fontweight='bold')
+    ax.text(2.2, -5, "Safe Storage\n(Inefficient)", fontsize=10, color='blue', fontweight='bold')
 
-    # Plot Current Position
-    ax.scatter(c_ratio, roa, color='red', s=200, edgecolors='black', zorder=5)
-    ax.annotate(f"Current State\n(CR: {c_ratio}, ROA: {roa}%)", (c_ratio, roa), 
-                textcoords="offset points", xytext=(0,10), ha='center', fontweight='bold')
+    # Current Position
+    ax.scatter(c_ratio, roa, color='red', s=250, edgecolors='black', zorder=5)
+    ax.annotate(f"CURRENT STATE\n(CR: {c_ratio}, ROA: {roa}%)", (c_ratio, roa), 
+                textcoords="offset points", xytext=(0,15), ha='center', fontweight='bold', 
+                bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
 
     ax.set_xlabel("Liquidity Buffer (Current Ratio)")
-    ax.set_ylabel("Efficiency (Return on Assets %)")
-    ax.grid(True, alpha=0.3)
-    
+    ax.set_ylabel("Efficiency (ROA %)")
+    ax.grid(True, alpha=0.2)
     st.pyplot(fig)
 
-    
-
-    # ANALYTICAL VERDICT
+    # 4. SHOCK ABSORPTION ANALYSIS (Analytical Verdict)
     st.divider()
-    st.subheader("🧠 Shock Absorption Analysis")
-    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.write("**System Status:**")
+        st.markdown("### 🧠 Liquidity Shock Profile")
         if c_ratio < 1.0:
-            st.error("🔴 **Technical Insolvency Risk:** The system cannot cover short-term shocks. Any delay in receivables will trigger a crisis.")
+            st.error("**Technical Insolvency:** System cannot absorb even minor delays in receivables.")
         elif c_ratio < 1.5:
-            st.warning("🟠 **Low Buffer:** You are operating 'lean'. Good for efficiency, but vulnerable to market volatility.")
+            st.warning("**Lean Buffer:** Vulnerable to market volatility. Efficiency is high, but safety is low.")
         else:
-            st.success("🟢 **High Buffer:** The system can absorb significant shocks (e.g., loss of a major client) without immediate failure.")
+            st.success("**High Buffer:** Anti-fragile state. Can lose major revenue streams and remain standing.")
 
     with col2:
-        st.write("**Efficiency Status:**")
+        st.markdown("### 📈 Operational Strength")
         if roa > 15:
-            st.success("🟢 **High Performance:** The system generates ample internal capital to fuel its own survival.")
+            st.success("**High Performance:** Strong internal capital generation. Survival is self-funded.")
         elif roa > 5:
-            st.info("🔵 **Moderate Performance:** Stable, but requires external financing for rapid expansion.")
+            st.info("**Moderate Stability:** Stable operations, but lacks 'escape velocity' for major shocks.")
         else:
-            st.error("🔴 **Value Destruction:** The system is stagnant. Survival depends purely on cash reserves, not on operational strength.")
+            st.error("**Value Destruction:** Stagnant system. Survival depends purely on cash depletion.")
 
-    # Shock Scenario Simulation
+    # 5. STRESS TEST SIMULATION
     st.divider()
-    st.subheader("🌪️ Stress Test Simulation")
-    shock_pct = st.slider("Simulate Revenue/Cash Drop (%)", 0, 50, 20)
+    st.subheader("🌪️ Real-Time Stress Test")
+    shock_pct = st.slider("Simulate Sudden Revenue/Cash Drop (%)", 0, 70, 25)
     
-    new_c_ratio = (c_assets * (1 - shock_pct/100)) / c_liabilities
-    st.write(f"In the event of a **{shock_pct}%** sudden cash shock, your liquidity buffer would drop from **{c_ratio}** to **{new_c_ratio:.2f}**.")
+    new_c_ratio = (sys_c_assets * (1 - shock_pct/100)) / sys_c_liabilities
+    
+    st.write(f"In a **{shock_pct}%** shock scenario, Liquidity drops from **{c_ratio}** to **{new_c_ratio:.2f}**.")
     
     if new_c_ratio < 1:
-        st.error("❌ **System Failure:** Under this scenario, the business would be unable to meet its obligations.")
+        st.error(f"🚨 **SYSTEM COLLAPSE:** At {shock_pct}% shock, the entity fails to meet current obligations.")
     else:
-        st.success("✔️ **System Survival:** The business survives the shock, though with reduced maneuverability.")
+        st.success(f"✅ **SURVIVAL:** The system remains solvent despite the {shock_pct}% shock.")
 
-if __name__ == "__main__":
-    show_resilience_map()
+    if st.button("⬅️ Back to Library"):
+        st.session_state.selected_tool = None
+        st.rerun()
