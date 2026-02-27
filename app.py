@@ -29,7 +29,7 @@ step = st.session_state.flow_step
 if step == "home":
     run_home()
 elif step == "library":
-    from ui.library import show_library
+    from core.library import show_library
     show_library()
 elif step == "stage0":
     run_stage0()
