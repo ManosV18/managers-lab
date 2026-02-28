@@ -5,7 +5,7 @@ def run_home():
     metrics = sync_global_state()
     is_locked = st.session_state.get('baseline_locked', False)
     
-    st.title("💸 Cash Survival OS")
+    st.title("🛡️ Strategic Decision Room")
     st.markdown("### Know exactly when your business runs out of cash — before it happens")
     
     if not is_locked:
