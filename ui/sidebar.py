@@ -13,7 +13,7 @@ def show_sidebar():
         
         # 2. Navigation Logic
         nav_options = {
-            "🛡️ Strategic Decision Room"": "home",
+            "🛡️ Strategic Decision Room": "home",
             "🏗️ Business Setup": "stage0",
             "📊 Profit Structure": "stage1",
             "🏁 Executive Overview": "stage2",
