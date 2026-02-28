@@ -9,7 +9,7 @@ def show_sidebar():
         st.session_state.flow_step = "home"
 
     with st.sidebar:
-        st.title("🚀 Strategy Command")
+        st.title("💸 Cash Survival OS")
         
         # 2. Navigation Logic
         nav_options = {
