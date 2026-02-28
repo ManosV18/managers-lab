@@ -1,6 +1,7 @@
 import streamlit as st
 
 def show_about():
+    # Ο τίτλος που ζήτησες
     st.title("🧪 System Architecture")
     st.markdown("---")
     
@@ -40,6 +41,8 @@ def show_about():
         st.caption("Version: 2.0.1 (Stable Build)")
         st.caption("Architecture: Shared Core System")
 
-    if st.button("⬅️ Back to Strategic Decision Room"):
-    st.session_state.flow_step = "home"
-    st.rerun()
+    # Κουμπί επιστροφής με σωστό indentation
+    st.divider()
+    if st.button("⬅️ Back to Strategic Decision Room", use_container_width=True):
+        st.session_state.flow_step = "home"
+        st.rerun()
