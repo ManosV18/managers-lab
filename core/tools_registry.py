@@ -41,7 +41,7 @@ def show_library():
         st.rerun()
 
     # --- ΑΛΛΑΞΕ ΤΟΝ ΤΙΤΛΟ ΕΔΩ ---
-    st.title("📚 Managers' Lab Library") 
+    st.title("🧠 Advanced Financial Tools") 
     st.caption("Analytical Toolkit v2.0 | Shared Core Framework")
 
     if st.session_state.get('selected_tool') is None:
