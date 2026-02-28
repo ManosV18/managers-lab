@@ -6,7 +6,7 @@ def run_home():
     is_locked = st.session_state.get('baseline_locked', False)
     
     st.title("🛡️ Strategic Decision Room")
-    st.markdown("### Decision Support & Risk Analysis Engine")
+    st.markdown("### Know exactly when your business runs out of cash — before it happens")
     
     if not is_locked:
         st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
