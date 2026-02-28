@@ -32,7 +32,7 @@ def show_sidebar():
         except ValueError:
             default_idx = 0
 
-        selection = st.selectbox("Tool Selection:", options_list, index=default_idx)
+        selection = st.selectbox("Navigation:", options_list, index=default_idx)
         
         # Αν αλλάξει η επιλογή, αλλάζουμε ΜΟΝΟ το flow_step
         if nav_options[selection] != current_step:
