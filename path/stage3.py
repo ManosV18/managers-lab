@@ -2,7 +2,7 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def run_stage3():
-    st.header("💧 Stage 3: Liquidity & Working Capital Physics")
+    st.header("💧 Cash Flow Engine")
     
     # 1. FETCH DATA (Safe Retrieval)
     m = sync_global_state()
