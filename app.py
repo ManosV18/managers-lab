@@ -14,7 +14,7 @@ except ImportError as e:
     st.error(f"Module Loading Error: {e}")
 
 # Page config
-st.set_page_config(page_title="Strategic Decision Room", layout="wide")
+st.set_page_config(page_title="Cash Survival OS", layout="wide")
 
 # Initialize session
 if 'flow_step' not in st.session_state:
