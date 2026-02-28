@@ -21,6 +21,7 @@ def show_sidebar():
             "🌪️ Stress Scenarios": "stage4",
             "⚖️ Decision Impact": "stage5",
             "📚 Tools Library": "library"
+            "🧪 About": "about"
         }
                
         current_step = st.session_state.flow_step
