@@ -39,7 +39,7 @@ def show_library():
         st.session_state.selected_tool = None
         st.rerun()
 
-    st.title("🏛️ Strategic Tool Library")
+    st.title("🧠 Advanced Financial Tools")
 
     if st.session_state.get('selected_tool') is None:
         t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
