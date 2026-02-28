@@ -3,7 +3,7 @@ import pandas as pd
 from core.sync import sync_global_state
 
 def run_stage5():
-    st.header("🏁 Stage 5: Strategic Decision & Synthesis")
+    st.header("⚖️ Decision Impact")
     
     # 1. DATA SYNC (Η γέφυρα με την Engine)
     m = sync_global_state()
