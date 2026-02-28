@@ -2,7 +2,7 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def run_stage2():
-    st.header("🏁 Stage 2: Executive Dashboard")
+    st.header("🏁 Executive Overview")
     
     # 1. FETCH DATA
     m = sync_global_state()
