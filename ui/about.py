@@ -1,7 +1,7 @@
 import streamlit as st
 
 def show_about():
-    st.title("🧪 About Managers' Lab")
+    st.title("🧪 System Architecture")
     st.markdown("---")
     
     col1, col2 = st.columns([2, 1])
