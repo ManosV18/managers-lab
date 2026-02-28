@@ -6,7 +6,7 @@ def run_home():
     is_locked = st.session_state.get('baseline_locked', False)
     
     st.title("🛡️ Strategic Decision Room")
-    st.markdown("### Know exactly when your business runs out of cash — before it happens")
+    st.markdown("### Decision Support & Risk Analysis Engine")
     
     if not is_locked:
         st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
@@ -46,3 +46,4 @@ def run_home():
             if st.button("Open Library", key="h_btn_lib", use_container_width=True):
                 st.session_state.flow_step = "library"
                 st.rerun()
+
