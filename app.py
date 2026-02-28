@@ -30,7 +30,7 @@ if step == "home":
     run_home()
 
 elif step == "about":
-    from core.about import show_about   # ή όπου βρίσκεται το αρχείο σου
+    from ui.about import show_about  # Διορθωμένο path εδώ
     show_about()
 
 elif step == "library":
@@ -38,13 +38,14 @@ elif step == "library":
     show_library()
 
 elif step.startswith("stage"):
-    try:
-        globals()[f"run_{step}"]()
-    except KeyError:
-        st.error(f"Function run_{step} not found.")
+    # Δυναμική κλήση των συναρτήσεων stage
+    stage_func_name = f"run_{step}"
+    if stage_func_name in globals():
+        globals()[stage_func_name]()
+    else:
+        st.error(f"Function {stage_func_name} not found in global scope.")
 
 else:
     st.warning(f"Step '{step}' not found. Redirecting to Home.")
     st.session_state.flow_step = "home"
     st.rerun()
-
