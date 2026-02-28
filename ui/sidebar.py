@@ -14,12 +14,12 @@ def show_sidebar():
         # 2. Navigation Logic
         nav_options = {
             "🏠 Home": "home",
-            "🏗️ Stage 0: Setup": "stage0",
-            "📊 Stage 1: Survival & BEP": "stage1",
-            "🏁 Stage 2: Dashboard": "stage2",
-            "💧 Stage 3: Liquidity Physics": "stage3",
-            "🌪️ Stage 4: Stress Testing": "stage4",
-            "⚖️ Stage 5: Strategic Decision": "stage5",
+            "🏗️ Business Setup": "stage0",
+            "📊 Profit Structure": "stage1",
+            "🏁 Executive Overview": "stage2",
+            "💧 Cash Flow Engine": "stage3",
+            "🌪️ Stress Scenarios": "stage4",
+            "⚖️ Decision Impact": "stage5",
             "📚 Tools Library": "library"
         }
                
