@@ -2,7 +2,7 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def run_stage4():
-    st.header("🌪️ Stage 4: Strategic Stress Testing")
+    st.header("🌪️ Stress Scenarios")
     
     # 1. Secure Bridge
     m = sync_global_state()
