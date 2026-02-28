@@ -9,18 +9,20 @@ def show_sidebar():
         st.session_state.flow_step = "home"
 
     with st.sidebar:
-        st.title("💸 Cash Survival OS")
+        st.title("🚀 Strategy Command")
         
         # 2. Navigation Logic
         nav_options = {
-            "🏗️ Business Setup": "stage0",
-            "📊 Profit Structure": "stage1",
-            "🏁 Executive Overview": "stage2",
-            "💧 Cash Flow Engine": "stage3",
-            "🌪️ Stress Scenarios": "stage4",
-            "⚖️ Decision Impact": "stage5",
+            "🏠 Home": "home",
+            "🏗️ Stage 0: Setup": "stage0",
+            "📊 Stage 1: Survival & BEP": "stage1",
+            "🏁 Stage 2: Dashboard": "stage2",
+            "💧 Stage 3: Liquidity Physics": "stage3",
+            "🌪️ Stage 4: Stress Testing": "stage4",
+            "⚖️ Stage 5: Strategic Decision": "stage5",
+            "📚 Tools Library": "library"
         }
-                       
+               
         current_step = st.session_state.flow_step
         options_list = list(nav_options.keys())
         values_list = list(nav_options.values())
@@ -35,8 +37,6 @@ def show_sidebar():
         # Αν αλλάξει η επιλογή, αλλάζουμε ΜΟΝΟ το flow_step
         if nav_options[selection] != current_step:
             st.session_state.flow_step = nav_options[selection]
-            # ΠΡΟΣΘΗΚΗ: Μηδενίζουμε το εργαλείο για να ανοίγει η Library καθαρή
-            st.session_state.selected_tool = None 
             st.rerun()
 
         st.divider()
@@ -173,4 +173,5 @@ def show_sidebar():
             st.session_state.flow_step = "home" 
             st.session_state.wacc = 0.15
             st.rerun()
+
 
