@@ -28,18 +28,22 @@ step = st.session_state.flow_step
 
 if step == "home":
     run_home()
+
+elif step == "about":
+    from core.about import show_about   # ή όπου βρίσκεται το αρχείο σου
+    show_about()
+
 elif step == "library":
-    # ΕΔΩ Η ΑΛΛΑΓΗ: Καλούμε το νέο όνομα αρχείου
     from core.tools_registry import show_library
     show_library()
+
 elif step.startswith("stage"):
-    # Δυναμική κλήση των stages
     try:
         globals()[f"run_{step}"]()
     except KeyError:
         st.error(f"Function run_{step} not found.")
+
 else:
     st.warning(f"Step '{step}' not found. Redirecting to Home.")
     st.session_state.flow_step = "home"
     st.rerun()
-
