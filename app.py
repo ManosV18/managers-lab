@@ -12,7 +12,7 @@ st.set_page_config(
 try:
     from ui.sidebar import show_sidebar
     from ui.home import run_home
-    from core.about import show_about
+    from ui.about import show_about
     from core.tools_registry import show_library
 except ImportError as e:
     st.error(f"Critical Import Error: {e}")
