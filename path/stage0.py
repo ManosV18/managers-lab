@@ -2,7 +2,7 @@ import streamlit as st
 from core.sync import lock_baseline
 
 def run_stage0():
-    st.header("🏗️ Stage 0: Strategic Baseline Setup")
+    st.header("🏗️ Business Setup")
     st.divider()
 
     # Ορισμός του 's' για να μην βγάζει NameError
