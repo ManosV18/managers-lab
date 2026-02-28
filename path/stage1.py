@@ -2,7 +2,7 @@ import streamlit as st
 from core.sync import sync_global_state
 
 def run_stage1():
-    st.header("⚖️ Stage 1: Operating Leverage & Break-Even Analysis")
+    st.header("📊 Profit Structure")
     
     # 1. FETCH DATA
     m = sync_global_state()
