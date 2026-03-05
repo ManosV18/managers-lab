@@ -5,20 +5,23 @@ def run_home():
     metrics = sync_global_state()
     is_locked = st.session_state.get('baseline_locked', False)
     
-    # Hero section
+    # --- HERO SECTION ---
     st.markdown(
         """
-        <div style="text-align:center; padding: 40px 0;">
-            <h1 style="font-size: 48px;">🛡️ Strategic Decision Room</h1>
-            <h3 style="font-size: 22px; font-weight: normal; color: #555;">
+        <div style="text-align:center; padding: 60px 20px; background-color:#f5f5f5; border-radius:12px; margin-bottom:30px;">
+            <h1 style="font-size:48px; margin-bottom:10px;">🛡️ Strategic Decision Room</h1>
+            <h3 style="font-size:22px; font-weight: normal; color:#333; margin-bottom:15px;">
                 Before you change your price, see the impact on profit, break-even, and survival — instantly.
             </h3>
+            <p style='font-size:16px; color:#555; margin-top:0;'>
+                Simulate pricing, cash flow, and survival scenarios with one click.
+            </p>
         </div>
         """,
         unsafe_allow_html=True
     )
     
-    # Info messages
+    # --- SYSTEM STATUS ---
     if not is_locked:
         st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
     else:
@@ -27,6 +30,7 @@ def run_home():
     st.divider()
 
     # --- KPI DASHBOARD ---
+    st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     rev_val = metrics.get('revenue') if is_locked else None
     ebit_val = metrics.get('ebit') if is_locked else None
@@ -41,7 +45,9 @@ def run_home():
     st.divider()
 
     # --- QUICK ACTIONS ---
-    st.subheader("Strategic Navigation")
+    st.subheader("Quick Start")
+    st.write("Lock your baseline parameters or explore tools to guide your strategic decisions.")
+
     col1, col2 = st.columns(2)
     
     with col1:
@@ -57,4 +63,3 @@ def run_home():
             if st.button("Open Library", key="h_btn_lib", use_container_width=True):
                 st.session_state.flow_step = "library"
                 st.rerun()
-
