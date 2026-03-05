@@ -5,9 +5,20 @@ def run_home():
     metrics = sync_global_state()
     is_locked = st.session_state.get('baseline_locked', False)
     
-    st.title("🛡️ Strategic Decision Room")
-    st.markdown("### Before you change your price, see the impact on profit, break-even, and survival — instantly.")
+    # Hero section
+    st.markdown(
+        """
+        <div style="text-align:center; padding: 40px 0;">
+            <h1 style="font-size: 48px;">🛡️ Strategic Decision Room</h1>
+            <h3 style="font-size: 22px; font-weight: normal; color: #555;">
+                Before you change your price, see the impact on profit, break-even, and survival — instantly.
+            </h3>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     
+    # Info messages
     if not is_locked:
         st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
     else:
