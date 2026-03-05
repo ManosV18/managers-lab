@@ -5,40 +5,44 @@ def run_home():
     metrics = sync_global_state()
     is_locked = st.session_state.get('baseline_locked', False)
     
-    # --- KPI DASHBOARD VISUAL ---
-st.markdown("<br>", unsafe_allow_html=True)
-c1, c2, c3, c4 = st.columns(4)
-
-# Τιμές μόνο αν έχει κλειδωθεί το baseline
-rev_val = metrics.get('revenue') if is_locked else None
-ebit_val = metrics.get('ebit') if is_locked else None
-bep_val = metrics.get('bep_units') if is_locked else None
-fcf_val = metrics.get('fcf') if is_locked else None
-
-# --- Χρωματισμός ανάλογα με το μέγεθος / κριτήριο ---
-def colorize(value, thresholds):
-    if value is None:
-        return "—"
-    low, high = thresholds
-    if value < low:
-        return f"🔴 {value:,.0f}"
-    elif value < high:
-        return f"🟠 {value:,.0f}"
+    # --- HERO SECTION ---
+    st.markdown(
+        """
+        <div style="text-align:center; padding: 60px 20px; background-color:#f5f5f5; border-radius:12px; margin-bottom:30px;">
+            <h1 style="font-size:48px; margin-bottom:10px;">🛡️ Strategic Decision Room</h1>
+            <h3 style="font-size:22px; font-weight: normal; color:#333; margin-bottom:15px;">
+                Before you change your price, see the impact on profit, break-even, and survival — instantly.
+            </h3>
+            <p style='font-size:16px; color:#555; margin-top:0;'>
+                Simulate pricing, cash flow, and survival scenarios with one click.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # --- SYSTEM STATUS ---
+    if not is_locked:
+        st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
     else:
-        return f"🟢 {value:,.0f}"
+        st.success("✅ **Baseline Active:** All systems synced.")
 
-c1.metric("Projected Revenue", colorize(rev_val, (20000, 50000)), "€")
-c2.metric("EBIT", colorize(ebit_val, (5000, 20000)), "€")
-c3.metric("Break-Even (Units)", colorize(bep_val, (50, 200)), "units")
-c4.metric("Free Cash Flow", colorize(fcf_val, (5000, 15000)), "€")
+    st.divider()
 
-# Προσθήκη progress bars για πιο visual αίσθηση
-st.markdown("### Performance Overview")
-st.progress(min(rev_val / 50000, 1) if rev_val else 0)
-st.progress(min(ebit_val / 20000, 1) if ebit_val else 0)
-st.progress(min(fcf_val / 15000, 1) if fcf_val else 0)
+    # --- KPI DASHBOARD ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    rev_val = metrics.get('revenue') if is_locked else None
+    ebit_val = metrics.get('ebit') if is_locked else None
+    bep_val = metrics.get('bep_units') if is_locked else None
+    fcf_val = metrics.get('fcf') if is_locked else None
 
-st.divider()
+    c1.metric("Projected Revenue", f"€{rev_val:,.0f}" if rev_val is not None else "—")
+    c2.metric("EBIT", f"€{ebit_val:,.0f}" if ebit_val is not None else "—")
+    c3.metric("Break-Even (Units)", f"{bep_val:,.0f}" if bep_val is not None else "—")
+    c4.metric("Free Cash Flow", f"€{fcf_val:,.0f}" if fcf_val is not None else "—")
+
+    st.divider()
 
     # --- QUICK ACTIONS ---
     st.subheader("Quick Start")
