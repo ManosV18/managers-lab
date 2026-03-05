@@ -5,30 +5,6 @@ def run_home():
     metrics = sync_global_state()
     is_locked = st.session_state.get('baseline_locked', False)
     
-    # --- HERO SECTION ---
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 60px 20px; background-color:#f5f5f5; border-radius:12px; margin-bottom:30px;">
-            <h1 style="font-size:48px; margin-bottom:10px;">🛡️ Strategic Decision Room</h1>
-            <h3 style="font-size:22px; font-weight: normal; color:#333; margin-bottom:15px;">
-                Before you change your price, see the impact on profit, break-even, and survival — instantly.
-            </h3>
-            <p style='font-size:16px; color:#555; margin-top:0;'>
-                Simulate pricing, cash flow, and survival scenarios with one click.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    
-    # --- SYSTEM STATUS ---
-    if not is_locked:
-        st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
-    else:
-        st.success("✅ **Baseline Active:** All systems synced.")
-
-    st.divider()
-
     # --- KPI DASHBOARD VISUAL ---
 st.markdown("<br>", unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
