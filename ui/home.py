@@ -12,7 +12,7 @@ def run_home():
         <div style="text-align:center; padding: 30px 0;">
             <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
             <h3 style="font-size:22px; font-weight:normal; color:#555;">
-                Before you change your price, see the impact on profit, break-even, and survival — instantly.
+                A Business Decision Simulator for pricing, break-even and cash survival.
             </h3>
         </div>
         """,
