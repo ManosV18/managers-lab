@@ -7,40 +7,49 @@ def run_home():
     is_locked = st.session_state.get('baseline_locked', False)
 
     # --- HERO SECTION ---
-    st.title("🛡️ Strategic Decision Room")
-    st.header("Test your business decisions before you risk real money")
-    st.subheader("Change prices, costs or investments and instantly see the impact on profit, break-even and cash survival.")
-    st.markdown("Know the outcome before you commit.")
+    st.markdown(
+        """
+        <div style="text-align:center; padding: 30px 0;">
+            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
+            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
+                Test your business decisions before you risk real money
+            </h2>
+            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
+                Change prices, costs or investments and instantly see the impact on
+                profit, break-even and cash survival.
+            </h3>
+            <p style="font-size:18px; color:#777; margin-top:15px;">
+                Know the outcome before you commit.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     st.divider()
 
     # --- INFO STATUS ---
     if not is_locked:
-        st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
+        st.info("💡 **System Ready:** Please lock your baseline parameters to start testing scenarios.")
     else:
         st.success("✅ **Baseline Active:** All systems synced.")
 
     st.divider()
 
-    # --- LIVE INPUTS FOR KPI SIMULATION ---
-    st.subheader("📊 Adjust your numbers and see live impact")
+    # --- KPI DASHBOARD ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
 
-    col_price, col_cost, col_volume = st.columns(3)
+    rev_val = metrics.get('revenue') if is_locked else None
+    ebit_val = metrics.get('ebit') if is_locked else None
+    bep_val = metrics.get('bep_units') if is_locked else None
+    fcf_val = metrics.get('fcf') if is_locked else None
 
-    with col_price:
-        rev_input = st.number_input("Projected Revenue (€)", value=metrics.get('revenue', 30000), step=1000)
-    with col_cost:
-        ebit_input = st.number_input("EBIT (€)", value=metrics.get('ebit', 10000), step=500)
-    with col_volume:
-        bep_input = st.number_input("Break-Even Units", value=metrics.get('bep_units', 120), step=10)
-
-    fcf_input = st.number_input("Free Cash Flow (€)", value=metrics.get('fcf', 8000), step=500)
-
-    # --- KPI LIVE DASHBOARD ---
+    # Χρωματισμός KPI
     def colorize(value, thresholds):
-        low, high = thresholds
         if value is None:
             return "—"
+        low, high = thresholds
         if value < low:
             return f"🔴 {value:,.0f}"
         elif value < high:
@@ -48,17 +57,16 @@ def run_home():
         else:
             return f"🟢 {value:,.0f}"
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Projected Revenue", colorize(rev_input, (20000, 50000)), "€")
-    c2.metric("EBIT", colorize(ebit_input, (5000, 20000)), "€")
-    c3.metric("Break-Even (Units)", colorize(bep_input, (50, 200)), "units")
-    c4.metric("Free Cash Flow", colorize(fcf_input, (5000, 15000)), "€")
+    c1.metric("Projected Revenue", colorize(rev_val, (20000, 50000)), "€")
+    c2.metric("EBIT", colorize(ebit_val, (5000, 20000)), "€")
+    c3.metric("Break-Even (Units)", colorize(bep_val, (50, 200)), "units")
+    c4.metric("Free Cash Flow", colorize(fcf_val, (5000, 15000)), "€")
 
+    # Progress bars για πιο visual αίσθηση
     st.markdown("### Performance Overview")
-    st.progress(min(rev_input / 50000, 1))
-    st.progress(min(ebit_input / 20000, 1))
-    st.progress(min(fcf_input / 15000, 1))
+    st.progress(min(rev_val / 50000, 1) if rev_val else 0)
+    st.progress(min(ebit_val / 20000, 1) if ebit_val else 0)
+    st.progress(min(fcf_val / 15000, 1) if fcf_val else 0)
 
     st.divider()
 
@@ -68,16 +76,19 @@ def run_home():
 
     col1, col2 = st.columns(2)
 
+    # Lock baseline & go directly to Stage 1
     with col1:
         with st.expander("🚀 Getting Started", expanded=True):
             st.write("Define your baseline numbers before testing business decisions.")
-            if st.button("Go to Stage 0", key="h_btn_s0", use_container_width=True):
-                st.session_state.flow_step = "stage0"
+            if st.button("Lock Baseline & Go to Stage 1", key="h_btn_s0", use_container_width=True):
+                st.session_state['baseline_locked'] = True
+                st.session_state['flow_step'] = "stage1"
                 st.rerun()
 
+    # Library & tools always visible after Stage 0
     with col2:
         with st.expander("📚 Library & Tools", expanded=True):
             st.write("Access specialized calculators and strategic tools.")
             if st.button("Open Library", key="h_btn_lib", use_container_width=True):
-                st.session_state.flow_step = "library"
+                st.session_state['flow_step'] = "library"
                 st.rerun()
