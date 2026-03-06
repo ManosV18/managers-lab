@@ -7,29 +7,31 @@ def run_home():
     is_locked = st.session_state.get('baseline_locked', False)
 
     # --- HERO SECTION ---
-st.markdown(
-    """
-    <div style="text-align:center; padding: 30px 0;">
-        <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
+    st.markdown(
+        """
+        <div style="text-align:center; padding: 30px 0;">
+            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
 
-        <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
-        Test your business decisions before you risk real money
-        </h2>
+            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
+            Test your business decisions before you risk real money
+            </h2>
 
-        <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
-        Change prices, costs or investments and instantly see the impact on
-        profit, break-even and cash survival.
-        </h3>
+            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
+            Change prices, costs or investments and instantly see the impact on
+            profit, break-even and cash survival.
+            </h3>
 
-        <p style="font-size:18px; color:#777; margin-top:15px;">
-        Know the outcome before you commit.
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+            <p style="font-size:18px; color:#777; margin-top:15px;">
+            Know the outcome before you commit.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-# --- INFO STATUS ---
+    st.divider()
+
+    # --- INFO STATUS ---
     if not is_locked:
         st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
     else:
@@ -72,14 +74,14 @@ st.markdown(
     st.divider()
 
     # --- QUICK ACTIONS / EXPANDERS ---
-    st.subheader("Quick Start")
-    st.write("Lock your baseline parameters or explore tools to guide your strategic decisions.")
+    st.subheader("Run Your First Scenario")
+    st.write("Lock your baseline numbers and test what happens if you change price, costs or volume.")
 
     col1, col2 = st.columns(2)
 
     with col1:
         with st.expander("🚀 Getting Started", expanded=True):
-            st.write("Define your unit economics and fixed costs.")
+            st.write("Define your baseline numbers before testing business decisions.")
             if st.button("Go to Stage 0", key="h_btn_s0", use_container_width=True):
                 st.session_state.flow_step = "stage0"
                 st.rerun()
