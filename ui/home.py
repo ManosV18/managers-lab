@@ -9,23 +9,24 @@ def run_home():
     # --- HERO SECTION ---
     st.markdown(
         """
-        <div style="text-align:center; padding: 40px 0;">
-            <h1 style="font-size:48px; margin-bottom:5px;">🛡️ Strategic Decision Room</h1>
-            <h2 style="font-size:28px; font-weight:600; margin-bottom:10px;">
-                Test your business decisions before you risk real money
+        <div style="text-align:center; padding: 30px 0;">
+            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
+
+            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
+            Make any pricing, cost, or investment change and see **instant impact across all KPIs**
             </h2>
-            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-bottom:10px;">
-                Change prices, costs, or investments and instantly see the impact on
-                profit, break-even, and cash survival.
+
+            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
+            Test your business decisions safely — every scenario updates live, so you never guess.
             </h3>
+
             <p style="font-size:18px; color:#777; margin-top:15px;">
-                Know the outcome before you commit.
+            Know the outcome before you commit and take control of your cash, profit, and survival.
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
-
     st.divider()
 
     # --- INFO STATUS ---
