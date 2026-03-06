@@ -7,21 +7,29 @@ def run_home():
     is_locked = st.session_state.get('baseline_locked', False)
 
     # --- HERO SECTION ---
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 30px 0;">
-            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
-            <h3 style="font-size:22px; font-weight:normal; color:#555;">
-                A Business Decision Simulator for pricing, break-even and cash survival.
-            </h3>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+st.markdown(
+    """
+    <div style="text-align:center; padding: 30px 0;">
+        <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
 
-    st.divider()
+        <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
+        Test your business decisions before you risk real money
+        </h2>
 
-    # --- INFO STATUS ---
+        <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
+        Change prices, costs or investments and instantly see the impact on
+        profit, break-even and cash survival.
+        </h3>
+
+        <p style="font-size:18px; color:#777; margin-top:15px;">
+        Know the outcome before you commit.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# --- INFO STATUS ---
     if not is_locked:
         st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
     else:
