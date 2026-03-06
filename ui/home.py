@@ -7,24 +7,10 @@ def run_home():
     is_locked = st.session_state.get('baseline_locked', False)
 
     # --- HERO SECTION ---
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 30px 0;">
-            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
-            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
-                Test your business decisions before you risk real money
-            </h2>
-            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
-                Change prices, costs or investments and instantly see the impact on
-                profit, break-even and cash survival.
-            </h3>
-            <p style="font-size:18px; color:#777; margin-top:15px;">
-                Know the outcome before you commit.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.title("🛡️ Strategic Decision Room")
+    st.header("Test your business decisions before you risk real money")
+    st.subheader("Change prices, costs or investments and instantly see the impact on profit, break-even and cash survival.")
+    st.markdown("Know the outcome before you commit.")
 
     st.divider()
 
@@ -36,21 +22,25 @@ def run_home():
 
     st.divider()
 
-    # --- KPI DASHBOARD ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
+    # --- LIVE INPUTS FOR KPI SIMULATION ---
+    st.subheader("📊 Adjust your numbers and see live impact")
 
-    # --- DEFAULT VALUES ΓΙΑ TESTING ---
-    rev_val = metrics.get('revenue', 30000) if is_locked else metrics.get('revenue', 30000)
-    ebit_val = metrics.get('ebit', 10000) if is_locked else metrics.get('ebit', 10000)
-    bep_val = metrics.get('bep_units', 120) if is_locked else metrics.get('bep_units', 120)
-    fcf_val = metrics.get('fcf', 8000) if is_locked else metrics.get('fcf', 8000)
+    col_price, col_cost, col_volume = st.columns(3)
 
-    # --- Χρωματισμός KPI ---
+    with col_price:
+        rev_input = st.number_input("Projected Revenue (€)", value=metrics.get('revenue', 30000), step=1000)
+    with col_cost:
+        ebit_input = st.number_input("EBIT (€)", value=metrics.get('ebit', 10000), step=500)
+    with col_volume:
+        bep_input = st.number_input("Break-Even Units", value=metrics.get('bep_units', 120), step=10)
+
+    fcf_input = st.number_input("Free Cash Flow (€)", value=metrics.get('fcf', 8000), step=500)
+
+    # --- KPI LIVE DASHBOARD ---
     def colorize(value, thresholds):
+        low, high = thresholds
         if value is None:
             return "—"
-        low, high = thresholds
         if value < low:
             return f"🔴 {value:,.0f}"
         elif value < high:
@@ -58,16 +48,17 @@ def run_home():
         else:
             return f"🟢 {value:,.0f}"
 
-    c1.metric("Projected Revenue", colorize(rev_val, (20000, 50000)), "€")
-    c2.metric("EBIT", colorize(ebit_val, (5000, 20000)), "€")
-    c3.metric("Break-Even (Units)", colorize(bep_val, (50, 200)), "units")
-    c4.metric("Free Cash Flow", colorize(fcf_val, (5000, 15000)), "€")
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Projected Revenue", colorize(rev_input, (20000, 50000)), "€")
+    c2.metric("EBIT", colorize(ebit_input, (5000, 20000)), "€")
+    c3.metric("Break-Even (Units)", colorize(bep_input, (50, 200)), "units")
+    c4.metric("Free Cash Flow", colorize(fcf_input, (5000, 15000)), "€")
 
-    # --- Progress bars για πιο visual αίσθηση ---
     st.markdown("### Performance Overview")
-    st.progress(min(rev_val / 50000, 1))
-    st.progress(min(ebit_val / 20000, 1))
-    st.progress(min(fcf_val / 15000, 1))
+    st.progress(min(rev_input / 50000, 1))
+    st.progress(min(ebit_input / 20000, 1))
+    st.progress(min(fcf_input / 15000, 1))
 
     st.divider()
 
