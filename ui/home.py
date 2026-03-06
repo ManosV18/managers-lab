@@ -9,20 +9,17 @@ def run_home():
     # --- HERO SECTION ---
     st.markdown(
         """
-        <div style="text-align:center; padding: 30px 0;">
-            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
-
-            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
-            Test your business decisions before you risk real money
+        <div style="text-align:center; padding: 40px 0;">
+            <h1 style="font-size:48px; margin-bottom:5px;">🛡️ Strategic Decision Room</h1>
+            <h2 style="font-size:28px; font-weight:600; margin-bottom:10px;">
+                Test your business decisions before you risk real money
             </h2>
-
-            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
-            Change prices, costs or investments and instantly see the impact on
-            profit, break-even and cash survival.
+            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-bottom:10px;">
+                Change prices, costs, or investments and instantly see the impact on
+                profit, break-even, and cash survival.
             </h3>
-
             <p style="font-size:18px; color:#777; margin-top:15px;">
-            Know the outcome before you commit.
+                Know the outcome before you commit.
             </p>
         </div>
         """,
@@ -40,7 +37,6 @@ def run_home():
     st.divider()
 
     # --- KPI DASHBOARD ---
-    st.markdown("<br>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
 
     rev_val = metrics.get('revenue') if is_locked else None
@@ -48,7 +44,6 @@ def run_home():
     bep_val = metrics.get('bep_units') if is_locked else None
     fcf_val = metrics.get('fcf') if is_locked else None
 
-    # Χρωματισμός KPI
     def colorize(value, thresholds):
         if value is None:
             return "—"
@@ -65,7 +60,6 @@ def run_home():
     c3.metric("Break-Even (Units)", colorize(bep_val, (50, 200)), "units")
     c4.metric("Free Cash Flow", colorize(fcf_val, (5000, 15000)), "€")
 
-    # Progress bars για πιο visual αίσθηση
     st.markdown("### Performance Overview")
     st.progress(min(rev_val / 50000, 1) if rev_val else 0)
     st.progress(min(ebit_val / 20000, 1) if ebit_val else 0)
@@ -75,7 +69,7 @@ def run_home():
 
     # --- QUICK ACTIONS / EXPANDERS ---
     st.subheader("Run Your First Scenario")
-    st.write("Lock your baseline numbers and test what happens if you change price, costs or volume.")
+    st.write("Lock your baseline numbers and test what happens if you change price, costs, or volume.")
 
     col1, col2 = st.columns(2)
 
