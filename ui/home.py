@@ -17,13 +17,23 @@ def check_required_inputs(required):
 
 def run_home():
 
+    # ------------------------------------------------
+    # TITLE
+    # ------------------------------------------------
+
     st.title("Business Survival Calculator")
 
     st.write(
-        "Enter the numbers of your business and ask simple questions like:\n"
-        "- How much do I need to sell?\n"
-        "- Will this price work?\n"
-        "- Can the business survive?"
+        "Test your business decisions before you risk real money."
+    )
+
+    st.write(
+        "Change prices, costs or sales and instantly see what happens "
+        "to profit, break-even point and cash survival."
+    )
+
+    st.write(
+        "Before you lower a price, hire staff or order inventory — run the numbers first."
     )
 
     st.divider()
@@ -55,36 +65,36 @@ def run_home():
     # BASIC BUSINESS INPUTS
     # ------------------------------------------------
 
-    st.header("Your Business Numbers")
+    st.header("Enter your business numbers")
 
     col1, col2 = st.columns(2)
 
     with col1:
 
         st.session_state.price = st.number_input(
-            "Price per unit (€)",
+            "Price per product",
             value=float(st.session_state.get("price", 0.0))
         )
 
         st.session_state.variable_cost = st.number_input(
-            "Cost per unit (€)",
+            "Cost to produce one unit",
             value=float(st.session_state.get("variable_cost", 0.0))
         )
 
         st.session_state.volume = st.number_input(
-            "Units you expect to sell",
+            "How many units you expect to sell",
             value=float(st.session_state.get("volume", 0.0))
         )
 
     with col2:
 
         st.session_state.fixed_cost = st.number_input(
-            "Total yearly fixed expenses (€)",
+            "Total yearly fixed expenses (rent, salaries, etc)",
             value=float(st.session_state.get("fixed_cost", 0.0))
         )
 
         st.session_state.opening_cash = st.number_input(
-            "Cash currently in the bank (€)",
+            "Cash currently in the bank",
             value=float(st.session_state.get("opening_cash", 0.0))
         )
 
@@ -104,7 +114,7 @@ def run_home():
     with st.expander("More optional inputs"):
 
         st.session_state.wacc = st.number_input(
-            "Cost of capital (WACC)",
+            "Cost of capital",
             value=float(st.session_state.get("wacc", 0.0))
         )
 
@@ -133,7 +143,7 @@ def run_home():
 
     with col1:
 
-        if st.button("Lock numbers"):
+        if st.button("Save these numbers"):
 
             lock_baseline()
             st.success("Numbers saved")
@@ -152,7 +162,7 @@ def run_home():
     # QUESTIONS USER CAN ASK
     # ------------------------------------------------
 
-    st.header("What do you want to know?")
+    st.header("Questions business owners ask")
 
     col1, col2 = st.columns(2)
 
@@ -246,6 +256,6 @@ def run_home():
 
         c1, c2, c3 = st.columns(3)
 
-        c1.metric("Revenue", f"{metrics['revenue']:,.0f} €")
-        c2.metric("EBIT", f"{metrics['ebit']:,.0f} €")
-        c3.metric("Break even units", f"{metrics['bep_units']:,.0f}")
+        c1.metric("Revenue", f"{metrics['revenue']:,.0f}")
+        c2.metric("Profit (EBIT)", f"{metrics['ebit']:,.0f}")
+        c3.metric("Break-even units", f"{metrics['bep_units']:,.0f}")
