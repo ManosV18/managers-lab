@@ -86,3 +86,4 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost, wacc, tax_rate, 
         'contribution_ratio': unit_contribution / price if price > 0 else 0
     }
 
+
