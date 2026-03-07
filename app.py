@@ -26,7 +26,7 @@ if "flow_step" not in st.session_state:
     st.session_state.flow_step = "home"
 
 # --- Show sidebar ---
-show_sidebar()
+#    show_sidebar()
 
 # --- Router ---
 step = st.session_state.flow_step
