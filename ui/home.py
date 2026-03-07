@@ -1,191 +1,110 @@
 import streamlit as st
-from core.sync import sync_global_state, lock_baseline
+from core.sync import sync_global_state
 
-# -----------------------------
-# Helpers
-# -----------------------------
-def check_required_inputs(required):
-    missing = []
-    for r in required:
-        val = st.session_state.get(r, 0)
-        if val == 0 or val is None:
-            missing.append(r)
-    return missing
-
-def reset_home_session():
-    """Καθαρίζει τα inputs χωρίς να σπάει το rerun"""
-    keys_to_keep = ["flow_step", "baseline_locked"]
-    for key in list(st.session_state.keys()):
-        if key not in keys_to_keep:
-            del st.session_state[key]
-
-# -----------------------------
-# Main Home
-# -----------------------------
 def run_home():
-    st.title("Business Survival Calculator")
+    # --- Sync metrics ---
+    metrics = sync_global_state()
+    is_locked = st.session_state.get('baseline_locked', False)
 
-    st.write(
-        "Enter the numbers of your business and ask simple questions like:\n"
-        "- How much do I need to sell?\n"
-        "- Will this price work?\n"
-        "- Can the business survive?"
+    # --- HERO SECTION ---
+    st.markdown(
+        """
+        <div style="text-align:center; padding: 30px 0;">
+            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
+            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
+                See the real impact on your cash and survival before committing
+            </h2>
+            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
+                Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.
+            </h3>
+            <p style="font-size:18px; color:#777; margin-top:15px;">
+                Know the outcome before you spend a euro.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
     st.divider()
 
-    # -----------------------------
-    # Stage Selector
-    # -----------------------------
-    stage_options = {
-        "Home": "home",
-        "Stage 0: Setup": "stage0",
-        "Stage 1: Survival & Break Even": "stage1",
-        "Stage 2: Dashboard": "stage2",
-        "Stage 3: Liquidity": "stage3",
-        "Stage 4: Stress Test": "stage4",
-        "Stage 5: Strategic Decision": "stage5",
-        "Tools Library": "library"
-    }
-
-    selection = st.selectbox("Go to section", list(stage_options.keys()))
-    if stage_options[selection] != st.session_state.get("flow_step", "home"):
-        st.session_state.flow_step = stage_options[selection]
-        st.experimental_rerun()
+    # --- INFO STATUS ---
+    if not is_locked:
+        st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
+    else:
+        st.success("✅ **Baseline Active:** All systems synced.")
 
     st.divider()
 
-    # -----------------------------
-    # Basic Business Inputs
-    # -----------------------------
-    st.header("Your Business Numbers")
+    # --- INTERACTIVE SCENARIO SLIDERS ---
+    st.subheader("Scenario Tester")
+    st.write("Adjust price, cost, or volume to see live impact on your KPIs.")
+
+    col1, col2, col3 = st.columns(3)
+    price_mult = col1.slider("Price Multiplier", 0.5, 2.0, 1.0, 0.05)
+    cost_mult = col2.slider("Cost Multiplier", 0.5, 2.0, 1.0, 0.05)
+    volume_mult = col3.slider("Volume Multiplier", 0.5, 2.0, 1.0, 0.05)
+
+    # --- CALCULATE SCENARIO METRICS ---
+    rev_val = metrics.get('revenue') if is_locked else None
+    ebit_val = metrics.get('ebit') if is_locked else None
+    bep_val = metrics.get('bep_units') if is_locked else None
+    fcf_val = metrics.get('fcf') if is_locked else None
+    cash_val = metrics.get('cash') if is_locked else None
+
+    if is_locked:
+        rev_val = rev_val * price_mult * volume_mult
+        ebit_val = ebit_val * price_mult * volume_mult - (metrics.get('fixed_costs',0)*(cost_mult-1))
+        bep_val = bep_val / (price_mult)  # simplified
+        fcf_val = fcf_val * price_mult * volume_mult - (metrics.get('fixed_costs',0)*(cost_mult-1))
+        cash_val = cash_val + (fcf_val - metrics.get('fcf',0))  # incremental cash effect
+
+    # --- KPI DASHBOARD ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns(5)
+
+    def colorize(value, thresholds):
+        if value is None:
+            return "—"
+        low, high = thresholds
+        if value < low:
+            return f"🔴 {value:,.0f}"
+        elif value < high:
+            return f"🟠 {value:,.0f}"
+        else:
+            return f"🟢 {value:,.0f}"
+
+    c1.metric("Projected Revenue", colorize(rev_val, (20000, 50000)), "€")
+    c2.metric("EBIT", colorize(ebit_val, (5000, 20000)), "€")
+    c3.metric("Break-Even (Units)", colorize(bep_val, (50, 200)), "units")
+    c4.metric("Free Cash Flow", colorize(fcf_val, (5000, 15000)), "€")
+    c5.metric("Available Cash", colorize(cash_val, (1000, 20000)), "€")
+
+    # --- Progress bars ---
+    st.markdown("### Performance Overview")
+    st.progress(min(rev_val / 50000, 1) if rev_val else 0)
+    st.progress(min(ebit_val / 20000, 1) if ebit_val else 0)
+    st.progress(min(fcf_val / 15000, 1) if fcf_val else 0)
+    st.progress(min(cash_val / 20000, 1) if cash_val else 0)
+
+    st.divider()
+
+    # --- QUICK ACTIONS / EXPANDERS ---
+    st.subheader("Run Your First Scenario")
+    st.write("Lock your baseline numbers and test what happens if you change price, costs or volume.")
+
     col1, col2 = st.columns(2)
 
     with col1:
-        st.session_state.price = st.number_input(
-            "Price per unit (€)",
-            value=float(st.session_state.get("price", 0.0))
-        )
-        st.session_state.variable_cost = st.number_input(
-            "Cost per unit (€)",
-            value=float(st.session_state.get("variable_cost", 0.0))
-        )
-        st.session_state.volume = st.number_input(
-            "Units you expect to sell",
-            value=float(st.session_state.get("volume", 0.0))
-        )
+        with st.expander("🚀 Getting Started", expanded=True):
+            st.write("Define your baseline numbers before testing business decisions.")
+            if st.button("Go to Stage 0", key="h_btn_s0", use_container_width=True):
+                st.session_state.flow_step = "stage0"
+                st.rerun()
 
     with col2:
-        st.session_state.fixed_cost = st.number_input(
-            "Total yearly fixed expenses (€)",
-            value=float(st.session_state.get("fixed_cost", 0.0))
-        )
-        st.session_state.opening_cash = st.number_input(
-            "Cash currently in the bank (€)",
-            value=float(st.session_state.get("opening_cash", 0.0))
-        )
-        tax_percent = st.number_input(
-            "Tax rate (%)",
-            value=float(st.session_state.get("tax_rate", 0.0)) * 100
-        )
-        st.session_state.tax_rate = tax_percent / 100
+        with st.expander("📚 Library & Tools", expanded=True):
+            st.write("Access specialized calculators and strategic tools.")
+            if st.button("Open Library", key="h_btn_lib", use_container_width=True):
+                st.session_state.flow_step = "library"
+                st.rerun()
 
-    st.divider()
-
-    # -----------------------------
-    # Extra Parameters
-    # -----------------------------
-    with st.expander("More optional inputs"):
-        st.session_state.wacc = st.number_input(
-            "Cost of capital (WACC)",
-            value=float(st.session_state.get("wacc", 0.0))
-        )
-        st.session_state.ar_days = st.number_input(
-            "Days customers take to pay",
-            value=float(st.session_state.get("ar_days", 0.0))
-        )
-        st.session_state.inventory_days = st.number_input(
-            "Inventory days",
-            value=float(st.session_state.get("inventory_days", 0.0))
-        )
-        st.session_state.ap_days = st.number_input(
-            "Days you take to pay suppliers",
-            value=float(st.session_state.get("ap_days", 0.0))
-        )
-
-    st.divider()
-
-    # -----------------------------
-    # Action Buttons
-    # -----------------------------
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Lock numbers"):
-            lock_baseline()
-            st.success("Numbers saved")
-
-    with col2:
-        if st.button("Start new scenario"):
-            reset_home_session()
-            st.session_state.flow_step = "home"
-            st.experimental_rerun()
-
-    st.divider()
-
-    # -----------------------------
-    # Questions User Can Ask
-    # -----------------------------
-    st.header("What do you want to know?")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("How much do I need to sell to not lose money?"):
-            req = ["price", "variable_cost", "fixed_cost"]
-            missing = check_required_inputs(req)
-            if missing:
-                st.warning("Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing]))
-            else:
-                st.session_state.flow_step = "stage1"
-                st.experimental_rerun()
-
-        if st.button("If I sell this many units will the business make money?"):
-            req = ["price", "variable_cost", "fixed_cost", "volume"]
-            missing = check_required_inputs(req)
-            if missing:
-                st.warning("Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing]))
-            else:
-                st.session_state.flow_step = "stage2"
-                st.experimental_rerun()
-
-    with col2:
-        if st.button("What price should I charge so the business works?"):
-            req = ["variable_cost", "fixed_cost", "volume"]
-            missing = check_required_inputs(req)
-            if missing:
-                st.warning("Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing]))
-            else:
-                st.session_state.flow_step = "stage1"
-                st.experimental_rerun()
-
-        if st.button("With the cash I have how long can I survive?"):
-            req = ["opening_cash", "price", "variable_cost", "fixed_cost", "volume"]
-            missing = check_required_inputs(req)
-            if missing:
-                st.warning("Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing]))
-            else:
-                st.session_state.flow_step = "stage3"
-                st.experimental_rerun()
-
-    st.divider()
-
-    # -----------------------------
-    # Quick Results
-    # -----------------------------
-    if st.session_state.get("baseline_locked", False):
-        metrics = sync_global_state()
-        st.header("Quick numbers")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Revenue", f"{metrics['revenue']:,.0f} €")
-        c2.metric("EBIT", f"{metrics['ebit']:,.0f} €")
-        c3.metric("Break even units", f"{metrics['bep_units']:,.0f}")
