@@ -101,6 +101,10 @@ def show_break_even_shift_calculator():
     else:
         st.success(f"✅ **RESILIENT:** Margin of safety at {safety_margin_pct:.1f}%. The business can absorb significant shocks.")
 
+    # SAVE RESULTS FOR GLOBAL DASHBOARD
+    st.session_state["bep_units"] = new_bep
+    st.session_state["volume"] = new_volume
+    
     # 8. NAVIGATION
     st.divider()
     if st.button("Back to Library Hub", use_container_width=True):
