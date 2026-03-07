@@ -32,7 +32,7 @@ def run_home():
     st.divider()
 
     # --- QUICK ACTIONS ---
-    st.subheader("1️⃣ Business Setup")
+    st.subheader("Business Setup")
     st.write("Enter your basic numbers to begin analysis:")
 
     col1, col2 = st.columns(2)
