@@ -2,82 +2,175 @@ import streamlit as st
 from core.sync import lock_baseline
 
 def show_sidebar():
-    # --- Defaults ---
+    # 1. Defaults
     if "wacc" not in st.session_state:
         st.session_state.wacc = 0.15  # Default 15%
     if "flow_step" not in st.session_state:
         st.session_state.flow_step = "home"
-    if "baseline_locked" not in st.session_state:
-        st.session_state.baseline_locked = False
-    if "selected_tool" not in st.session_state:
-        st.session_state.selected_tool = None
 
     with st.sidebar:
         st.title("💧 Cash Survival OS")
-
-        st.divider()
         
-        # --- SYSTEM INTEGRITY ---
-        st.subheader("🛡️ System Status")
-        if st.session_state.baseline_locked:
-            st.success("✅ Baseline Locked")
-        else:
-            st.warning("🔓 Baseline OPEN (Setup Stage)")
+        # 2. Navigation Logic
+        nav_options = {
+            "🛡️ Strategic Decision Room": "home",
+            "🏗️ Business Setup": "stage0",
+            "📊 Profit Structure": "stage1",
+            "🏁 Executive Overview": "stage2",
+            "💧 Cash Flow Engine": "stage3",
+            "🌪️ Stress Scenarios": "stage4",
+            "⚖️ Decision Impact": "stage5",
+            "📚 Tools Library": "library"
+        }
+               
+        current_step = st.session_state.flow_step
+        options_list = list(nav_options.keys())
+        values_list = list(nav_options.values())
+        
+        try:
+            default_idx = values_list.index(current_step)
+        except ValueError:
+            default_idx = 0
 
-        st.divider()
-
-        # --- GLOBAL PARAMETERS INPUT ---
-        st.subheader("⚙️ Input Basic Numbers")
-        st.session_state.price = st.number_input(
-            "Unit Price (€)", value=float(st.session_state.get("price", 100.0))
-        )
-        st.session_state.variable_cost = st.number_input(
-            "Variable Cost (€)", value=float(st.session_state.get("variable_cost", 60.0))
-        )
-        st.session_state.volume = st.number_input(
-            "Annual Volume", value=int(st.session_state.get("volume", 1000))
-        )
-        st.session_state.fixed_cost = st.number_input(
-            "Annual Fixed Costs (€)", value=float(st.session_state.get("fixed_cost", 20000.0))
-        )
-
-        st.divider()
-
-        # --- ACTIONS ---
-        if not st.session_state.baseline_locked:
-            if st.button("🔒 Lock Baseline & Start", use_container_width=True):
-                lock_baseline()
-                st.session_state.flow_step = "stage1"
-                st.rerun()
-
-        if st.button("🔄 Reset All Data", use_container_width=True, type="secondary"):
-            st.session_state.clear()
-            st.session_state.flow_step = "home"
-            st.session_state.wacc = 0.15
-            st.session_state.baseline_locked = False
-            st.session_state.selected_tool = None
+        selection = st.selectbox("Navigation:", options_list, index=default_idx)
+        
+        # Αν αλλάξει η επιλογή, αλλάζουμε ΜΟΝΟ το flow_step
+        if nav_options[selection] != current_step:
+            st.session_state.flow_step = nav_options[selection]
             st.rerun()
 
         st.divider()
+        
+        # =====================================================
+        # 1. SYSTEM INTEGRITY MONITOR
+        # =====================================================
+        st.subheader("🛡️ System Integrity")
 
-        # --- TOOLS SELECTION ---
-        st.subheader("🛠️ Select Tool")
-        tools_mapping = {
-            "Break-Even Calculator": ("break_even", "show_break_even_tool"),
-            "CLV Simulator": ("clv_calculator", "show_clv_calculator"),
-            "Cash Conversion Cycle (CCC)": ("cash_cycle", "run_cash_cycle_app"),
-            "Receivables Analyzer": ("receivables_analyzer", "show_receivables_analyzer_ui"),
-            "Inventory Optimizer (EOQ)": ("inventory_manager", "show_inventory_manager"),
-            "Payables Manager": ("INTERNAL", "show_payables_manager_internal"),
-            "Unit Cost Analyzer": ("unit_cost_analyzer", "show_unit_cost_app"),
-            "Executive Dashboard": ("executive_dashboard", "show_executive_dashboard"),
-            "Cash Fragility Index": ("cash_fragility_index", "show_cash_fragility_index"),
-            "Stress Test Simulator": ("stress_test_simulator", "show_stress_test_tool")
-        }
+        if st.session_state.get('baseline_locked', False):
+            st.success("✅ Baseline: LOCKED")
+        else:
+            st.warning("🔓 Baseline: OPEN (Setup Phase)")
+            
+        if st.session_state.get('wacc_locked', False):
+            st.info(f"🎯 WACC: {st.session_state.wacc:.2%} (Optimized)")
+        else:
+            st.caption("Using manual WACC estimate")
 
-        # Δημιουργία κουμπιών για κάθε εργαλείο
-        for t_name, tool_tuple in tools_mapping.items():
-            if st.button(t_name, key=f"tool_{t_name}", use_container_width=True):
-                st.session_state.selected_tool = tool_tuple
-                st.session_state.flow_step = "library"
+        st.divider()
+
+        # =====================================================
+        # 2. BASE PARAMETERS (GLOBAL CONTROLS)
+        # =====================================================
+        st.subheader("⚙️ Global Parameters")
+
+        st.session_state.price = st.number_input(
+            "Unit Price (€)",
+            value=float(st.session_state.get('price', 100.0)),
+            
+        )
+
+        st.session_state.variable_cost = st.number_input(
+            "Variable Cost (€)",
+            value=float(st.session_state.get('variable_cost', 60.0)),
+            
+        )
+
+        st.session_state.volume = st.number_input(
+            "Annual Volume",
+            value=int(st.session_state.get('volume', 1000)),
+            
+        )
+
+        st.session_state.fixed_cost = st.number_input(
+            "Annual Fixed Costs",
+            value=float(st.session_state.get('fixed_cost', 20000.0)),
+            
+        )
+
+        # =====================================================
+        # 3. FINANCIALS & WC
+        # =====================================================
+        st.subheader("💳 Financials & WC")
+
+        st.session_state.annual_debt_service = st.number_input(
+            "Annual Debt Service (€)",
+            value=float(st.session_state.get('annual_debt_service', 0.0)),
+            
+        )
+
+        st.session_state.opening_cash = st.number_input(
+            "Opening Cash (€)",
+            value=float(st.session_state.get('opening_cash', 10000.0)),
+            
+        )
+
+        tax_percent = st.number_input(
+            "Tax Rate (%)",
+            value=float(st.session_state.get('tax_rate', 0.22)) * 100,
+            
+        )
+        st.session_state.tax_rate = tax_percent / 100
+
+        # =====================================================
+        # 4. WACC INPUT
+        # =====================================================
+        st.subheader("📊 Cost of Capital")
+
+        if not st.session_state.get('wacc_locked', False):
+            wacc_percent = st.number_input(
+                "WACC (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=st.session_state.wacc * 100,
+                step=0.1,
+                
+            )
+            st.session_state.wacc = wacc_percent / 100
+        else:
+            st.info(f"WACC Locked at {st.session_state.wacc:.2%}")
+
+        # =====================================================
+        # 5. OPERATING CYCLE (Days)
+        # =====================================================
+        st.subheader("⏳ Operating Cycle (Days)")
+
+        st.session_state.ar_days = st.number_input(
+            "AR Days (Collection)",
+            value=float(st.session_state.get('ar_days', 45.0)),
+            
+        )
+
+        st.session_state.inventory_days = st.number_input(
+            "Inventory Days",
+            value=float(st.session_state.get('inventory_days', 60.0)),
+            
+        )
+
+        st.session_state.ap_days = st.number_input(
+            "AP Days (Payment)",
+            value=float(st.session_state.get('ap_days', 30.0)),
+            
+        )
+
+        st.divider()
+
+        # =====================================================
+        # 6. ACTIONS
+        # =====================================================
+        st.divider()
+        
+        if not st.session_state.get('baseline_locked', False):
+            if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
+                lock_baseline()
+                # Μετά το κλείδωμα, στέλνουμε τον χρήστη στο Stage 1
+                st.session_state.flow_step = "stage1"
                 st.rerun()
+        
+        # ΔΙΟΡΘΩΜΕΝΟ RESET (Πιο στιβαρό)
+        if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
+            st.session_state.clear()
+            # Άμεση επαναφορά κρίσιμων μεταβλητών για να μην προλάβει να κρασάρει ο router
+            st.session_state.flow_step = "home" 
+            st.session_state.wacc = 0.15
+            st.rerun()
+
