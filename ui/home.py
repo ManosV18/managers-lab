@@ -1,110 +1,187 @@
 import streamlit as st
 from core.sync import sync_global_state
+from core.sync import lock_baseline
+
 
 def run_home():
-    # --- Sync metrics ---
-    metrics = sync_global_state()
-    is_locked = st.session_state.get('baseline_locked', False)
 
-    # --- HERO SECTION ---
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 30px 0;">
-            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
-            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
-                See the real impact on your cash and survival before committing
-            </h2>
-            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
-                Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.
-            </h3>
-            <p style="font-size:18px; color:#777; margin-top:15px;">
-                Know the outcome before you spend a euro.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.title("🛡 Strategic Decision Room")
+
+    st.write(
+        "Enter your basic business numbers. "
+        "Then choose what analysis you want to see."
     )
 
     st.divider()
 
-    # --- INFO STATUS ---
-    if not is_locked:
-        st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
-    else:
-        st.success("✅ **Baseline Active:** All systems synced.")
+    # ---------------------------------------------------
+    # STAGE SELECTOR
+    # ---------------------------------------------------
+
+    stage_options = {
+        "Home": "home",
+        "Stage 0: Setup": "stage0",
+        "Stage 1: Survival & BEP": "stage1",
+        "Stage 2: Dashboard": "stage2",
+        "Stage 3: Liquidity Physics": "stage3",
+        "Stage 4: Stress Testing": "stage4",
+        "Stage 5: Strategic Decision": "stage5",
+        "Tools Library": "library"
+    }
+
+    selection = st.selectbox(
+        "Go to stage",
+        list(stage_options.keys())
+    )
+
+    if stage_options[selection] != st.session_state.get("flow_step", "home"):
+        st.session_state.flow_step = stage_options[selection]
+        st.rerun()
 
     st.divider()
 
-    # --- INTERACTIVE SCENARIO SLIDERS ---
-    st.subheader("Scenario Tester")
-    st.write("Adjust price, cost, or volume to see live impact on your KPIs.")
+    # ---------------------------------------------------
+    # GLOBAL PARAMETERS (ΠΡΩΗΝ SIDEBAR)
+    # ---------------------------------------------------
 
-    col1, col2, col3 = st.columns(3)
-    price_mult = col1.slider("Price Multiplier", 0.5, 2.0, 1.0, 0.05)
-    cost_mult = col2.slider("Cost Multiplier", 0.5, 2.0, 1.0, 0.05)
-    volume_mult = col3.slider("Volume Multiplier", 0.5, 2.0, 1.0, 0.05)
-
-    # --- CALCULATE SCENARIO METRICS ---
-    rev_val = metrics.get('revenue') if is_locked else None
-    ebit_val = metrics.get('ebit') if is_locked else None
-    bep_val = metrics.get('bep_units') if is_locked else None
-    fcf_val = metrics.get('fcf') if is_locked else None
-    cash_val = metrics.get('cash') if is_locked else None
-
-    if is_locked:
-        rev_val = rev_val * price_mult * volume_mult
-        ebit_val = ebit_val * price_mult * volume_mult - (metrics.get('fixed_costs',0)*(cost_mult-1))
-        bep_val = bep_val / (price_mult)  # simplified
-        fcf_val = fcf_val * price_mult * volume_mult - (metrics.get('fixed_costs',0)*(cost_mult-1))
-        cash_val = cash_val + (fcf_val - metrics.get('fcf',0))  # incremental cash effect
-
-    # --- KPI DASHBOARD ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    c1, c2, c3, c4, c5 = st.columns(5)
-
-    def colorize(value, thresholds):
-        if value is None:
-            return "—"
-        low, high = thresholds
-        if value < low:
-            return f"🔴 {value:,.0f}"
-        elif value < high:
-            return f"🟠 {value:,.0f}"
-        else:
-            return f"🟢 {value:,.0f}"
-
-    c1.metric("Projected Revenue", colorize(rev_val, (20000, 50000)), "€")
-    c2.metric("EBIT", colorize(ebit_val, (5000, 20000)), "€")
-    c3.metric("Break-Even (Units)", colorize(bep_val, (50, 200)), "units")
-    c4.metric("Free Cash Flow", colorize(fcf_val, (5000, 15000)), "€")
-    c5.metric("Available Cash", colorize(cash_val, (1000, 20000)), "€")
-
-    # --- Progress bars ---
-    st.markdown("### Performance Overview")
-    st.progress(min(rev_val / 50000, 1) if rev_val else 0)
-    st.progress(min(ebit_val / 20000, 1) if ebit_val else 0)
-    st.progress(min(fcf_val / 15000, 1) if fcf_val else 0)
-    st.progress(min(cash_val / 20000, 1) if cash_val else 0)
-
-    st.divider()
-
-    # --- QUICK ACTIONS / EXPANDERS ---
-    st.subheader("Run Your First Scenario")
-    st.write("Lock your baseline numbers and test what happens if you change price, costs or volume.")
+    st.header("Global Parameters")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        with st.expander("🚀 Getting Started", expanded=True):
-            st.write("Define your baseline numbers before testing business decisions.")
-            if st.button("Go to Stage 0", key="h_btn_s0", use_container_width=True):
-                st.session_state.flow_step = "stage0"
-                st.rerun()
+
+        st.session_state.price = st.number_input(
+            "Unit Price (€)",
+            value=float(st.session_state.get("price", 0.0))
+        )
+
+        st.session_state.variable_cost = st.number_input(
+            "Variable Cost (€)",
+            value=float(st.session_state.get("variable_cost", 0.0))
+        )
+
+        st.session_state.volume = st.number_input(
+            "Annual Volume",
+            value=float(st.session_state.get("volume", 0.0))
+        )
+
+        st.session_state.fixed_cost = st.number_input(
+            "Annual Fixed Costs",
+            value=float(st.session_state.get("fixed_cost", 0.0))
+        )
 
     with col2:
-        with st.expander("📚 Library & Tools", expanded=True):
-            st.write("Access specialized calculators and strategic tools.")
-            if st.button("Open Library", key="h_btn_lib", use_container_width=True):
-                st.session_state.flow_step = "library"
-                st.rerun()
+
+        st.session_state.annual_debt_service = st.number_input(
+            "Annual Debt Service",
+            value=float(st.session_state.get("annual_debt_service", 0.0))
+        )
+
+        st.session_state.opening_cash = st.number_input(
+            "Opening Cash",
+            value=float(st.session_state.get("opening_cash", 0.0))
+        )
+
+        tax_percent = st.number_input(
+            "Tax Rate (%)",
+            value=float(st.session_state.get("tax_rate", 0.0)) * 100
+        )
+
+        st.session_state.tax_rate = tax_percent / 100
+
+    st.divider()
+
+    # ---------------------------------------------------
+    # ADVANCED PARAMETERS (EXPANDER)
+    # ---------------------------------------------------
+
+    with st.expander("More Parameters"):
+
+        st.session_state.wacc = st.number_input(
+            "WACC",
+            value=float(st.session_state.get("wacc", 0.0))
+        )
+
+        st.session_state.ar_days = st.number_input(
+            "AR Days",
+            value=float(st.session_state.get("ar_days", 0.0))
+        )
+
+        st.session_state.inventory_days = st.number_input(
+            "Inventory Days",
+            value=float(st.session_state.get("inventory_days", 0.0))
+        )
+
+        st.session_state.ap_days = st.number_input(
+            "AP Days",
+            value=float(st.session_state.get("ap_days", 0.0))
+        )
+
+    st.divider()
+
+    # ---------------------------------------------------
+    # ACTIONS
+    # ---------------------------------------------------
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        if st.button("Lock Baseline"):
+
+            lock_baseline()
+
+            st.success("Baseline locked")
+
+    with col2:
+
+        if st.button("Start New Scenario"):
+
+            st.session_state.clear()
+
+            st.session_state.flow_step = "home"
+
+            st.rerun()
+
+    st.divider()
+
+    # ---------------------------------------------------
+    # RESULTS REQUEST
+    # ---------------------------------------------------
+
+    st.header("What do you want to see?")
+
+    if st.button("Calculate Break Even"):
+        st.session_state.flow_step = "stage1"
+        st.rerun()
+
+    if st.button("Check Liquidity"):
+        st.session_state.flow_step = "stage3"
+        st.rerun()
+
+    if st.button("Run Stress Test"):
+        st.session_state.flow_step = "stage4"
+        st.rerun()
+
+    if st.button("Open Tool Library"):
+        st.session_state.flow_step = "library"
+        st.rerun()
+
+    st.divider()
+
+    # ---------------------------------------------------
+    # OPTIONAL LIVE METRICS
+    # ---------------------------------------------------
+
+    if st.session_state.get("baseline_locked", False):
+
+        metrics = sync_global_state()
+
+        st.subheader("Quick Results")
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric("Revenue", f"{metrics['revenue']:,.0f}")
+        c2.metric("EBIT", f"{metrics['ebit']:,.0f}")
+        c3.metric("Break Even", f"{metrics['bep_units']:,.0f}")
 
