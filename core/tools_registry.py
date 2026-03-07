@@ -35,14 +35,11 @@ def show_payables_manager_internal():
 def show_library():
     if st.sidebar.button("🏠 Exit Library"):
         st.session_state.mode = "path"
-        st.session_step = "home" # Fixed: matching flow_step logic
         st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
 
-    # --- ΑΛΛΑΞΕ ΤΟΝ ΤΙΤΛΟ ΕΔΩ ---
-    st.title("🧠 Advanced Financial Tools") 
-    st.caption("Analytical Toolkit v2.0 | Shared Core Framework")
+    st.title("🏛️ Strategic Tool Library")
 
     if st.session_state.get('selected_tool') is None:
         t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
@@ -53,7 +50,7 @@ def show_library():
                 st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool")
                 st.rerun()
             if st.button("📡 Pricing Radar Matrix", use_container_width=True):
-                st.session_state.selected_tool = ("pricing_radar", "show_pricing_radar")
+                st.session_state.selected_tool = ("pricing_radar", "show_pricing_radar") # Updated name
                 st.rerun()
             if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True):
                 st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
@@ -107,6 +104,7 @@ def show_library():
                 st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
                 st.rerun()
             if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
+                # Διορθωμένο όνομα αρχείου βάσει της λίστας σου
                 st.session_state.selected_tool = ("financial_resilience_app", "show_resilience_map")
                 st.rerun()
             if st.button("📉 Stress Test Simulator", use_container_width=True):
@@ -126,7 +124,6 @@ def show_library():
             globals()[func_name]()
         else:
             try:
-                # Δυναμική φόρτωση από τον υποφάκελο /tools/
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
                 
@@ -140,3 +137,4 @@ def show_library():
                 if st.button("Reset Selection"):
                     st.session_state.selected_tool = None
                     st.rerun()
+
