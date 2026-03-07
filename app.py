@@ -1,58 +1,45 @@
 import streamlit as st
-
-# --- Sidebar ---
 from ui.sidebar import show_sidebar
-
-# --- Home ---
 from ui.home import run_home
 
-# --- Stage modules ---
-# Αν δεν υπάρχουν, απλά δεν τα φορτώνει
-stages = {}
-for i in range(6):
-    try:
-        mod = __import__(f"path.stage{i}", fromlist=[f"run_stage{i}"])
-        stages[f"stage{i}"] = getattr(mod, f"run_stage{i}")
-    except ImportError:
-        pass
+# Stage modules - Standard Imports
+try:
+    from path.stage0 import run_stage0
+    from path.stage1 import run_stage1
+    from path.stage2 import run_stage2
+    from path.stage3 import run_stage3
+    from path.stage4 import run_stage4
+    from path.stage5 import run_stage5
+except ImportError as e:
+    st.error(f"Module Loading Error: {e}")
 
-# --- Page setup ---
+# Page config
 st.set_page_config(page_title="Strategic Decision Room", layout="wide")
 
-# --- Session defaults ---
-if "flow_step" not in st.session_state:
+# Initialize session
+if 'flow_step' not in st.session_state:
     st.session_state.flow_step = "home"
 
-# --- Show sidebar ---
+# Show sidebar
 show_sidebar()
 
-# --- Router ---
+# --- ROUTER ---
 step = st.session_state.flow_step
 
 if step == "home":
     run_home()
-
-elif step.startswith("stage"):
-    stage_func = stages.get(step)
-    if stage_func:
-        stage_func()
-    else:
-        st.warning(f"Stage '{step}' not found. Returning Home.")
-        st.session_state.flow_step = "home"
-        st.experimental_rerun()
-
 elif step == "library":
+    # ΕΔΩ Η ΑΛΛΑΓΗ: Καλούμε το νέο όνομα αρχείου
     from core.tools_registry import show_library
     show_library()
-
-elif step == "about":
+elif step.startswith("stage"):
+    # Δυναμική κλήση των stages
     try:
-        from ui.about import show_about
-        show_about()
-    except ImportError:
-        st.info("About page not implemented yet.")
-
+        globals()[f"run_{step}"]()
+    except KeyError:
+        st.error(f"Function run_{step} not found.")
 else:
-    st.warning(f"Step '{step}' not recognized. Redirecting Home.")
+    st.warning(f"Step '{step}' not found. Redirecting to Home.")
     st.session_state.flow_step = "home"
-    st.experimental_rerun()
+    st.rerun()
+
