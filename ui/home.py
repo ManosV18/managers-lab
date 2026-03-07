@@ -1,10 +1,12 @@
 import streamlit as st
-from core.sync import sync_global_state
+from core.sync import sync_global_state, lock_baseline
+
 
 def run_home():
+
     # --- Sync metrics ---
     metrics = sync_global_state()
-    is_locked = st.session_state.get('baseline_locked', False)
+    is_locked = st.session_state.get("baseline_locked", False)
 
     # --- HERO SECTION ---
     st.markdown(
@@ -28,67 +30,69 @@ def run_home():
 
     st.divider()
 
-    # --- INFO STATUS ---
+    # --- STATUS ---
     if not is_locked:
-        st.info("💡 **System Ready:** Please lock your baseline parameters to start testing scenarios.")
+        st.info("💡 System Ready: Please lock your baseline parameters to activate the dashboard.")
     else:
-        st.success("✅ **Baseline Active:** All systems synced.")
+        st.success("✅ Baseline Active: Metrics calculated successfully.")
 
     st.divider()
 
     # --- KPI DASHBOARD ---
     st.markdown("<br>", unsafe_allow_html=True)
+
     c1, c2, c3, c4 = st.columns(4)
 
-    rev_val = metrics.get('revenue') if is_locked else None
-    ebit_val = metrics.get('ebit') if is_locked else None
-    bep_val = metrics.get('bep_units') if is_locked else None
-    fcf_val = metrics.get('fcf') if is_locked else None
+    rev_val = metrics.get("revenue") if is_locked else None
+    ebit_val = metrics.get("ebit") if is_locked else None
+    bep_val = metrics.get("bep_units") if is_locked else None
+    fcf_val = metrics.get("fcf") if is_locked else None
 
-    # Χρωματισμός KPI
-    def colorize(value, thresholds):
+    def colorize(value, low, high, suffix=""):
         if value is None:
             return "—"
-        low, high = thresholds
         if value < low:
-            return f"🔴 {value:,.0f}"
+            return f"🔴 {value:,.0f}{suffix}"
         elif value < high:
-            return f"🟠 {value:,.0f}"
+            return f"🟠 {value:,.0f}{suffix}"
         else:
-            return f"🟢 {value:,.0f}"
+            return f"🟢 {value:,.0f}{suffix}"
 
-    c1.metric("Projected Revenue", colorize(rev_val, (20000, 50000)), "€")
-    c2.metric("EBIT", colorize(ebit_val, (5000, 20000)), "€")
-    c3.metric("Break-Even (Units)", colorize(bep_val, (50, 200)), "units")
-    c4.metric("Free Cash Flow", colorize(fcf_val, (5000, 15000)), "€")
+    c1.metric("Projected Revenue", colorize(rev_val, 20000, 50000, " €"))
+    c2.metric("EBIT", colorize(ebit_val, 5000, 20000, " €"))
+    c3.metric("Break-Even Units", colorize(bep_val, 50, 200))
+    c4.metric("Free Cash Flow", colorize(fcf_val, 5000, 15000, " €"))
 
-    # Progress bars για πιο visual αίσθηση
     st.markdown("### Performance Overview")
-    st.progress(min(rev_val / 50000, 1) if rev_val else 0)
-    st.progress(min(ebit_val / 20000, 1) if ebit_val else 0)
-    st.progress(min(fcf_val / 15000, 1) if fcf_val else 0)
+
+    if rev_val:
+        st.progress(min(rev_val / 50000, 1))
+    if ebit_val:
+        st.progress(min(ebit_val / 20000, 1))
+    if fcf_val:
+        st.progress(min(fcf_val / 15000, 1))
 
     st.divider()
 
-    # --- QUICK ACTIONS / EXPANDERS ---
+    # --- ACTIONS ---
     st.subheader("Run Your First Scenario")
-    st.write("Lock your baseline numbers and test what happens if you change price, costs or volume.")
+    st.write("Lock your baseline numbers and then use the tools to test scenarios.")
 
     col1, col2 = st.columns(2)
 
-    # Lock baseline & go directly to Stage 1
+    # LOCK BASELINE
     with col1:
         with st.expander("🚀 Getting Started", expanded=True):
-            st.write("Define your baseline numbers before testing business decisions.")
-            if st.button("Lock Baseline & Go to Stage 1", key="h_btn_s0", use_container_width=True):
-                st.session_state['baseline_locked'] = True
-                st.session_state['flow_step'] = "stage1"
+
+            if st.button("Lock Baseline & Start", use_container_width=True):
+                lock_baseline()
+                st.session_state["flow_step"] = "stage1"
                 st.rerun()
 
-    # Library & tools always visible after Stage 0
+    # OPEN TOOL LIBRARY
     with col2:
         with st.expander("📚 Library & Tools", expanded=True):
-            st.write("Access specialized calculators and strategic tools.")
-            if st.button("Open Library", key="h_btn_lib", use_container_width=True):
-                st.session_state['flow_step'] = "library"
+
+            if st.button("Open Tool Library", use_container_width=True):
+                st.session_state["flow_step"] = "library"
                 st.rerun()
