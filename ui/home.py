@@ -1,17 +1,9 @@
 import streamlit as st
 from core.sync import sync_global_state, lock_baseline
 
-# -------------------------
-# Helper functions
-# -------------------------
-
-def reset_home_session():
-    """Καθαρίζει όλα τα session_state που μπορεί να μπλοκάρουν αλλαγές, κρατάει μόνο flow_step"""
-    keys_to_keep = ["flow_step"]
-    for key in list(st.session_state.keys()):
-        if key not in keys_to_keep:
-            del st.session_state[key]
-
+# -----------------------------
+# Helpers
+# -----------------------------
 def check_required_inputs(required):
     missing = []
     for r in required:
@@ -20,14 +12,17 @@ def check_required_inputs(required):
             missing.append(r)
     return missing
 
-# -------------------------
-# Main Home UI
-# -------------------------
+def reset_home_session():
+    """Καθαρίζει τα inputs χωρίς να σπάει το rerun"""
+    keys_to_keep = ["flow_step", "baseline_locked"]
+    for key in list(st.session_state.keys()):
+        if key not in keys_to_keep:
+            del st.session_state[key]
 
+# -----------------------------
+# Main Home
+# -----------------------------
 def run_home():
-    # --- Καθαρισμός session_state για καθαρή εκκίνηση ---
-    reset_home_session()
-
     st.title("Business Survival Calculator")
 
     st.write(
@@ -39,9 +34,9 @@ def run_home():
 
     st.divider()
 
-    # -------------------------
-    # STAGE SELECTOR
-    # -------------------------
+    # -----------------------------
+    # Stage Selector
+    # -----------------------------
     stage_options = {
         "Home": "home",
         "Stage 0: Setup": "stage0",
@@ -54,16 +49,15 @@ def run_home():
     }
 
     selection = st.selectbox("Go to section", list(stage_options.keys()))
-
     if stage_options[selection] != st.session_state.get("flow_step", "home"):
         st.session_state.flow_step = stage_options[selection]
         st.experimental_rerun()
 
     st.divider()
 
-    # -------------------------
-    # BASIC BUSINESS INPUTS
-    # -------------------------
+    # -----------------------------
+    # Basic Business Inputs
+    # -----------------------------
     st.header("Your Business Numbers")
     col1, col2 = st.columns(2)
 
@@ -98,9 +92,9 @@ def run_home():
 
     st.divider()
 
-    # -------------------------
-    # EXTRA PARAMETERS
-    # -------------------------
+    # -----------------------------
+    # Extra Parameters
+    # -----------------------------
     with st.expander("More optional inputs"):
         st.session_state.wacc = st.number_input(
             "Cost of capital (WACC)",
@@ -121,9 +115,9 @@ def run_home():
 
     st.divider()
 
-    # -------------------------
-    # ACTION BUTTONS
-    # -------------------------
+    # -----------------------------
+    # Action Buttons
+    # -----------------------------
     col1, col2 = st.columns(2)
 
     with col1:
@@ -133,15 +127,15 @@ def run_home():
 
     with col2:
         if st.button("Start new scenario"):
-            st.session_state.clear()
+            reset_home_session()
             st.session_state.flow_step = "home"
             st.experimental_rerun()
 
     st.divider()
 
-    # -------------------------
-    # QUESTIONS USER CAN ASK
-    # -------------------------
+    # -----------------------------
+    # Questions User Can Ask
+    # -----------------------------
     st.header("What do you want to know?")
     col1, col2 = st.columns(2)
 
@@ -150,9 +144,7 @@ def run_home():
             req = ["price", "variable_cost", "fixed_cost"]
             missing = check_required_inputs(req)
             if missing:
-                st.warning(
-                    "Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing])
-                )
+                st.warning("Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing]))
             else:
                 st.session_state.flow_step = "stage1"
                 st.experimental_rerun()
@@ -161,9 +153,7 @@ def run_home():
             req = ["price", "variable_cost", "fixed_cost", "volume"]
             missing = check_required_inputs(req)
             if missing:
-                st.warning(
-                    "Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing])
-                )
+                st.warning("Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing]))
             else:
                 st.session_state.flow_step = "stage2"
                 st.experimental_rerun()
@@ -173,9 +163,7 @@ def run_home():
             req = ["variable_cost", "fixed_cost", "volume"]
             missing = check_required_inputs(req)
             if missing:
-                st.warning(
-                    "Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing])
-                )
+                st.warning("Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing]))
             else:
                 st.session_state.flow_step = "stage1"
                 st.experimental_rerun()
@@ -184,18 +172,16 @@ def run_home():
             req = ["opening_cash", "price", "variable_cost", "fixed_cost", "volume"]
             missing = check_required_inputs(req)
             if missing:
-                st.warning(
-                    "Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing])
-                )
+                st.warning("Please enter first:\n\n" + "\n".join([f"• {m}" for m in missing]))
             else:
                 st.session_state.flow_step = "stage3"
                 st.experimental_rerun()
 
     st.divider()
 
-    # -------------------------
-    # QUICK RESULTS
-    # -------------------------
+    # -----------------------------
+    # Quick Results
+    # -----------------------------
     if st.session_state.get("baseline_locked", False):
         metrics = sync_global_state()
         st.header("Quick numbers")
