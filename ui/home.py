@@ -1,163 +1,184 @@
 import streamlit as st
+from core.sync import lock_baseline
 
-st.title("Business Decision Toolkit")
+def run_home():
 
-st.write("""
-Understand your business and make better decisions.
-Simple tools to evaluate cash, pricing, costs, and growth.
-""")
+    s = st.session_state
 
-# -----------------------------
-# CASH & LIQUIDITY
-# -----------------------------
+    # --- HERO SECTION ---
+    st.markdown(
+        """
+        <div style="text-align:center; padding: 30px 0;">
+            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
+            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
+                See the real impact on your cash and survival before committing
+            </h2>
+            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
+                Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.
+            </h3>
+            <p style="font-size:18px; color:#777; margin-top:15px;">
+                Know the outcome before you spend a euro.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-st.header("💰 Cash & Liquidity")
+    st.divider()
+    
+  
+    # ------------------------------------------------
+    # TWO COLUMN LAYOUT
+    # ------------------------------------------------
 
-col1, col2 = st.columns(2)
+    left, right = st.columns([1,1])
 
-with col1:
-    if st.button("How long could my business survive without new revenue?"):
-        st.switch_page("tools/cash_fragility_index.py")
+    # =================================================
+    # LEFT COLUMN
+    # BUSINESS SETUP
+    # =================================================
 
-    st.caption("Estimate how many days your business can continue operating if no new money comes in.")
+    with left:
 
-with col2:
-    if st.button("How quickly do my sales turn into cash?"):
-        st.switch_page("tools/cash_cycle.py")
+        st.header("🏗️ Business Setup")
 
-    st.caption("Measure how long it takes to collect cash after making a sale.")
+        st.subheader("📊 Sales Parameters")
 
+        c1, c2 = st.columns(2)
 
-col3, col4 = st.columns(2)
+        s.price = c1.number_input(
+            "Unit Price (€)",
+            value=float(s.get("price",100.0))
+        )
 
-with col3:
-    if st.button("Am I collecting money from customers efficiently?"):
-        st.switch_page("tools/receivables_analyzer.py")
+        s.volume = c2.number_input(
+            "Annual Volume",
+            value=int(s.get("volume",1000))
+        )
 
-    st.caption("Analyze delayed payments and understand how customers affect your cash flow.")
+        st.subheader("💰 Cost Structure")
 
-with col4:
-    if st.button("How should I schedule supplier payments to protect cash?"):
-        st.switch_page("tools/payables_manager.py")
+        col_a, col_b = st.columns(2)
 
-    st.caption("Plan supplier payments in a way that protects liquidity.")
+        with col_a:
 
+            st.markdown("**Variable Costs**")
 
-# -----------------------------
-# PRICING & PROFIT
-# -----------------------------
+            v1 = st.number_input(
+                "Materials (€/unit)",
+                value=float(s.get("in_mat",30.0)),
+                key="in_mat"
+            )
 
-st.header("💵 Pricing & Profit")
+            v2 = st.number_input(
+                "Labor (€/unit)",
+                value=float(s.get("in_lab",15.0)),
+                key="in_lab"
+            )
 
-col1, col2 = st.columns(2)
+            s.variable_cost = v1 + v2
 
-with col1:
-    if st.button("How many sales do I need to cover my costs?"):
-        st.switch_page("tools/break_even_shift_calculator.py")
+            st.info(f"Total Variable Cost: €{s.variable_cost:,.2f}")
 
-    st.caption("Calculate the sales level required for your business to break even.")
+        with col_b:
 
-with col2:
-    if st.button("How much can I reduce my price before the business becomes risky?"):
-        st.switch_page("tools/loss_threshold.py")
+            st.markdown("**Fixed Costs (Annual)**")
 
-    st.caption("Find the maximum price reduction your business can tolerate.")
+            f1 = st.number_input(
+                "Rent & Utilities",
+                value=float(s.get("in_rent",12000.0)),
+                key="in_rent"
+            )
 
-col3, col4 = st.columns(2)
+            f2 = st.number_input(
+                "Salaries & Admin",
+                value=float(s.get("in_sal",8000.0)),
+                key="in_sal"
+            )
 
-with col3:
-    if st.button("Which pricing strategy produces the most profit?"):
-        st.switch_page("tools/pricing_strategy.py")
+            s.fixed_cost = f1 + f2
 
-    st.caption("Compare different pricing strategies and their impact on profit.")
+            st.info(f"Total Fixed Cost: €{s.fixed_cost:,.2f}")
 
-with col4:
-    if st.button("How do price changes affect my competitiveness and sales?"):
-        st.switch_page("tools/pricing_radar.py")
+        st.divider()
 
-    st.caption("Understand how pricing affects market position and demand.")
+        # ------------------------------------------------
+        # ADVANCED FINANCIAL SETTINGS (Hidden)
+        # ------------------------------------------------
+        with st.expander("⚙️ Advanced Financial Settings"):
 
+            c1, c2, c3 = st.columns(3)
+            c1.number_input("Cost of Capital (WACC %)", value=float(s.get('wacc', 0.15)), key='wacc', format="%.4f")
+            c2.number_input("Tax Rate (0.xx)", value=float(s.get('tax_rate', 0.22)), key='tax_rate', format="%.2f")
+            c3.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)), key='annual_debt_service')
 
-# -----------------------------
-# COSTS & OPERATIONS
-# -----------------------------
+            st.markdown("**Working Capital Assumptions (Days)**")
+            d1, d2, d3 = st.columns(3)
+            d1.number_input("AR Days", value=int(s.get('ar_days', 45)), key='ar_days')
+            d2.number_input("Inventory Days", value=int(s.get('inventory_days', 60)), key='inventory_days')
+            d3.number_input("AP Days", value=int(s.get('ap_days', 30)), key='ap_days')
 
-st.header("📦 Costs & Operations")
+        st.divider()
 
-col1, col2 = st.columns(2)
+        # LOCK LOGIC
+        if st.button("🔒 Lock Baseline & Initialize", use_container_width=True):
 
-with col1:
-    if st.button("What does it actually cost me to produce one unit?"):
-        st.switch_page("tools/unit_cost_analyzer.py")
+            if s.price > s.variable_cost:
 
-    st.caption("Calculate the real cost behind each unit you produce.")
+                lock_baseline()
+                s.flow_step = "stage1"
+                st.rerun()
 
-with col2:
-    if st.button("How much inventory should I keep to meet demand?"):
-        st.switch_page("tools/inventory_manager.py")
+            else:
 
-    st.caption("Avoid shortages or excess stock by optimizing inventory levels.")
+                st.error("Unit price must be higher than variable cost.")
 
+    # =================================================
+    # RIGHT COLUMN
+    # QUESTIONS / TOOLS
+    # =================================================
 
-# -----------------------------
-# GROWTH & INVESTMENT
-# -----------------------------
+    with right:
 
-st.header("📈 Growth & Investment")
+        st.header("🧠 Business Questions")
 
-col1, col2 = st.columns(2)
+        question = st.selectbox(
 
-with col1:
-    if st.button("How much funding do I need to support growth?"):
-        st.switch_page("tools/growth_funding.py")
+            "What do you want to know?",
 
-    st.caption("Estimate the capital required to expand your business.")
+            [
 
-with col2:
-    if st.button("Loan or leasing: which is better for my equipment?"):
-        st.switch_page("tools/loan_vs_leasing.py")
+            "How much do I need to sell to not lose money?",
 
-    st.caption("Compare financing options for equipment purchases.")
+            "If I sell this many units will the business make money?",
 
-col3, col4 = st.columns(2)
+            "What price should I charge so the business works?",
 
-with col3:
-    if st.button("What is the best cost of capital for my investments?"):
-        st.switch_page("tools/wacc_optimizer.py")
+            "With the cash I have how long can I survive?",
 
-    st.caption("Evaluate the optimal mix of financing sources.")
+            "Open tools library"
 
+            ]
+        )
 
-# -----------------------------
-# STRATEGY & RISK
-# -----------------------------
+        st.markdown("")
 
-st.header("🧠 Strategy & Risk")
+        if st.button("Run Analysis", use_container_width=True):
 
-col1, col2 = st.columns(2)
+            if question == "How much do I need to sell to not lose money?":
+                st.session_state.flow_step = "stage1"
 
-with col1:
-    if st.button("Which strategy is the best choice for my business?"):
-        st.switch_page("tools/qspm_analyzer.py")
+            elif question == "If I sell this many units will the business make money?":
+                st.session_state.flow_step = "stage2"
 
-    st.caption("Compare strategic alternatives using weighted decision factors.")
+            elif question == "What price should I charge so the business works?":
+                st.session_state.flow_step = "stage1"
 
-with col2:
-    if st.button("How would my business perform under economic stress?"):
-        st.switch_page("tools/stress_test_simulator.py")
+            elif question == "With the cash I have how long can I survive?":
+                st.session_state.flow_step = "stage3"
 
-    st.caption("Simulate scenarios like revenue drops or cost increases.")
+            elif question == "Open tools library":
+                st.session_state.flow_step = "library"
 
-col3, col4 = st.columns(2)
+            st.rerun()
 
-with col3:
-    if st.button("How resilient is my business to unexpected pressures?"):
-        st.switch_page("tools/financial_resilience_app.py")
-
-    st.caption("Evaluate overall financial strength and resilience.")
-
-with col4:
-    if st.button("See all key financial indicators in one place"):
-        st.switch_page("tools/executive_dashboard.py")
-
-    st.caption("A dashboard with the most important financial indicators.")
