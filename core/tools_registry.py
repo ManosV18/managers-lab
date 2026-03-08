@@ -42,8 +42,12 @@ def show_library():
     st.title("🏛️ Strategic Tool Library")
 
     if st.session_state.get('selected_tool') is None:
-        t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
-        
+        tabs = ["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"]
+
+default_tab = st.session_state.get("library_tab", 0)
+
+t1, t2, t3, t4 = st.tabs(tabs)
+                
         with t1:
             st.subheader("Core Strategy & Growth")
             if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True):
