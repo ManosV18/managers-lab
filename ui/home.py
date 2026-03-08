@@ -128,7 +128,3 @@ def run_home():
             st.rerun()
     
     
-    
-    
-    
-   
