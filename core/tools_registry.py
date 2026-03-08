@@ -4,6 +4,7 @@ import os
 import sys
 
 # --- INTERNAL TOOL: PAYABLES MANAGER ---
+# Αυτό το εργαλείο είναι ενσωματωμένο απευθείας εδώ
 def show_payables_manager_internal():
     st.header("🤝 Payables Manager: Supplier Credit Analysis")
     st.info("Evaluate cash discounts vs. supplier credit terms (365-day basis).")
@@ -29,12 +30,12 @@ def show_payables_manager_internal():
 
 # --- MAIN LIBRARY FUNCTION ---
 def show_library():
-    # If no tool is selected, something is wrong, go back
+    # Αν δεν υπάρχει επιλεγμένο εργαλείο, επιστροφή στο Home
     if st.session_state.get('selected_tool') is None:
         st.session_state.flow_step = "home"
         st.rerun()
 
-    # NAVIGATION BACK TO HOME
+    # ΚΟΥΜΠΙ ΕΠΙΣΤΡΟΦΗΣ ΣΤΗΝ ΚΕΝΤΡΙΚΗ ΟΘΟΝΗ
     if st.button("⬅️ Return to Main Dashboard", type="primary"):
         st.session_state.selected_tool = None
         st.session_state.flow_step = "home"
@@ -42,25 +43,32 @@ def show_library():
     
     st.divider()
 
-    # LOAD SELECTED TOOL
+    # Λήψη ονομάτων αρχείου και συνάρτησης
     mod_name, func_name = st.session_state.selected_tool
     
     if mod_name == "INTERNAL":
         show_payables_manager_internal()
     else:
         try:
-            # Dynamically load from tools/ folder
+            # ΣΩΣΤΟ PATH: Το αρχείο είναι στο core/, άρα τα tools είναι στο core/tools/
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            # Adjust path if tools/ is at the root
-            file_path = os.path.join(current_dir, "..", "tools", f"{mod_name}.py")
+            file_path = os.path.join(current_dir, "tools", f"{mod_name}.py")
             
+            # Φόρτωση του module
             spec = importlib.util.spec_from_file_location(mod_name, file_path)
+            if spec is None:
+                raise FileNotFoundError(f"Could not find the file: {file_path}")
+                
             module = importlib.util.module_from_spec(spec)
+            sys.modules[mod_name] = module # Καταχώρηση στο σύστημα
             spec.loader.exec_module(module)
+            
+            # Εκτέλεση της συνάρτησης του εργαλείου
             getattr(module, func_name)()
+            
         except Exception as e:
             st.error(f"❌ Error loading tool '{mod_name}': {e}")
-            if st.button("Back to Home"):
+            if st.button("Emergency Back to Home"):
                 st.session_state.selected_tool = None
                 st.session_state.flow_step = "home"
                 st.rerun()
