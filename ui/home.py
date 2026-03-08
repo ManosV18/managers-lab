@@ -1,7 +1,6 @@
 import streamlit as st
 from core.sync import lock_baseline
 
-
 def run_home():
 
     s = st.session_state
@@ -10,18 +9,27 @@ def run_home():
     # HERO SECTION
     # ------------------------------------------------
 
-    st.title("🛡️ Strategic Decision Room")
+    st.markdown(
+        """
+        <div style="text-align:center; padding: 30px 0;">
+            <h1 style="font-size:44px;">🛡️ Strategic Decision Room</h1>
 
-    st.subheader(
-        "See the real impact on your cash and survival before committing"
+            <h2 style="font-size:26px; font-weight:600;">
+            See the real impact on your cash and survival before committing
+            </h2>
+
+            <h3 style="font-size:19px; font-weight:normal; color:#555;">
+            Change prices, costs, or volumes and instantly see the effect on profit,
+            break-even, and cash survival.
+            </h3>
+
+            <p style="font-size:18px; color:#777;">
+            Know the outcome before you spend a euro.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
-
-    st.write(
-        "Change prices, costs, or volumes and instantly see the effect on "
-        "profit, break-even, and cash survival."
-    )
-
-    st.caption("Know the outcome before you spend a euro.")
 
     st.divider()
 
@@ -29,10 +37,11 @@ def run_home():
     # TWO COLUMN LAYOUT
     # ------------------------------------------------
 
-    left, right = st.columns([1, 1])
+    left, right = st.columns([1,1])
 
     # =================================================
     # LEFT COLUMN
+    # BUSINESS SETUP + ADVANCED SETTINGS
     # =================================================
 
     with left:
@@ -43,16 +52,14 @@ def run_home():
 
         c1, c2 = st.columns(2)
 
-        c1.number_input(
+        s.price = c1.number_input(
             "Unit Price (€)",
-            value=float(s.get("price", 100.0)),
-            key="price"
+            value=float(s.get("price",100.0))
         )
 
-        c2.number_input(
+        s.volume = c2.number_input(
             "Annual Volume",
-            value=int(s.get("volume", 1000)),
-            key="volume"
+            value=int(s.get("volume",1000))
         )
 
         st.subheader("💰 Cost Structure")
@@ -60,66 +67,66 @@ def run_home():
         col_a, col_b = st.columns(2)
 
         with col_a:
-
             st.markdown("**Variable Costs**")
-
-            st.number_input(
+            v1 = st.number_input(
                 "Materials (€/unit)",
-                value=float(s.get("in_mat", 30.0)),
+                value=float(s.get("in_mat",30.0)),
                 key="in_mat"
             )
-
-            st.number_input(
+            v2 = st.number_input(
                 "Labor (€/unit)",
-                value=float(s.get("in_lab", 15.0)),
+                value=float(s.get("in_lab",15.0)),
                 key="in_lab"
             )
-
-            variable_cost = s.in_mat + s.in_lab
-
-            st.info(f"Total Variable Cost: €{variable_cost:,.2f}")
+            s.variable_cost = v1 + v2
+            st.info(f"Total Variable Cost: €{s.variable_cost:,.2f}")
 
         with col_b:
-
             st.markdown("**Fixed Costs (Annual)**")
-
-            st.number_input(
+            f1 = st.number_input(
                 "Rent & Utilities",
-                value=float(s.get("in_rent", 12000.0)),
+                value=float(s.get("in_rent",12000.0)),
                 key="in_rent"
             )
-
-            st.number_input(
+            f2 = st.number_input(
                 "Salaries & Admin",
-                value=float(s.get("in_sal", 8000.0)),
+                value=float(s.get("in_sal",8000.0)),
                 key="in_sal"
             )
-
-            fixed_cost = s.in_rent + s.in_sal
-
-            st.info(f"Total Fixed Cost: €{fixed_cost:,.2f}")
+            s.fixed_cost = f1 + f2
+            st.info(f"Total Fixed Cost: €{s.fixed_cost:,.2f}")
 
         st.divider()
 
+        # ------------------------
+        # ADVANCED FINANCIAL SETTINGS
+        # ------------------------
+        with st.expander("⚙️ Advanced Financial Settings", expanded=False):
+            c1, c2, c3 = st.columns(3)
+            c1.number_input("Cost of Capital (WACC %)", value=float(s.get('wacc', 0.15)), key='wacc', format="%.4f")
+            c2.number_input("Tax Rate (0.xx)", value=float(s.get('tax_rate', 0.22)), key='tax_rate', format="%.2f")
+            c3.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)), key='annual_debt_service')
+
+            st.markdown("**Working Capital Assumptions (Days)**")
+            d1, d2, d3 = st.columns(3)
+            d1.number_input("AR Days", value=int(s.get('ar_days', 45)), key='ar_days')
+            d2.number_input("Inventory Days", value=int(s.get('inventory_days', 60)), key='inventory_days')
+            d3.number_input("AP Days", value=int(s.get('ap_days', 30)), key='ap_days')
+
+        st.divider()
+
+        # LOCK LOGIC
         if st.button("🔒 Lock Baseline & Initialize", use_container_width=True):
-
-            if s.price > variable_cost:
-
-                s.variable_cost = variable_cost
-                s.fixed_cost = fixed_cost
-
+            if s.price > s.variable_cost:
                 lock_baseline()
-
                 s.flow_step = "stage1"
-
                 st.rerun()
-
             else:
-
                 st.error("Unit price must be higher than variable cost.")
 
     # =================================================
     # RIGHT COLUMN
+    # QUESTIONS / TOOLS
     # =================================================
 
     with right:
@@ -127,37 +134,27 @@ def run_home():
         st.header("🧠 Business Questions")
 
         question = st.selectbox(
-
             "What do you want to know?",
-
             [
-
-                "How much do I need to sell to not lose money?",
-                "If I sell this many units will the business make money?",
-                "What price should I charge so the business works?",
-                "With the cash I have how long can I survive?",
-                "Open tools library"
-
+            "How much do I need to sell to not lose money?",
+            "If I sell this many units will the business make money?",
+            "What price should I charge so the business works?",
+            "With the cash I have how long can I survive?",
+            "Open tools library"
             ]
         )
 
         st.markdown("")
 
         if st.button("Run Analysis", use_container_width=True):
-
             if question == "How much do I need to sell to not lose money?":
                 s.flow_step = "stage1"
-
             elif question == "If I sell this many units will the business make money?":
                 s.flow_step = "stage2"
-
             elif question == "What price should I charge so the business works?":
                 s.flow_step = "stage1"
-
             elif question == "With the cash I have how long can I survive?":
                 s.flow_step = "stage3"
-
             elif question == "Open tools library":
                 s.flow_step = "library"
-
             st.rerun()
