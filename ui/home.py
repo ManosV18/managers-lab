@@ -5,26 +5,19 @@ def run_home():
 
     s = st.session_state
 
-    # ------------------------------------------------
-    # HERO SECTION
-    # ------------------------------------------------
-
+    # --- HERO SECTION ---
     st.markdown(
         """
         <div style="text-align:center; padding: 30px 0;">
-            <h1 style="font-size:44px;">🛡️ Strategic Decision Room</h1>
-
-            <h2 style="font-size:26px; font-weight:600;">
-            See the real impact on your cash and survival before committing
+            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
+            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
+                See the real impact on your cash and survival before committing
             </h2>
-
-            <h3 style="font-size:19px; font-weight:normal; color:#555;">
-            Change prices, costs, or volumes and instantly see the effect on profit,
-            break-even, and cash survival.
+            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
+                Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.
             </h3>
-
-            <p style="font-size:18px; color:#777;">
-            Know the outcome before you spend a euro.
+            <p style="font-size:18px; color:#777; margin-top:15px;">
+                Know the outcome before you spend a euro.
             </p>
         </div>
         """,
@@ -32,7 +25,8 @@ def run_home():
     )
 
     st.divider()
-
+    
+  
     # ------------------------------------------------
     # TWO COLUMN LAYOUT
     # ------------------------------------------------
