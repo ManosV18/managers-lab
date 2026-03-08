@@ -42,37 +42,28 @@ def show_library():
     st.title("🏛️ Strategic Tool Library")
 
     if st.session_state.get('selected_tool') is None:
-    tabs = ["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"]
-
-    default_tab = st.session_state.get("library_tab", 0)
-
-    t1, t2, t3, t4 = st.tabs(tabs)
-
-    with t1:
-        st.subheader("Core Strategy & Growth")
-        if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True):
-            st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool")
-            st.rerun()
-
-        if st.button("📡 Pricing Radar Matrix", use_container_width=True):
-            st.session_state.selected_tool = ("pricing_radar", "show_pricing_radar")
-            st.rerun()
-
-        if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True):
-            st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
-            st.rerun()
-
-        if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
-            st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
-            st.rerun()
-
-        if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
-            st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool")
-            st.rerun()
-
-        if st.button("👥 CLV Simulator", use_container_width=True):
-            st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
-            st.rerun()
+        t1, t2, t3, t4 = st.tabs(["🚀 Strategy & Pricing", "💰 Capital & Finance", "⚙️ Operations & CCC", "🛡️ Risk & Control"])
+        
+        with t1:
+            st.subheader("Core Strategy & Growth")
+            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True):
+                st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool")
+                st.rerun()
+            if st.button("📡 Pricing Radar Matrix", use_container_width=True):
+                st.session_state.selected_tool = ("pricing_radar", "show_pricing_radar") # Updated name
+                st.rerun()
+            if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True):
+                st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut")
+                st.rerun()
+            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
+                st.rerun()
+            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
+                st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool")
+                st.rerun()
+            if st.button("👥 CLV Simulator", use_container_width=True):
+                st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator")
+                st.rerun()
         
         with t2:
             st.subheader("Financial Engineering")
