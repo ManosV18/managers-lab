@@ -4,36 +4,24 @@ from core.sync import lock_baseline
 
 def run_home():
 
-    st.success("HOME VERSION 2 LOADED")
-
     s = st.session_state
-
 
     # ------------------------------------------------
     # HERO SECTION
     # ------------------------------------------------
 
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 30px 0;">
-            <h1 style="font-size:44px;">🛡️ Strategic Decision Room</h1>
+    st.title("🛡️ Strategic Decision Room")
 
-            <h2 style="font-size:26px; font-weight:600;">
-            See the real impact on your cash and survival before committing
-            </h2>
-
-            <h3 style="font-size:19px; font-weight:normal; color:#555;">
-            Change prices, costs, or volumes and instantly see the effect on profit,
-            break-even, and cash survival.
-            </h3>
-
-            <p style="font-size:18px; color:#777;">
-            Know the outcome before you spend a euro.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.subheader(
+        "See the real impact on your cash and survival before committing"
     )
+
+    st.write(
+        "Change prices, costs, or volumes and instantly see the effect on "
+        "profit, break-even, and cash survival."
+    )
+
+    st.caption("Know the outcome before you spend a euro.")
 
     st.divider()
 
@@ -41,7 +29,7 @@ def run_home():
     # TWO COLUMN LAYOUT
     # ------------------------------------------------
 
-    left, right = st.columns([1,1])
+    left, right = st.columns([1, 1])
 
     # =================================================
     # LEFT COLUMN
@@ -58,12 +46,14 @@ def run_home():
 
         s.price = c1.number_input(
             "Unit Price (€)",
-            value=float(s.get("price",100.0))
+            value=float(s.get("price", 100.0)),
+            key="price"
         )
 
         s.volume = c2.number_input(
             "Annual Volume",
-            value=int(s.get("volume",1000))
+            value=int(s.get("volume", 1000)),
+            key="volume"
         )
 
         st.subheader("💰 Cost Structure")
@@ -76,13 +66,13 @@ def run_home():
 
             v1 = st.number_input(
                 "Materials (€/unit)",
-                value=float(s.get("in_mat",30.0)),
+                value=float(s.get("in_mat", 30.0)),
                 key="in_mat"
             )
 
             v2 = st.number_input(
                 "Labor (€/unit)",
-                value=float(s.get("in_lab",15.0)),
+                value=float(s.get("in_lab", 15.0)),
                 key="in_lab"
             )
 
@@ -96,13 +86,13 @@ def run_home():
 
             f1 = st.number_input(
                 "Rent & Utilities",
-                value=float(s.get("in_rent",12000.0)),
+                value=float(s.get("in_rent", 12000.0)),
                 key="in_rent"
             )
 
             f2 = st.number_input(
                 "Salaries & Admin",
-                value=float(s.get("in_sal",8000.0)),
+                value=float(s.get("in_sal", 8000.0)),
                 key="in_sal"
             )
 
@@ -139,15 +129,11 @@ def run_home():
 
             [
 
-            "How much do I need to sell to not lose money?",
-
-            "If I sell this many units will the business make money?",
-
-            "What price should I charge so the business works?",
-
-            "With the cash I have how long can I survive?",
-
-            "Open tools library"
+                "How much do I need to sell to not lose money?",
+                "If I sell this many units will the business make money?",
+                "What price should I charge so the business works?",
+                "With the cash I have how long can I survive?",
+                "Open tools library"
 
             ]
         )
