@@ -41,7 +41,7 @@ def run_home():
 
     # =================================================
     # LEFT COLUMN
-    # BUSINESS SETUP + ADVANCED SETTINGS
+    # BUSINESS SETUP
     # =================================================
 
     with left:
@@ -67,41 +67,52 @@ def run_home():
         col_a, col_b = st.columns(2)
 
         with col_a:
+
             st.markdown("**Variable Costs**")
+
             v1 = st.number_input(
                 "Materials (€/unit)",
                 value=float(s.get("in_mat",30.0)),
                 key="in_mat"
             )
+
             v2 = st.number_input(
                 "Labor (€/unit)",
                 value=float(s.get("in_lab",15.0)),
                 key="in_lab"
             )
+
             s.variable_cost = v1 + v2
+
             st.info(f"Total Variable Cost: €{s.variable_cost:,.2f}")
 
         with col_b:
+
             st.markdown("**Fixed Costs (Annual)**")
+
             f1 = st.number_input(
                 "Rent & Utilities",
                 value=float(s.get("in_rent",12000.0)),
                 key="in_rent"
             )
+
             f2 = st.number_input(
                 "Salaries & Admin",
                 value=float(s.get("in_sal",8000.0)),
                 key="in_sal"
             )
+
             s.fixed_cost = f1 + f2
+
             st.info(f"Total Fixed Cost: €{s.fixed_cost:,.2f}")
 
         st.divider()
 
-        # ------------------------
-        # ADVANCED FINANCIAL SETTINGS
-        # ------------------------
-        with st.expander("⚙️ Advanced Financial Settings", expanded=False):
+        # ------------------------------------------------
+        # ADVANCED FINANCIAL SETTINGS (Hidden)
+        # ------------------------------------------------
+        with st.expander("⚙️ Advanced Financial Settings"):
+
             c1, c2, c3 = st.columns(3)
             c1.number_input("Cost of Capital (WACC %)", value=float(s.get('wacc', 0.15)), key='wacc', format="%.4f")
             c2.number_input("Tax Rate (0.xx)", value=float(s.get('tax_rate', 0.22)), key='tax_rate', format="%.2f")
@@ -117,11 +128,15 @@ def run_home():
 
         # LOCK LOGIC
         if st.button("🔒 Lock Baseline & Initialize", use_container_width=True):
+
             if s.price > s.variable_cost:
+
                 lock_baseline()
                 s.flow_step = "stage1"
                 st.rerun()
+
             else:
+
                 st.error("Unit price must be higher than variable cost.")
 
     # =================================================
@@ -134,27 +149,41 @@ def run_home():
         st.header("🧠 Business Questions")
 
         question = st.selectbox(
+
             "What do you want to know?",
+
             [
+
             "How much do I need to sell to not lose money?",
+
             "If I sell this many units will the business make money?",
+
             "What price should I charge so the business works?",
+
             "With the cash I have how long can I survive?",
+
             "Open tools library"
+
             ]
         )
 
         st.markdown("")
 
         if st.button("Run Analysis", use_container_width=True):
+
             if question == "How much do I need to sell to not lose money?":
-                s.flow_step = "stage1"
+                st.session_state.flow_step = "stage1"
+
             elif question == "If I sell this many units will the business make money?":
-                s.flow_step = "stage2"
+                st.session_state.flow_step = "stage2"
+
             elif question == "What price should I charge so the business works?":
-                s.flow_step = "stage1"
+                st.session_state.flow_step = "stage1"
+
             elif question == "With the cash I have how long can I survive?":
-                s.flow_step = "stage3"
+                st.session_state.flow_step = "stage3"
+
             elif question == "Open tools library":
-                s.flow_step = "library"
+                st.session_state.flow_step = "library"
+
             st.rerun()
