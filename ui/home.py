@@ -2,7 +2,6 @@ import streamlit as st
 from core.sync import lock_baseline
 
 def run_home():
-
     s = st.session_state
 
     # --- HERO SECTION ---
@@ -25,86 +24,48 @@ def run_home():
     )
 
     st.divider()
-
-    # ------------------------------------------------
-    # TWO COLUMN LAYOUT
-    # ------------------------------------------------
     left, right = st.columns([1,1])
 
     # =================================================
     # LEFT COLUMN - Business Setup
     # =================================================
     with left:
-
         st.header("🏗️ Business Setup")
-
         st.subheader("📊 Sales Parameters")
         c1, c2 = st.columns(2)
-
-        s.price = c1.number_input(
-            "Unit Price (€)",
-            value=float(s.get("price",100.0))
-        )
-
-        s.volume = c2.number_input(
-            "Annual Volume",
-            value=int(s.get("volume",1000))
-        )
+        s.price = c1.number_input("Unit Price (€)", value=float(s.get("price",100.0)))
+        s.volume = c2.number_input("Annual Volume", value=int(s.get("volume",1000)))
 
         st.subheader("💰 Cost Structure")
         col_a, col_b = st.columns(2)
-
         with col_a:
             st.markdown("**Variable Costs**")
-            v1 = st.number_input(
-                "Materials (€/unit)",
-                value=float(s.get("in_mat",30.0)),
-                key="in_mat"
-            )
-            v2 = st.number_input(
-                "Labor (€/unit)",
-                value=float(s.get("in_lab",15.0)),
-                key="in_lab"
-            )
+            v1 = st.number_input("Materials (€/unit)", value=float(s.get("in_mat",30.0)), key="in_mat")
+            v2 = st.number_input("Labor (€/unit)", value=float(s.get("in_lab",15.0)), key="in_lab")
             s.variable_cost = v1 + v2
             st.info(f"Total Variable Cost: €{s.variable_cost:,.2f}")
-
         with col_b:
             st.markdown("**Fixed Costs (Annual)**")
-            f1 = st.number_input(
-                "Rent & Utilities",
-                value=float(s.get("in_rent",12000.0)),
-                key="in_rent"
-            )
-            f2 = st.number_input(
-                "Salaries & Admin",
-                value=float(s.get("in_sal",8000.0)),
-                key="in_sal"
-            )
+            f1 = st.number_input("Rent & Utilities", value=float(s.get("in_rent",12000.0)), key="in_rent")
+            f2 = st.number_input("Salaries & Admin", value=float(s.get("in_sal",8000.0)), key="in_sal")
             s.fixed_cost = f1 + f2
             st.info(f"Total Fixed Cost: €{s.fixed_cost:,.2f}")
 
         st.divider()
 
-        # ------------------------------------------------
-        # ADVANCED FINANCIAL SETTINGS (Hidden)
-        # ------------------------------------------------
+        # Advanced Financial Settings
         with st.expander("⚙️ Advanced Financial Settings"):
-
             c1, c2, c3 = st.columns(3)
-            c1.number_input("Cost of Capital (WACC %)", value=float(s.get('wacc', 0.15)), key='wacc', format="%.4f")
-            c2.number_input("Tax Rate (0.xx)", value=float(s.get('tax_rate', 0.22)), key='tax_rate', format="%.2f")
-            c3.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)), key='annual_debt_service')
-
+            c1.number_input("Cost of Capital (WACC %)", value=float(s.get('wacc',0.15)), key='wacc', format="%.4f")
+            c2.number_input("Tax Rate (0.xx)", value=float(s.get('tax_rate',0.22)), key='tax_rate', format="%.2f")
+            c3.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service',0.0)), key='annual_debt_service')
             st.markdown("**Working Capital Assumptions (Days)**")
             d1, d2, d3 = st.columns(3)
-            d1.number_input("AR Days", value=int(s.get('ar_days', 45)), key='ar_days')
-            d2.number_input("Inventory Days", value=int(s.get('inventory_days', 60)), key='inventory_days')
-            d3.number_input("AP Days", value=int(s.get('ap_days', 30)), key='ap_days')
+            d1.number_input("AR Days", value=int(s.get('ar_days',45)), key='ar_days')
+            d2.number_input("Inventory Days", value=int(s.get('inventory_days',60)), key='inventory_days')
+            d3.number_input("AP Days", value=int(s.get('ap_days',30)), key='ap_days')
 
         st.divider()
-
-        # LOCK LOGIC
         if st.button("🔒 Lock Baseline & Initialize", use_container_width=True):
             if s.price > s.variable_cost:
                 lock_baseline()
@@ -114,79 +75,72 @@ def run_home():
                 st.error("Unit price must be higher than variable cost.")
 
     # =================================================
-    # RIGHT COLUMN - Business Questions / Tools
+    # RIGHT COLUMN - Strategic Tool Library Categories
     # =================================================
     with right:
+        st.header("🧠 Business Questions / Tools")
+        st.markdown("Select a category to access its tools and explanations:")
 
-        st.header("🧠 Business Questions")
-        st.markdown("Select a business area to explore the available tools.")
+        # -------------------------------
+        # 1️⃣ Strategy & Pricing
+        # -------------------------------
+        with st.expander("🚀 Strategy & Pricing", expanded=False):
+            st.subheader("Core Strategy & Growth")
+            st.markdown("Tools for strategic decisions, pricing, and growth simulations.")
+            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True):
+                st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool"); st.rerun()
+            if st.button("📡 Pricing Radar Matrix", use_container_width=True):
+                st.session_state.selected_tool = ("pricing_radar", "show_pricing_radar"); st.rerun()
+            if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True):
+                st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut"); st.rerun()
+            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+                st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); st.rerun()
+            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
+                st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool"); st.rerun()
+            if st.button("👥 CLV Simulator", use_container_width=True):
+                st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator"); st.rerun()
 
-        # ------------------------------------------------
-        # CASH & LIQUIDITY
-        # ------------------------------------------------
-        with st.expander("💰 Cash & Liquidity", expanded=False):
-            st.markdown("Understand how money moves through your business and how long you can survive during slow periods.")
-            if st.button("Cash Survival Tool", key="cash_survival"):
-                st.session_state.flow_step = "stage3"
-                st.rerun()
-            st.caption("Estimate how many days your business can operate without new revenue.")
+        # -------------------------------
+        # 2️⃣ Capital & Finance
+        # -------------------------------
+        with st.expander("💰 Capital & Finance", expanded=False):
+            st.subheader("Financial Engineering & Funding")
+            st.markdown("Tools for cash, WACC, funding, and financial optimization.")
+            if st.button("📉 WACC Optimizer", use_container_width=True):
+                st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer"); st.rerun()
+            if st.button("📈 Growth Funding (AFN)", use_container_width=True):
+                st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed"); st.rerun()
+            if st.button("⚖️ Loan vs Leasing Analyzer", use_container_width=True):
+                st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui"); st.rerun()
 
-        # ------------------------------------------------
-        # PRICING & PROFIT
-        # ------------------------------------------------
-        with st.expander("💵 Pricing & Profit", expanded=False):
-            st.markdown("Analyze how pricing and sales affect profitability and financial sustainability.")
-            if st.button("Break-Even / Profit Analysis", key="break_even"):
-                st.session_state.flow_step = "stage1"
-                st.rerun()
-            st.caption("Calculate the sales level required to cover all business costs.")
+        # -------------------------------
+        # 3️⃣ Operations & CCC
+        # -------------------------------
+        with st.expander("⚙️ Operations & CCC", expanded=False):
+            st.subheader("Tactical Execution")
+            st.markdown("Operational tools, CCC, inventory, payables, and unit cost analysis.")
+            if st.button("🔄 Cash Conversion Cycle (CCC)", use_container_width=True):
+                st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app"); st.rerun()
+            if st.button("📊 Receivables Analyzer (NPV)", use_container_width=True):
+                st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui"); st.rerun()
+            if st.button("📦 Inventory Optimizer (EOQ)", use_container_width=True):
+                st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager"); st.rerun()
+            if st.button("🤝 Payables Manager", use_container_width=True):
+                st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal"); st.rerun()
+            if st.button("🔢 Unit Cost Analyzer", use_container_width=True):
+                st.session_state.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app"); st.rerun()
 
-            if st.button("Profit Check Tool", key="profit_check"):
-                st.session_state.flow_step = "stage2"
-                st.rerun()
-            st.caption("Evaluate profitability at a specific sales level.")
-
-            if st.button("Required Price Estimator", key="price_required"):
-                st.session_state.flow_step = "stage1"
-                st.rerun()
-            st.caption("Estimate the minimum price required to sustain the business.")
-
-        # ------------------------------------------------
-        # COSTS & OPERATIONS
-        # ------------------------------------------------
-        with st.expander("📦 Costs & Operations", expanded=False):
-            st.markdown("Understand production costs and operational efficiency.")
-            if st.button("Open cost analysis tools", key="cost_tools"):
-                st.session_state.flow_step = "library"
-                st.rerun()
-            st.caption("Analyze the real cost behind your operations.")
-
-        # ------------------------------------------------
-        # GROWTH & INVESTMENT
-        # ------------------------------------------------
-        with st.expander("📈 Growth & Investment", expanded=False):
-            st.markdown("Evaluate expansion decisions and funding requirements.")
-            if st.button("Open growth planning tools", key="growth_tools"):
-                st.session_state.flow_step = "library"
-                st.rerun()
-            st.caption("Estimate funding needs and investment options.")
-
-        # ------------------------------------------------
-        # STRATEGY & RISK
-        # ------------------------------------------------
-        with st.expander("🧠 Strategy & Risk", expanded=False):
-            st.markdown("Simulate strategic decisions and stress-test your business.")
-            if st.button("Open strategy simulation tools", key="strategy_tools"):
-                st.session_state.flow_step = "library"
-                st.rerun()
-            st.caption("Compare strategic scenarios and evaluate business resilience.")
-
-        # ------------------------------------------------
-        # FULL TOOL LIBRARY
-        # ------------------------------------------------
-        with st.expander("🧰 Full Tools Library", expanded=False):
-            st.markdown("Access the full set of advanced financial and strategic tools.")
-            if st.button("Open tools library", key="tool_library"):
-                st.session_state.flow_step = "library"
-                st.rerun()
-            st.caption("Browse all available analysis tools.")
+        # -------------------------------
+        # 4️⃣ Risk & Control
+        # -------------------------------
+        with st.expander("🛡️ Risk & Control", expanded=False):
+            st.subheader("Executive Command & Risk")
+            st.markdown("Tools for resilience, stress tests, and executive monitoring.")
+            if st.button("🏁 Executive Command Center", use_container_width=True):
+                st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard"); st.rerun()
+            if st.button("🚨 Cash Fragility Index", use_container_width=True):
+                st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index"); st.rerun()
+            if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
+                st.session_state.selected_tool = ("financial_resilience_app", "show_resilience_map"); st.rerun()
+            if st.button("📉 Stress Test Simulator", use_container_width=True):
+                st.session_state.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); st.rerun()
