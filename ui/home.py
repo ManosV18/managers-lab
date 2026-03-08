@@ -25,25 +25,20 @@ def run_home():
     )
 
     st.divider()
-    
-  
+
     # ------------------------------------------------
     # TWO COLUMN LAYOUT
     # ------------------------------------------------
-
     left, right = st.columns([1,1])
 
     # =================================================
-    # LEFT COLUMN
-    # BUSINESS SETUP
+    # LEFT COLUMN - Business Setup
     # =================================================
-
     with left:
 
         st.header("🏗️ Business Setup")
 
         st.subheader("📊 Sales Parameters")
-
         c1, c2 = st.columns(2)
 
         s.price = c1.number_input(
@@ -57,47 +52,36 @@ def run_home():
         )
 
         st.subheader("💰 Cost Structure")
-
         col_a, col_b = st.columns(2)
 
         with col_a:
-
             st.markdown("**Variable Costs**")
-
             v1 = st.number_input(
                 "Materials (€/unit)",
                 value=float(s.get("in_mat",30.0)),
                 key="in_mat"
             )
-
             v2 = st.number_input(
                 "Labor (€/unit)",
                 value=float(s.get("in_lab",15.0)),
                 key="in_lab"
             )
-
             s.variable_cost = v1 + v2
-
             st.info(f"Total Variable Cost: €{s.variable_cost:,.2f}")
 
         with col_b:
-
             st.markdown("**Fixed Costs (Annual)**")
-
             f1 = st.number_input(
                 "Rent & Utilities",
                 value=float(s.get("in_rent",12000.0)),
                 key="in_rent"
             )
-
             f2 = st.number_input(
                 "Salaries & Admin",
                 value=float(s.get("in_sal",8000.0)),
                 key="in_sal"
             )
-
             s.fixed_cost = f1 + f2
-
             st.info(f"Total Fixed Cost: €{s.fixed_cost:,.2f}")
 
         st.divider()
@@ -122,111 +106,87 @@ def run_home():
 
         # LOCK LOGIC
         if st.button("🔒 Lock Baseline & Initialize", use_container_width=True):
-
             if s.price > s.variable_cost:
-
                 lock_baseline()
                 s.flow_step = "stage1"
                 st.rerun()
-
             else:
-
                 st.error("Unit price must be higher than variable cost.")
 
-    
-        
-        
     # =================================================
-# RIGHT COLUMN
-# QUESTIONS / TOOLS
-# =================================================
-with right:
+    # RIGHT COLUMN - Business Questions / Tools
+    # =================================================
+    with right:
 
-    st.header("🧠 Business Questions")
+        st.header("🧠 Business Questions")
+        st.markdown("Select a business area to explore the available tools.")
 
-    st.markdown("Select a business area to explore the available tools.")
+        # ------------------------------------------------
+        # CASH & LIQUIDITY
+        # ------------------------------------------------
+        with st.expander("💰 Cash & Liquidity", expanded=False):
+            st.markdown("Understand how money moves through your business and how long you can survive during slow periods.")
+            if st.button("Cash Survival Tool", key="cash_survival"):
+                st.session_state.flow_step = "stage3"
+                st.rerun()
+            st.caption("Estimate how many days your business can operate without new revenue.")
 
-    # ------------------------------------------------
-    # CASH & LIQUIDITY
-    # ------------------------------------------------
-    with st.expander("💰 Cash & Liquidity", expanded=False):
-        st.markdown("Understand how money moves through your business and how long you can survive during slow periods.")
+        # ------------------------------------------------
+        # PRICING & PROFIT
+        # ------------------------------------------------
+        with st.expander("💵 Pricing & Profit", expanded=False):
+            st.markdown("Analyze how pricing and sales affect profitability and financial sustainability.")
+            if st.button("Break-Even / Profit Analysis", key="break_even"):
+                st.session_state.flow_step = "stage1"
+                st.rerun()
+            st.caption("Calculate the sales level required to cover all business costs.")
 
-        if st.button("With the cash I have how long can I survive?", key="cash_survival"):
-            st.session_state.flow_step = "stage3"
-            st.rerun()
+            if st.button("Profit Check Tool", key="profit_check"):
+                st.session_state.flow_step = "stage2"
+                st.rerun()
+            st.caption("Evaluate profitability at a specific sales level.")
 
-        st.caption("Estimate how many days your business can operate without new revenue.")
+            if st.button("Required Price Estimator", key="price_required"):
+                st.session_state.flow_step = "stage1"
+                st.rerun()
+            st.caption("Estimate the minimum price required to sustain the business.")
 
-    # ------------------------------------------------
-    # PRICING & PROFIT
-    # ------------------------------------------------
-    with st.expander("💵 Pricing & Profit", expanded=False):
-        st.markdown("Analyze how pricing and sales affect profitability and financial sustainability.")
+        # ------------------------------------------------
+        # COSTS & OPERATIONS
+        # ------------------------------------------------
+        with st.expander("📦 Costs & Operations", expanded=False):
+            st.markdown("Understand production costs and operational efficiency.")
+            if st.button("Open cost analysis tools", key="cost_tools"):
+                st.session_state.flow_step = "library"
+                st.rerun()
+            st.caption("Analyze the real cost behind your operations.")
 
-        if st.button("How much do I need to sell to not lose money?", key="break_even"):
-            st.session_state.flow_step = "stage1"
-            st.rerun()
+        # ------------------------------------------------
+        # GROWTH & INVESTMENT
+        # ------------------------------------------------
+        with st.expander("📈 Growth & Investment", expanded=False):
+            st.markdown("Evaluate expansion decisions and funding requirements.")
+            if st.button("Open growth planning tools", key="growth_tools"):
+                st.session_state.flow_step = "library"
+                st.rerun()
+            st.caption("Estimate funding needs and investment options.")
 
-        st.caption("Calculate the sales level required to cover all business costs.")
+        # ------------------------------------------------
+        # STRATEGY & RISK
+        # ------------------------------------------------
+        with st.expander("🧠 Strategy & Risk", expanded=False):
+            st.markdown("Simulate strategic decisions and stress-test your business.")
+            if st.button("Open strategy simulation tools", key="strategy_tools"):
+                st.session_state.flow_step = "library"
+                st.rerun()
+            st.caption("Compare strategic scenarios and evaluate business resilience.")
 
-        if st.button("If I sell this many units will the business make money?", key="profit_check"):
-            st.session_state.flow_step = "stage2"
-            st.rerun()
-
-        st.caption("Evaluate profitability at a specific sales level.")
-
-        if st.button("What price should I charge so the business works?", key="price_required"):
-            st.session_state.flow_step = "stage1"
-            st.rerun()
-
-        st.caption("Estimate the minimum price required to sustain the business.")
-
-    # ------------------------------------------------
-    # COSTS & OPERATIONS
-    # ------------------------------------------------
-    with st.expander("📦 Costs & Operations", expanded=False):
-        st.markdown("Understand production costs and operational efficiency.")
-
-        if st.button("Open cost analysis tools", key="cost_tools"):
-            st.session_state.flow_step = "library"
-            st.rerun()
-
-        st.caption("Analyze the real cost behind your operations.")
-
-    # ------------------------------------------------
-    # GROWTH & INVESTMENT
-    # ------------------------------------------------
-    with st.expander("📈 Growth & Investment", expanded=False):
-        st.markdown("Evaluate expansion decisions and funding requirements.")
-
-        if st.button("Open growth planning tools", key="growth_tools"):
-            st.session_state.flow_step = "library"
-            st.rerun()
-
-        st.caption("Estimate funding needs and investment options.")
-
-    # ------------------------------------------------
-    # STRATEGY & RISK
-    # ------------------------------------------------
-    with st.expander("🧠 Strategy & Risk", expanded=False):
-        st.markdown("Simulate strategic decisions and stress-test your business.")
-
-        if st.button("Open strategy simulation tools", key="strategy_tools"):
-            st.session_state.flow_step = "library"
-            st.rerun()
-
-        st.caption("Compare strategic scenarios and evaluate business resilience.")
-
-    # ------------------------------------------------
-    # FULL TOOL LIBRARY
-    # ------------------------------------------------
-    with st.expander("🧰 Full Tools Library", expanded=False):
-        st.markdown("Access the full set of advanced financial and strategic tools.")
-
-        if st.button("Open tools library", key="tool_library"):
-            st.session_state.flow_step = "library"
-            st.rerun()
-
-        st.caption("Browse all available analysis tools.")    
-   
+        # ------------------------------------------------
+        # FULL TOOL LIBRARY
+        # ------------------------------------------------
+        with st.expander("🧰 Full Tools Library", expanded=False):
+            st.markdown("Access the full set of advanced financial and strategic tools.")
+            if st.button("Open tools library", key="tool_library"):
+                st.session_state.flow_step = "library"
+                st.rerun()
+            st.caption("Browse all available analysis tools.")
