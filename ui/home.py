@@ -33,7 +33,6 @@ def run_home():
 
     # =================================================
     # LEFT COLUMN
-    # BUSINESS SETUP
     # =================================================
 
     with left:
@@ -44,13 +43,13 @@ def run_home():
 
         c1, c2 = st.columns(2)
 
-        s.price = c1.number_input(
+        c1.number_input(
             "Unit Price (€)",
             value=float(s.get("price", 100.0)),
             key="price"
         )
 
-        s.volume = c2.number_input(
+        c2.number_input(
             "Annual Volume",
             value=int(s.get("volume", 1000)),
             key="volume"
@@ -64,50 +63,55 @@ def run_home():
 
             st.markdown("**Variable Costs**")
 
-            v1 = st.number_input(
+            st.number_input(
                 "Materials (€/unit)",
                 value=float(s.get("in_mat", 30.0)),
                 key="in_mat"
             )
 
-            v2 = st.number_input(
+            st.number_input(
                 "Labor (€/unit)",
                 value=float(s.get("in_lab", 15.0)),
                 key="in_lab"
             )
 
-            s.variable_cost = v1 + v2
+            variable_cost = s.in_mat + s.in_lab
 
-            st.info(f"Total Variable Cost: €{s.variable_cost:,.2f}")
+            st.info(f"Total Variable Cost: €{variable_cost:,.2f}")
 
         with col_b:
 
             st.markdown("**Fixed Costs (Annual)**")
 
-            f1 = st.number_input(
+            st.number_input(
                 "Rent & Utilities",
                 value=float(s.get("in_rent", 12000.0)),
                 key="in_rent"
             )
 
-            f2 = st.number_input(
+            st.number_input(
                 "Salaries & Admin",
                 value=float(s.get("in_sal", 8000.0)),
                 key="in_sal"
             )
 
-            s.fixed_cost = f1 + f2
+            fixed_cost = s.in_rent + s.in_sal
 
-            st.info(f"Total Fixed Cost: €{s.fixed_cost:,.2f}")
+            st.info(f"Total Fixed Cost: €{fixed_cost:,.2f}")
 
         st.divider()
 
         if st.button("🔒 Lock Baseline & Initialize", use_container_width=True):
 
-            if s.price > s.variable_cost:
+            if s.price > variable_cost:
+
+                s.variable_cost = variable_cost
+                s.fixed_cost = fixed_cost
 
                 lock_baseline()
+
                 s.flow_step = "stage1"
+
                 st.rerun()
 
             else:
@@ -116,7 +120,6 @@ def run_home():
 
     # =================================================
     # RIGHT COLUMN
-    # QUESTIONS / TOOLS
     # =================================================
 
     with right:
@@ -143,18 +146,18 @@ def run_home():
         if st.button("Run Analysis", use_container_width=True):
 
             if question == "How much do I need to sell to not lose money?":
-                st.session_state.flow_step = "stage1"
+                s.flow_step = "stage1"
 
             elif question == "If I sell this many units will the business make money?":
-                st.session_state.flow_step = "stage2"
+                s.flow_step = "stage2"
 
             elif question == "What price should I charge so the business works?":
-                st.session_state.flow_step = "stage1"
+                s.flow_step = "stage1"
 
             elif question == "With the cash I have how long can I survive?":
-                st.session_state.flow_step = "stage3"
+                s.flow_step = "stage3"
 
             elif question == "Open tools library":
-                st.session_state.flow_step = "library"
+                s.flow_step = "library"
 
             st.rerun()
