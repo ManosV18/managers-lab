@@ -75,72 +75,68 @@ def run_home():
                 st.error("Unit price must be higher than variable cost.")
 
     # =================================================
-    # RIGHT COLUMN - Strategic Tool Library Categories
+    # RIGHT COLUMN - Business Tools Categories (Home)
     # =================================================
     with right:
-        st.header("🧠 Business Questions / Tools")
-        st.markdown("Select a category to access its tools and explanations:")
+        st.header("🧠 Business Tools")
+        st.markdown("Select a category to explore the tools:")
 
         # -------------------------------
         # 1️⃣ Strategy & Pricing
         # -------------------------------
         with st.expander("🚀 Strategy & Pricing", expanded=False):
-            st.subheader("Core Strategy & Growth")
-            st.markdown("Tools for strategic decisions, pricing, and growth simulations.")
-            if st.button("🎯 Pricing Strategy & Elasticity", use_container_width=True):
+            st.markdown("Analyze pricing, profitability, and growth strategy impacts.")
+            if st.button("🎯 Pricing Strategy & Elasticity", key="pricing_strategy"):
                 st.session_state.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool"); st.rerun()
-            if st.button("📡 Pricing Radar Matrix", use_container_width=True):
+            if st.button("📡 Pricing Radar Matrix", key="pricing_radar"):
                 st.session_state.selected_tool = ("pricing_radar", "show_pricing_radar"); st.rerun()
-            if st.button("📉 Loss Threshold (Price Cut)", use_container_width=True):
+            if st.button("📉 Loss Threshold (Price Cut)", key="loss_threshold"):
                 st.session_state.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut"); st.rerun()
-            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+            if st.button("⚖️ BEP Shift Analysis", key="break_even_shift_calculator"):
                 st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); st.rerun()
-            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
+            if st.button("🧭 QSPM Strategy Matrix", key="qspm_analyzer"):
                 st.session_state.selected_tool = ("qspm_analyzer", "show_qspm_tool"); st.rerun()
-            if st.button("👥 CLV Simulator", use_container_width=True):
+            if st.button("👥 CLV Simulator", key="clv_calculator"):
                 st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator"); st.rerun()
 
         # -------------------------------
         # 2️⃣ Capital & Finance
         # -------------------------------
         with st.expander("💰 Capital & Finance", expanded=False):
-            st.subheader("Financial Engineering & Funding")
-            st.markdown("Tools for cash, WACC, funding, and financial optimization.")
-            if st.button("📉 WACC Optimizer", use_container_width=True):
+            st.markdown("Manage cash, WACC, funding, and financial optimization.")
+            if st.button("📉 WACC Optimizer", key="wacc_optimizer"):
                 st.session_state.selected_tool = ("wacc_optimizer", "show_wacc_optimizer"); st.rerun()
-            if st.button("📈 Growth Funding (AFN)", use_container_width=True):
+            if st.button("📈 Growth Funding (AFN)", key="growth_funding"):
                 st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed"); st.rerun()
-            if st.button("⚖️ Loan vs Leasing Analyzer", use_container_width=True):
+            if st.button("⚖️ Loan vs Leasing Analyzer", key="loan_vs_leasing"):
                 st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui"); st.rerun()
 
         # -------------------------------
         # 3️⃣ Operations & CCC
         # -------------------------------
         with st.expander("⚙️ Operations & CCC", expanded=False):
-            st.subheader("Tactical Execution")
-            st.markdown("Operational tools, CCC, inventory, payables, and unit cost analysis.")
-            if st.button("🔄 Cash Conversion Cycle (CCC)", use_container_width=True):
+            st.markdown("Analyze costs, operational efficiency, inventory, payables, and CCC.")
+            if st.button("🔄 Cash Conversion Cycle (CCC)", key="cash_cycle"):
                 st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app"); st.rerun()
-            if st.button("📊 Receivables Analyzer (NPV)", use_container_width=True):
+            if st.button("📊 Receivables Analyzer (NPV)", key="receivables_analyzer"):
                 st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui"); st.rerun()
-            if st.button("📦 Inventory Optimizer (EOQ)", use_container_width=True):
+            if st.button("📦 Inventory Optimizer (EOQ)", key="inventory_manager"):
                 st.session_state.selected_tool = ("inventory_manager", "show_inventory_manager"); st.rerun()
-            if st.button("🤝 Payables Manager", use_container_width=True):
+            if st.button("🤝 Payables Manager", key="payables_manager"):
                 st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal"); st.rerun()
-            if st.button("🔢 Unit Cost Analyzer", use_container_width=True):
+            if st.button("🔢 Unit Cost Analyzer", key="unit_cost_analyzer"):
                 st.session_state.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app"); st.rerun()
 
         # -------------------------------
         # 4️⃣ Risk & Control
         # -------------------------------
         with st.expander("🛡️ Risk & Control", expanded=False):
-            st.subheader("Executive Command & Risk")
-            st.markdown("Tools for resilience, stress tests, and executive monitoring.")
-            if st.button("🏁 Executive Command Center", use_container_width=True):
+            st.markdown("Simulate resilience, stress-tests, and monitor executive risks.")
+            if st.button("🏁 Executive Command Center", key="executive_dashboard"):
                 st.session_state.selected_tool = ("executive_dashboard", "show_executive_dashboard"); st.rerun()
-            if st.button("🚨 Cash Fragility Index", use_container_width=True):
+            if st.button("🚨 Cash Fragility Index", key="cash_fragility_index"):
                 st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index"); st.rerun()
-            if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
+            if st.button("🛡️ Resilience & Shock Map", key="financial_resilience_app"):
                 st.session_state.selected_tool = ("financial_resilience_app", "show_resilience_map"); st.rerun()
-            if st.button("📉 Stress Test Simulator", use_container_width=True):
+            if st.button("📉 Stress Test Simulator", key="stress_test_simulator"):
                 st.session_state.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); st.rerun()
