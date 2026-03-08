@@ -4,7 +4,10 @@ from core.sync import lock_baseline
 
 def run_home():
 
+    st.success("HOME VERSION 2 LOADED")
+
     s = st.session_state
+
 
     # ------------------------------------------------
     # HERO SECTION
