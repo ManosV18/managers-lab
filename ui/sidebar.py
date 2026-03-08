@@ -1,82 +1,28 @@
 import streamlit as st
-from core.sync import lock_baseline
 
 def show_sidebar():
-    # 1. Defaults
-    if "wacc" not in st.session_state:
-        st.session_state.wacc = 0.15  # Default 15%
     if "flow_step" not in st.session_state:
         st.session_state.flow_step = "home"
 
     with st.sidebar:
         st.title("🚀 Strategy Command")
+        st.caption("v2.0 | Zero-Base Logic")
         
-        # 2. Navigation Logic
-        nav_options = {
-            "🏠 Home": "home",
-            "🏗️ Stage 0: Setup": "stage0",
-            "📊 Stage 1: Survival & BEP": "stage1",
-            "🏁 Stage 2: Dashboard": "stage2",
-            "💧 Stage 3: Liquidity Physics": "stage3",
-            "🌪️ Stage 4: Stress Testing": "stage4",
-            "⚖️ Stage 5: Strategic Decision": "stage5",
-            "📚 Tools Library": "library"
-        }
-               
-        current_step = st.session_state.flow_step
-        options_list = list(nav_options.keys())
-        values_list = list(nav_options.values())
-        
-        try:
-            default_idx = values_list.index(current_step)
-        except ValueError:
-            default_idx = 0
-
-        selection = st.selectbox("Tool Selection:", options_list, index=default_idx)
-        
-        # Αν αλλάξει η επιλογή, αλλάζουμε ΜΟΝΟ το flow_step
-        if nav_options[selection] != current_step:
-            st.session_state.flow_step = nav_options[selection]
+        # Emergency Home Button
+        if st.button("🏠 Back to Main Dashboard", use_container_width=True):
+            st.session_state.selected_tool = None
+            st.session_state.flow_step = "home"
             st.rerun()
 
         st.divider()
-        
-        # =====================================================
-        # 1. SYSTEM INTEGRITY MONITOR
-        # =====================================================
         st.subheader("🛡️ System Integrity")
-
         if st.session_state.get('baseline_locked', False):
             st.success("✅ Baseline: LOCKED")
         else:
-            st.warning("🔓 Baseline: OPEN (Setup Phase)")
-            
-        if st.session_state.get('wacc_locked', False):
-            st.info(f"🎯 WACC: {st.session_state.wacc:.2%} (Optimized)")
-        else:
-            st.caption("Using manual WACC estimate")
-
-        st.divider()
-
-       
-        # =====================================================
-        # 6. ACTIONS
-        # =====================================================
-        st.divider()
+            st.warning("🔓 Baseline: OPEN")
         
-        if not st.session_state.get('baseline_locked', False):
-            if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
-                lock_baseline()
-                # Μετά το κλείδωμα, στέλνουμε τον χρήστη στο Stage 1
-                st.session_state.flow_step = "stage1"
-                st.rerun()
-        
-        # ΔΙΟΡΘΩΜΕΝΟ RESET (Πιο στιβαρό)
-        if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
+        st.divider()
+        if st.button("🔄 Global Reset", type="secondary", use_container_width=True):
             st.session_state.clear()
-            # Άμεση επαναφορά κρίσιμων μεταβλητών για να μην προλάβει να κρασάρει ο router
-            st.session_state.flow_step = "home" 
-            st.session_state.wacc = 0.15
+            st.session_state.flow_step = "home"
             st.rerun()
-
-
