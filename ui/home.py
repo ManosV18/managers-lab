@@ -1,9 +1,10 @@
 import streamlit as st
-from core.sync import lock_baseline
+from core.sync import sync_global_state
 
 def run_home():
-
-    s = st.session_state
+    # --- Sync metrics ---
+    metrics = sync_global_state()
+    is_locked = st.session_state.get('baseline_locked', False)
 
     # --- HERO SECTION ---
     st.markdown(
@@ -26,125 +27,85 @@ def run_home():
 
     st.divider()
 
-    # ------------------------------------------------
-    # TWO COLUMN LAYOUT
-    # ------------------------------------------------
-    left, right = st.columns([1,1])
+    # --- INFO STATUS ---
+    if not is_locked:
+        st.info("💡 **System Ready:** Please proceed to **Stage 0** to lock your baseline parameters.")
+    else:
+        st.success("✅ **Baseline Active:** All systems synced.")
 
-    # =================================================
-    # LEFT COLUMN - Business Setup
-    # =================================================
-    with left:
+    st.divider()
 
-        st.header("🏗️ Business Setup")
+    # --- INTERACTIVE SCENARIO SLIDERS ---
+    st.subheader("Scenario Tester")
+    st.write("Adjust price, cost, or volume to see live impact on your KPIs.")
 
-        st.subheader("📊 Sales Parameters")
-        c1, c2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
+    price_mult = col1.slider("Price Multiplier", 0.5, 2.0, 1.0, 0.05)
+    cost_mult = col2.slider("Cost Multiplier", 0.5, 2.0, 1.0, 0.05)
+    volume_mult = col3.slider("Volume Multiplier", 0.5, 2.0, 1.0, 0.05)
 
-        s.price = c1.number_input(
-            "Unit Price (€)",
-            value=float(s.get("price",100.0))
-        )
+    # --- CALCULATE SCENARIO METRICS ---
+    rev_val = metrics.get('revenue') if is_locked else None
+    ebit_val = metrics.get('ebit') if is_locked else None
+    bep_val = metrics.get('bep_units') if is_locked else None
+    fcf_val = metrics.get('fcf') if is_locked else None
+    cash_val = metrics.get('cash') if is_locked else None
 
-        s.volume = c2.number_input(
-            "Annual Volume",
-            value=int(s.get("volume",1000))
-        )
+    if is_locked:
+        rev_val = rev_val * price_mult * volume_mult
+        ebit_val = ebit_val * price_mult * volume_mult - (metrics.get('fixed_costs',0)*(cost_mult-1))
+        bep_val = bep_val / (price_mult)  # simplified
+        fcf_val = fcf_val * price_mult * volume_mult - (metrics.get('fixed_costs',0)*(cost_mult-1))
+        cash_val = cash_val + (fcf_val - metrics.get('fcf',0))  # incremental cash effect
 
-        st.subheader("💰 Cost Structure")
-        col_a, col_b = st.columns(2)
+    # --- KPI DASHBOARD ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
-        with col_a:
-            st.markdown("**Variable Costs**")
-            v1 = st.number_input(
-                "Materials (€/unit)",
-                value=float(s.get("in_mat",30.0)),
-                key="in_mat"
-            )
-            v2 = st.number_input(
-                "Labor (€/unit)",
-                value=float(s.get("in_lab",15.0)),
-                key="in_lab"
-            )
-            s.variable_cost = v1 + v2
-            st.info(f"Total Variable Cost: €{s.variable_cost:,.2f}")
+    def colorize(value, thresholds):
+        if value is None:
+            return "—"
+        low, high = thresholds
+        if value < low:
+            return f"🔴 {value:,.0f}"
+        elif value < high:
+            return f"🟠 {value:,.0f}"
+        else:
+            return f"🟢 {value:,.0f}"
 
-        with col_b:
-            st.markdown("**Fixed Costs (Annual)**")
-            f1 = st.number_input(
-                "Rent & Utilities",
-                value=float(s.get("in_rent",12000.0)),
-                key="in_rent"
-            )
-            f2 = st.number_input(
-                "Salaries & Admin",
-                value=float(s.get("in_sal",8000.0)),
-                key="in_sal"
-            )
-            s.fixed_cost = f1 + f2
-            st.info(f"Total Fixed Cost: €{s.fixed_cost:,.2f}")
+    c1.metric("Projected Revenue", colorize(rev_val, (20000, 50000)), "€")
+    c2.metric("EBIT", colorize(ebit_val, (5000, 20000)), "€")
+    c3.metric("Break-Even (Units)", colorize(bep_val, (50, 200)), "units")
+    c4.metric("Free Cash Flow", colorize(fcf_val, (5000, 15000)), "€")
+    c5.metric("Available Cash", colorize(cash_val, (1000, 20000)), "€")
 
-        st.divider()
+    # --- Progress bars ---
+    st.markdown("### Performance Overview")
+    st.progress(min(rev_val / 50000, 1) if rev_val else 0)
+    st.progress(min(ebit_val / 20000, 1) if ebit_val else 0)
+    st.progress(min(fcf_val / 15000, 1) if fcf_val else 0)
+    st.progress(min(cash_val / 20000, 1) if cash_val else 0)
 
-        # ------------------------------------------------
-        # ADVANCED FINANCIAL SETTINGS (Hidden)
-        # ------------------------------------------------
-        with st.expander("⚙️ Advanced Financial Settings"):
+    st.divider()
 
-            c1, c2, c3 = st.columns(3)
-            c1.number_input("Cost of Capital (WACC %)", value=float(s.get('wacc', 0.15)), key='wacc', format="%.4f")
-            c2.number_input("Tax Rate (0.xx)", value=float(s.get('tax_rate', 0.22)), key='tax_rate', format="%.2f")
-            c3.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)), key='annual_debt_service')
+    # --- QUICK ACTIONS / EXPANDERS ---
+    st.subheader("Run Your First Scenario")
+    st.write("Lock your baseline numbers and test what happens if you change price, costs or volume.")
 
-            st.markdown("**Working Capital Assumptions (Days)**")
-            d1, d2, d3 = st.columns(3)
-            d1.number_input("AR Days", value=int(s.get('ar_days', 45)), key='ar_days')
-            d2.number_input("Inventory Days", value=int(s.get('inventory_days', 60)), key='inventory_days')
-            d3.number_input("AP Days", value=int(s.get('ap_days', 30)), key='ap_days')
+    col1, col2 = st.columns(2)
 
-        st.divider()
-
-        # LOCK LOGIC
-        if st.button("🔒 Lock Baseline & Initialize", use_container_width=True):
-            if s.price > s.variable_cost:
-                lock_baseline()
-                s.flow_step = "stage1"
+    with col1:
+        with st.expander("🚀 Getting Started", expanded=True):
+            st.write("Define your baseline numbers before testing business decisions.")
+            if st.button("Go to Stage 0", key="h_btn_s0", use_container_width=True):
+                st.session_state.flow_step = "stage0"
                 st.rerun()
-            else:
-                st.error("Unit price must be higher than variable cost.")
 
-    # =================================================
-    # RIGHT COLUMN - Tool Categories
-    # =================================================
-    with right:
-
-        st.header("🧠 Business Tools")
-        st.markdown("Select a category to explore the available tools.")
-
-        c1, c2 = st.columns(2)
-
-        with c1:
-            if st.button("🚀 Strategy & Pricing", use_container_width=True):
-                st.session_state.library_tab = 0
+    with col2:
+        with st.expander("📚 Library & Tools", expanded=True):
+            st.write("Access specialized calculators and strategic tools.")
+            if st.button("Open Library", key="h_btn_lib", use_container_width=True):
                 st.session_state.flow_step = "library"
                 st.rerun()
 
-        with c2:
-            if st.button("💰 Capital & Finance", use_container_width=True):
-                st.session_state.library_tab = 1
-                st.session_state.flow_step = "library"
-                st.rerun()
 
-        c3, c4 = st.columns(2)
-
-        with c3:
-            if st.button("⚙️ Operations & CCC", use_container_width=True):
-                st.session_state.library_tab = 2
-                st.session_state.flow_step = "library"
-                st.rerun()
-
-        with c4:
-            if st.button("🛡️ Risk & Control", use_container_width=True):
-                st.session_state.library_tab = 3
-                st.session_state.flow_step = "library"
-                st.rerun()
