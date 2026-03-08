@@ -7,7 +7,7 @@ def run_home():
     # --- MAIN LAYOUT ---
     col_input, col_nav = st.columns([0.45, 0.55], gap="large")
 
-    # LEFT COLUMN: Global Parameters (The "Engine Room")
+    # LEFT COLUMN: Global Parameters
     with col_input:
         st.subheader("⚙️ Global Parameters")
         with st.expander("Business Baseline", expanded=True):
@@ -25,9 +25,10 @@ def run_home():
 
         if st.button("🔄 Reset All Data (Zero-Base)", type="secondary", use_container_width=True):
             st.session_state.clear()
+            st.session_state.flow_step = "home"
             st.rerun()
 
-    # RIGHT COLUMN: The 18 Tools Hub
+    # RIGHT COLUMN: All 18 Tools Categorized
     with col_nav:
         st.subheader("📊 Strategic Tool Library")
         t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "🛡️ Risk"])
@@ -39,7 +40,7 @@ def run_home():
 
             if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
                 st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); st.session_state.flow_step = "library"; st.rerun()
-            st.caption("If I change the price or costs increase, how many units do I need to sell?")
+            st.caption("If I change the price or costs increase, how many units do I need to sell to cover my expenses?")
 
             if st.button("📡 Pricing Radar", use_container_width=True):
                 st.session_state.selected_tool = ("pricing_radar", "show_pricing_radar"); st.session_state.flow_step = "library"; st.rerun()
@@ -57,7 +58,7 @@ def run_home():
                 st.session_state.selected_tool = ("clv_calculator", "show_clv_calculator"); st.session_state.flow_step = "library"; st.rerun()
             st.caption("What is the total value of my customers over the entire relationship?")
 
-        with t2: # Capital & Finance (3 Tools)
+        with t2: # Capital & Finance (4 Tools)
             if st.button("📈 Growth Funding (AFN)", use_container_width=True):
                 st.session_state.selected_tool = ("growth_funding", "show_growth_funding_needed"); st.session_state.flow_step = "library"; st.rerun()
             st.caption("How can I fund growth and calculate my capital needs?")
@@ -70,7 +71,7 @@ def run_home():
                 st.session_state.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui"); st.session_state.flow_step = "library"; st.rerun()
             st.caption("Which is better: a loan or leasing for my equipment?")
 
-        with t3: # Operations & CCC (5 Tools)
+        with t3: # Operations & CCC (4 Tools)
             if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
                 st.session_state.selected_tool = ("cash_cycle", "run_cash_cycle_app"); st.session_state.flow_step = "library"; st.rerun()
             st.caption("How fast do my sales convert into cash?")
@@ -86,10 +87,6 @@ def run_home():
             if st.button("🤝 Payables Manager", use_container_width=True):
                 st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal"); st.session_state.flow_step = "library"; st.rerun()
             st.caption("How can I manage my supplier payments to maintain liquidity?")
-
-            if st.button("📊 Receivables Analyzer", use_container_width=True):
-                st.session_state.selected_tool = ("receivables_analyzer", "show_receivables_analyzer_ui"); st.session_state.flow_step = "library"; st.rerun()
-            st.caption("How can I manage receivables and reduce default risk?")
 
         with t4: # Risk & Executive (4 Tools)
             if st.button("🏁 Executive Dashboard", use_container_width=True):
