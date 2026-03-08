@@ -97,104 +97,38 @@ def run_home():
     # RIGHT: Tools Categories
     # =================================================
     with right:
-        st.header("🧠 Business Tools")
-        st.markdown("Select a category to explore the tools:")
 
-        tools_dir = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "core",
-    "tools"
-)
-        
-        # ---------- 1️⃣ Strategy & Pricing ----------
-        with st.expander("🚀 Strategy & Pricing", expanded=False):
-            st.markdown("Analyze pricing, profitability, and growth strategy impacts.")
-            # List of (button_label, module, func)
-            buttons = [
-                ("🎯 Pricing Strategy & Elasticity", "pricing_strategy", "show_pricing_strategy_tool"),
-                ("📡 Pricing Radar Matrix", "pricing_radar", "show_pricing_radar"),
-                ("📉 Loss Threshold (Price Cut)", "loss_threshold", "show_loss_threshold_before_price_cut"),
-                ("⚖️ BEP Shift Analysis", "break_even_shift_calculator", "show_break_even_shift_calculator"),
-                ("🧭 QSPM Strategy Matrix", "qspm_analyzer", "show_qspm_tool"),
-                ("👥 CLV Simulator", "clv_calculator", "show_clv_calculator")
-            ]
-            for label, mod, func in buttons:
-                if st.button(label, key=label):
-                    if mod == "INTERNAL":
-                        globals()[func]()
-                    else:
-                        try:
-                            file_path = os.path.join(tools_dir, f"{mod}.py")
-                            spec = importlib.util.spec_from_file_location(mod, file_path)
-                            module = importlib.util.module_from_spec(spec)
-                            sys.modules[mod] = module
-                            spec.loader.exec_module(module)
-                            getattr(module, func)()
-                        except Exception as e:
-                            st.error(f"Error loading '{mod}': {e}")
+    st.header("🧠 Business Tools")
+    st.markdown("Select a category to explore the available tools.")
 
-        # ---------- 2️⃣ Capital & Finance ----------
-        with st.expander("💰 Capital & Finance", expanded=False):
-            st.markdown("Manage cash, WACC, funding, and financial optimization.")
-            buttons = [
-                ("📉 WACC Optimizer", "wacc_optimizer", "show_wacc_optimizer"),
-                ("📈 Growth Funding (AFN)", "growth_funding", "show_growth_funding_needed"),
-                ("⚖️ Loan vs Leasing Analyzer", "loan_vs_leasing", "loan_vs_leasing_ui")
-            ]
-            for label, mod, func in buttons:
-                if st.button(label, key=label):
-                    try:
-                        file_path = os.path.join(tools_dir, f"{mod}.py")
-                        spec = importlib.util.spec_from_file_location(mod, file_path)
-                        module = importlib.util.module_from_spec(spec)
-                        sys.modules[mod] = module
-                        spec.loader.exec_module(module)
-                        getattr(module, func)()
-                    except Exception as e:
-                        st.error(f"Error loading '{mod}': {e}")
+    c1, c2 = st.columns(2)
 
-        # ---------- 3️⃣ Operations & CCC ----------
-        with st.expander("⚙️ Operations & CCC", expanded=False):
-            st.markdown("Analyze costs, operational efficiency, inventory, payables, and CCC.")
-            buttons = [
-                ("🔄 Cash Conversion Cycle (CCC)", "cash_cycle", "run_cash_cycle_app"),
-                ("📊 Receivables Analyzer (NPV)", "receivables_analyzer", "show_receivables_analyzer_ui"),
-                ("📦 Inventory Optimizer (EOQ)", "inventory_manager", "show_inventory_manager"),
-                ("🤝 Payables Manager", "INTERNAL", "show_payables_manager_internal"),
-                ("🔢 Unit Cost Analyzer", "unit_cost_analyzer", "show_unit_cost_app")
-            ]
-            for label, mod, func in buttons:
-                if st.button(label, key=label):
-                    if mod == "INTERNAL":
-                        globals()[func]()
-                    else:
-                        try:
-                            file_path = os.path.join(tools_dir, f"{mod}.py")
-                            spec = importlib.util.spec_from_file_location(mod, file_path)
-                            module = importlib.util.module_from_spec(spec)
-                            sys.modules[mod] = module
-                            spec.loader.exec_module(module)
-                            getattr(module, func)()
-                        except Exception as e:
-                            st.error(f"Error loading '{mod}': {e}")
+    with c1:
+        if st.button("🚀 Strategy & Pricing", use_container_width=True):
+            st.session_state.library_tab = 0
+            st.session_state.flow_step = "library"
+            st.rerun()
 
-        # ---------- 4️⃣ Risk & Control ----------
-        with st.expander("🛡️ Risk & Control", expanded=False):
-            st.markdown("Simulate resilience, stress-tests, and monitor executive risks.")
-            buttons = [
-                ("🏁 Executive Command Center", "executive_dashboard", "show_executive_dashboard"),
-                ("🚨 Cash Fragility Index", "cash_fragility_index", "show_cash_fragility_index"),
-                ("🛡️ Resilience & Shock Map", "financial_resilience_app", "show_resilience_map"),
-                ("📉 Stress Test Simulator", "stress_test_simulator", "show_stress_test_tool")
-            ]
-            for label, mod, func in buttons:
-                if st.button(label, key=label):
-                    try:
-                        file_path = os.path.join(tools_dir, f"{mod}.py")
-                        spec = importlib.util.spec_from_file_location(mod, file_path)
-                        module = importlib.util.module_from_spec(spec)
-                        sys.modules[mod] = module
-                        spec.loader.exec_module(module)
-                        getattr(module, func)()
-                    except Exception as e:
-                        st.error(f"Error loading '{mod}': {e}")
+    with c2:
+        if st.button("💰 Capital & Finance", use_container_width=True):
+            st.session_state.library_tab = 1
+            st.session_state.flow_step = "library"
+            st.rerun()
+
+    with c1:
+        if st.button("⚙️ Operations & CCC", use_container_width=True):
+            st.session_state.library_tab = 2
+            st.session_state.flow_step = "library"
+            st.rerun()
+
+    with c2:
+        if st.button("🛡️ Risk & Control", use_container_width=True):
+            st.session_state.library_tab = 3
+            st.session_state.flow_step = "library"
+            st.rerun()
+    
+    
+    
+    
+    
+   
