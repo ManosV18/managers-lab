@@ -133,120 +133,100 @@ def run_home():
 
                 st.error("Unit price must be higher than variable cost.")
 
+    
+        
+        
     # =================================================
-    # RIGHT COLUMN
-    # QUESTIONS / TOOLS
-    # =================================================
+# RIGHT COLUMN
+# QUESTIONS / TOOLS
+# =================================================
+with right:
 
-        st.header("🧠 Business Questions")
+    st.header("🧠 Business Questions")
 
-st.markdown("Select a business area to explore the available tools.")
+    st.markdown("Select a business area to explore the available tools.")
 
-# ------------------------------------------------
-# CASH & LIQUIDITY
-# ------------------------------------------------
+    # ------------------------------------------------
+    # CASH & LIQUIDITY
+    # ------------------------------------------------
+    with st.expander("💰 Cash & Liquidity", expanded=False):
+        st.markdown("Understand how money moves through your business and how long you can survive during slow periods.")
 
-with st.expander("💰 Cash & Liquidity", expanded=False):
+        if st.button("With the cash I have how long can I survive?", key="cash_survival"):
+            st.session_state.flow_step = "stage3"
+            st.rerun()
 
-    st.markdown("Understand how money moves through your business and how long you can survive during slow periods.")
+        st.caption("Estimate how many days your business can operate without new revenue.")
 
-    if st.button("With the cash I have how long can I survive?", key="cash_survival"):
+    # ------------------------------------------------
+    # PRICING & PROFIT
+    # ------------------------------------------------
+    with st.expander("💵 Pricing & Profit", expanded=False):
+        st.markdown("Analyze how pricing and sales affect profitability and financial sustainability.")
 
-        st.session_state.flow_step = "stage3"
-        st.rerun()
+        if st.button("How much do I need to sell to not lose money?", key="break_even"):
+            st.session_state.flow_step = "stage1"
+            st.rerun()
 
-    st.caption("Estimate how many days your business can operate without new revenue.")
+        st.caption("Calculate the sales level required to cover all business costs.")
 
+        if st.button("If I sell this many units will the business make money?", key="profit_check"):
+            st.session_state.flow_step = "stage2"
+            st.rerun()
 
-# ------------------------------------------------
-# PRICING & PROFIT
-# ------------------------------------------------
+        st.caption("Evaluate profitability at a specific sales level.")
 
-with st.expander("💵 Pricing & Profit", expanded=False):
+        if st.button("What price should I charge so the business works?", key="price_required"):
+            st.session_state.flow_step = "stage1"
+            st.rerun()
 
-    st.markdown("Analyze how pricing and sales affect profitability and financial sustainability.")
+        st.caption("Estimate the minimum price required to sustain the business.")
 
-    if st.button("How much do I need to sell to not lose money?", key="break_even"):
+    # ------------------------------------------------
+    # COSTS & OPERATIONS
+    # ------------------------------------------------
+    with st.expander("📦 Costs & Operations", expanded=False):
+        st.markdown("Understand production costs and operational efficiency.")
 
-        st.session_state.flow_step = "stage1"
-        st.rerun()
+        if st.button("Open cost analysis tools", key="cost_tools"):
+            st.session_state.flow_step = "library"
+            st.rerun()
 
-    st.caption("Calculate the sales level required to cover all business costs.")
+        st.caption("Analyze the real cost behind your operations.")
 
-    if st.button("If I sell this many units will the business make money?", key="profit_check"):
+    # ------------------------------------------------
+    # GROWTH & INVESTMENT
+    # ------------------------------------------------
+    with st.expander("📈 Growth & Investment", expanded=False):
+        st.markdown("Evaluate expansion decisions and funding requirements.")
 
-        st.session_state.flow_step = "stage2"
-        st.rerun()
+        if st.button("Open growth planning tools", key="growth_tools"):
+            st.session_state.flow_step = "library"
+            st.rerun()
 
-    st.caption("Evaluate profitability at a specific sales level.")
+        st.caption("Estimate funding needs and investment options.")
 
-    if st.button("What price should I charge so the business works?", key="price_required"):
+    # ------------------------------------------------
+    # STRATEGY & RISK
+    # ------------------------------------------------
+    with st.expander("🧠 Strategy & Risk", expanded=False):
+        st.markdown("Simulate strategic decisions and stress-test your business.")
 
-        st.session_state.flow_step = "stage1"
-        st.rerun()
+        if st.button("Open strategy simulation tools", key="strategy_tools"):
+            st.session_state.flow_step = "library"
+            st.rerun()
 
-    st.caption("Estimate the minimum price required to sustain the business.")
+        st.caption("Compare strategic scenarios and evaluate business resilience.")
 
+    # ------------------------------------------------
+    # FULL TOOL LIBRARY
+    # ------------------------------------------------
+    with st.expander("🧰 Full Tools Library", expanded=False):
+        st.markdown("Access the full set of advanced financial and strategic tools.")
 
-# ------------------------------------------------
-# COSTS & OPERATIONS
-# ------------------------------------------------
+        if st.button("Open tools library", key="tool_library"):
+            st.session_state.flow_step = "library"
+            st.rerun()
 
-with st.expander("📦 Costs & Operations", expanded=False):
-
-    st.markdown("Understand production costs and operational efficiency.")
-
-    if st.button("Open cost analysis tools", key="cost_tools"):
-
-        st.session_state.flow_step = "library"
-        st.rerun()
-
-    st.caption("Analyze the real cost behind your operations.")
-
-
-# ------------------------------------------------
-# GROWTH & INVESTMENT
-# ------------------------------------------------
-
-with st.expander("📈 Growth & Investment", expanded=False):
-
-    st.markdown("Evaluate expansion decisions and funding requirements.")
-
-    if st.button("Open growth planning tools", key="growth_tools"):
-
-        st.session_state.flow_step = "library"
-        st.rerun()
-
-    st.caption("Estimate funding needs and investment options.")
-
-
-# ------------------------------------------------
-# STRATEGY & RISK
-# ------------------------------------------------
-
-with st.expander("🧠 Strategy & Risk", expanded=False):
-
-    st.markdown("Simulate strategic decisions and stress-test your business.")
-
-    if st.button("Open strategy simulation tools", key="strategy_tools"):
-
-        st.session_state.flow_step = "library"
-        st.rerun()
-
-    st.caption("Compare strategic scenarios and evaluate business resilience.")
-
-
-# ------------------------------------------------
-# FULL TOOL LIBRARY
-# ------------------------------------------------
-
-with st.expander("🧰 Full Tools Library", expanded=False):
-
-    st.markdown("Access the full set of advanced financial and strategic tools.")
-
-    if st.button("Open tools library", key="tool_library"):
-
-        st.session_state.flow_step = "library"
-        st.rerun()
-
-    st.caption("Browse all available analysis tools.")
+        st.caption("Browse all available analysis tools.")    
+   
