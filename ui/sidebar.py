@@ -3,21 +3,16 @@ from core.sync import lock_baseline
 
 def show_sidebar():
     # ----------------------------
-    # 1. Default session variables
+    # Default session variables
     # ----------------------------
-    if "wacc" not in st.session_state:
-        st.session_state.wacc = 0.15
     if "flow_step" not in st.session_state:
         st.session_state.flow_step = "home"
 
-    # ----------------------------
-    # 2. Sidebar layout
-    # ----------------------------
     with st.sidebar:
         st.title("🚀 Strategy Command")
-        
+
         # ----------------------------
-        # Navigation Menu
+        # Navigation
         # ----------------------------
         nav_options = {
             "🏠 Home": "home",
@@ -29,7 +24,7 @@ def show_sidebar():
             "⚖️ Stage 5: Strategic Decision": "stage5",
             "📚 Tools Library": "library"
         }
-        
+
         current_step = st.session_state.flow_step
         options_list = list(nav_options.keys())
         values_list = list(nav_options.values())
@@ -38,7 +33,7 @@ def show_sidebar():
         except ValueError:
             default_idx = 0
 
-        selection = st.selectbox("Tool Selection:", options_list, index=default_idx)
+        selection = st.selectbox("Navigate:", options_list, index=default_idx)
         if nav_options[selection] != current_step:
             st.session_state.flow_step = nav_options[selection]
             st.rerun()
@@ -48,32 +43,24 @@ def show_sidebar():
         # ----------------------------
         # System Integrity
         # ----------------------------
-        st.subheader("🛡️ System Integrity")
-
+        st.subheader("🛡️ System Status")
         if st.session_state.get('baseline_locked', False):
             st.success("✅ Baseline: LOCKED")
         else:
             st.warning("🔓 Baseline: OPEN (Setup Phase)")
-            
-        if st.session_state.get('wacc_locked', False):
-            st.info(f"🎯 WACC: {st.session_state.wacc:.2%} (Optimized)")
-        else:
-            st.caption("Using manual WACC estimate")
 
         st.divider()
 
-       
         # ----------------------------
-        # Actions: Lock Baseline / Reset
+        # Actions
         # ----------------------------
         if not st.session_state.get('baseline_locked', False):
-            if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
+            if st.button("🔒 Lock Baseline", use_container_width=True):
                 lock_baseline()
                 st.session_state.flow_step = "stage1"
                 st.rerun()
-        
-        if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
+
+        if st.button("🔄 Reset All Data", use_container_width=True):
             st.session_state.clear()
             st.session_state.flow_step = "home"
-            st.session_state.wacc = 0.15
             st.rerun()
