@@ -138,8 +138,6 @@ def run_home():
     # QUESTIONS / TOOLS
     # =================================================
 
-    with right:
-
         st.header("🧠 Business Questions")
 
 st.markdown("Select a business area to explore the available tools.")
