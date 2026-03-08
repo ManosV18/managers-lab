@@ -62,24 +62,7 @@ def show_sidebar():
 
         st.divider()
 
-        # ----------------------------
-        # WACC Info (optional input)
-        # ----------------------------
-        st.subheader("📊 Cost of Capital")
-        if not st.session_state.get('wacc_locked', False):
-            wacc_percent = st.number_input(
-                "WACC (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=st.session_state.wacc * 100,
-                step=0.1,
-            )
-            st.session_state.wacc = wacc_percent / 100
-        else:
-            st.info(f"WACC Locked at {st.session_state.wacc:.2%}")
-
-        st.divider()
-
+       
         # ----------------------------
         # Actions: Lock Baseline / Reset
         # ----------------------------
