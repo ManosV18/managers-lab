@@ -1,184 +1,85 @@
 import streamlit as st
-from core.sync import lock_baseline
+from core.sync import sync_global_state
 
 def run_home():
+    st.title("🛡️ Strategic Decision Room")
+    st.markdown("---")
 
-    s = st.session_state
+    # Δημιουργούμε δύο κύριες κολώνες στην κεντρική οθόνη
+    col_input, col_nav = st.columns([0.6, 0.4], gap="large")
 
-    # --- HERO SECTION ---
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 30px 0;">
-            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
-            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
-                See the real impact on your cash and survival before committing
-            </h2>
-            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
-                Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.
-            </h3>
-            <p style="font-size:18px; color:#777; margin-top:15px;">
-                Know the outcome before you spend a euro.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    with col_input:
+        st.subheader("⚙️ Global Parameters")
+        st.info("Εδώ ορίζεις τη βάση της επιχείρησής σου.")
+        
+        # Ομαδοποίηση παραμέτρων σε Expanders για να είναι μαζεμένα
+        with st.expander("1. Core Business Units", expanded=True):
+            st.session_state.price = st.number_input("Unit Price (€)", value=float(st.session_state.get('price', 100.0)))
+            st.session_state.variable_cost = st.number_input("Variable Cost (€)", value=float(st.session_state.get('variable_cost', 60.0)))
+            st.session_state.volume = st.number_input("Annual Volume", value=int(st.session_state.get('volume', 1000)))
+            st.session_state.fixed_cost = st.number_input("Annual Fixed Costs", value=float(st.session_state.get('fixed_cost', 20000.0)))
 
-    st.divider()
-    
-  
-    # ------------------------------------------------
-    # TWO COLUMN LAYOUT
-    # ------------------------------------------------
+        with st.expander("2. Financials & Liquidity"):
+            st.session_state.opening_cash = st.number_input("Opening Cash (€)", value=float(st.session_state.get('opening_cash', 10000.0)))
+            st.session_state.annual_debt_service = st.number_input("Annual Debt Service (€)", value=float(st.session_state.get('annual_debt_service', 0.0)))
+            tax_p = st.number_input("Tax Rate (%)", value=float(st.session_state.get('tax_rate', 0.22)) * 100)
+            st.session_state.tax_rate = tax_p / 100
 
-    left, right = st.columns([1,1])
+        with st.expander("3. Operating Cycle (Days)"):
+            st.session_state.ar_days = st.number_input("AR Days (Collection)", value=float(st.session_state.get('ar_days', 45.0)))
+            st.session_state.inventory_days = st.number_input("Inventory Days", value=float(st.session_state.get('inventory_days', 60.0)))
+            st.session_state.ap_days = st.number_input("AP Days (Payment)", value=float(st.session_state.get('ap_days', 30.0)))
 
-    # =================================================
-    # LEFT COLUMN
-    # BUSINESS SETUP
-    # =================================================
-
-    with left:
-
-        st.header("🏗️ Business Setup")
-
-        st.subheader("📊 Sales Parameters")
-
-        c1, c2 = st.columns(2)
-
-        s.price = c1.number_input(
-            "Unit Price (€)",
-            value=float(s.get("price",100.0))
-        )
-
-        s.volume = c2.number_input(
-            "Annual Volume",
-            value=int(s.get("volume",1000))
-        )
-
-        st.subheader("💰 Cost Structure")
-
-        col_a, col_b = st.columns(2)
-
-        with col_a:
-
-            st.markdown("**Variable Costs**")
-
-            v1 = st.number_input(
-                "Materials (€/unit)",
-                value=float(s.get("in_mat",30.0)),
-                key="in_mat"
-            )
-
-            v2 = st.number_input(
-                "Labor (€/unit)",
-                value=float(s.get("in_lab",15.0)),
-                key="in_lab"
-            )
-
-            s.variable_cost = v1 + v2
-
-            st.info(f"Total Variable Cost: €{s.variable_cost:,.2f}")
-
-        with col_b:
-
-            st.markdown("**Fixed Costs (Annual)**")
-
-            f1 = st.number_input(
-                "Rent & Utilities",
-                value=float(s.get("in_rent",12000.0)),
-                key="in_rent"
-            )
-
-            f2 = st.number_input(
-                "Salaries & Admin",
-                value=float(s.get("in_sal",8000.0)),
-                key="in_sal"
-            )
-
-            s.fixed_cost = f1 + f2
-
-            st.info(f"Total Fixed Cost: €{s.fixed_cost:,.2f}")
-
-        st.divider()
-
-        # ------------------------------------------------
-        # ADVANCED FINANCIAL SETTINGS (Hidden)
-        # ------------------------------------------------
-        with st.expander("⚙️ Advanced Financial Settings"):
-
-            c1, c2, c3 = st.columns(3)
-            c1.number_input("Cost of Capital (WACC %)", value=float(s.get('wacc', 0.15)), key='wacc', format="%.4f")
-            c2.number_input("Tax Rate (0.xx)", value=float(s.get('tax_rate', 0.22)), key='tax_rate', format="%.2f")
-            c3.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)), key='annual_debt_service')
-
-            st.markdown("**Working Capital Assumptions (Days)**")
-            d1, d2, d3 = st.columns(3)
-            d1.number_input("AR Days", value=int(s.get('ar_days', 45)), key='ar_days')
-            d2.number_input("Inventory Days", value=int(s.get('inventory_days', 60)), key='inventory_days')
-            d3.number_input("AP Days", value=int(s.get('ap_days', 30)), key='ap_days')
-
-        st.divider()
-
-        # LOCK LOGIC
-        if st.button("🔒 Lock Baseline & Initialize", use_container_width=True):
-
-            if s.price > s.variable_cost:
-
-                lock_baseline()
-                s.flow_step = "stage1"
-                st.rerun()
-
-            else:
-
-                st.error("Unit price must be higher than variable cost.")
-
-    # =================================================
-    # RIGHT COLUMN
-    # QUESTIONS / TOOLS
-    # =================================================
-
-    with right:
-
-        st.header("🧠 Business Questions")
-
-        question = st.selectbox(
-
-            "What do you want to know?",
-
-            [
-
-            "How much do I need to sell to not lose money?",
-
-            "If I sell this many units will the business make money?",
-
-            "What price should I charge so the business works?",
-
-            "With the cash I have how long can I survive?",
-
-            "Open tools library"
-
-            ]
-        )
-
-        st.markdown("")
-
-        if st.button("Run Analysis", use_container_width=True):
-
-            if question == "How much do I need to sell to not lose money?":
-                st.session_state.flow_step = "stage1"
-
-            elif question == "If I sell this many units will the business make money?":
-                st.session_state.flow_step = "stage2"
-
-            elif question == "What price should I charge so the business works?":
-                st.session_state.flow_step = "stage1"
-
-            elif question == "With the cash I have how long can I survive?":
-                st.session_state.flow_step = "stage3"
-
-            elif question == "Open tools library":
-                st.session_state.flow_step = "library"
-
+        if st.button("🔄 Reset All Data", type="secondary"):
+            st.session_state.clear()
             st.rerun()
 
+    with col_nav:
+        st.subheader("📊 Analysis Hub")
+        st.write("Επίλεξε τι θέλεις να αναλύσεις:")
+        
+        # Dropdown Navigation
+        nav_options = {
+            "Select Analysis...": "home",
+            "📊 Stage 1: Survival & BEP": "stage1",
+            "🏁 Stage 2: Dashboard": "stage2",
+            "💧 Stage 3: Liquidity Physics": "stage3",
+            "🌪️ Stage 4: Stress Testing": "stage4",
+            "⚖️ Stage 5: Strategic Decision": "stage5",
+            "📚 Full Tools Library": "library"
+        }
+        
+        selection = st.selectbox("Μετάβαση σε:", list(nav_options.keys()))
+        
+        if nav_options[selection] != "home":
+            # Έλεγχος αν υπάρχουν τα βασικά νούμερα πριν φύγει
+            if st.session_state.get('price', 0) > 0:
+                st.session_state.flow_step = nav_options[selection]
+                st.rerun()
+            else:
+                st.error("⚠️ Πρέπει να συμπληρώσεις τουλάχιστον την Τιμή στο Stage 0.")
+
+        st.divider()
+        
+        # QUICK LINKS ΣΤΑ ΕΡΓΑΛΕΙΑ (Απευθείας πρόσβαση)
+        st.caption("Quick Tools Access")
+        tool_cols = st.columns(1)
+        if st.button("🎯 Break-Even Shift Calculator"):
+            st.session_state.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator")
+            st.session_state.flow_step = "library"
+            st.rerun()
+        if st.button("🚨 Cash Fragility Index"):
+            st.session_state.selected_tool = ("cash_fragility_index", "show_cash_fragility_index")
+            st.session_state.flow_step = "library"
+            st.rerun()
+
+    # ΤΟ "ZERO-BASE" ΣΕΝΑΡΙΟ ΠΟΥ ΖΗΤΗΣΕΣ
+    # Αν ο χρήστης επιλέξει να "κλειδώσει" ένα σενάριο, μηδενίζουμε τα πάντα και κρατάμε μόνο τα νέα.
+    st.sidebar.markdown("### 🛠️ Scenario Mode")
+    if st.sidebar.button("🆕 Start New Scenario (Zero-Base)"):
+        # Κρατάμε μόνο το navigation, σβήνουμε τα δεδομένα
+        current_step = st.session_state.flow_step
+        st.session_state.clear()
+        st.session_state.flow_step = current_step
+        st.success("Όλες οι τιμές μηδενίστηκαν. Είσαι σε Zero-Base mode.")
+        st.rerun()
