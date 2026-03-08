@@ -16,27 +16,9 @@ except ImportError as e:
 # Page config
 st.set_page_config(page_title="Strategic Decision Room", layout="wide")
 
-# --- Initialize session ---
+# Initialize session
 if 'flow_step' not in st.session_state:
     st.session_state.flow_step = "home"
-
-# ------------------- Initialize critical session variables -------------------
-for key, default in [
-    ("price", 100.0),
-    ("variable_cost", 60.0),
-    ("volume", 1000),
-    ("fixed_cost", 20000.0),
-    ("wacc", 0.15),
-    ("tax_rate", 0.22),
-    ("annual_debt_service", 0.0),
-    ("opening_cash", 10000.0),
-    ("ar_days", 45),
-    ("inventory_days", 60),
-    ("ap_days", 30)
-]:
-    if key not in st.session_state:
-        st.session_state[key] = default
-# ------------------------------------------------------------------------------
 
 # Show sidebar
 show_sidebar()
@@ -47,6 +29,7 @@ step = st.session_state.flow_step
 if step == "home":
     run_home()
 elif step == "library":
+    # ΕΔΩ Η ΑΛΛΑΓΗ: Καλούμε το νέο όνομα αρχείου
     from core.tools_registry import show_library
     show_library()
 elif step.startswith("stage"):
