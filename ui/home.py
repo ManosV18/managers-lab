@@ -142,43 +142,113 @@ def run_home():
 
         st.header("🧠 Business Questions")
 
-        question = st.selectbox(
+st.markdown("Select a business area to explore the available tools.")
 
-            "What do you want to know?",
+# ------------------------------------------------
+# CASH & LIQUIDITY
+# ------------------------------------------------
 
-            [
+with st.expander("💰 Cash & Liquidity", expanded=False):
 
-            "How much do I need to sell to not lose money?",
+    st.markdown("Understand how money moves through your business and how long you can survive during slow periods.")
 
-            "If I sell this many units will the business make money?",
+    if st.button("With the cash I have how long can I survive?", key="cash_survival"):
 
-            "What price should I charge so the business works?",
+        st.session_state.flow_step = "stage3"
+        st.rerun()
 
-            "With the cash I have how long can I survive?",
+    st.caption("Estimate how many days your business can operate without new revenue.")
 
-            "Open tools library"
 
-            ]
-        )
+# ------------------------------------------------
+# PRICING & PROFIT
+# ------------------------------------------------
 
-        st.markdown("")
+with st.expander("💵 Pricing & Profit", expanded=False):
 
-        if st.button("Run Analysis", use_container_width=True):
+    st.markdown("Analyze how pricing and sales affect profitability and financial sustainability.")
 
-            if question == "How much do I need to sell to not lose money?":
-                st.session_state.flow_step = "stage1"
+    if st.button("How much do I need to sell to not lose money?", key="break_even"):
 
-            elif question == "If I sell this many units will the business make money?":
-                st.session_state.flow_step = "stage2"
+        st.session_state.flow_step = "stage1"
+        st.rerun()
 
-            elif question == "What price should I charge so the business works?":
-                st.session_state.flow_step = "stage1"
+    st.caption("Calculate the sales level required to cover all business costs.")
 
-            elif question == "With the cash I have how long can I survive?":
-                st.session_state.flow_step = "stage3"
+    if st.button("If I sell this many units will the business make money?", key="profit_check"):
 
-            elif question == "Open tools library":
-                st.session_state.flow_step = "library"
+        st.session_state.flow_step = "stage2"
+        st.rerun()
 
-            st.rerun()
+    st.caption("Evaluate profitability at a specific sales level.")
 
+    if st.button("What price should I charge so the business works?", key="price_required"):
+
+        st.session_state.flow_step = "stage1"
+        st.rerun()
+
+    st.caption("Estimate the minimum price required to sustain the business.")
+
+
+# ------------------------------------------------
+# COSTS & OPERATIONS
+# ------------------------------------------------
+
+with st.expander("📦 Costs & Operations", expanded=False):
+
+    st.markdown("Understand production costs and operational efficiency.")
+
+    if st.button("Open cost analysis tools", key="cost_tools"):
+
+        st.session_state.flow_step = "library"
+        st.rerun()
+
+    st.caption("Analyze the real cost behind your operations.")
+
+
+# ------------------------------------------------
+# GROWTH & INVESTMENT
+# ------------------------------------------------
+
+with st.expander("📈 Growth & Investment", expanded=False):
+
+    st.markdown("Evaluate expansion decisions and funding requirements.")
+
+    if st.button("Open growth planning tools", key="growth_tools"):
+
+        st.session_state.flow_step = "library"
+        st.rerun()
+
+    st.caption("Estimate funding needs and investment options.")
+
+
+# ------------------------------------------------
+# STRATEGY & RISK
+# ------------------------------------------------
+
+with st.expander("🧠 Strategy & Risk", expanded=False):
+
+    st.markdown("Simulate strategic decisions and stress-test your business.")
+
+    if st.button("Open strategy simulation tools", key="strategy_tools"):
+
+        st.session_state.flow_step = "library"
+        st.rerun()
+
+    st.caption("Compare strategic scenarios and evaluate business resilience.")
+
+
+# ------------------------------------------------
+# FULL TOOL LIBRARY
+# ------------------------------------------------
+
+with st.expander("🧰 Full Tools Library", expanded=False):
+
+    st.markdown("Access the full set of advanced financial and strategic tools.")
+
+    if st.button("Open tools library", key="tool_library"):
+
+        st.session_state.flow_step = "library"
+        st.rerun()
+
+    st.caption("Browse all available analysis tools.")
