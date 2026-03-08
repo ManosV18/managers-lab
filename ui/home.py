@@ -100,7 +100,11 @@ def run_home():
         st.header("🧠 Business Tools")
         st.markdown("Select a category to explore the tools:")
 
-        tools_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools")
+        tools_dir = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "core",
+    "tools"
+)
         
         # ---------- 1️⃣ Strategy & Pricing ----------
         with st.expander("🚀 Strategy & Pricing", expanded=False):
