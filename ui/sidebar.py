@@ -1,27 +1,15 @@
 import streamlit as st
-from core.sync import lock_baseline
 
 def show_sidebar():
-    # ----------------------------
-    # Default session variables
-    # ----------------------------
     if "flow_step" not in st.session_state:
         st.session_state.flow_step = "home"
 
     with st.sidebar:
         st.title("🚀 Strategy Command")
 
-        # ----------------------------
-        # Navigation
-        # ----------------------------
+        # Navigation μόνο Home + Tools Library
         nav_options = {
             "🏠 Home": "home",
-            "🏗️ Stage 0: Setup": "stage0",
-            "📊 Stage 1: Survival & BEP": "stage1",
-            "🏁 Stage 2: Dashboard": "stage2",
-            "💧 Stage 3: Liquidity Physics": "stage3",
-            "🌪️ Stage 4: Stress Testing": "stage4",
-            "⚖️ Stage 5: Strategic Decision": "stage5",
             "📚 Tools Library": "library"
         }
 
@@ -40,9 +28,7 @@ def show_sidebar():
 
         st.divider()
 
-        # ----------------------------
         # System Integrity
-        # ----------------------------
         st.subheader("🛡️ System Status")
         if st.session_state.get('baseline_locked', False):
             st.success("✅ Baseline: LOCKED")
@@ -51,13 +37,12 @@ def show_sidebar():
 
         st.divider()
 
-        # ----------------------------
         # Actions
-        # ----------------------------
         if not st.session_state.get('baseline_locked', False):
             if st.button("🔒 Lock Baseline", use_container_width=True):
+                from core.sync import lock_baseline
                 lock_baseline()
-                st.session_state.flow_step = "stage1"
+                st.session_state.flow_step = "home"
                 st.rerun()
 
         if st.button("🔄 Reset All Data", use_container_width=True):
