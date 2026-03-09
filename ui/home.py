@@ -7,20 +7,22 @@ def run_home():
     # --- HERO SECTION ---
     st.markdown(
         """
-        <div style="text-align:center; padding: 40px 0 20px 0;">
-            <div style="font-size:24px; font-weight:800; letter-spacing:4px; color:#1E3A8A; margin-bottom:10px; text-transform:uppercase;">
-                🚀 Managers Lab
-            </div>
-            <h1 style="font-size:56px; font-weight:900; line-height:1.1; margin-bottom:20px;">
-                Strategic Decision Room
+        <div style="text-align:center; padding: 20px 0 40px 0;">
+            <h1 style="font-size:72px; font-weight:900; color:#1E3A8A; margin-bottom:0px; letter-spacing:-1px;">
+                Managers Lab<span style="color:#ef4444;">.</span>
             </h1>
-            <div style="max-width:800px; margin: 0 auto;">
-                <h2 style="font-size:26px; font-weight:500; color:#334155; margin-bottom:15px;">
-                    Simulate the financial impact of every decision before you commit.
+            
+            <div style="font-size:24px; font-weight:400; color:#64748b; letter-spacing:3px; text-transform:uppercase; margin-bottom:30px;">
+                🛡️ Strategic Decision Room
+            </div>
+
+            <div style="max-width:850px; margin: 0 auto; border-top: 2px solid #f1f5f9; pt-4">
+                <h2 style="font-size:28px; font-weight:600; color:#1e293b; margin-top:25px; line-height:1.2;">
+                    Analyze the outcome before the execution.
                 </h2>
-                <p style="font-size:18px; color:#64748b;">
-                    Adjust pricing, variable costs, and volumes to instantly see the shift in break-even points, 
-                    cash flow stability, and long-term survival.
+                <p style="font-size:19px; color:#475569; margin-top:10px;">
+                    A cold, analytical simulator for evaluating price shifts, cost structures, 
+                    and cash resilience based on a <b>365-day</b> fiscal cycle.
                 </p>
             </div>
         </div>
@@ -28,7 +30,7 @@ def run_home():
         unsafe_allow_html=True
     )
     st.divider()
-
+    
     # --- MAIN LAYOUT ---
     col_input, col_nav = st.columns([0.45, 0.55], gap="large")
 
