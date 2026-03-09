@@ -8,31 +8,19 @@ def run_home():
     st.markdown(
         """
         <div style="text-align:center; padding: 30px 0;">
-            <div style="font-size:18px; letter-spacing:2px; color:#888;">
-                MANAGERS LAB
-            </div>
-
-            <h1 style="font-size:48px; margin-top:10px;">
-                🛡️ Strategic Decision Room
-            </h1>
-
+            <div style="font-size:18px; letter-spacing:2px; color:#888;">MANAGERS LAB</div>
+            <h1 style="font-size:48px; margin-top:10px;">🛡️ Strategic Decision Room</h1>
             <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
                 See the real impact on your cash and survival before committing
             </h2>
-
             <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
-                Change prices, costs, or volumes and instantly see the effect on profit,
-                break-even, and cash survival.
+                Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.
             </h3>
-
-            <p style="font-size:18px; color:#777; margin-top:15px;">
-                Know the outcome before you spend a euro.
-            </p>
+            <p style="font-size:18px; color:#777; margin-top:15px;">Know the outcome before you spend a euro.</p>
         </div>
         """,
         unsafe_allow_html=True
     )
-
     st.divider()
 
     # --- MAIN LAYOUT ---
@@ -61,31 +49,67 @@ def run_home():
             s.ap_days = st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)))
 
         col_btn1, col_btn2 = st.columns(2)
-
         with col_btn1:
             if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
                 lock_baseline()
                 st.rerun()
-
         with col_btn2:
             if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
                 st.session_state.clear()
                 st.session_state.flow_step = "home"
                 st.rerun()
 
-    # RIGHT COLUMN
+    # RIGHT COLUMN: Tool Tabs
     with col_nav:
         st.subheader("📊 Strategic Tool Library")
         t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "🛡️ Risk"])
 
-        # (όλος ο κώδικας των buttons σου μένει ΑΚΡΙΒΩΣ ίδιος)
+        with t1:
+            if st.button("🎯 Pricing Strategy", use_container_width=True):
+                s.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool"); s.flow_step = "library"; st.rerun()
+            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+                s.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); s.flow_step = "library"; st.rerun()
+            if st.button("📡 Pricing Radar", use_container_width=True):
+                s.selected_tool = ("pricing_radar", "show_pricing_radar"); s.flow_step = "library"; st.rerun()
+            if st.button("📉 Loss Threshold", use_container_width=True):
+                s.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut"); s.flow_step = "library"; st.rerun()
+            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
+                s.selected_tool = ("qspm_analyzer", "show_qspm_tool"); s.flow_step = "library"; st.rerun()
+            if st.button("👥 CLV Simulator", use_container_width=True):
+                s.selected_tool = ("clv_calculator", "show_clv_calculator"); s.flow_step = "library"; st.rerun()
+
+        with t2:
+            if st.button("📈 Growth Funding (AFN)", use_container_width=True):
+                s.selected_tool = ("growth_funding", "show_growth_funding_needed"); s.flow_step = "library"; st.rerun()
+            if st.button("📉 WACC Optimizer", use_container_width=True):
+                s.selected_tool = ("wacc_optimizer", "show_wacc_optimizer"); s.flow_step = "library"; st.rerun()
+            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
+                s.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui"); s.flow_step = "library"; st.rerun()
+
+        with t3:
+            if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
+                s.selected_tool = ("cash_cycle", "run_cash_cycle_app"); s.flow_step = "library"; st.rerun()
+            if st.button("🔢 Unit Cost Analyzer", use_container_width=True):
+                s.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app"); s.flow_step = "library"; st.rerun()
+            if st.button("📦 Inventory Optimizer", use_container_width=True):
+                s.selected_tool = ("inventory_manager", "show_inventory_manager"); s.flow_step = "library"; st.rerun()
+            if st.button("🤝 Payables Manager", use_container_width=True):
+                s.selected_tool = ("INTERNAL", "show_payables_manager_internal"); s.flow_step = "library"; st.rerun()
+
+        with t4:
+            if st.button("🏁 Executive Dashboard", use_container_width=True):
+                s.selected_tool = ("executive_dashboard", "show_executive_dashboard"); s.flow_step = "library"; st.rerun()
+            if st.button("🚨 Cash Fragility Index", use_container_width=True):
+                s.selected_tool = ("cash_fragility_index", "show_cash_fragility_index"); s.flow_step = "library"; st.rerun()
+            if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
+                s.selected_tool = ("financial_resilience_app", "show_resilience_map"); s.flow_step = "library"; st.rerun()
+            if st.button("📉 Stress Test Simulator", use_container_width=True):
+                s.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); s.flow_step = "library"; st.rerun()
 
     # --- FOOTER NAVIGATION ---
     st.divider()
     st.subheader("🏁 Full Sequential Stages")
-
     cols = st.columns(5)
-
     for i in range(1, 6):
         if cols[i-1].button(f"Go to Stage {i}", use_container_width=True):
             if s.get('price', 0) > 0:
