@@ -5,26 +5,14 @@ def run_home():
     s = st.session_state
 
     # --- HERO SECTION ---
-    # Διατήρηση του στυλ που επέλεξες με διορθώσεις στα paddings
     st.markdown(
-        """
+        f"""
         <div style="text-align:center; padding: 20px 0 30px 0;">
-            <h1 style="font-size:72px; font-weight:900; color:#1E3A8A; margin-bottom:0px; letter-spacing:-1px; line-height:1;">
-                Managers Lab<span style="color:#ef4444;">.</span>
-            </h1>
-            
-            <div style="font-size:22px; font-weight:400; color:#64748b; letter-spacing:3px; text-transform:uppercase; margin-top:10px; margin-bottom:30px;">
-                🛡️ Strategic Decision Room
-            </div>
-
+            <h1 style="font-size:72px; font-weight:900; color:#1E3A8A; margin-bottom:0px; letter-spacing:-1px; line-height:1;">Managers Lab<span style="color:#ef4444;">.</span></h1>
+            <div style="font-size:22px; font-weight:400; color:#64748b; letter-spacing:3px; text-transform:uppercase; margin-top:10px; margin-bottom:30px;">🛡️ Strategic Decision Room</div>
             <div style="max-width:850px; margin: 0 auto; border-top: 2px solid #f1f5f9; padding-top: 25px;">
-                <h2 style="font-size:28px; font-weight:600; color:#1e293b; line-height:1.2; margin-bottom:10px;">
-                    Analyze the outcome before the execution.
-                </h2>
-                <p style="font-size:19px; color:#475569; line-height:1.5;">
-                    A cold, analytical simulator for evaluating price shifts, cost structures, 
-                    and cash resilience based on a <b>365-day</b> fiscal cycle.
-                </p>
+                <h2 style="font-size:28px; font-weight:600; color:#1e293b; line-height:1.2; margin-bottom:10px;">Analyze the outcome before the execution.</h2>
+                <p style="font-size:19px; color:#475569; line-height:1.5;">A cold, analytical simulator for evaluating price shifts, cost structures, and cash resilience based on a <b>365-day</b> fiscal cycle.</p>
             </div>
         </div>
         """, 
