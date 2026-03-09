@@ -2,7 +2,16 @@ import streamlit as st
 from ui.sidebar import show_sidebar
 from ui.home import run_home
 
-# Stage modules - Standard Imports
+st.set_page_config(page_title="Strategic Decision Room", layout="wide")
+
+# Initialize session
+if 'flow_step' not in st.session_state:
+    st.session_state.flow_step = "home"
+
+# Sidebar
+show_sidebar()
+
+# Stage imports
 try:
     from path.stage0 import run_stage0
     from path.stage1 import run_stage1
@@ -13,33 +22,25 @@ try:
 except ImportError as e:
     st.error(f"Module Loading Error: {e}")
 
-# Page config
-st.set_page_config(page_title="Strategic Decision Room", layout="wide")
-
-# Initialize session
-if 'flow_step' not in st.session_state:
-    st.session_state.flow_step = "home"
-
-# Show sidebar
-show_sidebar()
-
-# --- ROUTER ---
+# Router
 step = st.session_state.flow_step
 
 if step == "home":
     run_home()
+
 elif step == "library":
-    # ΕΔΩ Η ΑΛΛΑΓΗ: Καλούμε το νέο όνομα αρχείου
-    from core.tools_registry import show_library
-    show_library()
+    try:
+        from core.tools_registry import show_library
+        show_library()
+    except ImportError:
+        st.error("Tools library not found.")
+
 elif step.startswith("stage"):
-    # Δυναμική κλήση των stages
     try:
         globals()[f"run_{step}"]()
     except KeyError:
         st.error(f"Function run_{step} not found.")
+
 else:
-    st.warning(f"Step '{step}' not found. Redirecting to Home.")
     st.session_state.flow_step = "home"
     st.rerun()
-
