@@ -7,18 +7,24 @@ def run_home():
     # --- HERO SECTION ---
     st.markdown(
         """
-        <div style="text-align:center; padding: 30px 0;">
-            <div style="font-size:18px; letter-spacing:2px; color:#888;">MANAGERS LAB</div>
-            <h1 style="font-size:48px; margin-top:10px;">🛡️ Strategic Decision Room</h1>
-            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
-                See the real impact on your cash and survival before committing
-            </h2>
-            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
-                Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.
-            </h3>
-            <p style="font-size:18px; color:#777; margin-top:15px;">Know the outcome before you spend a euro.</p>
+        <div style="text-align:center; padding: 40px 0 20px 0;">
+            <div style="font-size:24px; font-weight:800; letter-spacing:4px; color:#1E3A8A; margin-bottom:10px; text-transform:uppercase;">
+                🚀 Managers Lab
+            </div>
+            <h1 style="font-size:56px; font-weight:900; line-height:1.1; margin-bottom:20px;">
+                Strategic Decision Room
+            </h1>
+            <div style="max-width:800px; margin: 0 auto;">
+                <h2 style="font-size:26px; font-weight:500; color:#334155; margin-bottom:15px;">
+                    Simulate the financial impact of every decision before you commit.
+                </h2>
+                <p style="font-size:18px; color:#64748b;">
+                    Adjust pricing, variable costs, and volumes to instantly see the shift in break-even points, 
+                    cash flow stability, and long-term survival.
+                </p>
+            </div>
         </div>
-        """,
+        """, 
         unsafe_allow_html=True
     )
     st.divider()
