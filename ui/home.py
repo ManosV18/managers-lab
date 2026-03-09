@@ -12,7 +12,7 @@ def run_home():
             <div style="font-size:22px; font-weight:400; color:#64748b; letter-spacing:3px; text-transform:uppercase; margin-top:10px; margin-bottom:30px;">🛡️ Strategic Decision Room</div>
             <div style="max-width:850px; margin: 0 auto; border-top: 2px solid #f1f5f9; padding-top: 25px;">
                 <h2 style="font-size:28px; font-weight:600; color:#1e293b; line-height:1.2; margin-bottom:10px;">Analyze the outcome before the execution.</h2>
-                <p style="font-size:19px; color:#475569; line-height:1.5;">Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.</b> fiscal cycle.</p>
+                <p style="font-size:19px; color:#475569; line-height:1.5;">Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.</b></p>
             </div>
         </div>
         """, 
