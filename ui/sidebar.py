@@ -10,7 +10,7 @@ def show_sidebar():
             <div style="text-align:center; padding: 10px; border-radius:10px; background-color:#f8fafc; border: 1px solid #e2e8f0; margin-bottom:20px;">
                 <h2 style="margin:0; color:#1E3A8A; font-size:24px;">🧠 Managers Lab</h2>
                 <p style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:1px; margin-top:5px;">
-                    Executive Control Panel
+                    Strategic Finance Tools
                 </p>
             </div>
             """,
