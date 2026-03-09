@@ -5,25 +5,34 @@ def run_home():
     s = st.session_state
 
     # --- HERO SECTION ---
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 30px 0;">
-            <h1 style="font-size:48px;">🛡️ Strategic Decision Room</h1>
-            <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
-                See the real impact on your cash and survival before committing
-            </h2>
-            <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
-                Change prices, costs, or volumes and instantly see the effect on profit, break-even, and cash survival.
-            </h3>
-            <p style="font-size:18px; color:#777; margin-top:15px;">
-                Know the outcome before you spend a euro.
-            </p>
+st.markdown(
+    """
+    <div style="text-align:center; padding: 30px 0;">
+        <div style="font-size:18px; letter-spacing:2px; color:#888;">
+            MANAGERS LAB
         </div>
-        """,
-        unsafe_allow_html=True
-    )
-    st.divider()
 
+        <h1 style="font-size:48px; margin-top:10px;">
+            🛡️ Strategic Decision Room
+        </h1>
+
+        <h2 style="font-size:28px; font-weight:600; margin-top:10px;">
+            See the real impact on your cash and survival before committing
+        </h2>
+
+        <h3 style="font-size:20px; font-weight:normal; color:#555; margin-top:10px;">
+            Change prices, costs, or volumes and instantly see the effect on profit,
+            break-even, and cash survival.
+        </h3>
+
+        <p style="font-size:18px; color:#777; margin-top:15px;">
+            Know the outcome before you spend a euro.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+    
     # --- MAIN LAYOUT ---
     col_input, col_nav = st.columns([0.45, 0.55], gap="large")
 
