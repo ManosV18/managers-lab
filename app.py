@@ -8,10 +8,10 @@ st.set_page_config(page_title="Strategic Decision Room", layout="wide")
 if 'flow_step' not in st.session_state:
     st.session_state.flow_step = "home"
 
-# Sidebar
+# Sidebar always visible
 show_sidebar()
 
-# Stage imports
+# Stage imports (Wrapped to prevent app crash)
 try:
     from path.stage0 import run_stage0
     from path.stage1 import run_stage1
@@ -20,9 +20,9 @@ try:
     from path.stage4 import run_stage4
     from path.stage5 import run_stage5
 except ImportError as e:
-    st.error(f"Module Loading Error: {e}")
+    st.warning(f"Note: Some stages are still in development: {e}")
 
-# Router
+# Router Logic
 step = st.session_state.flow_step
 
 if step == "home":
@@ -33,13 +33,17 @@ elif step == "library":
         from core.tools_registry import show_library
         show_library()
     except ImportError:
-        st.error("Tools library not found.")
+        st.error("Tools registry component not found.")
 
 elif step.startswith("stage"):
-    try:
-        globals()[f"run_{step}"]()
-    except KeyError:
-        st.error(f"Function run_{step} not found.")
+    func_name = f"run_{step}"
+    if func_name in globals():
+        globals()[func_name]()
+    else:
+        st.error(f"Stage function {func_name} is not defined or imported.")
+        if st.button("Return Home"):
+            st.session_state.flow_step = "home"
+            st.rerun()
 
 else:
     st.session_state.flow_step = "home"
