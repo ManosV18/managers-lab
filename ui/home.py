@@ -2,7 +2,6 @@ import streamlit as st
 from core.sync import lock_baseline
 
 def run_home():
-
     s = st.session_state
 
     # --- HERO SECTION ---
@@ -31,6 +30,13 @@ def run_home():
     # LEFT COLUMN: Global Parameters
     with col_input:
         st.subheader("⚙️ Global Parameters")
+        
+        # Status Indicator
+        if s.get('baseline_locked', False):
+            st.success("✅ Baseline is currently LOCKED")
+        else:
+            st.warning("🔓 Baseline is OPEN (Adjust values below)")
+
         with st.expander("Business Baseline", expanded=True):
             s.price = st.number_input("Unit Price (€)", value=float(s.get('price', 100.0)))
             s.variable_cost = st.number_input("Variable Cost (€)", value=float(s.get('variable_cost', 60.0)))
@@ -44,10 +50,19 @@ def run_home():
             s.inventory_days = st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)))
             s.ap_days = st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)))
 
-        if st.button("🔄 Reset All Data (Zero-Base)", type="secondary", use_container_width=True):
-            st.session_state.clear()
-            s.flow_step = "home"
-            st.rerun()
+        # ACTION BUTTONS
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
+                lock_baseline()
+                st.rerun()
+        
+        with col_btn2:
+            if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
+                st.session_state.clear()
+                # Default flow step after clear
+                st.session_state.flow_step = "home"
+                st.rerun()
 
     # RIGHT COLUMN: All 18 Tools Categorized
     with col_nav:
@@ -61,7 +76,7 @@ def run_home():
 
             if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
                 s.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); s.flow_step = "library"; st.rerun()
-            st.caption("If I change the price or costs increase, how many units do I need to sell to cover my expenses?")
+            st.caption("If I change the price or costs increase, how many units do I need to sell?")
 
             if st.button("📡 Pricing Radar", use_container_width=True):
                 s.selected_tool = ("pricing_radar", "show_pricing_radar"); s.flow_step = "library"; st.rerun()
