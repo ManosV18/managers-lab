@@ -21,47 +21,37 @@ def run_home():
 
     st.divider()
 
-    # --- EXECUTIVE SNAPSHOT (Calculated from Current State) ---
-    st.subheader("📊 Executive Snapshot")
-
-    # Fetch variables for calculations
-    p = s.get("price", 100.0)
-    vc = s.get("variable_cost", 60.0)
-    v = s.get("volume", 1000)
-    fc = s.get("fixed_cost", 20000.0)
-    ads = s.get("annual_debt_service", 0.0) 
-    cash = s.get("opening_cash", 10000.0)
+    # --- EXECUTIVE SNAPSHOT ---
+    # Fetch variables - Χρησιμοποιούμε τα inputs αν υπάρχουν, αλλιώς defaults
+    p = s.get("input_price", 100.0)
+    vc = s.get("input_vc", 60.0)
+    v = s.get("input_volume", 1000)
+    fc = s.get("input_fc", 20000.0)
+    ads = s.get("opening_cash_ads", 0.0) # Συνεπές όνομα με τα inputs
+    cash = s.get("opening_cash_val", 10000.0)
 
     # Core Calculations
     margin = p - vc
     revenue = p * v
     contribution = margin * v
     
-    # Survival Break-even (including Debt Service)
+    # Survival Break-even (including Debt Service) - 365 Days
     bep_units = (fc + ads) / margin if margin > 0 else 0
-    
-    # Margin of Safety Calculations
     margin_of_safety = v - bep_units
     buffer_pct = (margin_of_safety / v * 100) if v > 0 else 0
-    
-    ccc = s.get("ar_days", 45) + s.get("inventory_days", 60) - s.get("ap_days", 30)
 
     # Layout Metrics
     col1, col2, col3, col4, col5 = st.columns(5)
     
     col1.metric("Simulated Volume", f"{v:,.0f} units")
-    
     col2.metric("Contribution", f"€{contribution:,.0f}")
-    
     col3.metric(
         label="Survival BEP", 
         value=f"{bep_units:,.0f} units", 
-        delta=f"{margin_of_safety:,.0f} units surplus" if margin_of_safety >= 0 else f"{abs(margin_of_safety):,.0f} units deficit",
+        delta=f"{margin_of_safety:,.0f} surplus" if margin_of_safety >= 0 else f"{abs(margin_of_safety):,.0f} deficit",
         delta_color="normal" if margin_of_safety >= 0 else "inverse"
     )
-    
     col4.metric("Survival Buffer", f"{buffer_pct:.1f}%", delta="Risk Headroom")
-    
     col5.metric("Cash Position", f"€{cash:,.0f}")
 
     st.divider()
@@ -78,34 +68,25 @@ def run_home():
         else:
             st.warning("🔓 Baseline is OPEN")
 
-        # SECTION 1: Business Baseline
         with st.expander("📊 Business Baseline", expanded=True):
             s.price = st.number_input("Unit Price (€)", value=float(p), key="input_price")
             s.variable_cost = st.number_input("Variable Cost (€)", value=float(vc), key="input_vc")
             s.volume = st.number_input("Annual Volume", value=int(v), key="input_volume")
             s.fixed_cost = st.number_input("Annual Fixed Costs (€)", value=float(fc), key="input_fc")
 
-        # SECTION 2: Working Capital (Efficiency)
         with st.expander("🔄 Working Capital Cycle", expanded=False):
-            s.ar_days = st.number_input("AR Days (Collection)", value=float(s.get('ar_days', 45.0)))
-            s.inventory_days = st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)))
-            s.ap_days = st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)))
+            # Χρήση κλειδιών για να τα διαβάζει το NPV Tool
+            s.ar_days = st.number_input("AR Days (Collection)", value=float(s.get('ar_days', 45.0)), key="input_ar")
+            s.inventory_days = st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)), key="input_inv")
+            s.ap_days = st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)), key="input_ap")
 
-        # SECTION 3: Liquidity & Debt
         with st.expander("💰 Liquidity & Obligations", expanded=False):
-            s.opening_cash = st.number_input("Opening Cash (€)", value=float(cash))
-            s.annual_debt_service = st.number_input("Annual Debt Service (€)", value=float(ads))
+            s.opening_cash = st.number_input("Opening Cash (€)", value=float(cash), key="opening_cash_val")
+            s.annual_debt_service = st.number_input("Annual Debt Service (€)", value=float(ads), key="opening_cash_ads")
 
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
-                lock_baseline()
-                st.rerun()
-        with col_btn2:
-            if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
-                st.session_state.clear()
-                st.session_state.flow_step = "home"
-                st.rerun()
+        if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
 
     # RIGHT COLUMN: Tool Tabs
     with col_nav:
@@ -117,39 +98,21 @@ def run_home():
                 s.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool"); s.flow_step = "library"; st.rerun()
             if st.button("⚖️ Survival BEP Simulator", use_container_width=True):
                 s.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); s.flow_step = "library"; st.rerun()
-            if st.button("📡 Pricing Radar", use_container_width=True):
-                s.selected_tool = ("pricing_radar", "show_pricing_radar"); s.flow_step = "library"; st.rerun()
-            if st.button("📉 Loss Threshold", use_container_width=True):
-                s.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut"); s.flow_step = "library"; st.rerun()
-            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
-                s.selected_tool = ("qspm_analyzer", "show_qspm_tool"); s.flow_step = "library"; st.rerun()
-            if st.button("👥 CLV Simulator", use_container_width=True):
-                s.selected_tool = ("clv_calculator", "show_clv_calculator"); s.flow_step = "library"; st.rerun()
 
         with t2:
             if st.button("📈 Growth Funding (AFN)", use_container_width=True):
                 s.selected_tool = ("growth_funding", "show_growth_funding_needed"); s.flow_step = "library"; st.rerun()
-            if st.button("📉 WACC Optimizer", use_container_width=True):
-                s.selected_tool = ("wacc_optimizer", "show_wacc_optimizer"); s.flow_step = "library"; st.rerun()
-            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
-                s.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui"); s.flow_step = "library"; st.rerun()
 
         with t3:
-            if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
-                s.selected_tool = ("cash_cycle", "run_cash_cycle_app"); s.flow_step = "library"; st.rerun()
+            # ΕΔΩ ΕΙΝΑΙ Η ΑΛΛΑΓΗ: Συνδέουμε το NPV Tool που μου έστειλες
+            if st.button("🔄 NPV Receivables Analyzer", use_container_width=True):
+                s.selected_tool = ("receivables_npv", "show_receivables_analyzer_ui"); s.flow_step = "library"; st.rerun()
+            
             if st.button("🔢 Unit Cost Analyzer", use_container_width=True):
                 s.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app"); s.flow_step = "library"; st.rerun()
-            if st.button("📦 Inventory Optimizer", use_container_width=True):
-                s.selected_tool = ("inventory_manager", "show_inventory_manager"); s.flow_step = "library"; st.rerun()
-            if st.button("🤝 Payables Manager", use_container_width=True):
-                s.selected_tool = ("INTERNAL", "show_payables_manager_internal"); s.flow_step = "library"; st.rerun()
 
         with t4:
-            if st.button("🏁 Executive Dashboard", use_container_width=True):
-                s.selected_tool = ("executive_dashboard", "show_executive_dashboard"); s.flow_step = "library"; st.rerun()
             if st.button("🚨 Cash Fragility Index", use_container_width=True):
                 s.selected_tool = ("cash_fragility_index", "show_cash_fragility_index"); s.flow_step = "library"; st.rerun()
-            if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
-                s.selected_tool = ("financial_resilience_app", "show_resilience_map"); s.flow_step = "library"; st.rerun()
             if st.button("📉 Stress Test Simulator", use_container_width=True):
                 s.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); s.flow_step = "library"; st.rerun()
