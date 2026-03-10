@@ -43,7 +43,7 @@ def run_home():
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Revenue", f"€{revenue:,.0f}")
     col2.metric("Contribution", f"€{contribution:,.0f}")
-    col3.metric("Survival BEP", f"{bep_units:,.0f} units")
+    col3.metric(label="Survival BEP", value=f"{bep_units:,.0f} units", delta=f"{margin_of_safety:,.0f} vs Plan", delta_color="normal" if margin_of_safety >= 0 else "inverse")
     col4.metric("Cash", f"€{cash:,.0f}")
     col5.metric("CCC", f"{ccc:.0f} days")
 
