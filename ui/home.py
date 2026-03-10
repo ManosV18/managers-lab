@@ -21,32 +21,29 @@ def run_home():
 
     st.divider()
 
-    # --- EXECUTIVE SNAPSHOT ---
+    # --- EXECUTIVE SNAPSHOT (Calculated from Current State) ---
     st.subheader("📊 Executive Snapshot")
 
-    price = s.get("price", 100.0)
-    variable_cost = s.get("variable_cost", 60.0)
-    volume = s.get("volume", 1000)
-    fixed_cost = s.get("fixed_cost", 20000.0)
+    # Fetch variables for calculations
+    p = s.get("price", 100.0)
+    vc = s.get("variable_cost", 60.0)
+    v = s.get("volume", 1000)
+    fc = s.get("fixed_cost", 20000.0)
+    ads = s.get("annual_debt_service", 0.0) # Χρήση του νέου ονόματος
     cash = s.get("opening_cash", 10000.0)
 
-    margin = price - variable_cost
-    revenue = price * volume
-    contribution = margin * volume
-
-    bep_units = fixed_cost / margin if margin != 0 else 0
-
-    ar = s.get("ar_days", 45)
-    inv = s.get("inventory_days", 60)
-    ap = s.get("ap_days", 30)
-
-    ccc = ar + inv - ap
+    # Calculations
+    margin = p - vc
+    revenue = p * v
+    contribution = margin * v
+    # Survival Break-even (including Debt)
+    bep_units = (fc + ads) / margin if margin > 0 else 0
+    ccc = s.get("ar_days", 45) + s.get("inventory_days", 60) - s.get("ap_days", 30)
 
     col1, col2, col3, col4, col5 = st.columns(5)
-
     col1.metric("Revenue", f"€{revenue:,.0f}")
     col2.metric("Contribution", f"€{contribution:,.0f}")
-    col3.metric("Break-Even Units", f"{bep_units:,.0f}")
+    col3.metric("Survival BEP", f"{bep_units:,.0f} u")
     col4.metric("Cash", f"€{cash:,.0f}")
     col5.metric("CCC", f"{ccc:.0f} days")
 
@@ -55,37 +52,44 @@ def run_home():
     # --- MAIN LAYOUT ---
     col_input, col_nav = st.columns([0.45, 0.55], gap="large")
 
-    # LEFT COLUMN
-        with col_input:
-            st.subheader("⚙️ Global Parameters")
+    # LEFT COLUMN: Parameters
+    with col_input:
+        st.subheader("⚙️ Global Parameters")
 
-            if s.get('baseline_locked', False):
-                st.success("✅ Baseline is currently LOCKED")
-            else:
-                st.warning("🔓 Baseline is OPEN")
+        if s.get('baseline_locked', False):
+            st.success("✅ Baseline is currently LOCKED")
+        else:
+            st.warning("🔓 Baseline is OPEN")
 
-            # SECTION 1: Business Baseline
-            with st.expander("📊 Business Baseline", expanded=True):
-                s.price = st.number_input("Unit Price (€)", value=float(s.get('price', 100.0)))
-                s.variable_cost = st.number_input("Variable Cost (€)", value=float(s.get('variable_cost', 60.0)))
-                s.volume = st.number_input("Annual Volume", value=int(s.get('volume', 1000)))
-                s.fixed_cost = st.number_input("Annual Fixed Costs (€)", value=float(s.get('fixed_cost', 20000.0)))
+        # SECTION 1: Business Baseline
+        with st.expander("📊 Business Baseline", expanded=True):
+            s.price = st.number_input("Unit Price (€)", value=float(p))
+            s.variable_cost = st.number_input("Variable Cost (€)", value=float(vc))
+            s.volume = st.number_input("Annual Volume", value=int(v))
+            s.fixed_cost = st.number_input("Annual Fixed Costs (€)", value=float(fc))
 
-            # SECTION 2: Working Capital (Efficiency)
-            with st.expander("🔄 Working Capital Cycle", expanded=False):
-                s.ar_days = st.number_input("AR Days (Collection)", value=float(s.get('ar_days', 45.0)))
-                s.inventory_days = st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)))
-                s.ap_days = st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)))
+        # SECTION 2: Working Capital (Efficiency)
+        with st.expander("🔄 Working Capital Cycle", expanded=False):
+            s.ar_days = st.number_input("AR Days (Collection)", value=float(s.get('ar_days', 45.0)))
+            s.inventory_days = st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)))
+            s.ap_days = st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)))
 
-            # SECTION 3: Liquidity & Debt
-            with st.expander("💰 Liquidity & Obligations", expanded=False):
-                s.opening_cash = st.number_input("Opening Cash (€)", value=float(s.get('opening_cash', 10000.0)))
-                # ΕΔΩ Η ΑΛΛΑΓΗ: Ενοποίηση σε annual_debt_service
-                s.annual_debt_service = st.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)))
+        # SECTION 3: Liquidity & Debt
+        with st.expander("💰 Liquidity & Obligations", expanded=False):
+            s.opening_cash = st.number_input("Opening Cash (€)", value=float(cash))
+            s.annual_debt_service = st.number_input("Annual Debt Service (€)", value=float(ads))
 
-            col_btn1, col_btn2 = st.columns(2)
-            # ... (τα κουμπιά παραμένουν ίδια)
-   
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
+                lock_baseline()
+                st.rerun()
+        with col_btn2:
+            if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
+                st.session_state.clear()
+                st.session_state.flow_step = "home"
+                st.rerun()
+
     # RIGHT COLUMN: Tool Tabs
     with col_nav:
         st.subheader("📊 Strategic Tool Library")
@@ -94,7 +98,7 @@ def run_home():
         with t1:
             if st.button("🎯 Pricing Strategy", use_container_width=True):
                 s.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool"); s.flow_step = "library"; st.rerun()
-            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+            if st.button("⚖️ Survival BEP Simulator", use_container_width=True):
                 s.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); s.flow_step = "library"; st.rerun()
             if st.button("📡 Pricing Radar", use_container_width=True):
                 s.selected_tool = ("pricing_radar", "show_pricing_radar"); s.flow_step = "library"; st.rerun()
@@ -132,5 +136,3 @@ def run_home():
                 s.selected_tool = ("financial_resilience_app", "show_resilience_map"); s.flow_step = "library"; st.rerun()
             if st.button("📉 Stress Test Simulator", use_container_width=True):
                 s.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); s.flow_step = "library"; st.rerun()
-
-
