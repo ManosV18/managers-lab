@@ -49,21 +49,32 @@ def run_home():
     # Layout Metrics
     col1, col2, col3, col4, col5 = st.columns(5)
     
-    col1.metric("Simulated Volume", f"{v:,.0f} units")
-    
-    col2.metric("Contribution", f"€{contribution:,.0f}")
-    
-    col3.metric(
-        label="Survival BEP", 
-        value=f"{bep_units:,.0f} units", 
-        delta=f"{margin_of_safety:,.0f} units surplus" if margin_of_safety >= 0 else f"{abs(margin_of_safety):,.0f} units deficit",
+    # Simulated Volume: Τώρα το delta δείχνει πόσο "πάνω" είσαι από το BEP
+    col1.metric(
+        label="Simulated Volume", 
+        value=f"{v:,.0f} units",
+        delta=f"+{margin_of_safety:,.0f} units" if margin_of_safety >= 0 else f"{margin_of_safety:,.0f} units",
         delta_color="normal" if margin_of_safety >= 0 else "inverse"
     )
     
-    col4.metric("Survival Buffer", f"{buffer_pct:.1f}%", delta="Risk Headroom")
+    col2.metric("Contribution", f"€{contribution:,.0f}")
+    
+    # Survival BEP: Δείχνει το στατικό όριο επιβίωσης
+    col3.metric(
+        label="Survival BEP", 
+        value=f"{bep_units:,.0f} units", 
+        help="The volume needed to cover all fixed costs and debt service."
+    )
+    
+    # Survival Buffer: Το % ασφαλείας
+    col4.metric(
+        label="Survival Buffer", 
+        value=f"{buffer_pct:.1f}%", 
+        delta="Risk Headroom"
+    )
     
     col5.metric("Cash Position", f"€{cash:,.0f}")
-
+    
     st.divider()
 
     # --- MAIN LAYOUT ---
