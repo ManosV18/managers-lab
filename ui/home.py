@@ -102,16 +102,17 @@ def run_home():
                 s.selected_tool = ("financial_resilience_app", "show_resilience_map"); s.flow_step = "library"; st.rerun()
             if st.button("📉 Stress Test Simulator", use_container_width=True):
                 s.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); s.flow_step = "library"; st.rerun()
+                
+                st.subheader("📊 Executive Snapshot")
 
-st.subheader("📊 Executive Snapshot")
+                    revenue = s.price * s.volume
+                    contribution = (s.price - s.variable_cost) * s.volume
+                    bep_units = s.fixed_cost / (s.price - s.variable_cost) if (s.price - s.variable_cost) != 0 else 0
 
-revenue = s.price * s.volume
-contribution = (s.price - s.variable_cost) * s.volume
-bep_units = s.fixed_cost / (s.price - s.variable_cost) if (s.price - s.variable_cost) != 0 else 0
+                    col1, col2, col3, col4 = st.columns(4)
 
-col1, col2, col3, col4 = st.columns(4)
+                    col1.metric("Revenue", f"€{revenue:,.0f}")
+                    col2.metric("Contribution", f"€{contribution:,.0f}")
+                    col3.metric("Break-Even Units", f"{bep_units:,.0f}")
+                    col4.metric("Cash", f"€{s.opening_cash:,.0f}")
 
-col1.metric("Revenue", f"€{revenue:,.0f}")
-col2.metric("Contribution", f"€{contribution:,.0f}")
-col3.metric("Break-Even Units", f"{bep_units:,.0f}")
-col4.metric("Cash", f"€{s.opening_cash:,.0f}")
