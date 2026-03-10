@@ -102,15 +102,3 @@ def run_home():
                 s.selected_tool = ("financial_resilience_app", "show_resilience_map"); s.flow_step = "library"; st.rerun()
             if st.button("📉 Stress Test Simulator", use_container_width=True):
                 s.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); s.flow_step = "library"; st.rerun()
-
-    # --- FOOTER NAVIGATION ---
-    st.divider()
-    st.subheader("🏁 Full Sequential Stages")
-    cols = st.columns(5)
-    for i in range(1, 6):
-        if cols[i-1].button(f"Go to Stage {i}", use_container_width=True):
-            if s.get('price', 0) > 0:
-                s.flow_step = f"stage{i}"
-                st.rerun()
-            else:
-                st.error("Please set Price first.")
