@@ -29,23 +29,40 @@ def run_home():
     vc = s.get("variable_cost", 60.0)
     v = s.get("volume", 1000)
     fc = s.get("fixed_cost", 20000.0)
-    ads = s.get("annual_debt_service", 0.0) # Χρήση του νέου ονόματος
+    ads = s.get("annual_debt_service", 0.0) 
     cash = s.get("opening_cash", 10000.0)
 
-    # Calculations
+    # Core Calculations
     margin = p - vc
     revenue = p * v
     contribution = margin * v
-    # Survival Break-even (including Debt)
+    
+    # Survival Break-even (including Debt Service)
     bep_units = (fc + ads) / margin if margin > 0 else 0
+    
+    # Margin of Safety Calculations
+    margin_of_safety = v - bep_units
+    buffer_pct = (margin_of_safety / v * 100) if v > 0 else 0
+    
     ccc = s.get("ar_days", 45) + s.get("inventory_days", 60) - s.get("ap_days", 30)
 
+    # Layout Metrics
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Revenue", f"€{revenue:,.0f}")
+    
+    col1.metric("Simulated Volume", f"{v:,.0f} units")
+    
     col2.metric("Contribution", f"€{contribution:,.0f}")
-    col3.metric(label="Survival BEP", value=f"{bep_units:,.0f} units", delta=f"{margin_of_safety:,.0f} vs Plan", delta_color="normal" if margin_of_safety >= 0 else "inverse")
-    col4.metric("Cash", f"€{cash:,.0f}")
-    col5.metric("CCC", f"{ccc:.0f} days")
+    
+    col3.metric(
+        label="Survival BEP", 
+        value=f"{bep_units:,.0f} units", 
+        delta=f"{margin_of_safety:,.0f} units surplus" if margin_of_safety >= 0 else f"{abs(margin_of_safety):,.0f} units deficit",
+        delta_color="normal" if margin_of_safety >= 0 else "inverse"
+    )
+    
+    col4.metric("Survival Buffer", f"{buffer_pct:.1f}%", delta="Risk Headroom")
+    
+    col5.metric("Cash Position", f"€{cash:,.0f}")
 
     st.divider()
 
@@ -63,10 +80,10 @@ def run_home():
 
         # SECTION 1: Business Baseline
         with st.expander("📊 Business Baseline", expanded=True):
-            s.price = st.number_input("Unit Price (€)", value=float(p))
-            s.variable_cost = st.number_input("Variable Cost (€)", value=float(vc))
-            s.volume = st.number_input("Annual Volume", value=int(v))
-            s.fixed_cost = st.number_input("Annual Fixed Costs (€)", value=float(fc))
+            s.price = st.number_input("Unit Price (€)", value=float(p), key="input_price")
+            s.variable_cost = st.number_input("Variable Cost (€)", value=float(vc), key="input_vc")
+            s.volume = st.number_input("Annual Volume", value=int(v), key="input_volume")
+            s.fixed_cost = st.number_input("Annual Fixed Costs (€)", value=float(fc), key="input_fc")
 
         # SECTION 2: Working Capital (Efficiency)
         with st.expander("🔄 Working Capital Cycle", expanded=False):
