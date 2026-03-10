@@ -19,7 +19,7 @@ def show_stress_test_tool():  # Renamed to match the registry exactly
     base_fixed_costs = float(s.get('fixed_cost', 200000.0))
     base_ebitda = (unit_contribution * volume) - base_fixed_costs
     base_tax = max(0, base_ebitda * 0.22)
-    base_loan = float(s.get('annual_loan_service', 50000.0))
+    base_loan = float(s.get('annual_debt_service', 50000.0))
     base_profit = base_ebitda - base_tax - base_loan
     
     # 2. SCENARIO INPUTS (SHOCKS)
