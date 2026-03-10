@@ -90,7 +90,52 @@ def run_home():
                 st.session_state.flow_step = "home"
                 st.rerun()
 
-    # RIGHT COLUMN
+   
+    # RIGHT COLUMN: Tool Tabs
     with col_nav:
         st.subheader("📊 Strategic Tool Library")
         t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "🛡️ Risk"])
+
+        with t1:
+            if st.button("🎯 Pricing Strategy", use_container_width=True):
+                s.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool"); s.flow_step = "library"; st.rerun()
+            if st.button("⚖️ BEP Shift Analysis", use_container_width=True):
+                s.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); s.flow_step = "library"; st.rerun()
+            if st.button("📡 Pricing Radar", use_container_width=True):
+                s.selected_tool = ("pricing_radar", "show_pricing_radar"); s.flow_step = "library"; st.rerun()
+            if st.button("📉 Loss Threshold", use_container_width=True):
+                s.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut"); s.flow_step = "library"; st.rerun()
+            if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
+                s.selected_tool = ("qspm_analyzer", "show_qspm_tool"); s.flow_step = "library"; st.rerun()
+            if st.button("👥 CLV Simulator", use_container_width=True):
+                s.selected_tool = ("clv_calculator", "show_clv_calculator"); s.flow_step = "library"; st.rerun()
+
+        with t2:
+            if st.button("📈 Growth Funding (AFN)", use_container_width=True):
+                s.selected_tool = ("growth_funding", "show_growth_funding_needed"); s.flow_step = "library"; st.rerun()
+            if st.button("📉 WACC Optimizer", use_container_width=True):
+                s.selected_tool = ("wacc_optimizer", "show_wacc_optimizer"); s.flow_step = "library"; st.rerun()
+            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
+                s.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui"); s.flow_step = "library"; st.rerun()
+
+        with t3:
+            if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
+                s.selected_tool = ("cash_cycle", "run_cash_cycle_app"); s.flow_step = "library"; st.rerun()
+            if st.button("🔢 Unit Cost Analyzer", use_container_width=True):
+                s.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app"); s.flow_step = "library"; st.rerun()
+            if st.button("📦 Inventory Optimizer", use_container_width=True):
+                s.selected_tool = ("inventory_manager", "show_inventory_manager"); s.flow_step = "library"; st.rerun()
+            if st.button("🤝 Payables Manager", use_container_width=True):
+                s.selected_tool = ("INTERNAL", "show_payables_manager_internal"); s.flow_step = "library"; st.rerun()
+
+        with t4:
+            if st.button("🏁 Executive Dashboard", use_container_width=True):
+                s.selected_tool = ("executive_dashboard", "show_executive_dashboard"); s.flow_step = "library"; st.rerun()
+            if st.button("🚨 Cash Fragility Index", use_container_width=True):
+                s.selected_tool = ("cash_fragility_index", "show_cash_fragility_index"); s.flow_step = "library"; st.rerun()
+            if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
+                s.selected_tool = ("financial_resilience_app", "show_resilience_map"); s.flow_step = "library"; st.rerun()
+            if st.button("📉 Stress Test Simulator", use_container_width=True):
+                s.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); s.flow_step = "library"; st.rerun()
+
+
