@@ -1,8 +1,8 @@
 import streamlit as st
 import plotly.graph_objects as go
 from decimal import Decimal, getcontext
-from core.sync import sync_global_state
 
+# --- ΠΡΟΣΟΧΗ: Οι υπολογισμοί παραμένουν 100% ως είχαν ---
 def calculate_discount_npv(
     current_sales, extra_sales, discount_trial, prc_clients_take_disc,
     days_curently_paying_clients_take_discount, days_curently_paying_clients_not_take_discount,
@@ -82,19 +82,16 @@ def calculate_discount_npv(
     }
 
 def show_receivables_analyzer_ui():
-    # 1. SYNC WITH CORE ENGINE
-    metrics = sync_global_state()
     s = st.session_state
     
-    # Fetch Baseline (Stage 0 Constants)
-    sys_revenue = float(metrics.get('revenue', 0.0))
-    sys_cogs = float(s.get('volume', 0)) * float(s.get('variable_cost', 0.0))
-    sys_wacc = float(s.get('wacc', 0.15))
-    sys_ar_days = float(s.get('ar_days', 45))
-    sys_ap_days = float(s.get('ap_days', 30))
+    # Σύνδεση με τα Global Parameters (Από το προηγούμενο Home.py)
+    sys_revenue = float(s.get('input_price', 100.0) * s.get('input_volume', 1000))
+    sys_cogs = float(s.get('input_volume', 1000) * s.get('input_vc', 60.0))
+    sys_wacc = 0.15 # Σταθερά ή από session
+    sys_ar_days = float(s.get('input_ar', 45.0))
+    sys_ap_days = float(s.get('input_ap', 30.0))
 
-    st.title("📊 Strategic Receivables Analyzer (NPV Mode)")
-    st.info("Locked parameters are sourced from your Global Baseline (Stage 0).")
+    st.title("📊 Strategic Receivables Analyzer (NPV)")
 
     with st.form("npv_form"):
         col1, col2 = st.columns(2)
@@ -113,7 +110,7 @@ def show_receivables_analyzer_ui():
             cogs_val = st.number_input("Cost of Goods Sold (COGS €)", value=sys_cogs, disabled=True)
             wacc_val = st.number_input("WACC % (Cost of Capital)", value=sys_wacc * 100, disabled=True) / 100
             d_supps = st.number_input("Supplier Payment Days (DPO)", value=int(sys_ap_days), disabled=True)
-            d_no_take = st.number_input("Days (Current - No-Take group)", value=int(sys_ar_days * 2))
+            d_no_take = st.number_input("Days (Current - No-Take group)", value=int(sys_ar_days * 1.5))
 
         submitted = st.form_submit_button("Execute Strategy Simulation", use_container_width=True)
 
@@ -126,25 +123,11 @@ def show_receivables_analyzer_ui():
         c2.metric("Max Discount", f"{r['max_discount']:.2f}%")
         c3.metric("Optimum Discount", f"{r['optimum_discount']:.2f}%")
 
-        
-
         if r['npv'] > 0:
-            st.success("🎯 Positive NPV detected. You can apply this strategy to the Global Baseline.")
-            if st.button("🚀 Apply & Sync with Global Baseline", type="primary", use_container_width=True):
-                st.session_state.ar_days = d_new
-                growth_factor = 1 + (e_sales / c_sales) if c_sales > 0 else 1
-                st.session_state.volume = float(s.get('volume', 0)) * float(growth_factor)
-                st.success("Baseline Updated. Rerunning Engine...")
-                st.rerun()
+            st.success("🎯 Positive NPV detected.")
         else:
-            st.error("⚠️ Value Destruction: This policy results in a negative NPV. Strategy not recommended.")
+            st.error("⚠️ Value Destruction detected.")
 
-        with st.expander("Detailed Calculation Audit"):
-            st.write(f"Current Receivables: €{r['current_receivables']:,.2f}")
-            st.write(f"New Receivables Post-Policy: €{r['new_receivables']:,.2f}")
-            st.write(f"Free Capital Released: €{r['free_capital']:,.2f}")
-            st.write(f"Profit from Expansion: €{r['profit_from_extra_sales']:,.2f}")
-
-    if st.button("⬅️ Return to Library Hub"):
-        st.session_state.selected_tool = None
+    if st.button("⬅️ Return to Library"):
+        st.session_state.flow_step = "home"
         st.rerun()
