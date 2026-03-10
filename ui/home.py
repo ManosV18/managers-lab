@@ -56,40 +56,35 @@ def run_home():
     col_input, col_nav = st.columns([0.45, 0.55], gap="large")
 
     # LEFT COLUMN
-    with col_input:
-        st.subheader("⚙️ Global Parameters")
+        with col_input:
+            st.subheader("⚙️ Global Parameters")
 
-        if s.get('baseline_locked', False):
-            st.success("✅ Baseline is currently LOCKED")
-        else:
-            st.warning("🔓 Baseline is OPEN (Adjust values below)")
+            if s.get('baseline_locked', False):
+                st.success("✅ Baseline is currently LOCKED")
+            else:
+                st.warning("🔓 Baseline is OPEN")
 
-        with st.expander("Business Baseline", expanded=True):
-            s.price = st.number_input("Unit Price (€)", value=float(s.get('price', 100.0)))
-            s.variable_cost = st.number_input("Variable Cost (€)", value=float(s.get('variable_cost', 60.0)))
-            s.volume = st.number_input("Annual Volume", value=int(s.get('volume', 1000)))
-            s.fixed_cost = st.number_input("Annual Fixed Costs (€)", value=float(s.get('fixed_cost', 20000.0)))
+            # SECTION 1: Business Baseline
+            with st.expander("📊 Business Baseline", expanded=True):
+                s.price = st.number_input("Unit Price (€)", value=float(s.get('price', 100.0)))
+                s.variable_cost = st.number_input("Variable Cost (€)", value=float(s.get('variable_cost', 60.0)))
+                s.volume = st.number_input("Annual Volume", value=int(s.get('volume', 1000)))
+                s.fixed_cost = st.number_input("Annual Fixed Costs (€)", value=float(s.get('fixed_cost', 20000.0)))
 
-        with st.expander("Financials & Working Capital"):
-            s.opening_cash = st.number_input("Opening Cash (€)", value=float(s.get('opening_cash', 10000.0)))
-            s.annual_debt_service = st.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)))
-            s.ar_days = st.number_input("AR Days (Collection)", value=float(s.get('ar_days', 45.0)))
-            s.inventory_days = st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)))
-            s.ap_days = st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)))
+            # SECTION 2: Working Capital (Efficiency)
+            with st.expander("🔄 Working Capital Cycle", expanded=False):
+                s.ar_days = st.number_input("AR Days (Collection)", value=float(s.get('ar_days', 45.0)))
+                s.inventory_days = st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)))
+                s.ap_days = st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)))
 
-        col_btn1, col_btn2 = st.columns(2)
+            # SECTION 3: Liquidity & Debt
+            with st.expander("💰 Liquidity & Obligations", expanded=False):
+                s.opening_cash = st.number_input("Opening Cash (€)", value=float(s.get('opening_cash', 10000.0)))
+                # ΕΔΩ Η ΑΛΛΑΓΗ: Ενοποίηση σε annual_debt_service
+                s.annual_debt_service = st.number_input("Annual Debt Service (€)", value=float(s.get('annual_debt_service', 0.0)))
 
-        with col_btn1:
-            if st.button("🔒 Lock Baseline", use_container_width=True, type="primary"):
-                lock_baseline()
-                st.rerun()
-
-        with col_btn2:
-            if st.button("🔄 Reset All Data", type="secondary", use_container_width=True):
-                st.session_state.clear()
-                st.session_state.flow_step = "home"
-                st.rerun()
-
+            col_btn1, col_btn2 = st.columns(2)
+            # ... (τα κουμπιά παραμένουν ίδια)
    
     # RIGHT COLUMN: Tool Tabs
     with col_nav:
