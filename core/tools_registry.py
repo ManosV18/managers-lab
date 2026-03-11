@@ -4,35 +4,29 @@ import os
 import sys
 
 # =========================================================
-# 🛠️ INTERNAL DIAGNOSTIC TOOL (Ο "ΜΑΡΤΥΡΑΣ" ΛΕΙΤΟΥΡΓΙΑΣ)
+# 🛠️ INTERNAL DIAGNOSTIC TOOL (Λειτουργεί πάντα ως Backup)
 # =========================================================
 def show_payables_manager_internal():
-    """
-    Αυτό το εργαλείο είναι εσωτερικό (Hardcoded). 
-    Αν αυτό εμφανίζεται και λειτουργεί, σημαίνει ότι το 
-    Session State και ο Router δουλεύουν σωστά.
-    """
     st.warning("⚠️ MODE: Internal Diagnostic (Safety Net)")
     st.header("🤝 Payables Manager: Diagnostic Version")
     
-    # Λήψη δεδομένων από το Global State (Αμφίδρομη κίνηση)
     s = st.session_state
     
-    # Υπολογισμός ετήσιων αγορών βάσει των Global Parameters
-    # Volume * Variable Cost
-    calculated_purchases = float(s.get("volume", 0)) * float(s.get("variable_cost", 0))
+    # Αρχικοποίηση αν οι τιμές είναι 0 για να μην βγαίνει 0 το αποτέλεσμα
+    v = s.get("volume", 1000) if s.get("volume", 0) > 0 else 1000
+    vc = s.get("variable_cost", 60.0) if s.get("variable_cost", 0) > 0 else 60.0
+    calculated_purchases = float(v) * float(vc)
     
     col1, col2 = st.columns(2)
     with col1:
-        st.info(f"Base Volume: {s.get('volume', 0)} units")
         cred_days = st.number_input("Supplier Credit Period (Days)", value=60, key="diag_days")
         disc_prc = st.number_input("Cash Discount Offered (%)", value=2.0, key="diag_disc") / 100
 
     with col2:
         annual_purch = st.number_input("Annual Purchases (€)", value=calculated_purchases, key="diag_purch")
-        wacc = st.number_input("WACC (%)", value=float(s.get('wacc', 0.15))*100, key="diag_wacc") / 100
+        wacc = st.number_input("WACC (%)", value=15.0, key="diag_wacc") / 100
 
-    # Cold Analytical Logic (365 days) - Instruction [2026-02-18]
+    # Cold Analytical Logic (365 days) - [2026-02-18]
     disc_gain = annual_purch * disc_prc
     opp_cost = (annual_purch * (cred_days / 365)) * wacc
     net_benefit = disc_gain - opp_cost
@@ -40,21 +34,17 @@ def show_payables_manager_internal():
     st.divider()
     res1, res2 = st.columns(2)
     res1.metric("Gross Discount Gain", f"€{disc_gain:,.0f}")
-    res2.metric("Net Financial Benefit", f"€{net_benefit:,.0f}", 
-                delta="Profitable" if net_benefit > 0 else "Loss-making",
-                delta_color="normal" if net_benefit > 0 else "inverse")
+    res2.metric("Net Financial Benefit", f"€{net_benefit:,.0f}")
 
 # =========================================================
-# 🚀 DYNAMIC LOADER & ROUTER
+# 🚀 DYNAMIC LOADER (Διορθωμένα Paths)
 # =========================================================
 def show_library():
-    # Έλεγχος αν υπάρχει επιλεγμένο εργαλείο
     if st.session_state.get("selected_tool") is None:
         st.session_state.flow_step = "home"
         st.rerun()
 
-    # Ενιαίο κουμπί επιστροφής για όλα τα εργαλεία
-    if st.button("⬅️ Back to Control Tower", type="primary"):
+    if st.button("⬅️ Return to Main Dashboard"):
         st.session_state.selected_tool = None
         st.session_state.flow_step = "home"
         st.rerun()
@@ -63,15 +53,17 @@ def show_library():
 
     mod_name, func_name = st.session_state.selected_tool
 
-    # ΕΛΕΓΧΟΣ: Αν το εργαλείο είναι το εσωτερικό διαγνωστικό
-    if mod_name == "INTERNAL" or mod_name == "payables_manager_internal":
+    # 1. Έλεγχος αν ζητήθηκε το Internal
+    if mod_name == "INTERNAL":
         show_payables_manager_internal()
         return
 
-    # ΑΛΛΙΩΣ: Προσπάθεια δυναμικής φόρτωσης εξωτερικού αρχείου
+    # 2. Προσπάθεια φόρτωσης Εξωτερικού Αρχείου
     try:
-        # Εύρεση του φακέλου /tools στην ιεραρχία του project
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # Δυναμικός εντοπισμός του project root
+        # Αν το αρχείο είναι στο /core/tools_registry.py, το project root είναι το ..
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.abspath(os.path.join(current_dir, ".."))
         file_path = os.path.join(project_root, "tools", f"{mod_name}.py")
 
         if os.path.exists(file_path):
@@ -80,17 +72,15 @@ def show_library():
             sys.modules[mod_name] = module
             spec.loader.exec_module(module)
             
-            # Εκτέλεση της συνάρτησης
             func = getattr(module, func_name)
             func()
         else:
-            st.error(f"❌ Το αρχείο '{mod_name}.py' δεν βρέθηκε στον φάκελο /tools.")
-            st.info("💡 Δοκιμάστε το εσωτερικό Payables Manager για να βεβαιωθείτε ότι το σύστημα λειτουργεί.")
-            if st.button("Run Internal Diagnostic"):
-                st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
-                st.rerun()
+            # Αν το αρχείο λείπει, βγάζουμε το σφάλμα ΚΑΙ το διαγνωστικό από κάτω
+            st.error(f"❌ Το αρχείο '{mod_name}.py' δεν βρέθηκε στη διαδρομή: {file_path}")
+            st.info("Εκτέλεση εσωτερικού διαγνωστικού για έλεγχο συστήματος:")
+            show_payables_manager_internal()
 
     except Exception as e:
-        st.error(f"❌ Σφάλμα κατά τη φόρτωση του εργαλείου: {e}")
-        st.warning("Switching to Diagnostic Mode...")
+        st.error(f"❌ Σφάλμα στο αρχείο {mod_name}.py: {e}")
+        st.warning("Switching to Internal Diagnostic Mode...")
         show_payables_manager_internal()
