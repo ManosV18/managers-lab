@@ -83,6 +83,7 @@ def run_home():
             
             with t1: # STRATEGY
                 if st.button("🎯 Pricing Strategy", use_container_width=True): s.selected_tool = "pricing_strategy"; s.flow_step = "tool"; st.rerun()
+                if st.button("👥 Customer Lifetime Value (CLV)", use_container_width=True): s.selected_tool = "clv_calculator"; s.flow_step = "tool"; st.rerun()
                 if st.button("⚖️ Cash Survival Simulator", use_container_width=True): s.selected_tool = "break_even_shift"; s.flow_step = "tool"; st.rerun()
                 if st.button("📡 Pricing Radar", use_container_width=True): s.selected_tool = "pricing_radar"; s.flow_step = "tool"; st.rerun()
                 if st.button("📉 Loss Threshold", use_container_width=True): s.selected_tool = "loss_threshold"; s.flow_step = "tool"; st.rerun()
