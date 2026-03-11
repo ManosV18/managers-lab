@@ -4,7 +4,7 @@ def run_home():
     s = st.session_state
 
     # --- 1. DATA SYNC & INITIALIZATION ---
-    # Λαμβάνουμε τις τιμές χρησιμοποιώντας τα νέα "καθαρά" Keys για αμφίδρομη κίνηση
+    # Χρήση καθαρών keys για αμφίδρομη κίνηση με όλα τα εργαλεία
     p = s.get("price", 100.0)
     vc = s.get("variable_cost", 60.0)
     v = s.get("volume", 1000)
@@ -13,9 +13,8 @@ def run_home():
     cash = s.get("opening_cash", 10000.0)
     tp = s.get("target_profit_goal", 0.0)
 
-    # Core Calculations για το Snapshot (Cash-Flow Logic)
+    # Core Calculations (Βάσει 365 ημερών)
     margin = p - vc
-    # Το πραγματικό "τείχος" εξόδων: Σταθερά + Δάνεια + Επιθυμητό Κέρδος
     cash_wall = fc + ads + tp
     bep_units = cash_wall / margin if margin > 0 else 0
     margin_of_safety = v - bep_units
@@ -55,7 +54,6 @@ def run_home():
     with col_input:
         st.subheader("⚙️ Global Parameters")
 
-        # Section 1: Business Baseline
         with st.expander("📊 Business Baseline", expanded=True):
             st.number_input("Unit Price (€)", value=float(p), key="price")
             st.number_input("Variable Cost (€)", value=float(vc), key="variable_cost")
@@ -63,18 +61,17 @@ def run_home():
             st.number_input("Annual Fixed Costs (€)", value=float(fc), key="fixed_cost")
             st.number_input("Target Profit Goal (€)", value=float(tp), key="target_profit_goal")
 
-        # Section 2: Working Capital
         with st.expander("🔄 Working Capital Cycle", expanded=False):
             st.number_input("AR Days (Collection)", value=float(s.get('ar_days', 45.0)), key="ar_days")
             st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)), key="inventory_days")
             st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)), key="ap_days")
 
-        # Section 3: Liquidity & Debt
         with st.expander("💰 Liquidity & Obligations", expanded=False):
             st.number_input("Opening Cash (€)", value=float(cash), key="opening_cash")
             st.number_input("Annual Debt Service (€)", value=float(ads), key="annual_debt_service")
 
-        # Κουμπιά ελέγχου
+        # Κουμπιά ελέγχου και Διαγνωστικό
+        st.divider()
         c_btn1, c_btn2 = st.columns(2)
         with c_btn1:
             if st.button("🔒 Lock Baseline", type="primary", use_container_width=True):
@@ -84,6 +81,12 @@ def run_home():
             if st.button("🔄 Reset Data", type="secondary", use_container_width=True):
                 st.session_state.clear()
                 st.rerun()
+        
+        # ΕΣΩΤΕΡΙΚΟ ΔΙΑΓΝΩΣΤΙΚΟ ΕΡΓΑΛΕΙΟ (Redundancy)
+        if st.button("🛠️ Run System Diagnostic", use_container_width=True):
+            st.session_state.selected_tool = ("INTERNAL", "show_payables_manager_internal")
+            st.session_state.flow_step = "library"
+            st.rerun()
 
     with col_nav:
         st.subheader("📊 Strategic Tool Library")
@@ -118,6 +121,8 @@ def run_home():
                 s.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app"); s.flow_step = "library"; st.rerun()
             if st.button("📦 Inventory Optimizer", use_container_width=True):
                 s.selected_tool = ("inventory_manager", "show_inventory_manager"); s.flow_step = "library"; st.rerun()
+            if st.button("🤝 Payables Manager (External)", use_container_width=True):
+                s.selected_tool = ("payables_manager", "show_payables_manager"); s.flow_step = "library"; st.rerun()
 
         with t4:
             if st.button("🏁 Executive Dashboard", use_container_width=True):
@@ -129,6 +134,5 @@ def run_home():
             if st.button("📉 Stress Test Simulator", use_container_width=True):
                 s.selected_tool = ("stress_test_simulator", "show_stress_test_tool"); s.flow_step = "library"; st.rerun()
 
-    # Footer με ψυχρή επισήμανση
     if s.get("baseline_locked"):
-        st.caption("✅ Data Engine Synchronized. All tools now use the locked parameters for scenario analysis.")
+        st.caption("✅ Data Engine Synchronized. All tools now use the locked parameters.")
