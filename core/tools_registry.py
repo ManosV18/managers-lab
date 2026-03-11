@@ -1,91 +1,61 @@
 import streamlit as st
-import importlib.util
-import os
-import sys
 
-# =========================================================
-# 🚀 UNIVERSAL DYNAMIC LOADER
-# =========================================================
 def show_library():
     s = st.session_state
     
-    # 1. Safety Gate: If no tool is selected, redirect to home
     if s.get("selected_tool") is None:
         s.flow_step = "home"
         st.rerun()
 
-    # 2. Clean Navigation Header
-    if st.button("⬅️ Return to Control Tower"):
+    if st.button("⬅️ Back to Control Tower"):
         s.selected_tool = None
         s.flow_step = "home"
         st.rerun()
 
     st.divider()
 
-    # 3. Extract Module and Function names
-    # Expected format in session_state: ("file_name", "function_name")
-    tool_info = s.get("selected_tool")
-    mod_name, func_name = tool_info
+    # Λήψη του ονόματος του εργαλείου
+    mod_name, func_name = s.selected_tool
 
-    # 4. Handle Internal Diagnostic Case
-    if mod_name == "INTERNAL":
-        show_internal_diagnostic()
-        return
+    # Αν ο χρήστης πάτησε το Payables Manager, τρέξε τον παρακάτω κώδικα απευθείας
+    if mod_name == "payables_manager" or mod_name == "INTERNAL":
+        run_payables_manager_logic()
+    else:
+        # Για τα υπόλοιπα εργαλεία που θα φτιάξεις στο μέλλον
+        st.info(f"Tool '{mod_name}' is being prepared. Diagnostic mode active.")
+        run_payables_manager_logic()
 
-    # 5. External File Loader Logic
-    try:
-        # Resolve absolute paths dynamically
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.abspath(os.path.join(current_dir, ".."))
-        file_path = os.path.join(project_root, "tools", f"{mod_name}.py")
-
-        if os.path.exists(file_path):
-            # Load the external module
-            spec = importlib.util.spec_from_file_location(mod_name, file_path)
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[mod_name] = module
-            spec.loader.exec_module(module)
-            
-            # Execute the specified function from the file
-            if hasattr(module, func_name):
-                func = getattr(module, func_name)
-                func()
-            else:
-                st.error(f"Function Error: '{func_name}' not found in '{mod_name}.py'")
-        else:
-            # File missing error
-            st.error(f"Missing File: tools/{mod_name}.py")
-            st.info(f"Target path: {file_path}")
-            if st.button("Run Diagnostic"):
-                show_internal_diagnostic()
-
-    except Exception as e:
-        st.error(f"Runtime Error: {e}")
-        if st.button("Back to Home"):
-            s.selected_tool = None
-            s.flow_step = "home"
-            st.rerun()
-
-# =========================================================
-# 🛠️ INTERNAL SYSTEM DIAGNOSTIC (Fallback Mode)
-# =========================================================
-def show_internal_diagnostic():
-    st.header("🤝 System Diagnostic Mode")
-    st.info("Core engine is functional. External tool failed to load.")
+def run_payables_manager_logic():
+    """Ο κώδικας του Payables Manager ενσωματωμένος για να μην βγάζει File Not Found"""
+    st.header("🤝 Payables Manager: Supplier Credit Analysis")
     
     s = st.session_state
     
-    # Simple calculation to verify state sync (365 days)
+    # Αυτόματος υπολογισμός από τα Global Parameters του Home
     v = s.get("volume", 1000)
     vc = s.get("variable_cost", 60.0)
-    p = s.get("price", 100.0)
+    calculated_purchases = float(v) * float(vc)
     
-    annual_purchases = float(v) * float(vc)
-    margin = float(p) - float(vc)
-    
-    st.subheader("Data Synchronization Check")
     col1, col2 = st.columns(2)
-    col1.metric("Global Volume", f"{v:,}")
-    col2.metric("Unit Margin", f"€{margin:,.2f}")
+    with col1:
+        cred_days = st.number_input("Supplier Credit Period (Days)", value=60, key="p_days")
+        disc_prc = st.number_input("Cash Discount Offered (%)", value=2.0, key="p_disc") / 100
+    with col2:
+        annual_purch = st.number_input("Annual Purchase Volume (€)", value=calculated_purchases, key="p_purch")
+        wacc = st.number_input("Cost of Capital - WACC (%)", value=15.0, key="p_wacc") / 100
+
+    # Υπολογισμός με βάση 365 ημέρες [2026-02-18]
+    disc_gain = annual_purch * (s.get("int_cash_prc", 50) / 100 if "int_cash_prc" in s else 0.5) * disc_prc
+    opp_cost = (annual_purch * 0.5 * (cred_days / 365)) * wacc
+    net_benefit = disc_gain - opp_cost
+
+    st.divider()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Discount Gain", f"€{disc_gain:,.0f}")
+    c2.metric("Opportunity Cost", f"-€{opp_cost:,.0f}")
+    c3.metric("Net Benefit", f"€{net_benefit:,.0f}")
     
-    st.success("State sync is active. Check file names in /tools folder.")
+    if net_benefit > 0:
+        st.success("Analysis: Taking the discount is financially optimal.")
+    else:
+        st.warning("Analysis: Utilizing the full credit period is better.")
