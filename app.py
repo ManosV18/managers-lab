@@ -1,67 +1,67 @@
 import streamlit as st
+import importlib
 from ui.sidebar import show_sidebar
 from ui.home import run_home
+from core.engine import calculate_metrics
 
-# Ρύθμιση Σελίδας
-st.set_page_config(page_title="Managers Lab - Strategic Decision Room", layout="wide")
+st.set_page_config(page_title="Managers Lab", layout="wide")
 
-# Αρχικοποίηση Session State
+# Mapping: UI Key -> (Module Name, Function Name)
+TOOL_MAP = {
+    "survival_simulator": ("survival", "show_survival_tool"),
+    "pricing_impact": ("pricing", "show_pricing_tool"),
+    "clv_analyzer": ("clv", "show_clv_tool")
+}
+
+# 1. State Initialization
+if 'baseline_locked' not in st.session_state:
+    st.session_state.baseline_locked = False
 if 'flow_step' not in st.session_state:
     st.session_state.flow_step = "home"
-if 'selected_tool' not in st.session_state:
-    st.session_state.selected_tool = None
 
-# Εμφάνιση Sidebar (αν υπάρχει)
+# 2. RUN ENGINE (Always update metrics if locked)
+if st.session_state.baseline_locked:
+    s = st.session_state
+    st.session_state.metrics = calculate_metrics(
+        price=float(s.get("price", 100)),
+        volume=float(s.get("volume", 1000)),
+        variable_cost=float(s.get("variable_cost", 60)),
+        fixed_cost=float(s.get("fixed_cost", 20000)),
+        ar_days=float(s.get("ar_days", 45)),
+        inv_days=float(s.get("inventory_days", 60)),
+        ap_days=float(s.get("ap_days", 30)),
+        annual_debt_service=float(s.get("annual_debt_service", 0)),
+        opening_cash=float(s.get("opening_cash", 10000)),
+        target_profit=float(s.get("target_profit_goal", 0))
+    )
+
+# 3. Sidebar Navigation
 show_sidebar()
 
-step = st.session_state.flow_step
+# 4. Routing Logic
+step = st.session_state.get("flow_step", "home")
 
-# --- ROUTER LOGIC ---
 if step == "home":
     run_home()
 
-elif step == "library":
-    # Προσπάθεια φόρτωσης της βιβλιοθήκης
-    try:
-        from core.tools_registry import show_library
-        show_library()
-    except Exception as e:
-        st.warning("Library view not found, redirecting to direct tool loader...")
-        st.session_state.flow_step = "tool"
-        st.rerun()
-
 elif step == "tool":
-    tool_data = st.session_state.get("selected_tool")
-
-    if tool_data:
-        # tool_data: ("module_name", "function_name")
-        module_name, function_name = tool_data
-
+    tool_key = st.session_state.get("selected_tool")
+    if tool_key in TOOL_MAP:
+        mod_name, func_name = TOOL_MAP[tool_key]
         try:
-            # Δυναμικό Import του εργαλείου από τον φάκελο tools
-            module = __import__(f"tools.{module_name}", fromlist=[function_name])
-            func = getattr(module, function_name)
+            module = importlib.import_module(f"core.tools.{mod_name}")
+            func = getattr(module, func_name)
             
-            # Εμφάνιση κουμπιού επιστροφής πριν το εργαλείο (προαιρετικά)
-            if st.button("⬅ Back to Control Tower"):
+            if st.button("⬅ Back to Dashboard"):
                 st.session_state.flow_step = "home"
                 st.session_state.selected_tool = None
                 st.rerun()
-            
+                
             st.divider()
-            # Εκτέλεση εργαλείου
             func()
-
+            
         except Exception as e:
-            st.error(f"❌ Critical Error loading tool '{module_name}': {e}")
+            st.error(f"❌ Error loading tool: {e}")
             if st.button("Return Home"):
                 st.session_state.flow_step = "home"
                 st.rerun()
-    else:
-        st.session_state.flow_step = "home"
-        st.rerun()
-
-else:
-    # Fail-safe επιστροφή στην αρχική
-    st.session_state.flow_step = "home"
-    st.rerun()
