@@ -139,9 +139,10 @@ def loan_vs_leasing_ui():
         else:
             st.success(f"**Leasing** is more cost-effective by **€ {format_number_gr(final_loan - final_leasing)}**.")
 
-    # Navigation (Synchronized with your app.py)
+    # Navigation (Ευθυγραμμισμένο με το νέο app.py)
     st.divider()
     if st.button("⬅️ Back to Control Tower", use_container_width=True):
         st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
+    
