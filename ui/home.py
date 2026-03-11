@@ -18,6 +18,23 @@ def run_home():
     bep_units = m.get("bep_units", 0)
     margin = p - vc
 
+    # --- LIQUIDITY ALERT LOGIC (Cold Analysis) ---
+    if net_cash < 0:
+        st.error(f"""
+            ### 🚨 Liquidity Critical Alert
+            The **Net Cash Position** is negative (**${net_cash:,.0f}**). 
+            Your initial opening cash (${cash:,.0f}) is insufficient to fund the **Working Capital Requirements** of the current operating model.
+            
+            **Root Cause Analysis:**
+            * **High DSO (AR Days):** Cash is trapped in customer receivables.
+            * **Inventory Overload:** Capital is tied up in unsold stock.
+            * **Undercapitalization:** The business lacks the cash base to support this volume of operations.
+            
+            *Action Required: Evaluate the **Cash Conversion Cycle** or **Receivables Analyzer** to release liquidity.*
+        """)
+    elif net_cash < (v * p * 0.05): # Warning if cash buffer is less than 5% of annual revenue
+        st.warning("⚠️ **Low Liquidity Buffer:** The cash position is marginal relative to the scale of operations.")
+
     # Snapshot UI Logic
     if margin > 0 and bep_units:
         margin_of_safety = v - bep_units
