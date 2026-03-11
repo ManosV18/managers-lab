@@ -4,15 +4,14 @@ import os
 import sys
 
 # =========================================================
-# 🛠️ INTERNAL DIAGNOSTIC TOOL (Λειτουργεί πάντα ως Backup)
+# 🛠️ INTERNAL DIAGNOSTIC TOOL (Safe & Silent)
 # =========================================================
 def show_payables_manager_internal():
-    st.warning("⚠️ MODE: Internal Diagnostic (Safety Net)")
-    st.header("🤝 Payables Manager: Diagnostic Version")
+    st.header("🤝 Payables Manager (Internal Mode)")
     
     s = st.session_state
     
-    # Αρχικοποίηση αν οι τιμές είναι 0 για να μην βγαίνει 0 το αποτέλεσμα
+    # Auto-initialize values to avoid zeros
     v = s.get("volume", 1000) if s.get("volume", 0) > 0 else 1000
     vc = s.get("variable_cost", 60.0) if s.get("variable_cost", 0) > 0 else 60.0
     calculated_purchases = float(v) * float(vc)
@@ -24,9 +23,9 @@ def show_payables_manager_internal():
 
     with col2:
         annual_purch = st.number_input("Annual Purchases (€)", value=calculated_purchases, key="diag_purch")
-        wacc = st.number_input("WACC (%)", value=15.0, key="diag_wacc") / 100
+        wacc = st.number_input("Cost of Capital - WACC (%)", value=15.0, key="diag_wacc") / 100
 
-    # Cold Analytical Logic (365 days) - [2026-02-18]
+    # Logic based on 365 days [2026-02-18]
     disc_gain = annual_purch * disc_prc
     opp_cost = (annual_purch * (cred_days / 365)) * wacc
     net_benefit = disc_gain - opp_cost
@@ -37,14 +36,15 @@ def show_payables_manager_internal():
     res2.metric("Net Financial Benefit", f"€{net_benefit:,.0f}")
 
 # =========================================================
-# 🚀 DYNAMIC LOADER (Διορθωμένα Paths)
+# 🚀 DYNAMIC LOADER (Silent & Direct)
 # =========================================================
 def show_library():
     if st.session_state.get("selected_tool") is None:
         st.session_state.flow_step = "home"
         st.rerun()
 
-    if st.button("⬅️ Return to Main Dashboard"):
+    # Minimal Navigation
+    if st.button("⬅️ Return to Dashboard"):
         st.session_state.selected_tool = None
         st.session_state.flow_step = "home"
         st.rerun()
@@ -53,15 +53,13 @@ def show_library():
 
     mod_name, func_name = st.session_state.selected_tool
 
-    # 1. Έλεγχος αν ζητήθηκε το Internal
+    # Internal Route
     if mod_name == "INTERNAL":
         show_payables_manager_internal()
         return
 
-    # 2. Προσπάθεια φόρτωσης Εξωτερικού Αρχείου
+    # External File Route
     try:
-        # Δυναμικός εντοπισμός του project root
-        # Αν το αρχείο είναι στο /core/tools_registry.py, το project root είναι το ..
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(current_dir, ".."))
         file_path = os.path.join(project_root, "tools", f"{mod_name}.py")
@@ -72,15 +70,15 @@ def show_library():
             sys.modules[mod_name] = module
             spec.loader.exec_module(module)
             
+            # Execute tool function
             func = getattr(module, func_name)
             func()
         else:
-            # Αν το αρχείο λείπει, βγάζουμε το σφάλμα ΚΑΙ το διαγνωστικό από κάτω
-            st.error(f"❌ Το αρχείο '{mod_name}.py' δεν βρέθηκε στη διαδρομή: {file_path}")
-            st.info("Εκτέλεση εσωτερικού διαγνωστικού για έλεγχο συστήματος:")
+            # Silent fallback to internal if file is missing
             show_payables_manager_internal()
 
     except Exception as e:
-        st.error(f"❌ Σφάλμα στο αρχείο {mod_name}.py: {e}")
-        st.warning("Switching to Internal Diagnostic Mode...")
-        show_payables_manager_internal()
+        # Only show error if tool exists but has syntax issues
+        st.error(f"Module Loading Error: {e}")
+        if st.button("Run Internal Diagnostic"):
+            show_payables_manager_internal()
