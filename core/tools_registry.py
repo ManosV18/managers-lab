@@ -3,60 +3,89 @@ import importlib.util
 import os
 import sys
 
+# =========================================================
+# 🚀 UNIVERSAL DYNAMIC LOADER
+# =========================================================
 def show_library():
     s = st.session_state
     
-    # 1. Safety Check: If no tool is selected, go home
+    # 1. Safety Gate: If no tool is selected, redirect to home
     if s.get("selected_tool") is None:
         s.flow_step = "home"
         st.rerun()
 
-    # 2. Top Navigation Bar (English & Clean)
-    if st.button("⬅️ Back to Control Tower"):
+    # 2. Clean Navigation Header
+    if st.button("⬅️ Return to Control Tower"):
         s.selected_tool = None
         s.flow_step = "home"
         st.rerun()
 
     st.divider()
 
-    # 3. Get Module and Function names from session
-    # Example: ("pricing_strategy", "show_pricing_strategy_tool")
-    mod_name, func_name = s.selected_tool
+    # 3. Extract Module and Function names
+    # Expected format in session_state: ("file_name", "function_name")
+    tool_info = s.get("selected_tool")
+    mod_name, func_name = tool_info
 
-    # 4. INTERNAL DIAGNOSTIC ONLY (If explicitly called)
+    # 4. Handle Internal Diagnostic Case
     if mod_name == "INTERNAL":
-        show_payables_manager_internal()
+        show_internal_diagnostic()
         return
 
-    # 5. UNIVERSAL EXTERNAL LOADER
+    # 5. External File Loader Logic
     try:
-        # Construct absolute path to the /tools directory
+        # Resolve absolute paths dynamically
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(current_dir, ".."))
         file_path = os.path.join(project_root, "tools", f"{mod_name}.py")
 
         if os.path.exists(file_path):
-            # Dynamic Import Logic
+            # Load the external module
             spec = importlib.util.spec_from_file_location(mod_name, file_path)
             module = importlib.util.module_from_spec(spec)
             sys.modules[mod_name] = module
             spec.loader.exec_module(module)
             
-            # Call the specific function of the selected tool
+            # Execute the specified function from the file
             if hasattr(module, func_name):
                 func = getattr(module, func_name)
                 func()
             else:
-                st.error(f"Function '{func_name}' not found in '{mod_name}.py'")
+                st.error(f"Function Error: '{func_name}' not found in '{mod_name}.py'")
         else:
-            st.error(f"File Not Found: tools/{mod_name}.py")
-            st.info("Ensure the file exists in your /tools directory.")
+            # File missing error
+            st.error(f"Missing File: tools/{mod_name}.py")
+            st.info(f"Target path: {file_path}")
+            if st.button("Run Diagnostic"):
+                show_internal_diagnostic()
 
     except Exception as e:
-        st.error(f"System Error loading tool: {e}")
+        st.error(f"Runtime Error: {e}")
+        if st.button("Back to Home"):
+            s.selected_tool = None
+            s.flow_step = "home"
+            st.rerun()
 
-# --- Keep as emergency backup only ---
-def show_payables_manager_internal():
-    st.header("🤝 System Diagnostic (Internal Mode)")
-    st.info("This is a hardcoded fallback to verify the engine is running.")
-    # (Existing internal logic here...)
+# =========================================================
+# 🛠️ INTERNAL SYSTEM DIAGNOSTIC (Fallback Mode)
+# =========================================================
+def show_internal_diagnostic():
+    st.header("🤝 System Diagnostic Mode")
+    st.info("Core engine is functional. External tool failed to load.")
+    
+    s = st.session_state
+    
+    # Simple calculation to verify state sync (365 days)
+    v = s.get("volume", 1000)
+    vc = s.get("variable_cost", 60.0)
+    p = s.get("price", 100.0)
+    
+    annual_purchases = float(v) * float(vc)
+    margin = float(p) - float(vc)
+    
+    st.subheader("Data Synchronization Check")
+    col1, col2 = st.columns(2)
+    col1.metric("Global Volume", f"{v:,}")
+    col2.metric("Unit Margin", f"€{margin:,.2f}")
+    
+    st.success("State sync is active. Check file names in /tools folder.")
