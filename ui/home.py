@@ -3,7 +3,7 @@ import streamlit as st
 def run_home():
     s = st.session_state
 
-    # Ενοποίηση ονομάτων μεταβλητών (Keys)
+    # 1. DATA SYNC - Λήψη τιμών από το session_state με τα νέα σωστά Keys
     p = s.get("price", 100.0)
     vc = s.get("variable_cost", 60.0)
     v = s.get("volume", 1000)
@@ -12,24 +12,46 @@ def run_home():
     cash = s.get("opening_cash", 10000.0)
     tp = s.get("target_profit_goal", 0.0)
 
-    # Quick Calculations για το Snapshot
+    # 2. QUICK CALCULATIONS - Ταμειακό Break-even (Fixed + Debt + Target Profit)
     margin = p - vc
-    bep_units = (fc + ads + tp) / margin if margin > 0 else 0
-    
-    st.markdown("<h1 style='text-align:center;'>Managers Lab.</h1>", unsafe_allow_html=True)
+    cash_wall = fc + ads + tp
+    bep_units = cash_wall / margin if margin > 0 else 0
+    margin_of_safety = v - bep_units
+    buffer_pct = (margin_of_safety / v * 100) if v > 0 else 0
+
+    # --- HERO SECTION ---
+    st.markdown(
+        f"""
+        <div style="text-align:center; padding: 10px 0 20px 0;">
+            <h1 style="font-size:62px; font-weight:900; color:#1E3A8A; margin-bottom:0px;">Managers Lab<span style="color:#ef4444;">.</span></h1>
+            <div style="font-size:18px; color:#64748b; letter-spacing:2px; text-transform:uppercase;">🛡️ Strategic Decision Room</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # --- EXECUTIVE SNAPSHOT ---
-    c1, c2, c3 = st.columns(3)
+    st.subheader("📊 Executive Snapshot")
+    c1, c2, c3, c4 = st.columns(4)
+    
     c1.metric("Simulated Volume", f"{v:,.0f} units")
-    c2.metric("Cash Break-Even", f"{bep_units:,.0f} units")
-    c3.metric("Survival Buffer", f"{((v-bep_units)/v*100) if v>0 else 0:.1f}%")
+    c2.metric(
+        label="Cash Break-Even", 
+        value=f"{bep_units:,.0f} units", 
+        delta=f"{margin_of_safety:,.0f} surplus" if margin_of_safety >= 0 else f"{abs(margin_of_safety):,.0f} deficit",
+        delta_color="normal" if margin_of_safety >= 0 else "inverse"
+    )
+    c3.metric("Survival Buffer", f"{buffer_pct:.1f}%", delta="Risk Headroom")
+    c4.metric("Cash Position", f"€{cash:,.0f}")
 
     st.divider()
 
-    col_input, col_nav = st.columns([0.45, 0.55], gap="large")
+    # --- MAIN LAYOUT ---
+    col_input, col_nav = st.columns([0.40, 0.60], gap="large")
 
     with col_input:
         st.subheader("⚙️ Global Parameters")
+
         with st.expander("📊 Business Baseline", expanded=True):
             st.number_input("Unit Price (€)", value=float(p), key="price")
             st.number_input("Variable Cost (€)", value=float(vc), key="variable_cost")
@@ -37,14 +59,58 @@ def run_home():
             st.number_input("Annual Fixed Costs (€)", value=float(fc), key="fixed_cost")
             st.number_input("Target Profit Goal (€)", value=float(tp), key="target_profit_goal")
 
+        with st.expander("🔄 Working Capital Cycle", expanded=False):
+            st.number_input("AR Days (Collection)", value=float(s.get('ar_days', 45.0)), key="ar_days")
+            st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)), key="inventory_days")
+            st.number_input("AP Days (Payment)", value=float(s.get('ap_days', 30.0)), key="ap_days")
+
         with st.expander("💰 Liquidity & Debt", expanded=False):
             st.number_input("Opening Cash (€)", value=float(cash), key="opening_cash")
             st.number_input("Annual Debt Service (€)", value=float(ads), key="annual_debt_service")
 
         if st.button("🔒 Lock & Initialize Engine", type="primary", use_container_width=True):
             st.session_state.baseline_locked = True
-            st.success("Engine Ready!")
+            st.success("✅ Engine Ready & Data Synchronized!")
+            st.rerun()
 
     with col_nav:
         st.subheader("📊 Strategic Tool Library")
-        # Εδώ παραμένουν τα κουμπιά πλοήγησης όπως τα είχες...
+        t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "🛡️ Risk"])
+
+        with t1:
+            if st.button("🎯 Pricing Strategy", use_container_width=True):
+                s.selected_tool = ("pricing_strategy", "show_pricing_strategy_tool"); s.flow_step = "library"; st.rerun()
+            if st.button("⚖️ Cash Survival Simulator", use_container_width=True):
+                s.selected_tool = ("break_even_shift_calculator", "show_break_even_shift_calculator"); s.flow_step = "library"; st.rerun()
+            if st.button("📡 Pricing Radar", use_container_width=True):
+                s.selected_tool = ("pricing_radar", "show_pricing_radar"); s.flow_step = "library"; st.rerun()
+            if st.button("📉 Loss Threshold", use_container_width=True):
+                s.selected_tool = ("loss_threshold", "show_loss_threshold_before_price_cut"); s.flow_step = "library"; st.rerun()
+
+        with t2:
+            if st.button("📈 Growth Funding (AFN)", use_container_width=True):
+                s.selected_tool = ("growth_funding", "show_growth_funding_needed"); s.flow_step = "library"; st.rerun()
+            if st.button("📉 WACC Optimizer", use_container_width=True):
+                s.selected_tool = ("wacc_optimizer", "show_wacc_optimizer"); s.flow_step = "library"; st.rerun()
+            if st.button("⚖️ Loan vs Leasing", use_container_width=True):
+                s.selected_tool = ("loan_vs_leasing", "loan_vs_leasing_ui"); s.flow_step = "library"; st.rerun()
+
+        with t3:
+            if st.button("📊 NPV Receivables Analyzer", use_container_width=True):
+                s.selected_tool = ("receivables_npv", "show_receivables_analyzer_ui"); s.flow_step = "library"; st.rerun()
+            if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
+                s.selected_tool = ("cash_cycle", "run_cash_cycle_app"); s.flow_step = "library"; st.rerun()
+            if st.button("🔢 Unit Cost Analyzer", use_container_width=True):
+                s.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app"); s.flow_step = "library"; st.rerun()
+
+        with t4:
+            if st.button("🏁 Executive Dashboard", use_container_width=True):
+                s.selected_tool = ("executive_dashboard", "show_executive_dashboard"); s.flow_step = "library"; st.rerun()
+            if st.button("🚨 Cash Fragility Index", use_container_width=True):
+                s.selected_tool = ("cash_fragility_index", "show_cash_fragility_index"); s.flow_step = "library"; st.rerun()
+            if st.button("🛡️ Resilience Map", use_container_width=True):
+                s.selected_tool = ("financial_resilience_app", "show_resilience_map"); s.flow_step = "library"; st.rerun()
+
+    # Footer με ψυχρή ανάλυση
+    if s.get("baseline_locked"):
+        st.info("💡 **Cold Insight:** Any increase in 'Annual Debt Service' will instantly raise your Cash Break-Even units. Monitor the Survival Buffer.")
