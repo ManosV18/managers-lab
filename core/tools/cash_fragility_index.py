@@ -7,19 +7,20 @@ def show_cash_fragility_index():
     st.header("🛡️ Cash Fragility & Survival Analysis")
     st.info("Critical Link: Comparing Cash Runway against the Operational Cash Conversion Cycle (CCC).")
 
-    # 1. FETCH & CALCULATE DATA (Linked to Home Keys)
+    # 1. FETCH & CALCULATE DATA (Linked to Home & Engine Keys)
+    # Διασφάλιση 365 ημερών βάσει User Instruction [2026-02-18]
     volume = float(s.get('volume', 0))
     variable_cost = float(s.get('variable_cost', 0.0))
     fixed_costs = float(s.get('fixed_cost', 0.0)) 
     debt_service = float(s.get('annual_debt_service', 0.0)) 
     
-    # Total annual cash outflow includes operations AND debt service
+    # Το ετήσιο cash outflow περιλαμβάνει λειτουργικά έξοδα ΚΑΙ δόσεις δανείων
     annual_outflows = (volume * variable_cost) + fixed_costs + debt_service
     daily_burn_rate = annual_outflows / 365 if annual_outflows > 0 else 0.1
     
-    # Working Capital Components
+    # Working Capital Components (Συγχρονισμένα με το Home)
     ar_days = float(s.get('ar_days', 45.0))
-    inv_days = float(s.get('inventory_days', 60.0)) 
+    inv_days = float(s.get('inv_days', 60.0)) # Διόρθωση κλειδιού από inventory_days σε inv_days
     ap_days = float(s.get('ap_days', 30.0))           
     ccc_days = ar_days + inv_days - ap_days
 
@@ -35,7 +36,7 @@ def show_cash_fragility_index():
 
     # 3. FRAGILITY CALCULATIONS (Analytical Approach)
     cash_runway = total_liquidity / daily_burn_rate if daily_burn_rate > 0 else 0
-    # Fragility Index: If > 1, you run out of cash before completing a business cycle.
+    # Fragility Index: Αν > 1, ξεμένεις από μετρητά πριν ολοκληρωθεί ένας επιχειρηματικός κύκλος.
     fragility_score = (ccc_days / cash_runway) if cash_runway > 0 else 99.0
 
     st.divider()
@@ -68,20 +69,28 @@ def show_cash_fragility_index():
             'steps': [
                 {'range': [0, ccc_days], 'color': "#FF4B4B"}, 
                 {'range': [ccc_days, ccc_days * 1.5], 'color': "#FFA500"}, 
-                {'range': [ccc_days * 1.5, 1000], 'color': "#00CC96"}]
+                {'range': [ccc_days * 1.5, 1000], 'color': "#00CC96"}],
+            'threshold': {
+                'line': {'color': "white", 'width': 4},
+                'thickness': 0.75,
+                'value': ccc_days}
         }
     ))
-    fig.update_layout(height=350, margin=dict(l=20, r=20, t=50, b=20))
+    fig.update_layout(height=350, template="plotly_dark", margin=dict(l=20, r=20, t=50, b=20))
     st.plotly_chart(fig, use_container_width=True)
 
     # 6. ANALYST'S VERDICT (Cold & Direct)
     st.subheader("2. Strategic Analytical Verdict")
     if fragility_score > 1:
-        st.error(f"**Structural Deficit:** Your Runway ({cash_runway:.1f} days) is shorter than your CCC ({ccc_days:.1f} days). The system is mathematically guaranteed to hit a liquidity wall unless funding is secured or CCC is reduced.")
+        st.error(f"**Structural Deficit:** Your Runway ({cash_runway:.1f} days) is shorter than your CCC ({ccc_days:.1f} days).")
+        st.write("🚨 Το σύστημα θα χρειαστεί εξωτερική χρηματοδότηση πριν προλάβει να εισπράξει από τους πελάτες.")
     else:
-        st.success(f"**Structural Buffer:** The system is anti-fragile. You can self-finance a full cycle with a safety margin of {(cash_runway - ccc_days):.1f} days.")
+        st.success(f"**Structural Buffer:** The system is anti-fragile.")
+        st.write(f"✅ Διαθέτετε πλεόνασμα ασφαλείας {(cash_runway - ccc_days):.1f} ημερών μετά την ολοκλήρωση του κύκλου.")
 
     # 7. NAVIGATION
-    if st.button("⬅️ Back to Library", use_container_width=True):
+    st.divider()
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
