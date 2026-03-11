@@ -1,40 +1,34 @@
 import streamlit as st
-import pandas as pd
 import plotly.graph_objects as go
-from core.sync import sync_global_state
 
 def show_growth_funding_needed():
     st.header("📈 Growth Funding Requirement (AFN)")
-    st.info("Additional Funds Needed model based on Risk-Adjusted Net Profit.")
+    st.info("Additional Funds Needed model: Calculating the gap between growth ambitions and organic capital generation.")
 
     # 1. FETCH CURRENT BASELINE
-    metrics = sync_global_state()
     s = st.session_state
+    m = s.get("metrics", {})
     
-    if not metrics:
-        st.warning("⚠️ Baseline not locked. Please return to Stage 0.")
+    if not s.get('baseline_locked', False):
+        st.warning("🔒 Access Denied: Please lock your Baseline in Home to enable Growth Modeling.")
         return
 
     # 2. FINANCIAL PARAMETERS (Interest & Tax Adjustment)
     st.subheader("📊 Profitability Adjustment")
     col_f1, col_f2 = st.columns(2)
     
-    # Ο χρήστης ορίζει το μέσο επιτόκιο (Interest Rate) για το σύνολο του δανεισμού
     avg_interest_rate = col_f1.number_input("Average Interest Rate (%)", value=5.0, step=0.5, key="afn_int_rate") / 100
     tax_rate = float(s.get('tax_rate', 0.22))
     
-    # Ανάκτηση EBIT και Debt Service από την Engine
-    ebit = float(metrics.get('ebit', 0.0))
-    # Υπολογίζουμε έναν εκτιμώμενο τόκο (Interest Expense) 
-    # Αν δεν έχουμε το συνολικό κεφάλαιο δανείου, χρησιμοποιούμε το annual_debt_service ως προσέγγιση
-    interest_expense = float(s.get('annual_debt_service', 0.0)) * 0.7 # Προσέγγιση: το 70% του service είναι τόκος
+    # Logic: EBIT - Interest - Taxes
+    ebit = float(m.get('ebit', 0.0))
+    # Approximation: 70% of debt service is interest expense
+    interest_expense = float(s.get('annual_debt_service', 0.0)) * 0.7 
     
-    # Υπολογισμός Net Profit: EBIT - Τόκοι - Φόροι
     ebt = ebit - interest_expense
     net_profit = ebt * (1 - tax_rate) if ebt > 0 else ebt
     
-    current_sales = float(metrics.get('revenue', 0.0))
-    # Νέο Net Profit Margin
+    current_sales = float(m.get('revenue', 0.0))
     net_profit_margin = net_profit / current_sales if current_sales > 0 else 0
 
     st.caption(f"Calculated Net Profit: **€ {net_profit:,.2f}** | Net Margin: **{net_profit_margin:.2%}**")
@@ -48,11 +42,11 @@ def show_growth_funding_needed():
     delta_sales = current_sales * target_growth_pct
     new_total_sales = current_sales + delta_sales
 
-    # 4. AFN RATIOS (Assets & Liabilities linkage)
-    assets_ratio = 0.65  
-    liabilities_ratio = 0.15 
+    # 4. AFN RATIOS (Standard Operating Benchmarks)
+    assets_ratio = 0.65  # Capital Intensity
+    liabilities_ratio = 0.15 # Spontaneous financing (AP/Accruals)
 
-    # 5. AFN FORMULA: (A*/S)ΔS - (L*/S)ΔS - (NetMargin * NewSales * Retention)
+    # 5. AFN FORMULA: (Required Assets) - (Spontaneous Liabs) - (Internal Funding)
     required_assets = assets_ratio * delta_sales
     spontaneous_liabs = liabilities_ratio * delta_sales
     internal_funding = net_profit_margin * new_total_sales * retention_rate
@@ -70,26 +64,29 @@ def show_growth_funding_needed():
               delta="Capital Needed" if afn > 0 else "Self-Funded", 
               delta_color="inverse" if afn > 0 else "normal")
 
-    # 7. VISUALIZATION
+    # 7. VISUALIZATION (Waterfall Chart)
+    
     fig = go.Figure(go.Waterfall(
         measure = ["relative", "relative", "relative", "total"],
-        x = ["New Assets", "Spontaneous Liabs", "Net Profit Retained", "Funding Gap"],
+        x = ["New Asset Requirement", "Spontaneous Liabs", "Retained Profit", "External Funding Gap"],
         y = [required_assets, -spontaneous_liabs, -internal_funding, 0],
         text = [f"+{required_assets:,.0f}", f"-{spontaneous_liabs:,.0f}", f"-{internal_funding:,.0f}", f"{afn:,.0f}"],
         textposition = "outside",
-        connector = {"line":{"color":"rgb(63, 63, 63)"}},
+        connector = {"line":{"color":"#64748b"}},
+        decreasing = {"marker":{"color":"#00CC96"}},
+        increasing = {"marker":{"color":"#EF553B"}},
+        totals = {"marker":{"color":"#1E3A8A"}}
     ))
-    fig.update_layout(template="plotly_dark", height=400)
+    fig.update_layout(height=400, margin=dict(l=20, r=20, t=20, b=20))
     st.plotly_chart(fig, use_container_width=True)
 
-    
-
-    # 8. VERDICT
+    # 8. VERDICT (Cold & Direct)
+    st.subheader("💡 Strategic Verdict")
     if afn > 0:
-        st.error(f"🚨 **FINANCING GAP:** To support this growth, you must secure **€{afn:,.0f}** in new debt or equity. Organic cash flow is insufficient after interest and taxes.")
+        st.error(f"**Financing Gap Detected:** Organic cash flow (after tax & interest) is insufficient. You need **€ {afn:,.0f}** in external debt or equity to sustain this growth rate without depleting liquidity.")
     else:
-        st.success(f"✅ **ORGANIC SUSTAINABILITY:** The net profit (after tax & interest) is sufficient to fund the growth scenario.")
+        st.success(f"**Organic Sustainability:** The system generates enough net profit to self-fund this growth scenario. No external capital is required.")
 
-    if st.button("Back to Library Hub", use_container_width=True):
+    if st.button("⬅️ Back to Library Hub", use_container_width=True):
         st.session_state.selected_tool = None
         st.rerun()
