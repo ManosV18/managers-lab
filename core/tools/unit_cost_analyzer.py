@@ -73,6 +73,9 @@ def show_unit_cost_app():
 
     # 5. NAVIGATION
     st.divider()
-    if st.button("⬅️ Back to Library Hub", key="back_from_uc", use_container_width=True):
+    if st.button("⬅️ Back to Control Tower", key="back_from_uc", use_container_width=True):
+        # Ενημέρωση και των δύο για απόλυτη συμβατότητα
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
+    
