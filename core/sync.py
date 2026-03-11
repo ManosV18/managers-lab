@@ -1,45 +1,24 @@
 import streamlit as st
 
-# =========================================================
+# ------------------------------------------------
 # CORE CALCULATION ENGINE
-# =========================================================
+# ------------------------------------------------
 
-def calculate_metrics(
-    price,
-    volume,
-    variable_cost,
-    fixed_cost,
-    wacc,
-    tax_rate,
-    ar_days,
-    inv_days,
-    ap_days,
-    annual_debt_service,
-    opening_cash,
-    target_profit=0.0
-):
+def calculate_metrics(price, volume, variable_cost, fixed_cost,
+                      ar_days, inv_days, ap_days,
+                      annual_debt_service, opening_cash,
+                      target_profit=0.0):
 
-    # -----------------------------
-    # P&L
-    # -----------------------------
     unit_contribution = price - variable_cost
     revenue = price * volume
     total_vc = variable_cost * volume
+
     contribution_margin = unit_contribution * volume
-
     ebit = contribution_margin - fixed_cost
-
-    # -----------------------------
-    # TAX & CASH FLOW
-    # -----------------------------
-    tax_payment = max(0, ebit * tax_rate)
-
-    ocf = ebit - tax_payment
-    fcf = ocf - annual_debt_service
-
-    # -----------------------------
-    # WORKING CAPITAL
-    # -----------------------------
+    
+    # --------------------------------------------
+    # Working Capital (365 day rule - [2026-02-18])
+    # --------------------------------------------
     daily_rev = revenue / 365 if revenue > 0 else 0
     daily_costs = (total_vc + fixed_cost) / 365 if (total_vc + fixed_cost) > 0 else 0
 
@@ -48,94 +27,48 @@ def calculate_metrics(
     accounts_payable = daily_costs * ap_days
 
     wc_requirement = accounts_receivable + inventory_val - accounts_payable
-
-    # -----------------------------
-    # LIQUIDITY
-    # -----------------------------
+    
+    # REAL LIQUIDITY: Opening Cash - WC Requirement
     net_cash_position = opening_cash - wc_requirement
 
-    monthly_net = fcf / 12
-
-    if monthly_net >= 0:
-        runway = 999
-    else:
-        runway = max(0, net_cash_position / abs(monthly_net))
-
-    # -----------------------------
-    # BREAK EVEN
-    # -----------------------------
+    # Survival Point (Cash Wall)
     cash_wall = fixed_cost + annual_debt_service + target_profit
 
-    if unit_contribution <= 0:
-        bep_units = None
-    else:
+    # Analytical Fix: None if margin is negative or zero
+    if unit_contribution > 0:
         bep_units = cash_wall / unit_contribution
+    else:
+        bep_units = None
 
-    # -----------------------------
-    # METRICS OUTPUT
-    # -----------------------------
     return {
-
         "unit_contribution": unit_contribution,
-        "contribution_ratio": unit_contribution / price if price > 0 else 0,
-
         "revenue": revenue,
-
         "ebit": ebit,
-        "ocf": ocf,
-        "fcf": fcf,
-
         "cash_wall": cash_wall,
         "bep_units": bep_units,
-
-        "accounts_receivable": accounts_receivable,
-        "inventory": inventory_val,
-        "accounts_payable": accounts_payable,
-
         "wc_requirement": wc_requirement,
-
         "net_cash_position": net_cash_position,
-
-        "runway_months": runway,
-
         "ccc": ar_days + inv_days - ap_days
-
     }
-
-
-# =========================================================
-# GLOBAL ENGINE SYNCHRONIZATION
-# =========================================================
 
 def sync_global_state():
-
     s = st.session_state
-
-    if not s.get("baseline_locked", False):
-        st.error("🚨 Baseline Not Locked")
-        st.stop()
+    if not s.get("baseline_locked"):
+        return {}
 
     params = {
-
-        "price": float(s.get("price", 0)),
-        "volume": float(s.get("volume", 0)),
-
-        "variable_cost": float(s.get("variable_cost", 0)),
-        "fixed_cost": float(s.get("fixed_cost", 0)),
-
-        "wacc": float(s.get("wacc", 0.15)),
-        "tax_rate": float(s.get("tax_rate", 0.22)),
-
-        "ar_days": float(s.get("ar_days", 0)),
-        "inv_days": float(s.get("inventory_days", 0)),
-        "ap_days": float(s.get("ap_days", 0)),
-
-        "annual_debt_service": float(s.get("annual_debt_service", 0)),
-
-        "opening_cash": float(s.get("opening_cash", 0)),
-
-        "target_profit": float(s.get("target_profit_goal", 0))
-
+        "price": float(s.get("price", 100.0)),
+        "volume": float(s.get("volume", 1000.0)),
+        "variable_cost": float(s.get("variable_cost", 60.0)),
+        "fixed_cost": float(s.get("fixed_cost", 20000.0)),
+        "ar_days": float(s.get("ar_days", 45.0)),
+        "inv_days": float(s.get("inventory_days", 60.0)),
+        "ap_days": float(s.get("ap_days", 30.0)),
+        "annual_debt_service": float(s.get("annual_debt_service", 0.0)),
+        "opening_cash": float(s.get("opening_cash", 10000.0)),
+        "target_profit": float(s.get("target_profit_goal", 0.0))
     }
 
-    return calculate_metrics(**params)
+    metrics = calculate_metrics(**params)
+    st.session_state.metrics = metrics
+    return metrics
