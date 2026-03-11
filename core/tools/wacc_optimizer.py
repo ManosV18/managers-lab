@@ -87,10 +87,18 @@ def show_wacc_optimizer():
     cb1, cb2 = st.columns(2)
     with cb1:
         if st.button("🎯 Apply to System", use_container_width=True):
+            # Ενημερώνουμε το WACC στο session state
             st.session_state.wacc = optimized_wacc
+            # Ενημερώνουμε και το λεξικό metrics αν υπάρχει για άμεσο συγχρονισμό
+            if 'metrics' in st.session_state:
+                st.session_state.metrics['wacc'] = optimized_wacc
             st.success("System WACC updated!")
             st.rerun()
+            
     with cb2:
-        if st.button("⬅️ Back to Library Hub", use_container_width=True):
+        if st.button("⬅️ Back to Control Tower", use_container_width=True):
+            # Εδώ είναι το "κλειδί" για να δουλέψει το router του app.py
+            st.session_state.flow_step = "home"
             st.session_state.selected_tool = None
             st.rerun()
+    
