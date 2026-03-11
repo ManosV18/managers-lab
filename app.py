@@ -8,27 +8,25 @@ st.set_page_config(page_title="Managers Lab", layout="wide")
 
 # ΠΛΗΡΕΣ MAPPING: UI Key -> (Module Name, Function Name)
 # Προσοχή: Τα Module Names πρέπει να είναι ακριβώς τα ονόματα των .py αρχείων στο core/tools/
+
 TOOL_MAP = {
-    # --- Strategy ---
+    # Strategy
     "pricing_strategy": ("pricing_strategy", "show_pricing_strategy_tool"),
     "break_even_shift": ("break_even_shift_calculator", "show_break_even_shift_calculator"),
     "pricing_radar": ("pricing_radar", "show_pricing_radar"),
     "loss_threshold": ("loss_threshold", "show_loss_threshold_before_price_cut"),
     "qspm_analyzer": ("qspm_analyzer", "show_qspm_tool"),
-    
-    # --- Finance ---
+    # Finance
     "growth_funding": ("growth_funding", "show_growth_funding_needed"),
     "wacc_optimizer": ("wacc_optimizer", "show_wacc_optimizer"),
     "loan_vs_leasing": ("loan_vs_leasing", "loan_vs_leasing_ui"),
-    
-    # --- Ops ---
+    # Ops
     "receivables_npv": ("receivables_npv", "show_receivables_analyzer_ui"),
     "cash_cycle": ("cash_cycle", "run_cash_cycle_app"),
     "unit_cost_analyzer": ("unit_cost_analyzer", "show_unit_cost_app"),
     "inventory_manager": ("inventory_manager", "show_inventory_manager"),
     "payables_manager": ("payables_manager", "show_payables_manager"),
-    
-    # --- Risk ---
+    # Risk
     "executive_dashboard": ("executive_dashboard", "show_executive_dashboard"),
     "cash_fragility": ("cash_fragility_index", "show_cash_fragility_index"),
     "resilience_map": ("financial_resilience_app", "show_resilience_map"),
