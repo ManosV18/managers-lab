@@ -4,7 +4,7 @@ def run_home():
     s = st.session_state
     m = s.get("metrics", {})
     
-    # Defaults & State Sync
+    # 1. Defaults & State Sync
     p = s.get("price", 100.0)
     vc = s.get("variable_cost", 60.0)
     v = s.get("volume", 1000)
@@ -13,29 +13,12 @@ def run_home():
     cash = s.get("opening_cash", 10000.0)
     tp = s.get("target_profit_goal", 0.0)
 
-    # Metrics from Engine
+    # 2. Metrics from Engine
     net_cash = m.get("net_cash_position", cash)
     bep_units = m.get("bep_units", 0)
     margin = p - vc
 
-    # --- LIQUIDITY ALERT LOGIC (Cold Analysis) ---
-    if net_cash < 0:
-        st.error(f"""
-            ### 🚨 Liquidity Critical Alert
-            The **Net Cash Position** is negative (**${net_cash:,.0f}**). 
-            Your initial opening cash (${cash:,.0f}) is insufficient to fund the **Working Capital Requirements** of the current operating model.
-            
-            **Root Cause Analysis:**
-            * **High DSO (AR Days):** Cash is trapped in customer receivables.
-            * **Inventory Overload:** Capital is tied up in unsold stock.
-            * **Undercapitalization:** The business lacks the cash base to support this volume of operations.
-            
-            *Action Required: Evaluate the **Cash Conversion Cycle** or **Receivables Analyzer** to release liquidity.*
-        """)
-    elif net_cash < (v * p * 0.05): # Warning if cash buffer is less than 5% of annual revenue
-        st.warning("⚠️ **Low Liquidity Buffer:** The cash position is marginal relative to the scale of operations.")
-
-    # Snapshot UI Logic
+    # 3. Snapshot UI Logic
     if margin > 0 and bep_units:
         margin_of_safety = v - bep_units
         buffer_pct = (margin_of_safety / v * 100) if v > 0 else 0
@@ -57,6 +40,13 @@ def run_home():
     c4.metric("Survival Buffer", f"{buffer_pct:.1f}%")
     c5.metric("Net Cash Position", f"€{net_cash:,.0f}")
 
+    # --- CONCISE LIQUIDITY ALERT (Directly under Snapshot) ---
+    if s.get("baseline_locked"):
+        if net_cash < 0:
+            st.error(f"**🚨 Liquidity Deficit: €{net_cash:,.0f}** | Working Capital exceeds opening cash. Review **CCC** or **Receivables** tools.")
+        elif net_cash < (v * p * 0.05):
+            st.warning(f"**⚠️ Low Liquidity Buffer:** Cash position is below 5% of annual revenue.")
+
     st.divider()
 
     # --- MAIN LAYOUT ---
@@ -70,10 +60,12 @@ def run_home():
             st.number_input("Annual Volume", value=int(v), key="volume")
             st.number_input("Annual Fixed Costs (€)", value=float(fc), key="fixed_cost")
             st.number_input("Target Profit Goal (€)", value=float(tp), key="target_profit_goal")
+        
         with st.expander("🔄 Working Capital Cycle", expanded=False):
             st.number_input("AR Days", value=float(s.get('ar_days', 45.0)), key="ar_days")
             st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)), key="inventory_days")
             st.number_input("AP Days", value=float(s.get('ap_days', 30.0)), key="ap_days")
+        
         with st.expander("💰 Liquidity & Debt", expanded=False):
             st.number_input("Opening Cash (€)", value=float(cash), key="opening_cash")
             st.number_input("Annual Debt Service (€)", value=float(ads), key="annual_debt_service")
@@ -89,26 +81,26 @@ def run_home():
         else:
             t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "🛡️ Risk"])
             
-            with t1: # STRATEGY (5 Tools)
+            with t1: # STRATEGY
                 if st.button("🎯 Pricing Strategy", use_container_width=True): s.selected_tool = "pricing_strategy"; s.flow_step = "tool"; st.rerun()
                 if st.button("⚖️ Cash Survival Simulator", use_container_width=True): s.selected_tool = "break_even_shift"; s.flow_step = "tool"; st.rerun()
                 if st.button("📡 Pricing Radar", use_container_width=True): s.selected_tool = "pricing_radar"; s.flow_step = "tool"; st.rerun()
                 if st.button("📉 Loss Threshold", use_container_width=True): s.selected_tool = "loss_threshold"; s.flow_step = "tool"; st.rerun()
                 if st.button("🧭 QSPM Strategy Matrix", use_container_width=True): s.selected_tool = "qspm_analyzer"; s.flow_step = "tool"; st.rerun()
 
-            with t2: # FINANCE (3 Tools)
+            with t2: # FINANCE
                 if st.button("📈 Growth Funding (AFN)", use_container_width=True): s.selected_tool = "growth_funding"; s.flow_step = "tool"; st.rerun()
                 if st.button("📉 WACC Optimizer", use_container_width=True): s.selected_tool = "wacc_optimizer"; s.flow_step = "tool"; st.rerun()
                 if st.button("⚖️ Loan vs Leasing", use_container_width=True): s.selected_tool = "loan_vs_leasing"; s.flow_step = "tool"; st.rerun()
 
-            with t3: # OPS (5 Tools)
+            with t3: # OPS
                 if st.button("📊 NPV Receivables Analyzer", use_container_width=True): s.selected_tool = "receivables_npv"; s.flow_step = "tool"; st.rerun()
                 if st.button("🔄 Cash Conversion Cycle", use_container_width=True): s.selected_tool = "cash_cycle"; s.flow_step = "tool"; st.rerun()
                 if st.button("🔢 Unit Cost Analyzer", use_container_width=True): s.selected_tool = "unit_cost_analyzer"; s.flow_step = "tool"; st.rerun()
                 if st.button("📦 Inventory Optimizer", use_container_width=True): s.selected_tool = "inventory_manager"; s.flow_step = "tool"; st.rerun()
                 if st.button("🤝 Payables Manager", use_container_width=True): s.selected_tool = "payables_manager"; s.flow_step = "tool"; st.rerun()
 
-            with t4: # RISK (4 Tools)
+            with t4: # RISK
                 if st.button("🏁 Executive Dashboard", use_container_width=True): s.selected_tool = "executive_dashboard"; s.flow_step = "tool"; st.rerun()
                 if st.button("🚨 Cash Fragility Index", use_container_width=True): s.selected_tool = "cash_fragility"; s.flow_step = "tool"; st.rerun()
                 if st.button("🛡️ Resilience & Shock Map", use_container_width=True): s.selected_tool = "resilience_map"; s.flow_step = "tool"; st.rerun()
