@@ -121,7 +121,7 @@ def run_home():
                 s.selected_tool = ("unit_cost_analyzer", "show_unit_cost_app"); s.flow_step = "library"; st.rerun()
             if st.button("📦 Inventory Optimizer", use_container_width=True):
                 s.selected_tool = ("inventory_manager", "show_inventory_manager"); s.flow_step = "library"; st.rerun()
-            if st.button("🤝 Payables Manager (External)", use_container_width=True):
+            if st.button("🤝 Payables Manager", use_container_width=True):
                 s.selected_tool = ("payables_manager", "show_payables_manager"); s.flow_step = "library"; st.rerun()
 
         with t4:
