@@ -77,17 +77,15 @@ def calculate_discount_npv(
 def show_receivables_analyzer_ui():
     s = st.session_state
     
-    # Context integration from home metrics
+    # Context integration: Τραβάμε το δυναμικό WACC αν υπάρχει, αλλιώς 15%
     sys_revenue = float(s.get('price', 100.0) * s.get('volume', 1000))
     sys_cogs = float(s.get('variable_cost', 60.0) * s.get('volume', 1000))
-    sys_wacc = 0.15 # Default risk-adjusted cost of capital
+    sys_wacc = float(s.get('wacc', 0.15)) # <--- Δυναμική σύνδεση με WACC Optimizer
     sys_ar_days = float(s.get('ar_days', 45.0))
     sys_ap_days = float(s.get('ap_days', 30.0))
 
     st.header("📊 Strategic Receivables Analyzer (NPV)")
     st.info("Analytical Value Assessment: Evaluating the impact of cash discounts on Net Present Value.")
-
-    
 
     with st.form("npv_form"):
         col1, col2 = st.columns(2)
@@ -135,7 +133,9 @@ def show_receivables_analyzer_ui():
             st.success(f"🎯 **Decision: EXECUTE.** The strategy creates €{r['npv']:,.2f} in value. The acceleration of cash flow outweighs the cost of the discount.")
         else:
             st.error(f"🚨 **Decision: REJECT.** The discount is too expensive relative to the capital freed. This move destroys shareholder value.")
-
-    if st.button("⬅️ Back to Library Hub"):
+    
+    st.divider()
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
