@@ -2,15 +2,14 @@ import streamlit as st
 import plotly.graph_objects as go
 from decimal import Decimal, getcontext
 
-# --- ΠΡΟΣΟΧΗ: Οι υπολογισμοί παραμένουν 100% ως είχαν ---
+# --- ΟΙ ΠΡΑΞΕΙΣ ΣΟΥ (ΠΑΡΑΜΕΝΟΥΝ ΑΘΙΚΤΕΣ) ---
 def calculate_discount_npv(
     current_sales, extra_sales, discount_trial, prc_clients_take_disc,
     days_curently_paying_clients_take_discount, days_curently_paying_clients_not_take_discount,
     new_days_payment_clients_take_disc, cogs, wacc, avg_days_pay_suppliers
 ):
-    getcontext().prec = 50 # High precision to match Excel
+    getcontext().prec = 50 
     
-    # Convert to Decimal for absolute accuracy
     cs = Decimal(str(current_sales))
     es = Decimal(str(extra_sales))
     dt = Decimal(str(discount_trial))
@@ -22,7 +21,6 @@ def calculate_discount_npv(
     wc = Decimal(str(wacc))
     d_supp = Decimal(str(avg_days_pay_suppliers))
     
-    # Intermediate Calculations (Base: 365)
     pct_no_take = 1 - pct_take
     avg_curr_days = (pct_take * d_take_old) + (pct_no_take * d_no_take_old)
     curr_rec = (cs * avg_curr_days) / 365
@@ -35,27 +33,21 @@ def calculate_discount_npv(
     new_rec = (total_sales * new_avg_period) / 365
     free_cap = curr_rec - new_rec
     
-    # Profit metrics
     prof_extra = es * (1 - (cg / cs))
     prof_free_cap = free_cap * wc
     dist_cost = total_sales * prcnt_new_policy * dt
     
-    # NPV Calculation - Strict Excel Logic
     i = wc / 365
-    
-    # Inflow 1 & 2
     term1 = (total_sales * prcnt_new_policy * (1 - dt)) / ((1 + i) ** d_new_policy)
     term2 = (total_sales * prcnt_old_policy) / ((1 + i) ** d_no_take_old)
     inflow = term1 + term2
     
-    # Outflow 1 & 2 (Excel Cell 25 formula)
     term3 = (cg / cs) * (es / cs) * cs / ((1 + i) ** d_supp)
     term4 = cs / ((1 + i) ** avg_curr_days)
     outflow = term3 + term4
     
     npv = inflow - outflow
 
-    # Limits (Excel Formulas)
     max_d = 1 - (
         (1 + i)**(d_new_policy - d_no_take_old) * (
             (1 - 1/prcnt_new_policy) + (
@@ -81,21 +73,21 @@ def calculate_discount_npv(
         "optimum_discount": float(opt_d * 100)
     }
 
+# --- Η ΣΥΝΑΡΤΗΣΗ ΠΟΥ ΚΑΛΕΙ Ο ROUTER ---
 def show_receivables_analyzer_ui():
     s = st.session_state
     
-    # Σύνδεση με τα Global Parameters (Από το προηγούμενο Home.py)
-    sys_revenue = float(s.get('input_price', 100.0) * s.get('input_volume', 1000))
-    sys_cogs = float(s.get('input_volume', 1000) * s.get('input_vc', 60.0))
-    sys_wacc = 0.15 # Σταθερά ή από session
-    sys_ar_days = float(s.get('input_ar', 45.0))
-    sys_ap_days = float(s.get('input_ap', 30.0))
+    # Σύνδεση με τα νέα Keys του Home (Αλλαγή μόνο στα ονόματα των s.get)
+    sys_revenue = float(s.get('price', 100.0) * s.get('volume', 1000))
+    sys_cogs = float(s.get('variable_cost', 60.0) * s.get('volume', 1000))
+    sys_wacc = 0.15 
+    sys_ar_days = float(s.get('ar_days', 45.0))
+    sys_ap_days = float(s.get('ap_days', 30.0))
 
     st.title("📊 Strategic Receivables Analyzer (NPV)")
 
     with st.form("npv_form"):
         col1, col2 = st.columns(2)
-        
         with col1:
             st.markdown("### 📋 Market Assumptions")
             c_sales = st.number_input("Current Sales (€)", value=sys_revenue, disabled=True)
@@ -127,7 +119,3 @@ def show_receivables_analyzer_ui():
             st.success("🎯 Positive NPV detected.")
         else:
             st.error("⚠️ Value Destruction detected.")
-
-    if st.button("⬅️ Return to Library"):
-        st.session_state.flow_step = "home"
-        st.rerun()
