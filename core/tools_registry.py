@@ -7,7 +7,7 @@ import sys
 # 🛠️ INTERNAL DIAGNOSTIC TOOL (Safe & Silent)
 # =========================================================
 def show_payables_manager_internal():
-    st.header("🤝 Payables Manager (Internal Mode)")
+    st.header("🤝 Payables Manager")
     
     s = st.session_state
     
