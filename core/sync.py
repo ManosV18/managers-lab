@@ -8,11 +8,11 @@ def sync_global_state():
     """
     s = st.session_state
 
-    # 1. Verification Lock - Αν δεν είναι κλειδωμένο, επιστρέφουμε κενό λεξικό
+    # 1. Verification Lock
     if not s.get('baseline_locked', False):
         return {}
 
-    # 2. Data Retrieval with Defaults (Cold Analysis Logic)
+    # 2. Data Retrieval with Defaults
     try:
         metrics = calculate_metrics(
             price=float(s.get('price', 100.0)),
@@ -27,8 +27,7 @@ def sync_global_state():
             annual_debt_service=float(s.get('annual_debt_service', 0.0)),
             opening_cash=float(s.get('opening_cash', 10000.0))
         )
-        
-        # Ενημέρωση του baseline για καθολική πρόσβαση
+
         s.baseline = metrics
         return metrics
 
@@ -36,18 +35,17 @@ def sync_global_state():
         st.error(f"🚨 Sync Engine Error: {e}")
         return {}
 
+
 def lock_baseline():
     """
     Atomic Lock: Calculates and saves metrics, then locks the system.
-    This prevents 'Engine returned no metrics' errors.
     """
     s = st.session_state
-    
-    # Προσωρινό bypass για να μπορέσει η sync_global_state να τρέξει μία φορά
-    s.baseline_locked = True 
-    
+
+    s.baseline_locked = True
+
     metrics = sync_global_state()
-    
+
     if metrics:
         s.baseline = metrics
         st.success("✅ Baseline locked successfully.")
@@ -55,7 +53,7 @@ def lock_baseline():
         s.baseline_locked = False
         st.error("❌ Failed to lock baseline. Check your inputs.")
 
+
 def compute_core_metrics():
     """Compatibility alias for legacy tools."""
     return sync_global_state()
-
