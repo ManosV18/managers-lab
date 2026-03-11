@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from core.sync import sync_global_state  
 
 def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, realization, risk_p, cac):
     """
@@ -19,7 +18,7 @@ def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, 
         survival = (1 - churn_rate) ** t
         # Realized cash flow adjusted for survival
         annual_flow = (float(purchases) * float(margin_per_order) * float(realization)) * survival
-        # Discount to present value
+        # Discount to present value using adjusted rate
         discounted_flow = annual_flow / ((1 + adj_disc) ** t)
         cum_npv += discounted_flow
         
@@ -33,17 +32,17 @@ def show_clv_calculator():
     st.header("👥 Executive CLV Simulator")
     st.info("Advanced Unit Economics: Linking Customer Retention and Margins to Risk-Adjusted NPV.")
 
-    # --- ENGINE SYNC & BASELINE LOCK CHECK ---
-    metrics = sync_global_state()
     s = st.session_state
+    m = s.get("metrics", {})
     
     if not s.get('baseline_locked', False):
-        st.warning("🔒 Access Denied: Please lock your Baseline in Stage 0 to enable CLV Unit Economics.")
+        st.warning("🔒 Access Denied: Please lock your Baseline in Home to enable CLV Unit Economics.")
         return 
 
-    # Fetch dynamic unit economics from Stage 0
-    wacc_global = s.get('wacc', 0.10) * 100 
-    unit_margin = metrics.get('unit_contribution', 0.0)
+    # Fetch dynamic unit economics from Global State
+    # Note: 'unit_contribution' comes from the central engine calculations
+    unit_margin = m.get('unit_contribution', float(s.get('price', 0) - s.get('variable_cost', 0)))
+    wacc_global = 15.0 # Standard hurdle rate if not specified
     
     st.write(f"**🔗 Core Engine Linked:** Current Unit Contribution: **{unit_margin:,.2f} €**")
     st.divider()
@@ -67,7 +66,7 @@ def show_clv_calculator():
     # --- NPV & RISK SETTINGS ---
     with st.expander("⚙️ NPV Discount & Realization Settings"):
         c1, c2 = st.columns(2)
-        disc = c1.number_input("Base WACC (%)", value=float(wacc_global))
+        disc = c1.number_input("Base Hurdle Rate / WACC (%)", value=float(wacc_global))
         risk_p = c1.number_input("Risk Premium (%)", value=3.0, help="Additional risk for churn volatility.")
         real = c2.number_input("Realization Rate (0.0 - 1.0)", value=0.90, help="Adjustment for non-collected revenue.")
         horizon = c2.slider("Analysis Horizon (Years)", 1, 15, 5)
@@ -100,13 +99,14 @@ def show_clv_calculator():
 
     # --- VISUALIZATION ---
     st.subheader("📉 Cumulative NPV Projection")
+    
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A',
                              line=dict(color='#EF553B', dash='dash')))
     fig.add_trace(go.Scatter(x=df_b['Year'], y=df_b['Cumulative_NPV'], name='Scenario B',
                              line=dict(color='#00CC96', width=4)))
     fig.add_hline(y=0, line_dash="dot", line_color="white", annotation_text="Break-even Line")
-    fig.update_layout(template="plotly_dark", height=400, margin=dict(l=20, r=20, t=20, b=20),
+    fig.update_layout(height=400, margin=dict(l=20, r=20, t=20, b=20),
                       xaxis_title="Year", yaxis_title="Cumulative NPV (€)")
     st.plotly_chart(fig, use_container_width=True)
 
