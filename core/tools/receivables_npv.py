@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from decimal import Decimal, getcontext
 
-# --- ΟΙ ΠΡΑΞΕΙΣ ΣΟΥ (ΠΑΡΑΜΕΝΟΥΝ ΑΘΙΚΤΕΣ) ---
+# --- CALCULATION ENGINE (Analytical Precision) ---
 def calculate_discount_npv(
     current_sales, extra_sales, discount_trial, prc_clients_take_disc,
     days_curently_paying_clients_take_discount, days_curently_paying_clients_not_take_discount,
@@ -73,49 +73,69 @@ def calculate_discount_npv(
         "optimum_discount": float(opt_d * 100)
     }
 
-# --- Η ΣΥΝΑΡΤΗΣΗ ΠΟΥ ΚΑΛΕΙ Ο ROUTER ---
+# --- UI LAYER ---
 def show_receivables_analyzer_ui():
     s = st.session_state
     
-    # Σύνδεση με τα νέα Keys του Home (Αλλαγή μόνο στα ονόματα των s.get)
+    # Context integration from home metrics
     sys_revenue = float(s.get('price', 100.0) * s.get('volume', 1000))
     sys_cogs = float(s.get('variable_cost', 60.0) * s.get('volume', 1000))
-    sys_wacc = 0.15 
+    sys_wacc = 0.15 # Default risk-adjusted cost of capital
     sys_ar_days = float(s.get('ar_days', 45.0))
     sys_ap_days = float(s.get('ap_days', 30.0))
 
-    st.title("📊 Strategic Receivables Analyzer (NPV)")
+    st.header("📊 Strategic Receivables Analyzer (NPV)")
+    st.info("Analytical Value Assessment: Evaluating the impact of cash discounts on Net Present Value.")
+
+    
 
     with st.form("npv_form"):
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("### 📋 Market Assumptions")
+            st.markdown("**Market Assumptions**")
             c_sales = st.number_input("Current Sales (€)", value=sys_revenue, disabled=True)
-            e_sales = st.number_input("Extra Sales Expected (€)", value=sys_revenue * 0.10)
-            d_trial = st.number_input("Proposed Discount %", value=2.0, step=0.1) / 100
-            p_take = st.number_input("% Clients who will take the Discount", value=40.0, step=1.0) / 100
-            d_take = st.number_input("Days (Current - Take group)", value=int(sys_ar_days))
+            e_sales = st.number_input("Projected Extra Sales (€)", value=sys_revenue * 0.10)
+            d_trial = st.number_input("Proposed Discount (%)", value=2.0, step=0.1) / 100
+            p_take = st.number_input("% Clients Adopting Discount", value=40.0, step=1.0) / 100
+            d_take = st.number_input("Current Collection (Take Group) - Days", value=int(sys_ar_days))
             
         with col2:
-            st.markdown("### ⏱️ Timeline & Logic")
+            st.markdown("**Timeline & Capital Cost**")
             d_new = st.number_input("New Payment Target (Days)", value=10, step=1)
-            cogs_val = st.number_input("Cost of Goods Sold (COGS €)", value=sys_cogs, disabled=True)
-            wacc_val = st.number_input("WACC % (Cost of Capital)", value=sys_wacc * 100, disabled=True) / 100
-            d_supps = st.number_input("Supplier Payment Days (DPO)", value=int(sys_ap_days), disabled=True)
-            d_no_take = st.number_input("Days (Current - No-Take group)", value=int(sys_ar_days * 1.5))
+            cogs_val = st.number_input("COGS (€)", value=sys_cogs, disabled=True)
+            wacc_val = st.number_input("WACC (%)", value=sys_wacc * 100, disabled=True) / 100
+            d_supps = st.number_input("DPO (Supplier Days)", value=int(sys_ap_days), disabled=True)
+            d_no_take = st.number_input("Current Collection (No-Take) - Days", value=int(sys_ar_days * 1.5))
 
-        submitted = st.form_submit_button("Execute Strategy Simulation", use_container_width=True)
+        submitted = st.form_submit_button("Execute NPV Simulation", use_container_width=True)
 
     if submitted:
         r = calculate_discount_npv(c_sales, e_sales, d_trial, p_take, d_take, d_no_take, d_new, cogs_val, wacc_val, d_supps)
         
         st.divider()
+        st.subheader("🏁 Financial Verdict")
+        
+        
+
         c1, c2, c3 = st.columns(3)
-        c1.metric("Strategy NPV", f"€{r['npv']:,.2f}", delta="Profitable" if r['npv'] > 0 else "Loss", delta_color="normal" if r['npv'] > 0 else "inverse")
-        c2.metric("Max Discount", f"{r['max_discount']:.2f}%")
-        c3.metric("Optimum Discount", f"{r['optimum_discount']:.2f}%")
+        c1.metric("Strategy NPV", f"€{r['npv']:,.2f}", 
+                  delta="Value Creator" if r['npv'] > 0 else "Value Destroyer", 
+                  delta_color="normal" if r['npv'] > 0 else "inverse")
+        c2.metric("Max Break-even Discount", f"{r['max_discount']:.2f}%")
+        c3.metric("Mathematical Optimum", f"{r['optimum_discount']:.2f}%")
+
+        st.write("---")
+        st.subheader("🔍 Liquidity Impact")
+        l1, l2 = st.columns(2)
+        l1.metric("Capital to be Freed", f"€{r['free_capital']:,.2f}")
+        l2.metric("New Avg. Collection Period", f"{r['new_avg_collection_period']:.1f} Days", 
+                  delta=f"{r['new_avg_collection_period'] - r['avg_current_collection_days']:.1f} Days", delta_color="inverse")
 
         if r['npv'] > 0:
-            st.success("🎯 Positive NPV detected.")
+            st.success(f"🎯 **Decision: EXECUTE.** The strategy creates €{r['npv']:,.2f} in value. The acceleration of cash flow outweighs the cost of the discount.")
         else:
-            st.error("⚠️ Value Destruction detected.")
+            st.error(f"🚨 **Decision: REJECT.** The discount is too expensive relative to the capital freed. This move destroys shareholder value.")
+
+    if st.button("⬅️ Back to Library Hub"):
+        st.session_state.selected_tool = None
+        st.rerun()
