@@ -40,7 +40,6 @@ def show_clv_calculator():
         return 
 
     # Fetch dynamic unit economics from Global State
-    # Note: 'unit_contribution' comes from the central engine calculations
     unit_margin = m.get('unit_contribution', float(s.get('price', 0) - s.get('variable_cost', 0)))
     wacc_global = 15.0 # Standard hurdle rate if not specified
     
@@ -100,13 +99,15 @@ def show_clv_calculator():
     # --- VISUALIZATION ---
     st.subheader("📉 Cumulative NPV Projection")
     
+    
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A',
                              line=dict(color='#EF553B', dash='dash')))
     fig.add_trace(go.Scatter(x=df_b['Year'], y=df_b['Cumulative_NPV'], name='Scenario B',
                              line=dict(color='#00CC96', width=4)))
     fig.add_hline(y=0, line_dash="dot", line_color="white", annotation_text="Break-even Line")
-    fig.update_layout(height=400, margin=dict(l=20, r=20, t=20, b=20),
+    fig.update_layout(height=400, template="plotly_dark", margin=dict(l=20, r=20, t=20, b=20),
                       xaxis_title="Year", yaxis_title="Cumulative NPV (€)")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -118,6 +119,9 @@ def show_clv_calculator():
     else:
         st.error("🚨 **Strategic Verdict:** Value Destruction. CAC exceeds LTV. Every new customer reduces firm value.")
 
-    if st.button("⬅️ Back to Library Hub", use_container_width=True):
+    # --- NAVIGATION ---
+    st.divider()
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
