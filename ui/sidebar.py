@@ -1,7 +1,6 @@
 import streamlit as st
 
 def show_sidebar():
-    # Εξασφάλιση αρχικοποίησης flow_step
     if "flow_step" not in st.session_state:
         st.session_state.flow_step = "home"
 
@@ -19,53 +18,49 @@ def show_sidebar():
             unsafe_allow_html=True
         )
         
-        # Main Navigation
-        if st.button("🏠 Control Tower (Home)", use_container_width=True, type="primary" if st.session_state.flow_step == "home" else "secondary"):
+        # Dashboard Navigation
+        if st.button("🏠 Control Tower (Home)", use_container_width=True, 
+                     type="primary" if st.session_state.flow_step == "home" else "secondary"):
             st.session_state.selected_tool = None
             st.session_state.flow_step = "home"
             st.rerun()
 
         st.divider()
 
-        # --- STRATEGIC TOOL LIBRARY ---
+        # --- TOOL SELECTION ---
         st.subheader("🛠️ Strategic Tools")
-        
-        # Μόνο αν είναι κλειδωμένα τα δεδομένα επιτρέπουμε την πλοήγηση στα εργαλεία
         is_locked = st.session_state.get('baseline_locked', False)
         
         if is_locked:
-            # Tool 1: Survival Simulator
             if st.button("⚖️ Cash Survival Horizon", use_container_width=True):
                 st.session_state.selected_tool = "survival_simulator"
                 st.session_state.flow_step = "tool"
                 st.rerun()
 
-            # Tool 2: Pricing Radar
             if st.button("📡 Pricing Impact Radar", use_container_width=True):
                 st.session_state.selected_tool = "pricing_impact"
                 st.session_state.flow_step = "tool"
                 st.rerun()
 
-            # Tool 3: CLV Analyzer
-            if st.button("💎 Customer Lifetime Value", use_container_width=True):
+            if st.button("💎 CLV Analyzer", use_container_width=True):
                 st.session_state.selected_tool = "clv_analyzer"
                 st.session_state.flow_step = "tool"
                 st.rerun()
         else:
-            st.info("🔒 Lock Baseline on Home to unlock tools.")
+            st.warning("🔒 Lock baseline at Home to unlock strategic tools.")
 
         st.divider()
         
-        # System Integrity & Reset
+        # System Integrity
         st.subheader("🛡️ System")
         if is_locked:
             st.success("✅ Baseline: LOCKED")
         else:
-            st.warning("🔓 Baseline: OPEN")
+            st.info("🔓 Baseline: OPEN")
 
         if st.button("🔄 Global Reset", type="secondary", use_container_width=True):
             st.session_state.clear()
             st.session_state.flow_step = "home"
             st.rerun()
 
-        st.caption("v2.0 | [2026-02-18] 365-Day Engine")
+        st.caption("v2.1 | [2026-02-18] Engine Ready")
