@@ -12,23 +12,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. TOOL_MAP: Η "Κεντρική Καλωδίωση"
-# UI Key -> (Όνομα αρχείου στο core/tools, Όνομα Συνάρτησης μέσα στο αρχείο)
+# 2. TOOL_MAP: Η Πλήρης Καλωδίωση για όλα τα αρχεία σου
 TOOL_MAP = {
-    # --- Strategy & Survival ---
-    "break_even_shift": ("break_even_shift_calculator", "show_break_even_shift_calculator"),
+    # --- Strategy & Pricing ---
     "pricing_strategy": ("pricing_strategy", "show_pricing_strategy_tool"),
+    "pricing_radar": ("pricing_radar", "show_pricing_radar"),
+    "loss_threshold": ("loss_threshold", "show_loss_threshold_before_price_cut"),
+    "qspm_analyzer": ("qspm_analyzer", "show_qspm_tool"),
     
-    # --- Finance & Capital ---
+    # --- Survival & Break-Even ---
+    "break_even_shift": ("break_even_shift_calculator", "show_break_even_shift_calculator"),
+    
+    # --- Finance & Debt ---
     "wacc_optimizer": ("wacc_optimizer", "show_wacc_optimizer_ui"),
-    "receivables_npv": ("receivables_npv", "show_receivables_analyzer_ui"),
+    "loan_vs_leasing": ("loan_vs_leasing", "loan_vs_leasing_ui"),
+    "growth_funding": ("growth_funding", "show_growth_funding_needed"),
     
-    # --- Operations & Efficiency ---
+    # --- Operations & Cash Cycle ---
     "unit_cost_analyzer": ("unit_cost_analyzer", "show_unit_cost_app"),
     "inventory_manager": ("inventory_manager", "show_inventory_manager"),
+    "receivables_npv": ("receivables_npv", "show_receivables_analyzer_ui"),
+    "cash_cycle": ("cash_cycle", "run_cash_cycle_app"),
+    "payables_manager": ("payables_manager", "show_payables_manager"),
     
-    # --- Risk & Liquidity ---
+    # --- Risk & Dashboards ---
+    "executive_dashboard": ("executive_dashboard", "show_executive_dashboard"),
     "cash_fragility": ("cash_fragility_index", "show_cash_fragility_index"),
+    "resilience_map": ("financial_resilience_app", "show_resilience_map"),
+    "stress_test": ("stress_test_simulator", "show_stress_test_tool"),
+    "clv_calculator": ("clv_calculator", "show_clv_calculator") # Αν η συνάρτηση λέγεται έτσι
 }
 
 # 3. State Initialization (The Global Notebook)
