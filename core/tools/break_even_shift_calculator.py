@@ -43,14 +43,20 @@ def show_break_even_shift_calculator():
     new_vc = current_vc * (1 + vc_change_pct / 100)
     new_unit_cm = new_price - new_vc
     new_volume = current_volume * (1 + vol_change_pct / 100)
-    
-    # New Survival Point
+
+    # Survival BEP
     new_bep = new_fixed / new_unit_cm if new_unit_cm > 0 else 0.0
-    
-    # Safety Margin
+
+    # Contribution
+    new_contribution = new_unit_cm * new_volume
+
+    # Survival Coverage (KEY METRIC)
+    coverage_ratio = new_contribution / new_fixed if new_fixed > 0 else 0
+
+    # Survival buffer
     safety_margin_units = new_volume - new_bep
     safety_margin_pct = (safety_margin_units / new_volume * 100) if new_volume > 0 else 0.0
-
+      
     # 5. RESULTS DASHBOARD
     st.divider()
     m1, m2, m3 = st.columns(3)
