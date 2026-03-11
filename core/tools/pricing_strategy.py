@@ -8,6 +8,7 @@ def calculate_cross_sell_impact(main_price, price_decrease_pct, profit_main, com
 
     try:
         # Indifference point formula for discounts considering bundle profit
+        # Image of pricing indifference point formula
         required_increase = -price_decrease_pct / ((total_profit_per_main_unit / main_price) + price_decrease_pct)
         return required_increase * 100, expected_complement_profit
     except ZeroDivisionError:
@@ -24,6 +25,7 @@ def calculate_max_drop(old_price, price_inc_pct, profit_A, sub_data):
     return (numerator / denominator) * 100
 
 def show_pricing_strategy_tool():
+    s = st.session_state
     st.header("🎯 Strategic Pricing & Elasticity")
     st.info("Advanced Modeling: Cross-Sell Dynamics and Cannibalization Risks.")
 
@@ -37,8 +39,12 @@ def show_pricing_strategy_tool():
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("**Core Asset**")
-            main_p = st.number_input("Main Product Price (€)", value=200.0)
-            main_prof = st.number_input("Main Product Profit (€)", value=60.0)
+            # Σύνδεση με το κεντρικό μοντέλο
+            current_p = float(s.get('price', 200.0))
+            current_vc = float(s.get('variable_cost', 140.0))
+            
+            main_p = st.number_input("Main Product Price (€)", value=current_p)
+            main_prof = st.number_input("Main Product Profit (€)", value=current_p - current_vc)
             discount = st.slider("Proposed Discount on Main (%)", 0.0, 40.0, 10.0) / 100
         
         with c2:
@@ -65,7 +71,7 @@ def show_pricing_strategy_tool():
                 else:
                     st.success("🟢 Low Risk: The bundle margin absorbs the discount effectively.")
             else:
-                st.error("🚨 Strategic Deficit: The discount is larger than the total profit potential of the bundle.")
+                st.error("🚨 Strategic Deficit: The discount is larger than the total profit potential.")
 
     # --- TAB 2: SUBSTITUTION RISK ---
     with mode[1]:
@@ -75,8 +81,8 @@ def show_pricing_strategy_tool():
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("**Target Product (Price Hike)**")
-            old_p = st.number_input("Current Price (€)", value=100.0, key="sub_old_p")
-            p_A = st.number_input("Unit Profit (€)", value=30.0, key="sub_prof_a")
+            old_p = st.number_input("Current Price (€)", value=float(s.get('price', 100.0)), key="sub_old_p")
+            p_A = st.number_input("Unit Profit (€)", value=float(s.get('price', 100.0) - s.get('variable_cost', 70.0)), key="sub_prof_a")
             p_inc = st.slider("Price Increase (%)", 0.0, 50.0, 10.0) / 100
         
         with col2:
@@ -95,21 +101,16 @@ def show_pricing_strategy_tool():
             else:
                 max_drop = calculate_max_drop(old_p, p_inc, p_A, sub_list)
                 st.divider()
-                
-                st.subheader("Analytical Verdict")
                 st.metric("Max Allowed Volume Drop", f"{max_drop:.2f}%")
                 
                 fig = go.Figure(data=[go.Pie(labels=['Captured by Subs', 'Pure Market Loss'], 
                                            values=[total_switch, 1-total_switch], hole=.4)])
-                fig.update_layout(height=350, margin=dict(t=0, b=0, l=0, r=0))
+                fig.update_layout(height=350, template="plotly_dark")
                 st.plotly_chart(fig, use_container_width=True)
 
-                if max_drop > 15:
-                    st.success("🟢 Resilience: You have a high buffer. Volume can drop significantly and you still profit.")
-                else:
-                    st.error("🔴 Fragile Position: Minor volume loss will wipe out the gains from the price hike.")
-
+    # --- NAVIGATION ---
     st.divider()
-    if st.button("⬅️ Back to Library Hub"):
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
