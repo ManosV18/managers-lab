@@ -78,14 +78,10 @@ def show_stress_test_tool():
     fig.update_layout(height=280, margin=dict(t=0, b=0, l=40, r=40), paper_bgcolor='rgba(0,0,0,0)', font={'color': "gray"})
     st.plotly_chart(fig, use_container_width=True)
 
-    # 6. ANALYST'S VERDICT (Cold & Analytical)
-    if resilience_score < 35:
-        st.error(f"🚨 **Critical Vulnerability:** Under this scenario, the system collapses. The total cash gap of €{total_cash_gap:,.0f} exceeds normal credit facilities. Immediate equity injection or radical cost-cutting required.")
-    elif resilience_score < 70:
-        st.warning(f"⚠️ **Caution:** The system absorbs the shock but remains fragile. Net profit is severely eroded. Recommend accelerating the receivables cycle to offset the €{liquidity_impact:,.0f} liquidity drain.")
-    else:
-        st.success(f"✅ **Systemic Resilience:** The business model effectively absorbs the shock. While profits are reduced, the cash position remains manageable.")
-
-    if st.button("⬅️ Back to Library Hub", use_container_width=True):
+    # 6. ACTION BUTTONS & NAVIGATION
+    st.divider()
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        # Ενημέρωση και των δύο μεταβλητών για απόλυτη συμβατότητα με το app.py
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
