@@ -90,6 +90,9 @@ def show_resilience_map():
     else:
         st.success(f"✅ **SURVIVAL:** The system remains solvent despite the {shock_pct}% shock.")
 
-    if st.button("⬅️ Back to Library"):
+    # Navigation (Ευθυγραμμισμένο με το νέο app.py)
+    st.divider()
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
