@@ -4,7 +4,7 @@ def run_home():
     s = st.session_state
     m = s.get("metrics", {})
     
-    # 1. Defaults & State Sync
+    # 1. Defaults & State Sync (User Instruction [2026-02-18]: 365-day basis)
     p = s.get("price", 100.0)
     vc = s.get("variable_cost", 60.0)
     v = s.get("volume", 1000)
@@ -40,10 +40,10 @@ def run_home():
     c4.metric("Survival Buffer", f"{buffer_pct:.1f}%")
     c5.metric("Net Cash Position", f"€{net_cash:,.0f}")
 
-    # --- CONCISE LIQUIDITY ALERT (Directly under Snapshot) ---
+    # --- CONCISE LIQUIDITY ALERT ---
     if s.get("baseline_locked"):
         if net_cash < 0:
-            st.error(f"**🚨 Liquidity Deficit: €{net_cash:,.0f}** | Working Capital exceeds opening cash. Review **CCC** or **Receivables** tools.")
+            st.error(f"**🚨 Liquidity Deficit: €{net_cash:,.0f}** | Review **CCC** or **Receivables** tools.")
         elif net_cash < (v * p * 0.05):
             st.warning(f"**⚠️ Low Liquidity Buffer:** Cash position is below 5% of annual revenue.")
 
@@ -63,7 +63,8 @@ def run_home():
         
         with st.expander("🔄 Working Capital Cycle", expanded=False):
             st.number_input("AR Days", value=float(s.get('ar_days', 45.0)), key="ar_days")
-            st.number_input("Inventory Days", value=float(s.get('inventory_days', 60.0)), key="inventory_days")
+            # Προσοχή: inv_days για συμβατότητα με το υπόλοιπο λειτουργικό
+            st.number_input("Inventory Days", value=float(s.get('inv_days', 60.0)), key="inv_days")
             st.number_input("AP Days", value=float(s.get('ap_days', 30.0)), key="ap_days")
         
         with st.expander("💰 Liquidity & Debt", expanded=False):
@@ -83,8 +84,8 @@ def run_home():
             
             with t1: # STRATEGY
                 if st.button("🎯 Pricing Strategy", use_container_width=True): s.selected_tool = "pricing_strategy"; s.flow_step = "tool"; st.rerun()
-                if st.button("👥 Customer Lifetime Value (CLV)", use_container_width=True): s.selected_tool = "clv_calculator"; s.flow_step = "tool"; st.rerun()
                 if st.button("⚖️ Cash Survival Simulator", use_container_width=True): s.selected_tool = "break_even_shift"; s.flow_step = "tool"; st.rerun()
+                if st.button("👥 Customer Lifetime Value (CLV)", use_container_width=True): s.selected_tool = "clv_calculator"; s.flow_step = "tool"; st.rerun()
                 if st.button("📡 Pricing Radar", use_container_width=True): s.selected_tool = "pricing_radar"; s.flow_step = "tool"; st.rerun()
                 if st.button("📉 Loss Threshold", use_container_width=True): s.selected_tool = "loss_threshold"; s.flow_step = "tool"; st.rerun()
                 if st.button("🧭 QSPM Strategy Matrix", use_container_width=True): s.selected_tool = "qspm_analyzer"; s.flow_step = "tool"; st.rerun()
