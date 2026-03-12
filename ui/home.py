@@ -103,6 +103,8 @@ def run_home():
                 if st.button("🤝 Payables Manager", use_container_width=True): s.selected_tool = "payables_manager"; s.flow_step = "tool"; st.rerun()
 
             with t4: # RISK
+                # Η ΠΡΟΣΘΗΚΗ ΤΟΥ ΝΕΟΥ ΕΡΓΑΛΕΙΟΥ
+                if st.button("🛡️ Strategic Shock Simulator", use_container_width=True):s.selected_tool = "shock_simulator"; s.flow_step = "tool"; st.rerun()
                 if st.button("🏁 Executive Dashboard", use_container_width=True): s.selected_tool = "executive_dashboard"; s.flow_step = "tool"; st.rerun()
                 if st.button("🚨 Cash Fragility Index", use_container_width=True): s.selected_tool = "cash_fragility"; s.flow_step = "tool"; st.rerun()
                 if st.button("🛡️ Resilience & Shock Map", use_container_width=True): s.selected_tool = "resilience_map"; s.flow_step = "tool"; st.rerun()
