@@ -87,6 +87,10 @@ def show_growth_funding_needed():
     else:
         st.success(f"**Organic Sustainability:** The system generates enough net profit to self-fund this growth scenario. No external capital is required.")
 
-    if st.button("⬅️ Back to Library Hub", use_container_width=True):
+    # Navigation (Ευθυγραμμισμένο με το νέο app.py)
+    st.divider()
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
+    
