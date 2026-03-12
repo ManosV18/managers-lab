@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. TOOL_MAP: Η Πλήρης Καλωδίωση για όλα τα αρχεία σου
+# 2. TOOL_MAP: Προσθήκη του Shock Simulator
 TOOL_MAP = {
     # --- Strategy & Pricing ---
     "pricing_strategy": ("pricing_strategy", "show_pricing_strategy_tool"),
@@ -40,7 +40,10 @@ TOOL_MAP = {
     "cash_fragility": ("cash_fragility_index", "show_cash_fragility_index"),
     "resilience_map": ("financial_resilience_app", "show_resilience_map"),
     "stress_test": ("stress_test_simulator", "show_stress_test_tool"),
-    "clv_calculator": ("clv_calculator", "show_clv_calculator") # Αν η συνάρτηση λέγεται έτσι
+    "clv_calculator": ("clv_calculator", "show_clv_calculator"),
+    
+    # Η ΝΕΑ ΠΡΟΣΘΗΚΗ:
+    "shock_simulator": ("company_shock_simulator", "show_company_shock_simulator")
 }
 
 # 3. State Initialization (The Global Notebook)
@@ -53,7 +56,7 @@ if 'metrics' not in st.session_state:
 if 'selected_tool' not in st.session_state:
     st.session_state.selected_tool = None
 
-# 4. RUN ENGINE (Calculates the "Shock Absorption" metrics)
+# 4. RUN ENGINE 
 # User Instruction [2026-02-18]: Υπολογισμός με 365 ημέρες
 if st.session_state.baseline_locked:
     s = st.session_state
@@ -64,7 +67,7 @@ if st.session_state.baseline_locked:
             variable_cost=float(s.get("variable_cost", 60)),
             fixed_cost=float(s.get("fixed_cost", 20000)),
             ar_days=float(s.get("ar_days", 45)),
-            inv_days=float(s.get("inv_days", 60)), # Χρήση inv_days για συνέπεια
+            inv_days=float(s.get("inv_days", 60)),
             ap_days=float(s.get("ap_days", 30)),
             annual_debt_service=float(s.get("annual_debt_service", 0)),
             opening_cash=float(s.get("opening_cash", 10000)),
@@ -76,7 +79,7 @@ if st.session_state.baseline_locked:
 # 5. UI Layout: Sidebar
 show_sidebar()
 
-# 6. Routing Logic (The Dispatcher)
+# 6. Routing Logic
 step = st.session_state.get("flow_step", "home")
 
 if step == "home":
@@ -88,7 +91,6 @@ elif step == "tool":
     if tool_key in TOOL_MAP:
         mod_name, func_name = TOOL_MAP[tool_key]
         
-        # UI Header for the Tool view
         col_title, col_back = st.columns([0.8, 0.2])
         friendly_name = tool_key.replace('_', ' ').title()
         col_title.caption(f"Strategy Room > {friendly_name}")
@@ -101,11 +103,9 @@ elif step == "tool":
         st.divider()
 
         try:
-            # Δυναμικό Import από τον φάκελο core.tools
+            # Δυναμικό Import από core.tools (Εδώ γίνεται η μαγεία)
             module = importlib.import_module(f"core.tools.{mod_name}")
             func = getattr(module, func_name)
-            
-            # ΕΚΤΕΛΕΣΗ ΤΟΥ ΕΡΓΑΛΕΙΟΥ
             func()
             
         except ModuleNotFoundError:
@@ -119,6 +119,3 @@ elif step == "tool":
                 st.rerun()
     else:
         st.error(f"Unknown Tool Selected: {tool_key}")
-        if st.button("Return Home"):
-            st.session_state.flow_step = "home"
-            st.rerun()
