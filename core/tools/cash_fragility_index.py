@@ -7,21 +7,21 @@ def show_cash_fragility_index():
     st.header("🛡️ Cash Fragility & Survival Analysis")
     st.info("Critical Link: Comparing Cash Runway against the Operational Cash Conversion Cycle (CCC).")
 
-    # 1. FETCH & CALCULATE DATA (Linked to Home & Engine Keys)
-    # Διασφάλιση 365 ημερών βάσει User Instruction [2026-02-18]
+    # 1. FETCH & CALCULATE DATA (User Instruction [2026-02-18]: 365-day basis)
     volume = float(s.get('volume', 0))
     variable_cost = float(s.get('variable_cost', 0.0))
     fixed_costs = float(s.get('fixed_cost', 0.0)) 
     debt_service = float(s.get('annual_debt_service', 0.0)) 
     
-    # Το ετήσιο cash outflow περιλαμβάνει λειτουργικά έξοδα ΚΑΙ δόσεις δανείων
+    # Annual cash outflow includes OpEx and Debt Obligations
     annual_outflows = (volume * variable_cost) + fixed_costs + debt_service
-    daily_burn_rate = annual_outflows / 365 if annual_outflows > 0 else 0.1
+    # Analytical safeguard: ensure daily_burn is never zero to avoid crashes
+    daily_burn_rate = annual_outflows / 365 if annual_outflows > 0 else 0.00001
     
-    # Working Capital Components (Συγχρονισμένα με το Home)
+    # Working Capital Components (Synced with Home keys)
     ar_days = float(s.get('ar_days', 45.0))
-    inv_days = float(s.get('inv_days', 60.0)) # Διόρθωση κλειδιού από inventory_days σε inv_days
-    ap_days = float(s.get('ap_days', 30.0))           
+    inv_days = float(s.get('inv_days', 60.0)) 
+    ap_days = float(s.get('ap_days', 30.0))            
     ccc_days = ar_days + inv_days - ap_days
 
     # 2. LIQUIDITY POSITION
@@ -35,18 +35,18 @@ def show_cash_fragility_index():
     total_liquidity = cash_on_hand + unused_credit
 
     # 3. FRAGILITY CALCULATIONS (Analytical Approach)
-    cash_runway = total_liquidity / daily_burn_rate if daily_burn_rate > 0 else 0
-    # Fragility Index: Αν > 1, ξεμένεις από μετρητά πριν ολοκληρωθεί ένας επιχειρηματικός κύκλος.
+    cash_runway = total_liquidity / daily_burn_rate
+    # Fragility Index: If > 1, cash depletes before a business cycle completes.
     fragility_score = (ccc_days / cash_runway) if cash_runway > 0 else 99.0
 
     st.divider()
 
     # 4. DASHBOARD METRICS
     m1, m2, m3 = st.columns(3)
-    m1.metric("Cash Runway", f"{cash_runway:.1f} Days", help="Survival window based on 365-day cycle.")
+    m1.metric("Cash Runway", f"{cash_runway:.1f} Days", help="Survival window based on 365-day burn rate.")
     m2.metric("Cash Cycle (CCC)", f"{ccc_days:.1f} Days", delta="Funding Gap", delta_color="inverse")
     
-    if cash_runway == 0: 
+    if cash_runway == 0 or total_liquidity <= 0: 
         status = "NO RUNWAY"
     elif fragility_score > 1.0: 
         status = "CRITICAL"
@@ -59,6 +59,7 @@ def show_cash_fragility_index():
 
     # 5. SURVIVAL GAUGE
     
+
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
         value = cash_runway,
@@ -67,9 +68,9 @@ def show_cash_fragility_index():
             'axis': {'range': [None, max(180, ccc_days * 2)]},
             'bar': {'color': "white"},
             'steps': [
-                {'range': [0, ccc_days], 'color': "#FF4B4B"}, 
-                {'range': [ccc_days, ccc_days * 1.5], 'color': "#FFA500"}, 
-                {'range': [ccc_days * 1.5, 1000], 'color': "#00CC96"}],
+                {'range': [0, ccc_days], 'color': "#FF4B4B"}, # Dangerous: Burn exceeds cycle
+                {'range': [ccc_days, ccc_days * 1.5], 'color': "#FFA500"}, # Warning: Tight buffer
+                {'range': [ccc_days * 1.5, 1000], 'color': "#00CC96"}], # Safe: Robust buffer
             'threshold': {
                 'line': {'color': "white", 'width': 4},
                 'thickness': 0.75,
@@ -83,10 +84,10 @@ def show_cash_fragility_index():
     st.subheader("2. Strategic Analytical Verdict")
     if fragility_score > 1:
         st.error(f"**Structural Deficit:** Your Runway ({cash_runway:.1f} days) is shorter than your CCC ({ccc_days:.1f} days).")
-        st.write("🚨 Το σύστημα θα χρειαστεί εξωτερική χρηματοδότηση πριν προλάβει να εισπράξει από τους πελάτες.")
+        st.write("🚨 **Insight:** The system will require external financing before it can collect cash from its own customers. Bankruptcy risk is high during rapid growth.")
     else:
         st.success(f"**Structural Buffer:** The system is anti-fragile.")
-        st.write(f"✅ Διαθέτετε πλεόνασμα ασφαλείας {(cash_runway - ccc_days):.1f} ημερών μετά την ολοκλήρωση του κύκλου.")
+        st.write(f"✅ **Insight:** You possess a safety margin of {(cash_runway - ccc_days):.1f} days after completing the operational cycle.")
 
     # 7. NAVIGATION
     st.divider()
