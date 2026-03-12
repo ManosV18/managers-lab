@@ -89,7 +89,9 @@ def show_qspm_tool():
     else:
         st.success(f"🏆 **Winner: {strat2_name}.** This path offers higher expected returns and better capitalizes on market opportunities, despite potentially higher risk.")
 
+    # Navigation (Ευθυγραμμισμένο με το νέο app.py)
     st.divider()
-    if st.button("⬅️ Back to Library Hub", use_container_width=True):
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
