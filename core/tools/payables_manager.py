@@ -74,7 +74,10 @@ def show_payables_manager():
     else:
         st.error(f"🚨 **Decision: MAINTAIN CREDIT.** The value of the {SupplierCreditDays}-day 'interest-free loan' from your supplier is greater than the offered discount. Switching to cash would destroy € {abs(net_gain):,.0f} in value.")
 
-    # 5. NAVIGATION
-    if st.button("⬅️ Back to Library Hub", use_container_width=True):
+    # Navigation (Ευθυγραμμισμένο με το νέο app.py)
+    st.divider()
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
+    
