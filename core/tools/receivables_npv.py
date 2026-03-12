@@ -70,17 +70,13 @@ def calculate_discount_npv(
         "discount_cost": float(dist_cost),
         "npv": float(npv),
         "max_discount": float(max_d * 100),
-        "optimum_discount": float(opt_d * 100)
+        "optimum_discount": float(opt_d * 100),
+        "pct_new_policy": float(prcnt_new_policy * 100)
     }
 
 # --- UI LAYER ---
 def show_receivables_analyzer_ui():
     s = st.session_state
-    m = s.get("metrics", {})
-    
-    # LINKED DATA FROM GLOBAL ENGINE
-    sys_revenue = float(s.get('price', 100.0) * s.get('volume', 1000))
-    sys_cogs = float(s.get('variable_cost', 60.0) * s.get('volume', 1000))
     
     # 🔗 DYNAMIC WACC LINKAGE
     if 'wacc_locked' in s:
@@ -90,6 +86,8 @@ def show_receivables_analyzer_ui():
         sys_wacc = 0.15
         wacc_label = "Default WACC: 15.00%"
 
+    sys_revenue = float(s.get('price', 100.0) * s.get('volume', 1000))
+    sys_cogs = float(s.get('variable_cost', 60.0) * s.get('volume', 1000))
     sys_ar_days = float(s.get('ar_days', 45.0))
     sys_ap_days = float(s.get('ap_days', 30.0))
 
@@ -103,46 +101,64 @@ def show_receivables_analyzer_ui():
             c_sales = st.number_input("Current Sales (€)", value=sys_revenue)
             e_sales = st.number_input("Projected Extra Sales (€)", value=sys_revenue * 0.10)
             d_trial = st.number_input("Proposed Discount (%)", value=2.0, step=0.1) / 100
-            p_take = st.number_input("% Clients Adopting Discount", value=40.0, step=1.0) / 100
-            d_take = st.number_input("Current Collection (Take Group) - Days", value=int(sys_ar_days))
+            p_take = st.number_input("% Clients Expected to Adopt", value=40.0, step=1.0) / 100
+            d_take_current = st.number_input("Current Collection (Take Group) - Days", value=int(sys_ar_days))
             
         with col2:
             st.markdown("**Timeline & Capital Cost**")
-            d_new = st.number_input("New Payment Target (Days)", value=10, step=1)
+            d_new_target = st.number_input("New Payment Target for Discount (Days)", value=10, step=1)
             cogs_val = st.number_input("COGS (€)", value=sys_cogs)
-            # Displaying the linked WACC but allowing slight adjustment for sensitivity analysis
             wacc_val = st.number_input("Cost of Capital - WACC (%)", value=sys_wacc * 100, step=0.1) / 100
             d_supps = st.number_input("DPO (Supplier Days)", value=int(sys_ap_days))
-            d_no_take = st.number_input("Current Collection (No-Take) - Days", value=int(sys_ar_days * 1.5))
+            d_no_take = st.number_input("Collection for Non-Adopters (Days)", value=int(sys_ar_days * 1.5))
 
         submitted = st.form_submit_button("Execute NPV Simulation", use_container_width=True)
 
     if submitted:
-        r = calculate_discount_npv(c_sales, e_sales, d_trial, p_take, d_take, d_no_take, d_new, cogs_val, wacc_val, d_supps)
+        r = calculate_discount_npv(c_sales, e_sales, d_trial, p_take, d_take_current, d_no_take, d_new_target, cogs_val, wacc_val, d_supps)
         
         st.divider()
+        
+        # --- TOP LEVEL VERDICT ---
         st.subheader("🏁 Financial Verdict")
-
         c1, c2, c3 = st.columns(3)
         c1.metric("Strategy NPV", f"€{r['npv']:,.2f}", 
                   delta="Value Creator" if r['npv'] > 0 else "Value Destroyer", 
                   delta_color="normal" if r['npv'] > 0 else "inverse")
-        c2.metric("Break-even Discount", f"{r['max_discount']:.2f}%")
+        c2.metric("Max Break-even Discount", f"{r['max_discount']:.2f}%")
         c3.metric("Mathematical Optimum", f"{r['optimum_discount']:.2f}%")
+
+        # --- DETAILED ANALYTICAL BREAKDOWN ---
+        st.write("---")
+        st.subheader("🔍 Detailed Operational Impact")
+        
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.write("**Collection Profile:**")
+            st.write(f"• Current Weighted Avg Days: **{r['avg_current_collection_days']:.1f} days**")
+            st.write(f"• New Weighted Avg Days: **{r['new_avg_collection_period']:.1f} days**")
+            st.write(f"• Total Client Adoption: **{r['pct_new_policy']:.1f}%** of total sales")
+            
+        with col_right:
+            st.write("**Liquidity Profile:**")
+            st.write(f"• Current Receivables: **€{r['current_receivables']:,.2f}**")
+            st.write(f"• New Projected Receivables: **€{r['new_receivables']:,.2f}**")
+            st.metric("Capital Liberated", f"€{r['free_capital']:,.2f}", delta=f"{r['new_avg_collection_period'] - r['avg_current_collection_days']:.1f} Days Change", delta_color="inverse")
+
+        # --- P&L IMPACT COMPONENTS ---
+        st.write("**Value Drivers Breakdown:**")
+        p1, p2, p3 = st.columns(3)
+        p1.write(f"Profit from New Sales: \n**€{r['profit_from_extra_sales']:,.2f}**")
+        p2.write(f"WACC Gain on Free Cash: \n**€{r['profit_from_free_capital']:,.2f}**")
+        p3.write(f"Cost of Discount: \n**-€{r['discount_cost']:,.2f}**")
 
         
 
-        st.write("---")
-        st.subheader("🔍 Liquidity & Efficiency Impact")
-        l1, l2 = st.columns(2)
-        l1.metric("Capital to be Liberated", f"€{r['free_capital']:,.2f}")
-        l2.metric("New Avg. Collection Period", f"{r['new_avg_collection_period']:.1f} Days", 
-                  delta=f"{r['new_avg_collection_period'] - r['avg_current_collection_days']:.1f} Days", delta_color="inverse")
-
         if r['npv'] > 0:
-            st.success(f"🎯 **Decision: EXECUTE.** The strategy creates €{r['npv']:,.2f} in value. Cash acceleration exceeds discount cost.")
+            st.success(f"🎯 **Decision: EXECUTE.** Value Creation of €{r['npv']:,.2f} confirmed.")
         else:
-            st.error(f"🚨 **Decision: REJECT.** The discount is too expensive. This move destroys shareholder value.")
+            st.error(f"🚨 **Decision: REJECT.** Strategic Value Destruction detected.")
     
     st.divider()
     if st.button("⬅️ Back to Control Tower", use_container_width=True):
