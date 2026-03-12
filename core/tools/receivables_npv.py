@@ -1,7 +1,6 @@
 import streamlit as st
 import plotly.graph_objects as go
 from decimal import Decimal, getcontext
-import numpy as np
 
 # --- CALCULATION ENGINE (Analytical Precision - NO LOGIC CHANGES) ---
 def calculate_discount_npv(
@@ -79,7 +78,7 @@ def calculate_discount_npv(
 def show_receivables_analyzer_ui():
     s = st.session_state
     
-    # 🔗 DYNAMIC GLOBAL INPUTS
+    # 🔗 DYNAMIC WACC LINKAGE
     if 'wacc_locked' in s:
         sys_wacc = float(s['wacc_locked']) / 100
         wacc_label = f"Locked WACC: {s['wacc_locked']:.2f}%"
@@ -107,7 +106,7 @@ def show_receivables_analyzer_ui():
             
         with col2:
             st.markdown("**Timeline & Capital Cost**")
-            d_new_target = st.number_input("New Payment Target (Days)", value=10, step=1)
+            d_new_target = st.number_input("New Payment Target for Discount (Days)", value=10, step=1)
             cogs_val = st.number_input("COGS (€)", value=sys_cogs)
             wacc_val = st.number_input("Cost of Capital - WACC (%)", value=sys_wacc * 100, step=0.1) / 100
             d_supps = st.number_input("DPO (Supplier Days)", value=int(sys_ap_days))
@@ -126,7 +125,7 @@ def show_receivables_analyzer_ui():
         c1.metric("Strategy NPV", f"€{r['npv']:,.2f}", 
                   delta="Value Creator" if r['npv'] > 0 else "Value Destroyer", 
                   delta_color="normal" if r['npv'] > 0 else "inverse")
-        c2.metric("Break-even Discount", f"{r['max_discount']:.2f}%")
+        c2.metric("Max Break-even Discount", f"{r['max_discount']:.2f}%")
         c3.metric("Mathematical Optimum", f"{r['optimum_discount']:.2f}%")
 
         # --- DETAILED ANALYTICAL BREAKDOWN ---
@@ -134,6 +133,7 @@ def show_receivables_analyzer_ui():
         st.subheader("🔍 Detailed Operational Impact")
         
         col_left, col_right = st.columns(2)
+        
         with col_left:
             st.write("**Collection Profile:**")
             st.write(f"• Current Weighted Avg Days: **{r['avg_current_collection_days']:.1f} days**")
@@ -144,52 +144,25 @@ def show_receivables_analyzer_ui():
             st.write("**Liquidity Profile:**")
             st.write(f"• Current Receivables: **€{r['current_receivables']:,.2f}**")
             st.write(f"• New Projected Receivables: **€{r['new_receivables']:,.2f}**")
-            st.metric("Capital Liberated", f"€{r['free_capital']:,.2f}")
+            st.metric("Capital Liberated", f"€{r['free_capital']:,.2f}", delta=f"{r['new_avg_collection_period'] - r['avg_current_collection_days']:.1f} Days Change", delta_color="inverse")
 
-        # --- SENSITIVITY MATRIX ---
-        st.divider()
-        st.subheader("🔬 Sensitivity Analysis: Stress Testing the Strategy")
-        st.write("Analyzing NPV stability across variations in Adoption Rate and Sales Growth.")
-
-        # Adoption range (x-axis): 10% to 90%
-        # Sales Growth range (y-axis): 0% to 20%
-        adoption_range = [0.1, 0.25, 0.4, 0.6, 0.8]
-        growth_range = [0.0, 0.05, 0.1, 0.15, 0.2]
-        
-        matrix_data = []
-        for g in growth_range:
-            row = []
-            for a in adoption_range:
-                temp = calculate_discount_npv(
-                    c_sales, c_sales * Decimal(str(g)), d_trial, Decimal(str(a)), 
-                    d_take_current, d_no_take, d_new_target, cogs_val, wacc_val, d_supps
-                )
-                row.append(temp['npv'])
-            matrix_data.append(row)
+        # --- P&L IMPACT COMPONENTS ---
+        st.write("**Value Drivers Breakdown:**")
+        p1, p2, p3 = st.columns(3)
+        p1.write(f"Profit from New Sales: \n**€{r['profit_from_extra_sales']:,.2f}**")
+        p2.write(f"WACC Gain on Free Cash: \n**€{r['profit_from_free_capital']:,.2f}**")
+        p3.write(f"Cost of Discount: \n**-€{r['discount_cost']:,.2f}**")
 
         
 
-        fig_sens = go.Figure(data=go.Heatmap(
-            z=matrix_data,
-            x=[f"{a*100:.0f}% Adoption" for a in adoption_range],
-            y=[f"+{g*100:.0f}% Growth" for g in growth_range],
-            colorscale='RdYlGn',
-            zmid=0,
-            text=[[f"€{val:,.0f}" for val in row] for row in matrix_data],
-            texttemplate="%{text}",
-            hoverongaps=False
-        ))
-        fig_sens.update_layout(
-            template="plotly_dark",
-            height=450,
-            margin=dict(l=20, r=20, t=40, b=20)
-        )
-        st.plotly_chart(fig_sens, use_container_width=True)
-        st.caption("Analytical Note: Green zones represent viable execution parameters where the discount creates shareholder value.")
-
-    # Navigation
+        if r['npv'] > 0:
+            st.success(f"🎯 **Decision: EXECUTE.** Value Creation of €{r['npv']:,.2f} confirmed.")
+        else:
+            st.error(f"🚨 **Decision: REJECT.** Strategic Value Destruction detected.")
+    
     st.divider()
     if st.button("⬅️ Back to Control Tower", use_container_width=True):
         st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
+
