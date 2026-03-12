@@ -2,6 +2,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 
 def analyze_resilience(profit, assets, current_assets, current_liabilities):
+    # Fixed division by zero by using a minimum epsilon or conditional check
     roa = (profit / assets) * 100 if assets > 0 else 0
     current_ratio = current_assets / current_liabilities if current_liabilities > 0 else 0
     return round(roa, 2), round(current_ratio, 2)
@@ -14,20 +15,22 @@ def show_resilience_map():
     st.info("Strategic Mapping: Efficiency (ROA) vs. Liquidity (Current Ratio).")
 
     # 1. FETCH & ALIGN DATA
-    # Fallback logic if assets aren't explicitly defined in Stage 0
     net_profit = float(m.get('net_profit', 0.0))
     revenue = float(s.get('price', 0) * s.get('volume', 0))
     
-    # Heuristic/Proxy for assets if not provided: Revenue * 0.8
+    # Ensuring values are never zero for division
     sys_assets = float(s.get('total_assets', revenue * 0.8 if revenue > 0 else 1.0))
+    if sys_assets <= 0: sys_assets = 1.0
+    
     sys_c_assets = float(s.get('current_assets', s.get('opening_cash', 0.0) + m.get('wc_requirement', 0.0)))
-    sys_c_liabilities = float(s.get('current_liabilities', s.get('fixed_cost', 0.0) / 4)) # Proxy for quarterly debt/obligations
+    
+    sys_c_liabilities = float(s.get('current_liabilities', s.get('fixed_cost', 0.0) / 4))
+    if sys_c_liabilities <= 0: sys_c_liabilities = 1.0 # Avoid DivisionByZero
 
     # 2. CALCULATION
     roa, c_ratio = analyze_resilience(net_profit, sys_assets, sys_c_assets, sys_c_liabilities)
 
     # 3. VISUALIZATION (Strategic Matrix)
-    
     st.subheader("📍 Strategic Position")
     fig, ax = plt.subplots(figsize=(8, 6))
     
@@ -90,7 +93,7 @@ def show_resilience_map():
     else:
         st.success(f"✅ **SURVIVAL:** The system remains solvent despite the {shock_pct}% shock.")
 
-    # Navigation (Ευθυγραμμισμένο με το νέο app.py)
+    # Navigation
     st.divider()
     if st.button("⬅️ Back to Control Tower", use_container_width=True):
         st.session_state.flow_step = "home"
