@@ -14,11 +14,11 @@ def get_clv_data(purchases, margin_per_order, retention_years, discount, churn, 
     payback = None
     
     for t in range(1, int(retention_years) + 1):
-        # Survival probability at year t
+        # Survival probability at year t: (1 - churn)^t
         survival = (1 - churn_rate) ** t
         # Realized cash flow adjusted for survival
         annual_flow = (float(purchases) * float(margin_per_order) * float(realization)) * survival
-        # Discount to present value using adjusted rate
+        # Discount to present value using risk-adjusted rate
         discounted_flow = annual_flow / ((1 + adj_disc) ** t)
         cum_npv += discounted_flow
         
@@ -39,9 +39,8 @@ def show_clv_calculator():
         st.warning("🔒 Access Denied: Please lock your Baseline in Home to enable CLV Unit Economics.")
         return 
 
-    # Fetch dynamic unit economics from Global State
+    # Fetch dynamic unit economics from Global State (Engine)
     unit_margin = m.get('unit_contribution', float(s.get('price', 0) - s.get('variable_cost', 0)))
-    wacc_global = 15.0 # Standard hurdle rate if not specified
     
     st.write(f"**🔗 Core Engine Linked:** Current Unit Contribution: **{unit_margin:,.2f} €**")
     st.divider()
@@ -62,10 +61,24 @@ def show_clv_calculator():
         cac_b = st.number_input("CAC (€) (B)", value=180.0, key="cacb")
         churn_b = st.slider("Annual Churn % (B)", 0, 100, 8, key="chb")
 
-    # --- NPV & RISK SETTINGS ---
-    with st.expander("⚙️ NPV Discount & Realization Settings"):
+    # --- NPV & RISK SETTINGS (The Linked Logic) ---
+    with st.expander("⚙️ NPV Discount & Realization Settings", expanded=True):
         c1, c2 = st.columns(2)
-        disc = c1.number_input("Base Hurdle Rate / WACC (%)", value=float(wacc_global))
+        
+        # Check for locked WACC from WACC Optimizer
+        suggested_wacc = s.get('wacc_locked', 15.0)
+        
+        disc = c1.number_input(
+            "Base Hurdle Rate / WACC (%)", 
+            value=float(suggested_wacc),
+            help="Defaults to locked WACC from Optimizer, but you can override it."
+        )
+        
+        if 'wacc_locked' in s:
+            st.caption(f"🔗 **Linked:** Using locked WACC ({s.wacc_locked:.2f}%)")
+        else:
+            st.caption("ℹ️ **Standard Rate:** Using default 15%. Calculate WACC to link.")
+
         risk_p = c1.number_input("Risk Premium (%)", value=3.0, help="Additional risk for churn volatility.")
         real = c2.number_input("Realization Rate (0.0 - 1.0)", value=0.90, help="Adjustment for non-collected revenue.")
         horizon = c2.slider("Analysis Horizon (Years)", 1, 15, 5)
@@ -100,7 +113,7 @@ def show_clv_calculator():
     st.subheader("📉 Cumulative NPV Projection")
     
     
-
+    
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df_a['Year'], y=df_a['Cumulative_NPV'], name='Scenario A',
                              line=dict(color='#EF553B', dash='dash')))
