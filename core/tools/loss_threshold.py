@@ -64,7 +64,10 @@ def show_loss_threshold_before_price_cut():
             else:
                 st.success("✅ **Hold Position:** Your margins are robust enough to absorb the projected volume shift. Do not trigger a margin-depleting price war.")
 
-    # 4. NAVIGATION
-    if st.button("⬅️ Back to Library Hub", use_container_width=True):
+    # Navigation (Ευθυγραμμισμένο με το νέο app.py)
+    st.divider()
+    if st.button("⬅️ Back to Control Tower", use_container_width=True):
+        st.session_state.flow_step = "home"
         st.session_state.selected_tool = None
         st.rerun()
+    
