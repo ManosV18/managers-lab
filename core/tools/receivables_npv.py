@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 from decimal import Decimal, getcontext
 import numpy as np
 
-# --- CALCULATION ENGINE (Analytical Precision - NO LOGIC CHANGES) ---
+# --- CALCULATION ENGINE (Fixed Type Casting) ---
 def calculate_discount_npv(
     current_sales, extra_sales, discount_trial, prc_clients_take_disc,
     days_curently_paying_clients_take_discount, days_curently_paying_clients_not_take_discount,
@@ -11,6 +11,7 @@ def calculate_discount_npv(
 ):
     getcontext().prec = 50 
     
+    # Force all inputs to Decimal to prevent TypeErrors
     cs = Decimal(str(current_sales))
     es = Decimal(str(extra_sales))
     dt = Decimal(str(discount_trial))
@@ -22,43 +23,43 @@ def calculate_discount_npv(
     wc = Decimal(str(wacc))
     d_supp = Decimal(str(avg_days_pay_suppliers))
     
-    pct_no_take = 1 - pct_take
+    pct_no_take = Decimal('1') - pct_take
     avg_curr_days = (pct_take * d_take_old) + (pct_no_take * d_no_take_old)
-    curr_rec = (cs * avg_curr_days) / 365
+    curr_rec = (cs * avg_curr_days) / Decimal('365')
     
     total_sales = cs + es
     prcnt_new_policy = ((cs * pct_take) + es) / total_sales
-    prcnt_old_policy = 1 - prcnt_new_policy
+    prcnt_old_policy = Decimal('1') - prcnt_new_policy
     
     new_avg_period = (prcnt_new_policy * d_new_policy) + (prcnt_old_policy * d_no_take_old)
-    new_rec = (total_sales * new_avg_period) / 365
+    new_rec = (total_sales * new_avg_period) / Decimal('365')
     free_cap = curr_rec - new_rec
     
-    prof_extra = es * (1 - (cg / cs))
+    prof_extra = es * (Decimal('1') - (cg / cs))
     prof_free_cap = free_cap * wc
     dist_cost = total_sales * prcnt_new_policy * dt
     
-    i = wc / 365
-    term1 = (total_sales * prcnt_new_policy * (1 - dt)) / ((1 + i) ** d_new_policy)
-    term2 = (total_sales * prcnt_old_policy) / ((1 + i) ** d_no_take_old)
+    i = wc / Decimal('365')
+    term1 = (total_sales * prcnt_new_policy * (Decimal('1') - dt)) / ((Decimal('1') + i) ** d_new_policy)
+    term2 = (total_sales * prcnt_old_policy) / ((Decimal('1') + i) ** d_no_take_old)
     inflow = term1 + term2
     
-    term3 = (cg / cs) * (es / cs) * cs / ((1 + i) ** d_supp)
-    term4 = cs / ((1 + i) ** avg_curr_days)
+    term3 = (cg / cs) * (es / cs) * cs / ((Decimal('1') + i) ** d_supp)
+    term4 = cs / ((Decimal('1') + i) ** avg_curr_days)
     outflow = term3 + term4
     
     npv = inflow - outflow
 
-    max_d = 1 - (
-        (1 + i)**(d_new_policy - d_no_take_old) * (
-            (1 - 1/prcnt_new_policy) + (
-                (1 + i)**(d_no_take_old - avg_curr_days) + 
-                (cg/cs)*(es/cs)*(1 + i)**(d_no_take_old - d_supp)
-            ) / (prcnt_new_policy * (1 + es/cs))
+    max_d = Decimal('1') - (
+        (Decimal('1') + i)**(d_new_policy - d_no_take_old) * (
+            (Decimal('1') - Decimal('1')/prcnt_new_policy) + (
+                (Decimal('1') + i)**(d_no_take_old - avg_curr_days) + 
+                (cg/cs)*(es/cs)*(Decimal('1') + i)**(d_no_take_old - d_supp)
+            ) / (prcnt_new_policy * (Decimal('1') + es/cs))
         )
     )
     
-    opt_d = (1 - ((1 + i)**(d_new_policy - avg_curr_days))) / 2
+    opt_d = (Decimal('1') - ((Decimal('1') + i)**(d_new_policy - avg_curr_days))) / Decimal('2')
 
     return {
         "avg_current_collection_days": float(avg_curr_days),
@@ -79,7 +80,6 @@ def calculate_discount_npv(
 def show_receivables_analyzer_ui():
     s = st.session_state
     
-    # 🔗 DYNAMIC GLOBAL INPUTS
     if 'wacc_locked' in s:
         sys_wacc = float(s['wacc_locked']) / 100
         wacc_label = f"Locked WACC: {s['wacc_locked']:.2f}%"
@@ -119,8 +119,6 @@ def show_receivables_analyzer_ui():
         r = calculate_discount_npv(c_sales, e_sales, d_trial, p_take, d_take_current, d_no_take, d_new_target, cogs_val, wacc_val, d_supps)
         
         st.divider()
-        
-        # --- TOP LEVEL VERDICT ---
         st.subheader("🏁 Financial Verdict")
         c1, c2, c3 = st.columns(3)
         c1.metric("Strategy NPV", f"€{r['npv']:,.2f}", 
@@ -132,13 +130,11 @@ def show_receivables_analyzer_ui():
         # --- DETAILED ANALYTICAL BREAKDOWN ---
         st.write("---")
         st.subheader("🔍 Detailed Operational Impact")
-        
         col_left, col_right = st.columns(2)
         with col_left:
             st.write("**Collection Profile:**")
             st.write(f"• Current Weighted Avg Days: **{r['avg_current_collection_days']:.1f} days**")
             st.write(f"• New Weighted Avg Days: **{r['new_avg_collection_period']:.1f} days**")
-            st.write(f"• Total Client Adoption: **{r['pct_new_policy']:.1f}%** of total sales")
             
         with col_right:
             st.write("**Liquidity Profile:**")
@@ -149,10 +145,7 @@ def show_receivables_analyzer_ui():
         # --- SENSITIVITY MATRIX ---
         st.divider()
         st.subheader("🔬 Sensitivity Analysis: Stress Testing the Strategy")
-        st.write("Analyzing NPV stability across variations in Adoption Rate and Sales Growth.")
-
-        # Adoption range (x-axis): 10% to 90%
-        # Sales Growth range (y-axis): 0% to 20%
+        
         adoption_range = [0.1, 0.25, 0.4, 0.6, 0.8]
         growth_range = [0.0, 0.05, 0.1, 0.15, 0.2]
         
@@ -160,14 +153,14 @@ def show_receivables_analyzer_ui():
         for g in growth_range:
             row = []
             for a in adoption_range:
+                # Ensure all inputs to calculate_discount_npv are consistent types
                 temp = calculate_discount_npv(
-                    c_sales, c_sales * Decimal(str(g)), d_trial, Decimal(str(a)), 
-                    d_take_current, d_no_take, d_new_target, cogs_val, wacc_val, d_supps
+                    float(c_sales), float(c_sales) * g, float(d_trial), a, 
+                    float(d_take_current), float(d_no_take), float(d_new_target), 
+                    float(cogs_val), float(wacc_val), float(d_supps)
                 )
                 row.append(temp['npv'])
             matrix_data.append(row)
-
-        
 
         fig_sens = go.Figure(data=go.Heatmap(
             z=matrix_data,
@@ -179,15 +172,9 @@ def show_receivables_analyzer_ui():
             texttemplate="%{text}",
             hoverongaps=False
         ))
-        fig_sens.update_layout(
-            template="plotly_dark",
-            height=450,
-            margin=dict(l=20, r=20, t=40, b=20)
-        )
+        fig_sens.update_layout(template="plotly_dark", height=450, margin=dict(l=20, r=20, t=40, b=20))
         st.plotly_chart(fig_sens, use_container_width=True)
-        st.caption("Analytical Note: Green zones represent viable execution parameters where the discount creates shareholder value.")
 
-    # Navigation
     st.divider()
     if st.button("⬅️ Back to Control Tower", use_container_width=True):
         st.session_state.flow_step = "home"
