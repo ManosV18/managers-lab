@@ -3,13 +3,13 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
                       annual_debt_service, opening_cash,
                       target_profit=0.0):
     
-    # 1. Βασικοί Υπολογισμοί Unit Economics
+    # 1. Base Unit Economics
     unit_contribution = price - variable_cost
     revenue = price * volume
     total_vc = variable_cost * volume
     ebit = (unit_contribution * volume) - fixed_cost
     
-    # Φόρος 22% (Cold Logic)
+    # 22% Corporate Tax (Cold Logic)
     tax_rate = 0.22
     net_profit = ebit * (1 - tax_rate) if ebit > 0 else ebit
 
@@ -18,12 +18,13 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     daily_vc = total_vc / 365 if total_vc > 0 else 0
 
     # 3. Working Capital & Cash Position
+    # Receivables (AR) + Inventory (INV) - Payables (AP)
     ar_value = daily_rev * ar_days
     inv_value = daily_vc * inv_days
     ap_value = daily_vc * ap_days
     wc_req = ar_value + inv_value - ap_value
     
-    # Η τελική ταμειακή θέση
+    # Final Cash Position: Initial Cash + Profit - Debt Service - WC Requirement
     net_cash = opening_cash + net_profit - annual_debt_service - wc_req
 
     # 4. Break-Even Analysis (Cash Basis)
@@ -39,18 +40,13 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     # 5. Cash Conversion Cycle (CCC)
     ccc = ar_days + inv_days - ap_days
 
-    # ========================================================
-    # ΠΡΟΣΘΗΚΗ ΝΕΩΝ ΥΠΟΛΟΓΙΣΜΩΝ (WC ENGINE, DOL, RUNWAY)
-    # ========================================================
-    
     # 6. Operating Leverage (DOL)
-    # DOL = Contribution Margin / Operating Profit (EBIT)
+    # DOL = Contribution Margin / EBIT
     contribution_margin = unit_contribution * volume
     dol = contribution_margin / ebit if ebit != 0 else 0
 
     # 7. Cash Burn & Runway Engine
-    # Μηνιαίο Cash Flow (Net Profit - Δόσεις - Μεταβολή WC) / 12
-    # Χρησιμοποιούμε το EBIT - Φόρος - Δόσεις για να δούμε αν "μπαίνει μέσα" το μαγαζί
+    # Monthly Cash Flow = (Net Profit - Debt Service) / 12
     monthly_cf = (net_profit - annual_debt_service) / 12
     
     if monthly_cf < 0:
@@ -70,9 +66,9 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
         "ar_value": ar_value,
         "inv_value": inv_value,
         "ap_value": ap_value,
-        "receivables_euro": ar_value,  # Alias για συμβατότητα με το UI
-        "inventory_euro": inv_value,    # Alias για συμβατότητα με το UI
-        "payables_euro": ap_value,      # Alias για συμβατότητα με το UI
+        "receivables_euro": ar_value,  
+        "inventory_euro": inv_value,    
+        "payables_euro": ap_value,      
         "ccc": ccc,
         "dol": dol,
         "runway_months": runway,
