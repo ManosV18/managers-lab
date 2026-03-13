@@ -7,8 +7,7 @@ def show_company_shock_simulator():
     st.title("🛡️ Strategic Survival & Risk Lab")
     st.markdown("---")
 
-    # 1. SHARED UNIVERSE: Σύνδεση με το Home & Engine
-    # Χρησιμοποιούμε τα κλειδιά που ορίστηκαν στο home.py
+    # 1. SHARED UNIVERSE
     price = float(st.session_state.get("price", 100.0))
     volume = float(st.session_state.get("volume", 1000.0))
     variable_cost = float(st.session_state.get("variable_cost", 60.0))
@@ -18,7 +17,6 @@ def show_company_shock_simulator():
     # 2. RAPID SCENARIO BUTTONS
     st.subheader("⚡ Rapid Stress Scenarios")
     c1, c2, c3, c4 = st.columns(4)
-
     if 'd_shock' not in st.session_state: st.session_state.d_shock = 0
     if 'c_shock' not in st.session_state: st.session_state.c_shock = 0
     if 'ar_shock' not in st.session_state: st.session_state.ar_shock = 0
@@ -37,7 +35,6 @@ def show_company_shock_simulator():
         st.rerun()
 
     # 3. SHOCK CONTROLS
-    st.markdown("### Manual Adjustments")
     col1, col2 = st.columns(2)
     with col1:
         demand_shock = st.slider("Demand Shock %", -50, 20, st.session_state.d_shock)
@@ -45,64 +42,51 @@ def show_company_shock_simulator():
     with col2:
         ar_delay = st.slider("Receivables Delay (extra days)", 0, 90, st.session_state.ar_shock)
 
-    # 4. CORE ENGINE & LIQUIDITY LOGIC (Deterministic)
+    # 4. CORE ENGINE & LIQUIDITY LOGIC
     shocked_volume = volume * (1 + demand_shock / 100)
     shocked_cost = variable_cost * (1 + cost_shock / 100)
     shock_margin = price - shocked_cost
     shock_rev = shocked_volume * price
-    # Μηνιαίο Cash Flow (Ετήσιο κέρδος / 12)
     shock_net_cash_monthly = (shocked_volume * shock_margin - fixed_cost) / 12
     
-    # Break-Even μετά το Shock
-    shock_be = fixed_cost / shock_margin if shock_margin > 0 else 0
-    
-    # Liquidity Gap & Funding Need
     cash_delay_impact = (shock_rev / 365) * ar_delay
     effective_cash = current_cash - cash_delay_impact
     
-    # FIX 2: 24-month horizon για συγχρονισμό με το Monte Carlo
     months_range = list(range(25))
     shock_path = [effective_cash + (shock_net_cash_monthly * m) for m in months_range]
     
-    # Precise Survival Month Calculation
+    # Precise Survival Calculation
     survival_idx = next((i for i, x in enumerate(shock_path) if x < 0), None)
-    survival_display = f"{survival_idx} Mo" if survival_idx is not None else "∞ (Cash Generative)"
-    
-    liq_gap = min(shock_path)
-    funding_need = abs(min(0, liq_gap))
+    survival_display = f"{survival_idx} Mo" if survival_idx is not None else "∞"
+    st.session_state["survival_months"] = survival_display
 
-    # 5. MONTE CARLO SIMULATION (Stochastic Risk)
+    # 5. MONTE CARLO SIMULATION
     iterations = 1000
     mc_results = []
     for _ in range(iterations):
-        # FIX 1: Εφαρμογή θορύβου πάνω στα ήδη σοκαρισμένα μεγέθη
         mc_v = shocked_volume * np.random.normal(1, 0.10)
         mc_c = shocked_cost * np.random.normal(1, 0.05)
         mc_cf = (mc_v * (price - mc_c) - fixed_cost) / 12
         
-        if mc_cf >= 0:
-            res = 24 # Cap στους 24 μήνες
+        # BUG FIX 1: Protection against negative effective cash
+        if mc_cf < 0:
+            res = max(0, min(24, effective_cash / abs(mc_cf)))
         else:
-            res = min(24, effective_cash / abs(mc_cf)) if mc_cf != 0 else 0
+            res = 24
         mc_results.append(res)
     
     prob_failure = (sum(1 for res in mc_results if res < 12) / iterations) * 100
-    median_survival = np.median(mc_results)
-    worst_case = np.percentile(mc_results, 5)
-
-    # FIX 3: Ενημέρωση του Control Tower State
     st.session_state["mc_prob_fail"] = prob_failure
 
     # 6. EXECUTIVE DASHBOARD
     st.subheader("🏁 Executive Decision Panel")
     m1, m2, m3, m4, m5 = st.columns(5)
-    
-    # FIX: CM ratio crash protection
     cm_ratio = shock_margin / price if price != 0 else 0
+    liq_gap = min(shock_path)
     
     m1.metric("Survival Threshold", survival_display)
     m2.metric("Monthly Net CF", f"€{int(shock_net_cash_monthly):,}")
-    m3.metric("Funding Required", f"€{int(funding_need):,}")
+    m3.metric("Funding Required", f"€{int(abs(min(0, liq_gap))):,}")
     m4.metric("CM Ratio", f"{cm_ratio:.1%}")
     m5.metric("Liquidity Gap", f"€{int(liq_gap):,}")
 
@@ -113,16 +97,9 @@ def show_company_shock_simulator():
     with col_g:
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number", value = prob_failure,
-            title = {'text': "Bankruptcy Probability (12 Mo)"},
-            gauge = {
-                'axis': {'range': [0, 100]}, 
-                'bar': {'color': "black"},
-                'steps': [
-                    {'range': [0, 20], 'color': "green"}, 
-                    {'range': [20, 50], 'color': "yellow"}, 
-                    {'range': [50, 100], 'color': "red"}
-                ]
-            }
+            title = {'text': "Failure Prob. (12 Mo)"},
+            gauge = {'axis': {'range': [0, 100]}, 'bar': {'color': "black"},
+                     'steps': [{'range': [0, 20], 'color': "green"}, {'range': [20, 50], 'color': "yellow"}, {'range': [50, 100], 'color': "red"}]}
         ))
         st.plotly_chart(fig_gauge, use_container_width=True)
     
@@ -130,46 +107,15 @@ def show_company_shock_simulator():
         st.subheader("Monte Carlo Survival Distribution")
         fig_hist = go.Figure()
         fig_hist.add_histogram(x=mc_results, nbinsx=24, marker_color='#ef4444')
-        fig_hist.update_layout(
-            xaxis_title="Months of Survival", 
-            yaxis_title="Frequency of Scenarios", 
-            template="plotly_dark",
-            height=350
-        )
+        fig_hist.update_layout(xaxis_title="Months of Survival", template="plotly_dark", height=350)
         st.plotly_chart(fig_hist, use_container_width=True)
 
     # SURVIVAL PATH CHART
-    st.subheader("📉 Cash Survival Path (24-Month Forecast)")
+    st.subheader("📉 Cash Survival Path")
     fig_path = go.Figure()
-    fig_path.add_trace(go.Scatter(
-        x=months_range, 
-        y=shock_path, 
-        mode="lines+markers", 
-        name="Cash Position", 
-        line=dict(color="#FF4B4B", width=3)
-    ))
-    fig_path.add_hline(y=0, line_dash="dash", line_color="white", annotation_text="Bankruptcy Line")
-    fig_path.update_layout(xaxis_title="Months", yaxis_title="Cash (€)", template="plotly_dark")
+    fig_path.add_trace(go.Scatter(x=months_range, y=shock_path, mode="lines+markers", line=dict(color="#FF4B4B", width=3)))
+    fig_path.add_hline(y=0, line_dash="dash", line_color="white")
     st.plotly_chart(fig_path, use_container_width=True)
-
-    # 8. DIAGNOSTIC IMPACT TABLE
-    st.subheader("🔬 Diagnostic Analysis")
-    base_margin = price - variable_cost
-    base_be = fixed_cost / base_margin if base_margin > 0 else 0
-    base_net_cash_monthly = (volume * base_margin - fixed_cost) / 12
-
-    df_comp = pd.DataFrame({
-        "Metric": ["Revenue", "Total Contribution", "Unit Margin", "Monthly Net Cash", "Break-even Units"],
-        "Baseline": [volume * price, volume * base_margin, base_margin, base_net_cash_monthly, base_be],
-        "After Shock": [shock_rev, (shocked_volume * shock_margin), shock_margin, shock_net_cash_monthly, shock_be]
-    })
-    
-    df_comp["Δ Change"] = (
-        (df_comp["After Shock"] - df_comp["Baseline"]) / 
-        df_comp["Baseline"].replace(0, 1).abs() * 100
-    ).map("{:+.1f}%".format)
-    
-    st.table(df_comp)
 
     if st.button("⬅️ Reset Simulator"):
         st.session_state.d_shock, st.session_state.c_shock, st.session_state.ar_shock = 0, 0, 0
