@@ -17,6 +17,7 @@ def run_home():
     net_cash = m.get("net_cash_position", cash)
     bep_units = m.get("bep_units", 0)
     margin = p - vc
+    roic = m.get("roic", 0.0) # New Metric
 
     # 3. Snapshot UI Logic
     if margin > 0 and bep_units:
@@ -38,7 +39,7 @@ def run_home():
     c2.metric("Unit Contribution", f"€{margin:,.2f}")
     c3.metric(label="Cash Break-Even", value=bep_display, delta=delta_val, delta_color=delta_col)
     c4.metric("Survival Buffer", f"{buffer_pct:.1f}%")
-    c5.metric("Net Cash Position", f"€{net_cash:,.0f}")
+    c5.metric("ROIC", f"{roic*100:.1f}%", help="Return on Invested Capital (NOPAT / Invested Capital)") # Updated Label
 
     if s.get("baseline_locked"):
         if net_cash < 0:
@@ -81,11 +82,9 @@ def run_home():
             t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "🛡️ Risk"])
             
             with t1: # STRATEGY
-                # Κεντρικό Dashboard
                 if st.button("🕹️ MISSION CONTROL (Control Tower)", use_container_width=True, type="primary"): 
                     s.selected_tool = "control_tower"; s.flow_step = "tool"; st.rerun()
                 st.divider()
-                # Όλα τα εργαλεία Στρατηγικής
                 if st.button("🎯 Pricing Strategy", use_container_width=True): s.selected_tool = "pricing_strategy"; s.flow_step = "tool"; st.rerun()
                 if st.button("⚖️ Cash Survival Simulator", use_container_width=True): s.selected_tool = "break_even_shift"; s.flow_step = "tool"; st.rerun()
                 if st.button("👥 Customer Lifetime Value (CLV)", use_container_width=True): s.selected_tool = "clv_calculator"; s.flow_step = "tool"; st.rerun()
@@ -107,7 +106,6 @@ def run_home():
                 if st.button("💰 Working Capital Engine", use_container_width=True): s.selected_tool = "wc_optimizer"; s.flow_step = "tool"; st.rerun()
 
             with t4: # RISK
-                # Νέα Εργαλεία Σοκ & Control
                 if st.button("🛡️ Strategic Shock Simulator", use_container_width=True): s.selected_tool = "shock_simulator"; s.flow_step = "tool"; st.rerun()
                 st.divider()
                 if st.button("🏁 Executive Dashboard", use_container_width=True): s.selected_tool = "executive_dashboard"; s.flow_step = "tool"; st.rerun()
