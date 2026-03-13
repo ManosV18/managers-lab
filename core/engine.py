@@ -1,3 +1,5 @@
+import streamlit as st
+
 def calculate_metrics(price, volume, variable_cost, fixed_cost,
                       ar_days, inv_days, ap_days,
                       annual_debt_service, opening_cash,
@@ -13,21 +15,31 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     tax_rate = 0.22
     net_profit = ebit * (1 - tax_rate) if ebit > 0 else ebit
 
-    # 2. 365-Day Logic [User Instruction 2026-02-18]
+    # 2. NOPAT (Net Operating Profit After Taxes)
+    # Crucial for ROIC: Performance regardless of financing structure
+    nopat = ebit * (1 - tax_rate)
+
+    # 3. 365-Day Logic [User Instruction 2026-02-18]
     daily_rev = revenue / 365 if revenue > 0 else 0
     daily_vc = total_vc / 365 if total_vc > 0 else 0
 
-    # 3. Working Capital & Cash Position
-    # Receivables (AR) + Inventory (INV) - Payables (AP)
+    # 4. Working Capital & Invested Capital
     ar_value = daily_rev * ar_days
     inv_value = daily_vc * inv_days
     ap_value = daily_vc * ap_days
     wc_req = ar_value + inv_value - ap_value
     
-    # Final Cash Position: Initial Cash + Profit - Debt Service - WC Requirement
+    # Invested Capital = Working Capital + Operating Assets (represented by Opening Cash/Equity here)
+    invested_capital = opening_cash + wc_req
+    
+    # 5. ROIC (Return on Invested Capital)
+    # The gold standard for value creation
+    roic = nopat / invested_capital if invested_capital > 0 else 0
+
+    # 6. Final Cash Position
     net_cash = opening_cash + net_profit - annual_debt_service - wc_req
 
-    # 4. Break-Even Analysis (Cash Basis)
+    # 7. Break-Even Analysis (Cash Basis)
     cash_wall_requirements = fixed_cost + annual_debt_service + target_profit
     
     if unit_contribution > 0:
@@ -37,18 +49,13 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
         bep_units = None
         margin_of_safety = -1.0
 
-    # 5. Cash Conversion Cycle (CCC)
+    # 8. Efficiency & Risk Metrics
     ccc = ar_days + inv_days - ap_days
-
-    # 6. Operating Leverage (DOL)
-    # DOL = Contribution Margin / EBIT
     contribution_margin = unit_contribution * volume
     dol = contribution_margin / ebit if ebit != 0 else 0
 
-    # 7. Cash Burn & Runway Engine
-    # Monthly Cash Flow = (Net Profit - Debt Service) / 12
+    # 9. Cash Burn & Runway Engine
     monthly_cf = (net_profit - annual_debt_service) / 12
-    
     if monthly_cf < 0:
         runway = opening_cash / abs(monthly_cf)
     else:
@@ -58,11 +65,14 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
         "unit_contribution": unit_contribution,
         "revenue": revenue,
         "ebit": ebit,
+        "nopat": nopat,
         "net_profit": net_profit,
         "bep_units": bep_units,
         "margin_of_safety": margin_of_safety,
         "net_cash_position": net_cash,
         "wc_requirement": wc_req,
+        "invested_capital": invested_capital,
+        "roic": roic,
         "ar_value": ar_value,
         "inv_value": inv_value,
         "ap_value": ap_value,
