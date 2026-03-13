@@ -104,6 +104,7 @@ def run_home():
                 if st.button("🔢 Unit Cost Analyzer", use_container_width=True): s.selected_tool = "unit_cost_analyzer"; s.flow_step = "tool"; st.rerun()
                 if st.button("📦 Inventory Optimizer", use_container_width=True): s.selected_tool = "inventory_manager"; s.flow_step = "tool"; st.rerun()
                 if st.button("🤝 Payables Manager", use_container_width=True): s.selected_tool = "payables_manager"; s.flow_step = "tool"; st.rerun()
+                if st.button("💰 Working Capital Engine", use_container_width=True): s.selected_tool = "wc_optimizer"; s.flow_step = "tool"; st.rerun()
 
             with t4: # RISK
                 # Νέα Εργαλεία Σοκ & Control
