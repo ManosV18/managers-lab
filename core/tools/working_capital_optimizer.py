@@ -4,7 +4,6 @@ import plotly.graph_objects as go
 def show_wc_optimizer():
     st.title("🔄 Working Capital & Cash Velocity")
     
-    # Check if baseline is locked
     if not st.session_state.get("baseline_locked"):
         st.warning("⚠️ Please 'Lock Baseline' on the home page to enable the analysis.")
         return
@@ -17,14 +16,17 @@ def show_wc_optimizer():
     inventory = m.get('inventory_euro', 0.0)
     payables = m.get('payables_euro', 0.0)
     nwc = receivables + inventory - payables
+    roic = m.get('roic', 0.0)
+    invested_cap = m.get('invested_capital', 0.0)
 
     # 2. TOP KPI PANEL
-    st.subheader("💰 Capital Tied Up")
-    c1, c2, c3, c4 = st.columns(4)
+    st.subheader("💰 Capital Efficiency")
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Receivables", f"€{receivables:,.0f}")
     c2.metric("Inventory", f"€{inventory:,.0f}")
     c3.metric("Payables", f"€{payables:,.0f}")
-    c4.metric("Net Working Capital", f"€{nwc:,.0f}")
+    c4.metric("Invested Cap", f"€{invested_cap:,.0f}") # New Column
+    c5.metric("ROIC", f"{roic*100:.1f}%") # New Column
 
     st.divider()
 
@@ -52,7 +54,6 @@ def show_wc_optimizer():
         with col_b:
             st.subheader("📉 Risk & Runway Analysis")
             
-            # DEGREE OF OPERATING LEVERAGE (DOL)
             dol = m.get('dol', 0)
             st.write(f"**Degree of Operating Leverage (DOL):** `{dol:.2f}`")
             if dol > 5: 
@@ -62,7 +63,6 @@ def show_wc_optimizer():
             
             st.divider()
             
-            # CASH RUNWAY
             runway = m.get('runway_months', 0)
             if runway == float("inf"):
                 st.success("✅ **Positive Cash Flow**: No Burn Rate detected.")
@@ -71,7 +71,6 @@ def show_wc_optimizer():
             else:
                 st.info(f"🟢 **Cash Runway**: {runway:.1f} months of survival.")
 
-    # DYNAMIC STRATEGY INSIGHT
     if m.get('revenue', 0) > 0:
         daily_rev = m.get('revenue') / 365
         st.info(f"💡 **Strategy:** If you reduce your collection days (AR) by 10 days, you will unlock **€{daily_rev*10:,.0f}** in immediate liquidity.")
