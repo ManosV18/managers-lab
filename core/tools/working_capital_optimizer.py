@@ -4,15 +4,15 @@ import plotly.graph_objects as go
 def show_wc_optimizer():
     st.title("🔄 Working Capital & Cash Velocity")
     
-    # Έλεγχος αν υπάρχουν δεδομένα
+    # Check if baseline is locked
     if not st.session_state.get("baseline_locked"):
-        st.warning("⚠️ Παρακαλώ 'κλειδώστε' το Baseline στην αρχική σελίδα για να εμφανιστούν τα δεδομένα.")
+        st.warning("⚠️ Please 'Lock Baseline' on the home page to enable the analysis.")
         return
 
     s = st.session_state
     m = s.get("metrics", {})
 
-    # 1. FETCH METRICS (Με default τιμή 0.1 για να μην κρασάρουν τα γραφήματα αν είναι όλα μηδέν)
+    # 1. FETCH METRICS
     receivables = m.get('receivables_euro', 0.0)
     inventory = m.get('inventory_euro', 0.0)
     payables = m.get('payables_euro', 0.0)
@@ -29,7 +29,7 @@ def show_wc_optimizer():
     st.divider()
 
     if receivables == 0 and inventory == 0:
-        st.info("ℹ️ Δεν βρέθηκαν δεδομένα Working Capital. Ελέγξτε αν ο Τζίρος ή οι Ημέρες (AR/Inventory) είναι πάνω από το μηδέν.")
+        st.info("ℹ️ No Working Capital data found. Check your Revenue or Days (AR/Inventory) inputs.")
     else:
         col_a, col_b = st.columns(2)
         
@@ -52,24 +52,26 @@ def show_wc_optimizer():
         with col_b:
             st.subheader("📉 Risk & Runway Analysis")
             
-            # DOL
+            # DEGREE OF OPERATING LEVERAGE (DOL)
             dol = m.get('dol', 0)
             st.write(f"**Degree of Operating Leverage (DOL):** `{dol:.2f}`")
-            if dol > 5: st.error("🚨 **High Risk**: Υψηλή ευαισθησία κέρδους.")
-            elif dol > 1: st.success("✅ **Stable**: Κανονική λειτουργική μόχλευση.")
+            if dol > 5: 
+                st.error("🚨 **High Risk**: High profit sensitivity to sales volume fluctuations.")
+            elif dol > 1: 
+                st.success("✅ **Stable**: Normal operating leverage.")
             
             st.divider()
             
-            # RUNWAY
+            # CASH RUNWAY
             runway = m.get('runway_months', 0)
             if runway == float("inf"):
-                st.success("✅ **Positive Cash Flow**: Δεν υπάρχει Burn Rate.")
+                st.success("✅ **Positive Cash Flow**: No Burn Rate detected.")
             elif runway < 6:
-                st.error(f"🚨 **Critical**: Τα μετρητά τελειώνουν σε {runway:.1f} μήνες.")
+                st.error(f"🚨 **Critical**: Cash exhaustion in {runway:.1f} months.")
             else:
-                st.info(f"🟢 **Runway**: {runway:.1f} μήνες επιβίωσης.")
+                st.info(f"🟢 **Cash Runway**: {runway:.1f} months of survival.")
 
-    # Δυναμικό Insight
+    # DYNAMIC STRATEGY INSIGHT
     if m.get('revenue', 0) > 0:
         daily_rev = m.get('revenue') / 365
-        st.info(f"💡 **Strategy:** Αν μειώσεις τις ημέρες είσπραξης (AR) κατά 10 μέρες, θα απελευθερώσεις **€{daily_rev*10:,.0f}** άμεσα στην τράπεζα.")
+        st.info(f"💡 **Strategy:** If you reduce your collection days (AR) by 10 days, you will unlock **€{daily_rev*10:,.0f}** in immediate liquidity.")
