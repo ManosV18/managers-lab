@@ -4,6 +4,7 @@ def run_home():
     s = st.session_state
     m = s.get("metrics", {})
     
+    # 1. Defaults & State Sync
     p = s.get("price", 100.0)
     vc = s.get("variable_cost", 60.0)
     v = s.get("volume", 1000)
@@ -12,11 +13,12 @@ def run_home():
     cash = s.get("opening_cash", 10000.0)
     tp = s.get("target_profit_goal", 0.0)
 
+    # 2. Metrics from Engine
     net_cash = m.get("net_cash_position", cash)
     bep_units = m.get("bep_units", 0)
     margin = p - vc
 
-    # Snapshot UI Logic
+    # 3. Snapshot UI Logic
     if margin > 0 and bep_units:
         margin_of_safety = v - bep_units
         buffer_pct = (margin_of_safety / v * 100) if v > 0 else 0
@@ -26,8 +28,10 @@ def run_home():
     else:
         buffer_pct, bep_display, delta_val, delta_col = -100.0, "N/A", "⚠ Not viable", "inverse"
 
+    # --- HERO SECTION ---
     st.markdown("""<div style='text-align:center; padding: 10px 0 20px 0;'><h1 style='font-size:62px; font-weight:900; color:#1E3A8A; margin-bottom:0px;'>Managers Lab<span style='color:#ef4444;'>.</span></h1><div style='font-size:18px; color:#64748b; letter-spacing:2px; text-transform:uppercase;'>🛡️ Strategic Decision Room</div></div>""", unsafe_allow_html=True)
 
+    # --- EXECUTIVE SNAPSHOT ---
     st.subheader("📊 Executive Snapshot")
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Simulated Volume", f"{v:,.0f} units")
@@ -44,6 +48,7 @@ def run_home():
 
     st.divider()
 
+    # --- MAIN LAYOUT ---
     col_input, col_nav = st.columns([0.40, 0.60], gap="large")
 
     with col_input:
@@ -76,22 +81,35 @@ def run_home():
             t1, t2, t3, t4 = st.tabs(["🚀 Strategy", "💰 Finance", "⚙️ Ops", "🛡️ Risk"])
             
             with t1: # STRATEGY
-                # Η ΠΡΟΣΘΗΚΗ ΤΟΥ MISSION CONTROL
+                # Κεντρικό Dashboard
                 if st.button("🕹️ MISSION CONTROL (Control Tower)", use_container_width=True, type="primary"): 
                     s.selected_tool = "control_tower"; s.flow_step = "tool"; st.rerun()
                 st.divider()
+                # Όλα τα εργαλεία Στρατηγικής
                 if st.button("🎯 Pricing Strategy", use_container_width=True): s.selected_tool = "pricing_strategy"; s.flow_step = "tool"; st.rerun()
                 if st.button("⚖️ Cash Survival Simulator", use_container_width=True): s.selected_tool = "break_even_shift"; s.flow_step = "tool"; st.rerun()
-                if st.button("👥 CLV Calculator", use_container_width=True): s.selected_tool = "clv_calculator"; s.flow_step = "tool"; st.rerun()
+                if st.button("👥 Customer Lifetime Value (CLV)", use_container_width=True): s.selected_tool = "clv_calculator"; s.flow_step = "tool"; st.rerun()
+                if st.button("📡 Pricing Radar", use_container_width=True): s.selected_tool = "pricing_radar"; s.flow_step = "tool"; st.rerun()
+                if st.button("📉 Loss Threshold", use_container_width=True): s.selected_tool = "loss_threshold"; s.flow_step = "tool"; st.rerun()
+                if st.button("🧭 QSPM Strategy Matrix", use_container_width=True): s.selected_tool = "qspm_analyzer"; s.flow_step = "tool"; st.rerun()
 
             with t2: # FINANCE
                 if st.button("📈 Growth Funding (AFN)", use_container_width=True): s.selected_tool = "growth_funding"; s.flow_step = "tool"; st.rerun()
                 if st.button("📉 WACC Optimizer", use_container_width=True): s.selected_tool = "wacc_optimizer"; s.flow_step = "tool"; st.rerun()
+                if st.button("⚖️ Loan vs Leasing", use_container_width=True): s.selected_tool = "loan_vs_leasing"; s.flow_step = "tool"; st.rerun()
 
             with t3: # OPS
+                if st.button("📊 NPV Receivables Analyzer", use_container_width=True): s.selected_tool = "receivables_npv"; s.flow_step = "tool"; st.rerun()
                 if st.button("🔄 Cash Conversion Cycle", use_container_width=True): s.selected_tool = "cash_cycle"; s.flow_step = "tool"; st.rerun()
                 if st.button("🔢 Unit Cost Analyzer", use_container_width=True): s.selected_tool = "unit_cost_analyzer"; s.flow_step = "tool"; st.rerun()
+                if st.button("📦 Inventory Optimizer", use_container_width=True): s.selected_tool = "inventory_manager"; s.flow_step = "tool"; st.rerun()
+                if st.button("🤝 Payables Manager", use_container_width=True): s.selected_tool = "payables_manager"; s.flow_step = "tool"; st.rerun()
 
             with t4: # RISK
+                # Νέα Εργαλεία Σοκ & Control
                 if st.button("🛡️ Strategic Shock Simulator", use_container_width=True): s.selected_tool = "shock_simulator"; s.flow_step = "tool"; st.rerun()
+                st.divider()
                 if st.button("🏁 Executive Dashboard", use_container_width=True): s.selected_tool = "executive_dashboard"; s.flow_step = "tool"; st.rerun()
+                if st.button("🚨 Cash Fragility Index", use_container_width=True): s.selected_tool = "cash_fragility"; s.flow_step = "tool"; st.rerun()
+                if st.button("🛡️ Resilience & Shock Map", use_container_width=True): s.selected_tool = "resilience_map"; s.flow_step = "tool"; st.rerun()
+                if st.button("📉 Stress Test Simulator", use_container_width=True): s.selected_tool = "stress_test"; s.flow_step = "tool"; st.rerun()
