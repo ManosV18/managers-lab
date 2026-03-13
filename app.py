@@ -35,6 +35,7 @@ TOOL_MAP = {
     "receivables_npv": ("receivables_npv", "show_receivables_analyzer_ui"),
     "cash_cycle": ("cash_cycle", "run_cash_cycle_app"),
     "payables_manager": ("payables_manager", "show_payables_manager"),
+    "wc_optimizer": ("working_capital_optimizer", "show_wc_optimizer"),
     
     # --- Risk & Dashboards ---
     "executive_dashboard": ("executive_dashboard", "show_executive_dashboard"),
