@@ -12,9 +12,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. TOOL_MAP: Προσθήκη του Shock Simulator
+# 2. TOOL_MAP
 TOOL_MAP = {
     # --- Strategy & Pricing ---
+    "control_tower": ("control_tower", "show_control_tower"), # Η ΚΕΝΤΡΙΚΗ ΠΡΟΣΘΗΚΗ
     "pricing_strategy": ("pricing_strategy", "show_pricing_strategy_tool"),
     "pricing_radar": ("pricing_radar", "show_pricing_radar"),
     "loss_threshold": ("loss_threshold", "show_loss_threshold_before_price_cut"),
@@ -41,12 +42,10 @@ TOOL_MAP = {
     "resilience_map": ("financial_resilience_app", "show_resilience_map"),
     "stress_test": ("stress_test_simulator", "show_stress_test_tool"),
     "clv_calculator": ("clv_calculator", "show_clv_calculator"),
-    
-    # Η ΝΕΑ ΠΡΟΣΘΗΚΗ:
     "shock_simulator": ("company_shock_simulator", "show_company_shock_simulator")
 }
 
-# 3. State Initialization (The Global Notebook)
+# 3. State Initialization
 if 'baseline_locked' not in st.session_state:
     st.session_state.baseline_locked = False
 if 'flow_step' not in st.session_state:
@@ -56,8 +55,7 @@ if 'metrics' not in st.session_state:
 if 'selected_tool' not in st.session_state:
     st.session_state.selected_tool = None
 
-# 4. RUN ENGINE 
-# User Instruction [2026-02-18]: Υπολογισμός με 365 ημέρες
+# 4. RUN ENGINE (User Instruction [2026-02-18]: 365 days)
 if st.session_state.baseline_locked:
     s = st.session_state
     try:
@@ -74,7 +72,7 @@ if st.session_state.baseline_locked:
             target_profit=float(s.get("target_profit_goal", 0))
         )
     except Exception as e:
-        st.warning("Engine Calculation Pending: Ensure all numeric inputs are valid.")
+        st.warning("Engine Calculation Pending.")
 
 # 5. UI Layout: Sidebar
 show_sidebar()
@@ -84,38 +82,19 @@ step = st.session_state.get("flow_step", "home")
 
 if step == "home":
     run_home()
-
 elif step == "tool":
     tool_key = st.session_state.get("selected_tool")
-    
     if tool_key in TOOL_MAP:
         mod_name, func_name = TOOL_MAP[tool_key]
-        
         col_title, col_back = st.columns([0.8, 0.2])
-        friendly_name = tool_key.replace('_', ' ').title()
-        col_title.caption(f"Strategy Room > {friendly_name}")
-        
-        if col_back.button("⬅ Back to Hub", use_container_width=True, key="global_back_btn"):
+        col_title.caption(f"Strategy Room > {tool_key.replace('_', ' ').title()}")
+        if col_back.button("⬅ Back to Hub", use_container_width=True):
             st.session_state.flow_step = "home"
-            st.session_state.selected_tool = None
             st.rerun()
-            
         st.divider()
-
         try:
-            # Δυναμικό Import από core.tools (Εδώ γίνεται η μαγεία)
             module = importlib.import_module(f"core.tools.{mod_name}")
             func = getattr(module, func_name)
             func()
-            
-        except ModuleNotFoundError:
-            st.error(f"❌ Σφάλμα: Το αρχείο `core/tools/{mod_name}.py` δεν βρέθηκε.")
-        except AttributeError:
-            st.error(f"❌ Σφάλμα: Η συνάρτηση `{func_name}` δεν υπάρχει στο αρχείο `{mod_name}.py`.")
         except Exception as e:
-            st.error(f"❌ Λειτουργικό Σφάλμα: {e}")
-            if st.button("Emergency Return Home"):
-                st.session_state.flow_step = "home"
-                st.rerun()
-    else:
-        st.error(f"Unknown Tool Selected: {tool_key}")
+            st.error(f"Error: {e}")
