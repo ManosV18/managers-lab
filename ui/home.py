@@ -49,7 +49,7 @@ def run_home():
         delta_col = "inverse"
 
     # --------------------------------------------------
-    # HERO SECTION (NEW POSITIONING)
+    # HERO SECTION
     # --------------------------------------------------
 
     st.markdown(
@@ -79,27 +79,45 @@ def run_home():
     )
 
     # --------------------------------------------------
-    # HOW IT WORKS
+    # HOW IT WORKS + INSIGHTS
     # --------------------------------------------------
 
-    st.info(
-        """
-**How Managers Lab Works**
+    c_left, c_right = st.columns(2)
 
-1️⃣ Set your **business baseline** (price, costs, volume, working capital)
+    with c_left:
+
+        st.markdown(
+            """
+### ⚙️ How Managers Lab Works
+
+1️⃣ Set your **business baseline**
+
+(price, costs, volume, working capital)
 
 2️⃣ Lock the baseline to activate the **simulation engine**
 
-3️⃣ Test strategic decisions across **pricing, financing, operations and risk**
+3️⃣ Test strategic decisions across  
+**pricing, financing, operations and risk**
+"""
+        )
 
-Managers Lab shows how decisions affect:
+    with c_right:
 
-• Break-Even  
+        st.markdown(
+            """
+### 📊 Strategic Financial Signals
+
+Managers Lab reveals how decisions affect:
+
+• Break-Even Point  
+
 • Cash Survival  
+
 • Liquidity Risk  
+
 • Return on Capital
 """
-    )
+        )
 
     st.divider()
 
@@ -112,6 +130,7 @@ Managers Lab shows how decisions affect:
     c1, c2, c3, c4, c5 = st.columns(5)
 
     c1.metric("Simulated Volume", f"{v:,.0f} units")
+
     c2.metric("Unit Contribution", f"€{margin:,.2f}")
 
     c3.metric(
@@ -178,7 +197,7 @@ Managers Lab shows how decisions affect:
             st.rerun()
 
     # --------------------------------------------------
-    # RIGHT COLUMN – SIMULATION MODULES
+    # RIGHT COLUMN – MODULES
     # --------------------------------------------------
 
     with col_nav:
@@ -200,135 +219,85 @@ Managers Lab shows how decisions affect:
                 ]
             )
 
-            # --------------------------------------------------
             # STRATEGY
-            # --------------------------------------------------
 
             with t1:
 
                 if st.button("🕹️ Mission Control (Control Tower)", use_container_width=True, type="primary"):
-                    s.selected_tool = "control_tower"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "control_tower"; s.flow_step = "tool"; st.rerun()
 
                 st.divider()
 
                 if st.button("🎯 Pricing Strategy", use_container_width=True):
-                    s.selected_tool = "pricing_strategy"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "pricing_strategy"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("⚖️ Cash Survival Simulator", use_container_width=True):
-                    s.selected_tool = "break_even_shift"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "break_even_shift"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("👥 Customer Lifetime Value (CLV)", use_container_width=True):
-                    s.selected_tool = "clv_calculator"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "clv_calculator"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("📡 Pricing Radar", use_container_width=True):
-                    s.selected_tool = "pricing_radar"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "pricing_radar"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("📉 Loss Threshold", use_container_width=True):
-                    s.selected_tool = "loss_threshold"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "loss_threshold"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
-                    s.selected_tool = "qspm_analyzer"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "qspm_analyzer"; s.flow_step = "tool"; st.rerun()
 
-            # --------------------------------------------------
             # FINANCE
-            # --------------------------------------------------
 
             with t2:
 
                 if st.button("📈 Growth Funding (AFN)", use_container_width=True):
-                    s.selected_tool = "growth_funding"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "growth_funding"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("📉 WACC Optimizer", use_container_width=True):
-                    s.selected_tool = "wacc_optimizer"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "wacc_optimizer"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("⚖️ Loan vs Leasing", use_container_width=True):
-                    s.selected_tool = "loan_vs_leasing"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "loan_vs_leasing"; s.flow_step = "tool"; st.rerun()
 
-            # --------------------------------------------------
             # OPS
-            # --------------------------------------------------
 
             with t3:
 
                 if st.button("📊 NPV Receivables Analyzer", use_container_width=True):
-                    s.selected_tool = "receivables_npv"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "receivables_npv"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
-                    s.selected_tool = "cash_cycle"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "cash_cycle"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("🔢 Unit Cost Analyzer", use_container_width=True):
-                    s.selected_tool = "unit_cost_analyzer"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "unit_cost_analyzer"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("📦 Inventory Optimizer", use_container_width=True):
-                    s.selected_tool = "inventory_manager"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "inventory_manager"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("🤝 Payables Manager", use_container_width=True):
-                    s.selected_tool = "payables_manager"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "payables_manager"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("💰 Working Capital Engine", use_container_width=True):
-                    s.selected_tool = "wc_optimizer"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "wc_optimizer"; s.flow_step = "tool"; st.rerun()
 
-            # --------------------------------------------------
             # RISK
-            # --------------------------------------------------
 
             with t4:
 
                 if st.button("🛡️ Strategic Shock Simulator", use_container_width=True):
-                    s.selected_tool = "shock_simulator"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "shock_simulator"; s.flow_step = "tool"; st.rerun()
 
                 st.divider()
 
                 if st.button("🏁 Executive Dashboard", use_container_width=True):
-                    s.selected_tool = "executive_dashboard"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "executive_dashboard"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("🚨 Cash Fragility Index", use_container_width=True):
-                    s.selected_tool = "cash_fragility"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "cash_fragility"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("🛡️ Resilience & Shock Map", use_container_width=True):
-                    s.selected_tool = "resilience_map"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "resilience_map"; s.flow_step = "tool"; st.rerun()
 
                 if st.button("📉 Stress Test Simulator", use_container_width=True):
-                    s.selected_tool = "stress_test"
-                    s.flow_step = "tool"
-                    st.rerun()
+                    s.selected_tool = "stress_test"; s.flow_step = "tool"; st.rerun()
