@@ -54,7 +54,7 @@ TOOL_MAP = {
     "clv_calculator": ("clv_calculator", "show_clv_calculator"),
     "shock_simulator": ("company_shock_simulator", "show_company_shock_simulator"),
 
-    # New additions
+    # New additions (Linked to ui.home functions)
     "decision_report": ("ui.home", "show_decision_report"),
     "scenario_comparison": ("ui.home", "show_scenario_comparison")
 }
@@ -154,6 +154,7 @@ elif step == "tool":
                 else:
                     show_scenario_comparison()
             else:
+                # Dynamic import for external tools from core.tools
                 module = importlib.import_module(f"core.tools.{mod_name}")
                 func = getattr(module, func_name)
                 func()
