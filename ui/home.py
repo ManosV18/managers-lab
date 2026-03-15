@@ -15,9 +15,9 @@ def show_scenario_comparison():
             "Scenario": name,
             "Price": data["price"],
             "Volume": data["volume"],
-            "ROIC": data["metrics"].get("roic", 0),
-            "Break Even": data["metrics"].get("bep_units", 0),
-            "Net Cash": data["metrics"].get("net_cash_position", 0)
+            "ROIC": data["metrics"].get("roic",0),
+            "Break Even": data["metrics"].get("bep_units",0),
+            "Net Cash": data["metrics"].get("net_cash_position",0)
         })
 
     df = pd.DataFrame(rows)
@@ -96,13 +96,20 @@ def run_home():
 ### ⚙️ Financial Simulation Engine
 All modules run on a unified **financial engine** that converts
 business assumptions into real-time financial metrics.
+• Cash Break-Even  
+• Liquidity Position  
+• Return on Capital (ROIC)  
+• Survival Buffer
 """)
 
     with colB:
         st.markdown("""
 ### 🔁 Strategy Simulation Loop
 Managers Lab follows a simple decision loop:
-1️⃣ Define baseline 2️⃣ Run diagnostics 3️⃣ Simulate shocks 4️⃣ Adjust strategy.
+1️⃣ Define the **business baseline**
+2️⃣ Run the **financial diagnostics**
+3️⃣ Simulate **shocks or strategic decisions**
+4️⃣ Adjust pricing, financing or operations
 """)
 
     st.divider()
@@ -127,7 +134,7 @@ Managers Lab follows a simple decision loop:
     st.divider()
 
     # --------------------------------------------------
-    # LAYOUT
+    # LAYOUT (INPUT & NAVIGATION)
     # --------------------------------------------------
     col_input, col_nav = st.columns([0.40, 0.60], gap="large")
 
@@ -139,6 +146,11 @@ Managers Lab follows a simple decision loop:
             st.number_input("Annual Volume", value=int(v), key="volume")
             st.number_input("Annual Fixed Costs (€)", value=float(fc), key="fixed_cost")
             st.number_input("Target Profit Goal (€)", value=float(tp), key="target_profit_goal")
+
+        with st.expander("🔄 Working Capital Cycle"):
+            st.number_input("AR Days", value=float(s.get("ar_days", 45.0)), key="ar_days")
+            st.number_input("Inventory Days", value=float(s.get("inv_days", 60.0)), key="inv_days")
+            st.number_input("AP Days", value=float(s.get("ap_days", 30.0)), key="ap_days")
 
         with st.expander("💰 Liquidity & Debt"):
             st.number_input("Opening Cash (€)", value=float(cash), key="opening_cash")
@@ -171,25 +183,89 @@ Managers Lab follows a simple decision loop:
                     s.selected_tool = "pricing_strategy"
                     s.flow_step = "tool"
                     st.rerun()
-            
+                if st.button("⚖️ Cash Survival Simulator", use_container_width=True):
+                    s.selected_tool = "break_even_shift"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("👥 Customer Lifetime Value (CLV)", use_container_width=True):
+                    s.selected_tool = "clv_calculator"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("📡 Pricing Radar", use_container_width=True):
+                    s.selected_tool = "pricing_radar"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("📉 Loss Threshold", use_container_width=True):
+                    s.selected_tool = "loss_threshold"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("🧭 QSPM Strategy Matrix", use_container_width=True):
+                    s.selected_tool = "qspm_analyzer"
+                    s.flow_step = "tool"
+                    st.rerun()
+
             with t2:
                 if st.button("📈 Growth Funding (AFN)", use_container_width=True):
                     s.selected_tool = "growth_funding"
                     s.flow_step = "tool"
                     st.rerun()
-            
+                if st.button("📉 WACC Optimizer", use_container_width=True):
+                    s.selected_tool = "wacc_optimizer"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("⚖️ Loan vs Leasing", use_container_width=True):
+                    s.selected_tool = "loan_vs_leasing"
+                    s.flow_step = "tool"
+                    st.rerun()
+
             with t3:
+                if st.button("📊 NPV Receivables Analyzer", use_container_width=True):
+                    s.selected_tool = "receivables_npv"
+                    s.flow_step = "tool"
+                    st.rerun()
                 if st.button("🔄 Cash Conversion Cycle", use_container_width=True):
                     s.selected_tool = "cash_cycle"
                     s.flow_step = "tool"
                     st.rerun()
-            
+                if st.button("🔢 Unit Cost Analyzer", use_container_width=True):
+                    s.selected_tool = "unit_cost_analyzer"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("📦 Inventory Optimizer", use_container_width=True):
+                    s.selected_tool = "inventory_manager"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("🤝 Payables Manager", use_container_width=True):
+                    s.selected_tool = "payables_manager"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("💰 Working Capital Engine", use_container_width=True):
+                    s.selected_tool = "wc_optimizer"
+                    s.flow_step = "tool"
+                    st.rerun()
+
             with t4:
                 if st.button("🛡️ Strategic Shock Simulator", use_container_width=True):
                     s.selected_tool = "shock_simulator"
                     s.flow_step = "tool"
                     st.rerun()
+                if st.button("🏁 Executive Dashboard", use_container_width=True):
+                    s.selected_tool = "executive_dashboard"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("🚨 Cash Fragility Index", use_container_width=True):
+                    s.selected_tool = "cash_fragility"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("🛡️ Resilience Map", use_container_width=True):
+                    s.selected_tool = "resilience_map"
+                    s.flow_step = "tool"
+                    st.rerun()
+                if st.button("📉 Stress Test Simulator", use_container_width=True):
+                    s.selected_tool = "stress_test"
+                    s.flow_step = "tool"
+                    st.rerun()
 
-    # Εμφάνιση του comparison στο τέλος ή σε δικό του section
+    # Τέλος, το comparison κάτω από τις στήλες
     st.divider()
     show_scenario_comparison()
