@@ -4,7 +4,6 @@ from datetime import datetime
 from fpdf import FPDF
 from io import BytesIO
 
-
 # --------------------------------------------------
 # DECISION REPORT
 # --------------------------------------------------
