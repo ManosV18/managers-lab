@@ -63,6 +63,34 @@ def run_home():
     roic = m.get("roic", 0.0)
 
     # --------------------------------------------------
+    # SAVE SCENARIO
+    # --------------------------------------------------
+
+    st.subheader("💾 Scenario Management")
+
+    if "saved_scenarios" not in st.session_state:
+        st.session_state.saved_scenarios = {}
+
+    scenario_name = st.text_input(
+        "Scenario Name",
+        value=st.session_state.get("scenario_name", "Baseline")
+    )
+
+    if st.button("Save Scenario"):
+
+        st.session_state.saved_scenarios[scenario_name] = {
+
+            "price": st.session_state.get("price"),
+            "volume": st.session_state.get("volume"),
+            "variable_cost": st.session_state.get("variable_cost"),
+            "fixed_cost": st.session_state.get("fixed_cost"),
+
+            "metrics": st.session_state.get("metrics",{})
+        }
+
+        st.success(f"Scenario '{scenario_name}' saved.")
+
+    # --------------------------------------------------
     # SNAPSHOT LOGIC
     # --------------------------------------------------
 
@@ -408,4 +436,3 @@ Managers Lab follows a simple decision loop:
                     s.selected_tool = "scenario_comparison"
                     s.flow_step = "tool"
                     st.rerun()
-
