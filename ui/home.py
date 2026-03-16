@@ -1,43 +1,4 @@
 import streamlit as st
-import pandas as pd
-
-def show_decision_report():
-    st.title("📄 Executive Decision Report")
-    metrics = st.session_state.get("metrics",{})
-    report = {
-        "ROIC": metrics.get("roic",0),
-        "Break Even": metrics.get("bep_units",0),
-        "Net Cash": metrics.get("net_cash_position",0),
-        "Liquidity Buffer": metrics.get("liquidity_buffer",0)
-    }
-    df = pd.DataFrame(report.items(), columns=["Metric","Value"])
-    st.table(df)
-    st.download_button(
-        "Download Report (CSV)",
-        df.to_csv(index=False),
-        "decision_report.csv",
-        "text/csv"
-    )
-
-def show_scenario_comparison():
-    st.title("📊 Scenario Comparison")
-    scenarios = st.session_state.get("saved_scenarios", {})
-    if not scenarios:
-        st.info("No saved scenarios yet.")
-        return
-    rows = []
-    for name, data in scenarios.items():
-        rows.append({
-            "Scenario": name,
-            "Price": data["price"],
-            "Volume": data["volume"],
-            "ROIC": data["metrics"].get("roic",0),
-            "Break Even": data["metrics"].get("bep_units",0),
-            "Net Cash": data["metrics"].get("net_cash_position",0)
-        })
-    df = pd.DataFrame(rows)
-    st.dataframe(df, use_container_width=True)
-    st.caption("Compare financial resilience across scenarios.")
 
 
 def run_home():
@@ -396,16 +357,4 @@ Managers Lab follows a simple decision loop:
                     s.flow_step = "tool"
                     st.rerun()
 
-                st.divider()
-                
-                # New Report & Comparison Buttons
-                if st.button("📄 Executive Decision Report", use_container_width=True):
-                    s.selected_tool = "decision_report"
-                    s.flow_step = "tool"
-                    st.rerun()
-                
-                if st.button("📊 Scenario Comparison", use_container_width=True):
-                    s.selected_tool = "scenario_comparison"
-                    s.flow_step = "tool"
-                    st.rerun()
 
