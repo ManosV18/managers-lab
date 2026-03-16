@@ -16,47 +16,49 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
 # --------------------------------------------------
 # TOOL MAP
 # --------------------------------------------------
 
 TOOL_MAP = {
 
-    # Strategy
-    "control_tower": ("core.tools.control_tower", "show_control_tower"),
-    "pricing_strategy": ("core.tools.pricing_strategy", "show_pricing_strategy_tool"),
-    "pricing_radar": ("core.tools.pricing_radar", "show_pricing_radar"),
-    "loss_threshold": ("core.tools.loss_threshold", "show_loss_threshold_before_price_cut"),
-    "qspm_analyzer": ("core.tools.qspm_analyzer", "show_qspm_tool"),
+    # Strategy & Pricing
+    "control_tower": ("control_tower", "show_control_tower"),
+    "pricing_strategy": ("pricing_strategy", "show_pricing_strategy_tool"),
+    "pricing_radar": ("pricing_radar", "show_pricing_radar"),
+    "loss_threshold": ("loss_threshold", "show_loss_threshold_before_price_cut"),
+    "qspm_analyzer": ("qspm_analyzer", "show_qspm_tool"),
 
     # Survival
-    "break_even_shift": ("core.tools.break_even_shift_calculator", "show_break_even_shift_calculator"),
+    "break_even_shift": ("break_even_shift_calculator", "show_break_even_shift_calculator"),
 
     # Finance
-    "wacc_optimizer": ("core.tools.wacc_optimizer", "show_wacc_optimizer_ui"),
-    "loan_vs_leasing": ("core.tools.loan_vs_leasing", "loan_vs_leasing_ui"),
-    "growth_funding": ("core.tools.growth_funding", "show_growth_funding_needed"),
+    "wacc_optimizer": ("wacc_optimizer", "show_wacc_optimizer_ui"),
+    "loan_vs_leasing": ("loan_vs_leasing", "loan_vs_leasing_ui"),
+    "growth_funding": ("growth_funding", "show_growth_funding_needed"),
 
     # Operations
-    "unit_cost_analyzer": ("core.tools.unit_cost_analyzer", "show_unit_cost_app"),
-    "inventory_manager": ("core.tools.inventory_manager", "show_inventory_manager"),
-    "receivables_npv": ("core.tools.receivables_npv", "show_receivables_analyzer_ui"),
-    "cash_cycle": ("core.tools.cash_cycle", "run_cash_cycle_app"),
-    "payables_manager": ("core.tools.payables_manager", "show_payables_manager"),
-    "wc_optimizer": ("core.tools.working_capital_optimizer", "show_wc_optimizer"),
+    "unit_cost_analyzer": ("unit_cost_analyzer", "show_unit_cost_app"),
+    "inventory_manager": ("inventory_manager", "show_inventory_manager"),
+    "receivables_npv": ("receivables_npv", "show_receivables_analyzer_ui"),
+    "cash_cycle": ("cash_cycle", "run_cash_cycle_app"),
+    "payables_manager": ("payables_manager", "show_payables_manager"),
+    "wc_optimizer": ("working_capital_optimizer", "show_wc_optimizer"),
 
     # Risk
-    "executive_dashboard": ("ui.home", "show_executive_dashboard"),
-    "cash_fragility": ("core.tools.cash_fragility_index", "show_cash_fragility_index"),
-    "resilience_map": ("core.tools.financial_resilience_app", "show_resilience_map"),
-    "stress_test": ("core.tools.stress_test_simulator", "show_stress_test_tool"),
-    "clv_calculator": ("core.tools.clv_calculator", "show_clv_calculator"),
-    "shock_simulator": ("core.tools.company_shock_simulator", "show_company_shock_simulator"),
+    "executive_dashboard": ("executive_dashboard", "show_executive_dashboard"),
+    "cash_fragility": ("cash_fragility_index", "show_cash_fragility_index"),
+    "resilience_map": ("financial_resilience_app", "show_resilience_map"),
+    "stress_test": ("stress_test_simulator", "show_stress_test_tool"),
+    "clv_calculator": ("clv_calculator", "show_clv_calculator"),
+    "shock_simulator": ("company_shock_simulator", "show_company_shock_simulator"),
 
-    # Reports
+    # New additions (Linked to ui.home functions)
     "decision_report": ("ui.home", "show_decision_report"),
     "scenario_comparison": ("ui.home", "show_scenario_comparison")
 }
+
 
 # --------------------------------------------------
 # STATE INITIALIZATION
@@ -74,8 +76,9 @@ if "metrics" not in st.session_state:
 if "selected_tool" not in st.session_state:
     st.session_state.selected_tool = None
 
-if "scenario_name" not in st.session_state:
-    st.session_state.scenario_name = "Baseline Scenario"
+# SaaS touch
+st.session_state.setdefault("scenario_name", "Baseline Scenario")
+
 
 # --------------------------------------------------
 # RUN FINANCIAL ENGINE
@@ -101,11 +104,13 @@ if st.session_state.baseline_locked:
         target_profit=float(s.get("target_profit_goal", 0))
     )
 
+
 # --------------------------------------------------
 # SIDEBAR
 # --------------------------------------------------
 
 show_sidebar()
+
 
 # --------------------------------------------------
 # ROUTING
@@ -115,6 +120,7 @@ step = st.session_state.get("flow_step", "home")
 
 if step == "home":
 
+    # reset tool selection όταν επιστρέφεις στο hub
     st.session_state.selected_tool = None
     run_home()
 
@@ -140,12 +146,20 @@ elif step == "tool":
         st.divider()
 
         try:
-
-            module = importlib.import_module(mod_name)
-            func = getattr(module, func_name)
-
-            func()
+            # Check if it's an internal home function or external tool
+            if mod_name == "ui.home":
+                from ui.home import show_decision_report, show_scenario_comparison
+                if func_name == "show_decision_report":
+                    show_decision_report()
+                else:
+                    show_scenario_comparison()
+            else:
+                # Dynamic import for external tools from core.tools
+                module = importlib.import_module(f"core.tools.{mod_name}")
+                func = getattr(module, func_name)
+                func()
 
         except Exception as e:
 
             st.error(f"Error loading module: {e}")
+
