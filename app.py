@@ -5,6 +5,7 @@ from ui.sidebar import show_sidebar
 from ui.home import run_home
 from core.engine import calculate_metrics
 
+
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -23,143 +24,228 @@ st.set_page_config(
 
 TOOL_MAP = {
 
-    # Strategy & Pricing
-    "control_tower": ("control_tower", "show_control_tower"),
-    "pricing_strategy": ("pricing_strategy", "show_pricing_strategy_tool"),
-    "pricing_radar": ("pricing_radar", "show_pricing_radar"),
-    "loss_threshold": ("loss_threshold", "show_loss_threshold_before_price_cut"),
-    "qspm_analyzer": ("qspm_analyzer", "show_qspm_tool"),
+    # Strategy
+    "control_tower": ("core.tools.control_tower", "show_control_tower"),
+    "pricing_strategy": ("core.tools.pricing_strategy", "show_pricing_strategy_tool"),
+    "pricing_radar": ("core.tools.pricing_radar", "show_pricing_radar"),
+    "loss_threshold": ("core.tools.loss_threshold", "show_loss_threshold_before_price_cut"),
+    "qspm_analyzer": ("core.tools.qspm_analyzer", "show_qspm_tool"),
 
     # Survival
-    "break_even_shift": ("break_even_shift_calculator", "show_break_even_shift_calculator"),
+    "break_even_shift": ("core.tools.break_even_shift_calculator", "show_break_even_shift_calculator"),
 
     # Finance
-    "wacc_optimizer": ("wacc_optimizer", "show_wacc_optimizer_ui"),
-    "loan_vs_leasing": ("loan_vs_leasing", "loan_vs_leasing_ui"),
-    "growth_funding": ("growth_funding", "show_growth_funding_needed"),
-
-    # Operations
-    "unit_cost_analyzer": ("unit_cost_analyzer", "show_unit_cost_app"),
-    "inventory_manager": ("inventory_manager", "show_inventory_manager"),
-    "receivables_npv": ("receivables_npv", "show_receivables_analyzer_ui"),
-    "cash_cycle": ("cash_cycle", "run_cash_cycle_app"),
-    "payables_manager": ("payables_manager", "show_payables_manager"),
-    "wc_optimizer": ("working_capital_optimizer", "show_wc_optimizer"),
-
-    # Risk
-    "executive_dashboard": ("executive_dashboard", "show_executive_dashboard"),
-    "cash_fragility": ("cash_fragility_index", "show_cash_fragility_index"),
-    "resilience_map": ("financial_resilience_app", "show_resilience_map"),
-    "stress_test": ("stress_test_simulator", "show_stress_test_tool"),
-    "clv_calculator": ("clv_calculator", "show_clv_calculator"),
-    "shock_simulator": ("company_shock_simulator", "show_company_shock_simulator"),
-
-    # New additions (Linked to ui.home functions)
-    "decision_report": ("ui.home", "show_decision_report"),
-    "scenario_comparison": ("ui.home", "show_scenario_comparison")
-}
-
+    "wacc_optimizer": ("core.tools.wacc_optimizer",
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+from fpdf import FPDF
 
 # --------------------------------------------------
-# STATE INITIALIZATION
+# EXECUTIVE DECISION REPORT
 # --------------------------------------------------
 
-if "baseline_locked" not in st.session_state:
-    st.session_state.baseline_locked = False
+def show_decision_report():
 
-if "flow_step" not in st.session_state:
-    st.session_state.flow_step = "home"
+    st.title("📄 Executive Decision Report")
 
-if "metrics" not in st.session_state:
-    st.session_state.metrics = {}
+    metrics = st.session_state.get("metrics", {})
+    scenario_name = st.session_state.get("scenario_name", "Baseline Scenario")
 
-if "selected_tool" not in st.session_state:
-    st.session_state.selected_tool = None
+    current_date = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-# SaaS touch
-st.session_state.setdefault("scenario_name", "Baseline Scenario")
+    report = {
+        "ROIC": f"{metrics.get('roic',0)*100:.1f}%",
+        "Break Even": f"{metrics.get('bep_units',0):,.0f} units",
+        "Net Cash": f"€{metrics.get('net_cash_position',0):,.0f}",
+        "Liquidity Buffer": f"{metrics.get('liquidity_buffer',0):,.1f}%"
+    }
 
+    st.markdown(f"""
+**Managers Lab – Strategic Simulation Report**
 
-# --------------------------------------------------
-# RUN FINANCIAL ENGINE
-# --------------------------------------------------
+Scenario: **{scenario_name}**
 
-if st.session_state.baseline_locked:
+Date: **{current_date}**
+""")
 
-    s = st.session_state
+    df = pd.DataFrame(report.items(), columns=["Metric","Value"])
 
-    st.session_state.metrics = calculate_metrics(
+    st.table(df)
 
-        price=float(s.get("price", 100)),
-        volume=float(s.get("volume", 1000)),
-        variable_cost=float(s.get("variable_cost", 60)),
-        fixed_cost=float(s.get("fixed_cost", 20000)),
+    col1,col2 = st.columns(2)
 
-        ar_days=float(s.get("ar_days", 45)),
-        inv_days=float(s.get("inv_days", 60)),
-        ap_days=float(s.get("ap_days", 30)),
+    with col1:
 
-        annual_debt_service=float(s.get("annual_debt_service", 0)),
-        opening_cash=float(s.get("opening_cash", 10000)),
-        target_profit=float(s.get("target_profit_goal", 0))
-    )
-
-
-# --------------------------------------------------
-# SIDEBAR
-# --------------------------------------------------
-
-show_sidebar()
-
-
-# --------------------------------------------------
-# ROUTING
-# --------------------------------------------------
-
-step = st.session_state.get("flow_step", "home")
-
-if step == "home":
-
-    # reset tool selection όταν επιστρέφεις στο hub
-    st.session_state.selected_tool = None
-    run_home()
-
-elif step == "tool":
-
-    tool_key = st.session_state.get("selected_tool")
-
-    if tool_key in TOOL_MAP:
-
-        mod_name, func_name = TOOL_MAP[tool_key]
-
-        col_title, col_back = st.columns([0.8, 0.2])
-
-        col_title.caption(
-            f"Strategy Room > {tool_key.replace('_',' ').title()}"
+        st.download_button(
+            "Download CSV",
+            df.to_csv(index=False).encode("utf-8"),
+            file_name="decision_report.csv",
+            mime="text/csv",
+            use_container_width=True
         )
 
-        if col_back.button("⬅ Back to Hub", use_container_width=True):
+    with col2:
 
-            st.session_state.flow_step = "home"
-            st.rerun()
+        pdf = FPDF()
+        pdf.add_page()
 
-        st.divider()
+        pdf.set_font("Arial","B",16)
+        pdf.cell(200,10,"Managers Lab",ln=True)
 
-        try:
-            # Check if it's an internal home function or external tool
-            if mod_name == "ui.home":
-                from ui.home import show_decision_report, show_scenario_comparison
-                if func_name == "show_decision_report":
-                    show_decision_report()
-                else:
-                    show_scenario_comparison()
-            else:
-                # Dynamic import for external tools from core.tools
-                module = importlib.import_module(f"core.tools.{mod_name}")
-                func = getattr(module, func_name)
-                func()
+        pdf.set_font("Arial","",12)
+        pdf.cell(200,10,"Strategic Simulation Report",ln=True)
 
-        except Exception as e:
+        pdf.ln(10)
 
-            st.error(f"Error loading module: {e}")
+        pdf.set_font("Arial","B",12)
+        pdf.cell(100,10,"Metric",border=1)
+        pdf.cell(80,10,"Value",border=1,ln=True)
+
+        pdf.set_font("Arial","",12)
+
+        for metric,value in report.items():
+
+            pdf.cell(100,10,str(metric),border=1)
+            pdf.cell(80,10,str(value),border=1,ln=True)
+
+        pdf_output = pdf.output(dest="S").encode("latin-1")
+
+        st.download_button(
+            "📄 Download PDF",
+            pdf_output,
+            file_name=f"report_{scenario_name}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+
+
+# --------------------------------------------------
+# SCENARIO COMPARISON
+# --------------------------------------------------
+
+def show_scenario_comparison():
+
+    st.title("📊 Scenario Comparison")
+
+    scenarios = st.session_state.get("saved_scenarios",{})
+
+    if not scenarios:
+
+        st.info("No saved scenarios yet.")
+        return
+
+    rows = []
+
+    for name,data in scenarios.items():
+
+        rows.append({
+            "Scenario":name,
+            "Price":data.get("price",0),
+            "Volume":data.get("volume",0),
+            "ROIC":data.get("metrics",{}).get("roic",0),
+            "Break Even":data.get("metrics",{}).get("bep_units",0),
+            "Net Cash":data.get("metrics",{}).get("net_cash_position",0)
+        })
+
+    df = pd.DataFrame(rows)
+
+    st.dataframe(df,use_container_width=True)
+
+    st.divider()
+
+    st.subheader("🗑 Delete Scenario")
+
+    to_delete = st.selectbox("Select Scenario",list(scenarios.keys()))
+
+    if st.button("Delete Scenario",use_container_width=True):
+
+        del st.session_state.saved_scenarios[to_delete]
+
+        st.success("Scenario deleted")
+
+        st.rerun()
+
+# --------------------------------------------------
+# EXECUTIVE DASHBOARD
+# --------------------------------------------------
+
+def show_executive_dashboard():
+
+    st.title("🏁 Executive Dashboard")
+
+    metrics = st.session_state.get("metrics",{})
+
+    roic = metrics.get("roic",0)
+    bep = metrics.get("bep_units",0)
+    cash = metrics.get("net_cash_position",0)
+
+    st.subheader("🧠 Strategic Insight")
+
+    if roic > 0.15:
+
+        st.success("High return strategy. Capital allocation efficient.")
+
+    elif roic > 0.05:
+
+        st.warning("Moderate performance. Improvements possible.")
+
+    else:
+
+        st.error("Low ROIC. Review pricing or cost structure.")
+
+    st.write(
+        f"""
+Return on invested capital: **{roic*100:.1f}%**
+
+Break-even level: **{bep:,.0f} units**
+
+Net cash position: **€{cash:,.0f}**
+"""
+    )
+
+    scenarios = st.session_state.get("saved_scenarios",{})
+
+    if scenarios:
+
+        st.subheader("📊 Scenario Visual Comparison")
+
+        rows=[]
+
+        for name,data in scenarios.items():
+
+            rows.append({
+                "Scenario":name,
+                "ROIC":data.get("metrics",{}).get("roic",0),
+                "BreakEven":data.get("metrics",{}).get("bep_units",0),
+                "NetCash":data.get("metrics",{}).get("net_cash_position",0)
+            })
+
+        df = pd.DataFrame(rows)
+
+        st.bar_chart(df.set_index("Scenario")[["ROIC"]])
+        st.bar_chart(df.set_index("Scenario")[["
+
+        st.subheader("📊 Scenario Visual Comparison")
+
+        rows = []
+
+        for name, data in scenarios.items():
+
+            rows.append({
+                "Scenario": name,
+                "ROIC": data.get("metrics", {}).get("roic", 0),
+                "BreakEven": data.get("metrics", {}).get("bep_units", 0),
+                "NetCash": data.get("metrics", {}).get("net_cash_position", 0)
+            })
+
+        df = pd.DataFrame(rows)
+
+        st.bar_chart(df.set_index("Scenario")[["ROIC"]])
+        st.bar_chart(df.set_index("Scenario")[["BreakEven"]])
+        st.bar_chart(df.set_index("Scenario")[["NetCash"]])
+
+    else:
+
+        st.info("Save scenarios to see comparisons on the dashboard.")
 
