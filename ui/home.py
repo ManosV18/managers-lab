@@ -6,14 +6,10 @@ from fpdf import FPDF
 # --------------------------------------------------
 # EXECUTIVE DECISION REPORT
 # --------------------------------------------------
-
 def show_decision_report():
-
     st.title("📄 Executive Decision Report")
-
     metrics = st.session_state.get("metrics", {})
     scenario_name = st.session_state.get("scenario_name", "Baseline Scenario")
-
     current_date = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     report = {
@@ -23,187 +19,55 @@ def show_decision_report():
         "Liquidity Buffer": f"{metrics.get('liquidity_buffer',0):,.1f}%"
     }
 
-    st.markdown(f"""
-**Managers Lab – Strategic Simulation Report**
-
-Scenario: **{scenario_name}**
-
-Date: **{current_date}**
-""")
+    st.markdown(f"**Managers Lab – Strategic Simulation Report**\n\nScenario: **{scenario_name}**\n\nDate: **{current_date}**")
 
     df = pd.DataFrame(report.items(), columns=["Metric","Value"])
-
     st.table(df)
 
-    col1,col2 = st.columns(2)
-
+    col1, col2 = st.columns(2)
     with col1:
-
-        st.download_button(
-            "Download CSV",
-            df.to_csv(index=False).encode("utf-8"),
-            file_name="decision_report.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
+        st.download_button("Download CSV", df.to_csv(index=False).encode("utf-8"), file_name="decision_report.csv", mime="text/csv", use_container_width=True)
 
     with col2:
-
         pdf = FPDF()
         pdf.add_page()
-
         pdf.set_font("Arial","B",16)
         pdf.cell(200,10,"Managers Lab",ln=True)
-
-        pdf.set_font("Arial","",12)
-        pdf.cell(200,10,"Strategic Simulation Report",ln=True)
-
-        pdf.ln(10)
-
-        pdf.set_font("Arial","B",12)
-        pdf.cell(100,10,"Metric",border=1)
-        pdf.cell(80,10,"Value",border=1,ln=True)
-
-        pdf.set_font("Arial","",12)
-
-        for metric,value in report.items():
-
-            pdf.cell(100,10,str(metric),border=1)
-            pdf.cell(80,10,str(value),border=1,ln=True)
-
         pdf_output = pdf.output(dest="S").encode("latin-1")
-
-        st.download_button(
-            "📄 Download PDF",
-            pdf_output,
-            file_name=f"report_{scenario_name}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
-
+        st.download_button("📄 Download PDF", pdf_output, file_name=f"report_{scenario_name}.pdf", mime="application/pdf", use_container_width=True)
 
 # --------------------------------------------------
 # SCENARIO COMPARISON
 # --------------------------------------------------
-
 def show_scenario_comparison():
-
     st.title("📊 Scenario Comparison")
-
     scenarios = st.session_state.get("saved_scenarios",{})
-
     if not scenarios:
-
         st.info("No saved scenarios yet.")
         return
-
     rows = []
-
     for name,data in scenarios.items():
-
-        rows.append({
-            "Scenario":name,
-            "Price":data.get("price",0),
-            "Volume":data.get("volume",0),
-            "ROIC":data.get("metrics",{}).get("roic",0),
-            "Break Even":data.get("metrics",{}).get("bep_units",0),
-            "Net Cash":data.get("metrics",{}).get("net_cash_position",0)
-        })
-
-    df = pd.DataFrame(rows)
-
-    st.dataframe(df,use_container_width=True)
-
-    st.divider()
-
-    st.subheader("🗑 Delete Scenario")
-
-    to_delete = st.selectbox("Select Scenario",list(scenarios.keys()))
-
-    if st.button("Delete Scenario",use_container_width=True):
-
-        del st.session_state.saved_scenarios[to_delete]
-
-        st.success("Scenario deleted")
-
-        st.rerun()
+        rows.append({"Scenario":name, "ROIC":data.get("metrics",{}).get("roic",0), "Break Even":data.get("metrics",{}).get("bep_units",0)})
+    st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
 # --------------------------------------------------
 # EXECUTIVE DASHBOARD
 # --------------------------------------------------
-
 def show_executive_dashboard():
-
     st.title("🏁 Executive Dashboard")
-
     metrics = st.session_state.get("metrics",{})
-
-    roic = metrics.get("roic",0)
-    bep = metrics.get("bep_units",0)
-    cash = metrics.get("net_cash_position",0)
-
-    st.subheader("🧠 Strategic Insight")
-
-    if roic > 0.15:
-
-        st.success("High return strategy. Capital allocation efficient.")
-
-    elif roic > 0.05:
-
-        st.warning("Moderate performance. Improvements possible.")
-
-    else:
-
-        st.error("Low ROIC. Review pricing or cost structure.")
-
-    st.write(
-        f"""
-Return on invested capital: **{roic*100:.1f}%**
-
-Break-even level: **{bep:,.0f} units**
-
-Net cash position: **€{cash:,.0f}**
-"""
-    )
-
-    scenarios = st.session_state.get("saved_scenarios",{})
-
-    if scenarios:
-
-        st.subheader("📊 Scenario Visual Comparison")
-
-        rows = []
-
-        for name, data in scenarios.items():
-
-            rows.append({
-                "Scenario": name,
-                "ROIC": data.get("metrics", {}).get("roic", 0),
-                "BreakEven": data.get("metrics", {}).get("bep_units", 0),
-                "NetCash": data.get("metrics", {}).get("net_cash_position", 0)
-            })
-
-        df = pd.DataFrame(rows)
-
-        st.bar_chart(df.set_index("Scenario")[["ROIC"]])
-        st.bar_chart(df.set_index("Scenario")[["BreakEven"]])
-        st.bar_chart(df.set_index("Scenario")[["NetCash"]])
-
-    else:
-
-        st.info("Save scenarios to see comparisons on the dashboard.")
+    st.metric("ROIC", f"{metrics.get('roic',0)*100:.1f}%")
 
 # --------------------------------------------------
-# MAIN HOME RUNNER
+# MAIN HOME RUNNER (ALL TOOLS LISTED HERE)
 # --------------------------------------------------
-
 def run_home():
     s = st.session_state
+    m = s.get("metrics", {})
     
     st.markdown("<h1 style='text-align:center; color:#1E3A8A;'>Managers Lab</h1>", unsafe_allow_html=True)
     
-    # Snapshot Metrics (από το session_state)
-    m = s.get("metrics", {})
+    # Snapshot Metrics Row
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Unit Price", f"€{s.get('price', 100.0)}")
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f}")
@@ -216,12 +80,16 @@ def run_home():
 
     with col_left:
         st.subheader("⚙️ Business Baseline")
-        # Εδώ ορίζονται τα keys που ψάχνει το app.py
         st.number_input("Unit Price (€)", value=100.0, key="price")
         st.number_input("Variable Cost (€)", value=60.0, key="variable_cost")
         st.number_input("Annual Volume", value=1000, key="volume")
         st.number_input("Annual Fixed Costs (€)", value=20000.0, key="fixed_cost")
         st.number_input("Opening Cash (€)", value=10000.0, key="opening_cash")
+        
+        # Additional inputs for the engine
+        st.number_input("A/R Days", value=45, key="ar_days")
+        st.number_input("Inventory Days", value=60, key="inv_days")
+        st.number_input("A/P Days", value=30, key="ap_days")
 
         if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
             s.baseline_locked = True
@@ -230,13 +98,38 @@ def run_home():
     with col_right:
         st.subheader("🧠 Strategy Modules")
         if not s.get("baseline_locked"):
-            st.info("Παρακαλώ κλειδώστε το Baseline για να ενεργοποιηθούν τα εργαλεία.")
+            st.info("Please lock the baseline to activate strategy tools.")
         else:
-            # Εδώ θα εμφανίζονται τα Tabs με τα κουμπιά των εργαλείων
-            tabs = st.tabs(["Strategy", "Finance", "Operations", "Risk"])
-            with tabs[0]:
-                if st.button("🕹️ Mission Control"):
-                    s.selected_tool = "control_tower"
-                    s.flow_step = "tool"
-                    st.rerun()
-            # Πρόσθεσε εδώ και τα υπόλοιπα κουμπιά αν επιθυμείς
+            t1, t2, t3, t4 = st.tabs(["Strategy", "Finance", "Operations", "Risk & Reports"])
+            
+            with t1: # STRATEGY
+                if st.button("🕹️ Mission Control"): s.selected_tool="control_tower"; s.flow_step="tool"; st.rerun()
+                if st.button("🎯 Pricing Strategy"): s.selected_tool="pricing_strategy"; s.flow_step="tool"; st.rerun()
+                if st.button("📡 Pricing Radar"): s.selected_tool="pricing_radar"; s.flow_step="tool"; st.rerun()
+                if st.button("📉 Loss Threshold"): s.selected_tool="loss_threshold"; s.flow_step="tool"; st.rerun()
+                if st.button("🧭 QSPM Strategy Matrix"): s.selected_tool="qspm_analyzer"; s.flow_step="tool"; st.rerun()
+                if st.button("⚖️ Cash Survival Simulator"): s.selected_tool="break_even_shift"; s.flow_step="tool"; st.rerun()
+                if st.button("👥 Customer Lifetime Value (CLV)"): s.selected_tool="clv_calculator"; s.flow_step="tool"; st.rerun()
+
+            with t2: # FINANCE
+                if st.button("📈 Growth Funding (AFN)"): s.selected_tool="growth_funding"; s.flow_step="tool"; st.rerun()
+                if st.button("📉 WACC Optimizer"): s.selected_tool="wacc_optimizer"; s.flow_step="tool"; st.rerun()
+                if st.button("⚖️ Loan vs Leasing"): s.selected_tool="loan_vs_leasing"; s.flow_step="tool"; st.rerun()
+
+            with t3: # OPERATIONS
+                if st.button("📊 NPV Receivables Analyzer"): s.selected_tool="receivables_npv"; s.flow_step="tool"; st.rerun()
+                if st.button("🔄 Cash Conversion Cycle"): s.selected_tool="cash_cycle"; s.flow_step="tool"; st.rerun()
+                if st.button("🔢 Unit Cost Analyzer"): s.selected_tool="unit_cost_analyzer"; s.flow_step="tool"; st.rerun()
+                if st.button("📦 Inventory Optimizer"): s.selected_tool="inventory_manager"; s.flow_step="tool"; st.rerun()
+                if st.button("🤝 Payables Manager"): s.selected_tool="payables_manager"; s.flow_step="tool"; st.rerun()
+                if st.button("💰 Working Capital Engine"): s.selected_tool="wc_optimizer"; s.flow_step="tool"; st.rerun()
+
+            with t4: # RISK & REPORTS
+                if st.button("🛡️ Strategic Shock Simulator"): s.selected_tool="shock_simulator"; s.flow_step="tool"; st.rerun()
+                if st.button("🚨 Cash Fragility Index"): s.selected_tool="cash_fragility"; s.flow_step="tool"; st.rerun()
+                if st.button("🛡️ Resilience Map"): s.selected_tool="resilience_map"; s.flow_step="tool"; st.rerun()
+                if st.button("📉 Stress Test Simulator"): s.selected_tool="stress_test"; s.flow_step="tool"; st.rerun()
+                st.divider()
+                if st.button("🏁 Executive Dashboard"): s.selected_tool="executive_dashboard"; s.flow_step="tool"; st.rerun()
+                if st.button("📄 Executive Decision Report"): s.selected_tool="decision_report"; s.flow_step="tool"; st.rerun()
+                if st.button("📊 Scenario Comparison"): s.selected_tool="scenario_comparison"; s.flow_step="tool"; st.rerun()
