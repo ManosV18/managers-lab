@@ -192,3 +192,51 @@ Net cash position: **€{cash:,.0f}**
     else:
 
         st.info("Save scenarios to see comparisons on the dashboard.")
+
+# --------------------------------------------------
+# MAIN HOME RUNNER
+# --------------------------------------------------
+
+def run_home():
+    s = st.session_state
+    
+    st.markdown("<h1 style='text-align:center; color:#1E3A8A;'>Managers Lab</h1>", unsafe_allow_html=True)
+    
+    # Snapshot Metrics (από το session_state)
+    m = s.get("metrics", {})
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Unit Price", f"€{s.get('price', 100.0)}")
+    c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f}")
+    c3.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
+    c4.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
+
+    st.divider()
+    
+    col_left, col_right = st.columns([0.4, 0.6], gap="large")
+
+    with col_left:
+        st.subheader("⚙️ Business Baseline")
+        # Εδώ ορίζονται τα keys που ψάχνει το app.py
+        st.number_input("Unit Price (€)", value=100.0, key="price")
+        st.number_input("Variable Cost (€)", value=60.0, key="variable_cost")
+        st.number_input("Annual Volume", value=1000, key="volume")
+        st.number_input("Annual Fixed Costs (€)", value=20000.0, key="fixed_cost")
+        st.number_input("Opening Cash (€)", value=10000.0, key="opening_cash")
+
+        if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
+            s.baseline_locked = True
+            st.rerun()
+
+    with col_right:
+        st.subheader("🧠 Strategy Modules")
+        if not s.get("baseline_locked"):
+            st.info("Παρακαλώ κλειδώστε το Baseline για να ενεργοποιηθούν τα εργαλεία.")
+        else:
+            # Εδώ θα εμφανίζονται τα Tabs με τα κουμπιά των εργαλείων
+            tabs = st.tabs(["Strategy", "Finance", "Operations", "Risk"])
+            with tabs[0]:
+                if st.button("🕹️ Mission Control"):
+                    s.selected_tool = "control_tower"
+                    s.flow_step = "tool"
+                    st.rerun()
+            # Πρόσθεσε εδώ και τα υπόλοιπα κουμπιά αν επιθυμείς
