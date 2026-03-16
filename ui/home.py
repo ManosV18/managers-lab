@@ -9,6 +9,7 @@ from io import BytesIO
 # --------------------------------------------------
 def show_decision_report():
     st.title("📄 Executive Decision Report")
+        s.selected_tool="executive_dashboard"
 
     metrics = st.session_state.get("metrics", {})
     scenario_name = st.session_state.get("scenario_name", "Baseline Scenario")
