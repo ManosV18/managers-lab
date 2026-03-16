@@ -38,13 +38,19 @@ if st.session_state.baseline_locked:
 
     st.session_state.metrics = calculate_metrics(
 
-        price=float(s.get("price", 100)),
-        volume=float(s.get("volume", 1000)),
-        variable_cost=float(s.get("variable_cost", 60)),
-        fixed_cost=float(s.get("fixed_cost", 20000)),
+    price=float(s.get("price", 100)),
+    volume=float(s.get("volume", 1000)),
+    variable_cost=float(s.get("variable_cost", 60)),
+    fixed_cost=float(s.get("fixed_cost", 20000)),
 
-        opening_cash=float(s.get("opening_cash", 10000))
-    )
+    ar_days=float(s.get("ar_days", 45)),
+    inv_days=float(s.get("inv_days", 60)),
+    ap_days=float(s.get("ap_days", 30)),
+
+    annual_debt_service=float(s.get("annual_debt_service", 0)),
+    opening_cash=float(s.get("opening_cash", 10000)),
+    target_profit=float(s.get("target_profit_goal", 0))
+)
 
 show_sidebar()
 
