@@ -158,3 +158,6 @@ elif step == "tool":
         except Exception as e:
 
             st.error(f"Error loading module: {e}")
+
+elif s.selected_tool == "executive_dashboard":
+    show_executive_dashboard()
