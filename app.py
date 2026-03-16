@@ -30,18 +30,6 @@ if "metrics" not in st.session_state:
 if "selected_tool" not in st.session_state:
     st.session_state.selected_tool = None
 
-# ΔΙΟΡΘΩΣΗ: Προσθήκη ελέγχου και default τιμών για να μην σκάει το float()
-if st.session_state.baseline_locked:
-    s = st.session_state
-
-    st.session_state.metrics = calculate_metrics(
-        price=float(s.get("price", 100.0)),
-        volume=float(s.get("volume", 1000.0)),
-        variable_cost=float(s.get("variable_cost", 60.0)),
-        fixed_cost=float(s.get("fixed_cost", 20000.0)),
-        opening_cash=float(s.get("opening_cash", 10000.0))
-    )
-
 show_sidebar()
 
 step = st.session_state.get("flow_step", "home")
@@ -55,9 +43,7 @@ elif step == "tool":
     if tool_key in TOOL_MAP:
         mod_name, func_name = TOOL_MAP[tool_key]
         col_title, col_back = st.columns([0.8, 0.2])
-        col_title.caption(
-            f"Strategy Room > {tool_key.replace('_',' ').title()}"
-        )
+        col_title.caption(f"Strategy Room > {tool_key.replace('_',' ').title()}")
 
         if col_back.button("⬅ Back to Hub", use_container_width=True):
             st.session_state.flow_step = "home"
@@ -67,3 +53,14 @@ elif step == "tool":
         module = importlib.import_module(mod_name)
         func = getattr(module, func_name)
         func()
+
+# Ο υπολογισμός μεταφέρθηκε ΕΔΩ για να υπάρχουν οι τιμές στο session_state
+if st.session_state.baseline_locked:
+    s = st.session_state
+    st.session_state.metrics = calculate_metrics(
+        price=float(s.get("price", 100.0)),
+        volume=float(s.get("volume", 1000.0)),
+        variable_cost=float(s.get("variable_cost", 60.0)),
+        fixed_cost=float(s.get("fixed_cost", 20000.0)),
+        opening_cash=float(s.get("opening_cash", 10000.0))
+    )
