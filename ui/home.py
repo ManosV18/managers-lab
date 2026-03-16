@@ -172,24 +172,6 @@ Net cash position: **€{cash:,.0f}**
 
         st.subheader("📊 Scenario Visual Comparison")
 
-        rows=[]
-
-        for name,data in scenarios.items():
-
-            rows.append({
-                "Scenario":name,
-                "ROIC":data.get("metrics",{}).get("roic",0),
-                "BreakEven":data.get("metrics",{}).get("bep_units",0),
-                "NetCash":data.get("metrics",{}).get("net_cash_position",0)
-            })
-
-        df = pd.DataFrame(rows)
-
-        st.bar_chart(df.set_index("Scenario")[["ROIC"]])
-        st.bar_chart(df.set_index("Scenario")[["
-
-        st.subheader("📊 Scenario Visual Comparison")
-
         rows = []
 
         for name, data in scenarios.items():
