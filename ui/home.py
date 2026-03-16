@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
+from fpdf import FPDF
+from io import BytesIO
 
 def show_decision_report():
     st.title("📄 Executive Decision Report")
