@@ -181,3 +181,99 @@ def run_home():
                 st.divider()
                 if st.button("📄 Executive Decision Report", use_container_width=True, type="primary"): s.selected_tool="decision_report"; s.flow_step="tool"; st.rerun()
                 if st.button("📊 Scenario Comparison", use_container_width=True): s.selected_tool="scenario_comparison"; s.flow_step="tool"; st.rerun()
+
+# --------------------------------------------------
+# SCENARIO VISUAL ANALYTICS
+# --------------------------------------------------
+
+def show_scenario_charts():
+
+    st.subheader("📊 Scenario Visual Comparison")
+
+    scenarios = st.session_state.get("saved_scenarios", {})
+
+    if not scenarios:
+        st.info("No scenarios saved yet.")
+        return
+
+    rows = []
+
+    for name, data in scenarios.items():
+
+        rows.append({
+            "Scenario": name,
+            "ROIC": data.get("metrics", {}).get("roic", 0),
+            "BreakEven": data.get("metrics", {}).get("bep_units", 0),
+            "NetCash": data.get("metrics", {}).get("net_cash_position", 0)
+        })
+
+    df = pd.DataFrame(rows)
+
+    st.bar_chart(
+        df.set_index("Scenario")[["ROIC"]]
+    )
+
+    st.bar_chart(
+        df.set_index("Scenario")[["BreakEven"]]
+    )
+
+    st.bar_chart(
+        df.set_index("Scenario")[["NetCash"]]
+    )
+
+
+# --------------------------------------------------
+# STRATEGIC SUMMARY
+# --------------------------------------------------
+
+def show_strategy_summary():
+
+    st.subheader("🧠 Strategic Insight")
+
+    metrics = st.session_state.get("metrics", {})
+
+    roic = metrics.get("roic", 0)
+    bep = metrics.get("bep_units", 0)
+    cash = metrics.get("net_cash_position", 0)
+
+    if roic > 0.15:
+        strategy = "High return strategy. Capital allocation is efficient."
+    elif roic > 0.05:
+        strategy = "Moderate performance. Strategy viable but improvements possible."
+    else:
+        strategy = "Low ROIC. Review pricing or cost structure."
+
+    if cash < 0:
+        liquidity = "Liquidity risk detected."
+    else:
+        liquidity = "Healthy liquidity buffer."
+
+    st.success(strategy)
+    st.warning(liquidity)
+
+    st.write(f"""
+**Strategic Interpretation**
+
+• Return on invested capital: **{roic*100:.1f}%**
+
+• Break-even level: **{bep:,.0f} units**
+
+• Net cash position: **€{cash:,.0f}**
+
+These metrics indicate the current strategic sustainability of the business model.
+""")
+
+
+# --------------------------------------------------
+# EXECUTIVE DASHBOARD
+# --------------------------------------------------
+
+def show_executive_dashboard():
+
+    st.title("🏁 Executive Dashboard")
+
+    show_strategy_summary()
+
+    st.divider()
+
+    show_scenario_charts()
