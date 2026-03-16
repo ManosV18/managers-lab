@@ -248,7 +248,7 @@ def run_home():
         scen_name = st.text_input(
             "Scenario Name",
             value=s.get("scenario_name", "Baseline"),
-            key="scenario_name"
+            key="scenario_name_input"
         )
 
         if st.button("Save Scenario", use_container_width=True):
@@ -257,10 +257,10 @@ def run_home():
                 s.saved_scenarios = {}
 
             s.saved_scenarios[scen_name] = {
-                "price": p,
-                "volume": v,
-                "variable_cost": vc,
-                "fixed_cost": fc,
+                "price": s.price,
+                "volume": s.volume,
+                "variable_cost": s.variable_cost,
+                "fixed_cost": s.fixed_cost,
                 "metrics": m
             }
 
