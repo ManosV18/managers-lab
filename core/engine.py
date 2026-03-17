@@ -65,6 +65,7 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     return {
         "unit_contribution": unit_contribution,
         "revenue": revenue,
+        "total_costs": total_costs,
         "ebit": ebit,
         "nopat": nopat,
         "net_profit": net_profit,
