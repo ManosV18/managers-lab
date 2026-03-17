@@ -9,6 +9,7 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     unit_contribution = price - variable_cost
     revenue = price * volume
     total_vc = variable_cost * volume
+    total_costs = total_vc + fixed_cost
     ebit = (unit_contribution * volume) - fixed_cost
     
     # 22% Corporate Tax (Cold Logic)
