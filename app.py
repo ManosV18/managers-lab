@@ -78,7 +78,6 @@ st.session_state.metrics = calculate_metrics(
     float(st.session_state.get("annual_debt_service", 0)),
     float(st.session_state.get("opening_cash", 10000))
 )
-    st.session_state.metrics = {}
 
 if "selected_tool" not in st.session_state:
     st.session_state.selected_tool = None
