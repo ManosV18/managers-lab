@@ -138,9 +138,10 @@ def run_home():
 
         with st.expander("🔄 Working Capital & Liquidity"):
             st.number_input("Opening Cash (€)", value=float(s.get("opening_cash", 10000.0)), key="opening_cash")
-            st.number_input("A/R Days", value=float(s.get("ar_days", 45.0)), key="ar_days")
-            st.number_input("Inventory Days", value=float(s.get("inv_days", 60.0)), key="inv_days")
-            st.number_input("A/P Days", value=float(s.get("ap_days", 30.0)), key="ap_days")
+            
+            st.number_input("A/R Days", value=int(s.get("ar_days", 45)), key="ar_days")
+            st.number_input("Inventory Days", value=int(s.get("inv_days", 60)), key="inv_days")
+            st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
             st.number_input("Annual Debt Service (€)", value=float(s.get("annual_debt_service", 0.0)), key="annual_debt_service")
 
         if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
@@ -151,8 +152,9 @@ def run_home():
             s.saved_scenarios[s.scenario_name] = {
                 "price": s.get("price"),
                 "volume": s.get("volume"),
-                "metrics": s.get("metrics")
+                "metrics": dict(s.get("metrics", {}))
             }
+            
             st.success(f"Scenario '{s.scenario_name}' saved!")
 
     with col_right:
