@@ -110,6 +110,7 @@ step = st.session_state.get("flow_step", "home")
 if step == "home":
     st.session_state.selected_tool = None
     run_home()
+    st.stop()
 
 elif step == "tool":
     tool_key = st.session_state.get("selected_tool")
