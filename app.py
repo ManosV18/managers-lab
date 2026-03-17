@@ -67,7 +67,17 @@ if "baseline_locked" not in st.session_state:
 if "flow_step" not in st.session_state:
     st.session_state.flow_step = "home"
 
-if "metrics" not in st.session_state or st.session_state.metrics is None:
+st.session_state.metrics = calculate_metrics(
+    float(st.session_state.get("price", 100)),
+    float(st.session_state.get("volume", 1000)),
+    float(st.session_state.get("variable_cost", 60)),
+    float(st.session_state.get("fixed_cost", 20000)),
+    float(st.session_state.get("ar_days", 30)),
+    float(st.session_state.get("inv_days", 40)),
+    float(st.session_state.get("ap_days", 20)),
+    float(st.session_state.get("annual_debt_service", 0)),
+    float(st.session_state.get("opening_cash", 10000))
+)
     st.session_state.metrics = {}
 
 if "selected_tool" not in st.session_state:
