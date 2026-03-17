@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 from core.engine import calculate_metrics
 
@@ -92,6 +94,13 @@ def show_executive_dashboard():
 
         fig4 = px.bar(df_sc, x="Scenario", y="Cash", title="Cash by Scenario")
         st.plotly_chart(fig4, use_container_width=True)
+
+    curr_ar = _safe_get("ar_days", 30)
+    curr_inv = _safe_get("inv_days", 40)
+    curr_ap = _safe_get("ap_days", 20)
+
+    wacc_pct = _safe_get("wacc", 10.0)
+    wacc_decimal = wacc_pct / 100
 
     # 2. SCENARIO BUILDER
     st.subheader("🚀 Strategy Optimization Scenario")
