@@ -55,8 +55,19 @@ def show_scenario_comparison():
 def show_executive_dashboard():
     st.title("🏁 Executive Dashboard")
     m = st.session_state.get("metrics", {})
-    st.metric("Return on Capital (ROIC)", f"{m.get('roic', 0)*100:.1f}%")
-    st.metric("Cash Position", f"€{m.get('net_cash_position', 0):,.0f}")
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
+    c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
+    c3.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
+    c4.metric("Liquidity Buffer", f"{m.get('liquidity_buffer', 0):,.1f}%")
+
+    st.divider()
+
+    c5, c6 = st.columns(2)
+    c5.metric("Revenue", f"€{m.get('revenue', 0):,.0f}")
+    c6.metric("Total Costs", f"€{m.get('total_costs', 0):,.0f}")
 
 # --------------------------------------------------
 # MAIN HOME RUNNER
