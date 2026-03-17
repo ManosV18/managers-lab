@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from fpdf import FPDF
+import plotly.express as px
 
 # --------------------------------------------------
 # REPORTING & DASHBOARD FUNCTIONS
