@@ -67,7 +67,7 @@ if "baseline_locked" not in st.session_state:
 if "flow_step" not in st.session_state:
     st.session_state.flow_step = "home"
 
-if "metrics" not in st.session_state:
+if "metrics" not in st.session_state or st.session_state.metrics is None:
     st.session_state.metrics = {}
 
 if "selected_tool" not in st.session_state:
