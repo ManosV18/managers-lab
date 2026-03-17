@@ -11,21 +11,87 @@ def _safe_get(key, default=0.0):
         return float(default)
 
 def show_executive_dashboard():
-    st.header("🏁 Executive Liquidity Command Center")
-    st.info("Compare your Current Operations with an Optimized Strategic Scenario.")
+    st.title("🏁 Executive Dashboard")
 
-    # 1. FETCH DATA (Linked to Home Session State)
-    s = st.session_state
-    m = s.get("metrics", {})
+    m = st.session_state.get("metrics", {})
 
-    # Sync with Global Keys
-    curr_ar = _safe_get('ar_days', 45.0)
-    curr_inv = _safe_get('inv_days', 60.0) # Corrected key to match home.py
-    curr_ap = _safe_get('ap_days', 30.0)
-    
-    # Use locked WACC if available, otherwise 15%
-    wacc_pct = _safe_get('wacc_locked', 15.0)
-    wacc_decimal = wacc_pct / 100
+    # -------------------------------
+    # KPIs
+    # -------------------------------
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
+    c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
+    c3.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
+    c4.metric("Liquidity Buffer", f"{m.get('liquidity_buffer', 0):,.1f}%")
+
+    st.divider()
+
+    # -------------------------------
+    # BAR CHART (Core Metrics)
+    # -------------------------------
+    st.subheader("📊 Core Performance")
+
+    df = pd.DataFrame({
+        "Metric": ["Revenue", "Costs", "Cash"],
+        "Value": [
+            m.get("revenue", 0),
+            m.get("total_costs", 0),
+            m.get("net_cash_position", 0)
+        ]
+    })
+
+    fig = px.bar(df, x="Metric", y="Value", title="Financial Overview")
+    st.plotly_chart(fig, use_container_width=True)
+
+    # -------------------------------
+    # BREAK-EVEN CURVE
+    # -------------------------------
+    st.subheader("📉 Break-Even Analysis")
+
+    price = st.session_state.get("price", 100)
+    vc = st.session_state.get("variable_cost", 60)
+    fc = st.session_state.get("fixed_cost", 20000)
+
+    volumes = list(range(0, int(st.session_state.get("volume", 1000)) * 2, 50))
+
+    revenue = [v * price for v in volumes]
+    costs = [fc + v * vc for v in volumes]
+
+    df_be = pd.DataFrame({
+        "Volume": volumes,
+        "Revenue": revenue,
+        "Total Cost": costs
+    })
+
+    fig2 = px.line(df_be, x="Volume", y=["Revenue", "Total Cost"],
+                   title="Break-Even Curve")
+
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # -------------------------------
+    # SCENARIO COMPARISON
+    # -------------------------------
+    scenarios = st.session_state.get("saved_scenarios", {})
+
+    if scenarios:
+        st.subheader("📊 Scenario Comparison")
+
+        rows = []
+        for name, data in scenarios.items():
+            rows.append({
+                "Scenario": name,
+                "ROIC": data.get("metrics", {}).get("roic", 0),
+                "Cash": data.get("metrics", {}).get("net_cash_position", 0)
+            })
+
+        df_sc = pd.DataFrame(rows)
+
+        fig3 = px.bar(df_sc, x="Scenario", y="ROIC", title="ROIC by Scenario")
+        st.plotly_chart(fig3, use_container_width=True)
+
+        fig4 = px.bar(df_sc, x="Scenario", y="Cash", title="Cash by Scenario")
+        st.plotly_chart(fig4, use_container_width=True)
 
     # 2. SCENARIO BUILDER
     st.subheader("🚀 Strategy Optimization Scenario")
