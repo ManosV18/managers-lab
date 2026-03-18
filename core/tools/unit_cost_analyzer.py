@@ -16,18 +16,18 @@ def show_unit_cost_app():
     
     with col1:
         st.markdown("### 🛠 Direct Production Costs")
-        raw_materials = st.number_input("Raw Materials / unit (€)", min_value=0.0, 
+        raw_materials = st.number_input("Raw Materials / unit ($)", min_value=0.0, 
                                         value=float(st.session_state.variable_cost * 0.7),
                                         help="Direct cost of ingredients or components.")
-        labor_cost = st.number_input("Direct Labor / unit (€)", min_value=0.0, 
+        labor_cost = st.number_input("Direct Labor / unit ($)", min_value=0.0, 
                                      value=float(st.session_state.variable_cost * 0.2),
                                      help="Variable labor associated directly with production output.")
         
     with col2:
         st.markdown("### ⚡ Variable Overheads")
-        energy_cost = st.number_input("Energy & Utilities / unit (€)", min_value=0.0, 
+        energy_cost = st.number_input("Energy & Utilities / unit ($)", min_value=0.0, 
                                       value=float(st.session_state.variable_cost * 0.05))
-        packaging_shipping = st.number_input("Logistics & Packaging (€)", min_value=0.0, 
+        packaging_shipping = st.number_input("Logistics & Packaging ($)", min_value=0.0, 
                                              value=float(st.session_state.variable_cost * 0.05))
 
     # 2. CALCULATION ENGINE
@@ -41,8 +41,8 @@ def show_unit_cost_app():
     with c1:
         global_vc = st.session_state.get('variable_cost', 0.0)
         diff = total_vc - global_vc
-        st.metric("Calculated Variable Cost", f"€ {total_vc:.2f}", 
-                  delta=f"{diff:.2f} € vs System Baseline",
+        st.metric("Calculated Variable Cost", f"$ {total_vc:.2f}", 
+                  delta=f"{diff:.2f} $ vs System Baseline",
                   delta_color="inverse")
     
     with c2:
@@ -66,7 +66,7 @@ def show_unit_cost_app():
     if total_vc > 0:
         for label, value in cost_data.items():
             pct = value / total_vc
-            st.write(f"**{label}:** € {value:.2f} ({pct:.1%})")
+            st.write(f"**{label}:** $ {value:.2f} ({pct:.1%})")
             st.progress(pct)
     else:
         st.warning("Input values to visualize cost structure.")
