@@ -90,6 +90,7 @@ if "scenario_name" not in st.session_state:
 # --------------------------------------------------
 
 if st.session_state.baseline_locked:
+    # Στο app.py, γύρω στη γραμμή 94
     s = st.session_state
     st.session_state.metrics = calculate_metrics(
         price=float(s.get("price", 100)),
@@ -101,11 +102,11 @@ if st.session_state.baseline_locked:
         ap_days=int(s.get("ap_days", 30)),
         annual_debt_service=float(s.get("annual_debt_service", 0)),
         opening_cash=float(s.get("opening_cash", 10000)),
-        fixed_assets=float(s.get("fixed_assets", 0)),
-        total_debt=float(s.get("total_debt", 0)),
+        total_debt=float(s.get("total_debt", 0)),      # <--- ΠΡΟΣΟΧΗ ΣΤΟ ΟΝΟΜΑ
+        fixed_assets=float(s.get("fixed_assets", 0)),  # <--- ΠΡΟΣΟΧΗ ΣΤΟ ΟΝΟΜΑ
         target_profit=float(s.get("target_profit_goal", 0))
     )
-
+    
 # --------------------------------------------------
 # SIDEBAR
 # --------------------------------------------------
