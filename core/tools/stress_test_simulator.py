@@ -48,9 +48,9 @@ def show_stress_test_tool():
     # 4. RESULTS DASHBOARD
     st.divider()
     m1, m2, m3 = st.columns(3)
-    m1.metric("New Revenue Floor", f"€ {new_rev:,.0f}", delta=f"{rev_shock:.1%}")
-    m2.metric("New Profitability", f"€ {new_profit:,.0f}", delta=f"{new_profit - base_profit:,.0f}", delta_color="inverse")
-    m3.metric("Critical Cash Gap", f"€ {total_cash_gap:,.0f}", delta="Liquidity Drain", delta_color="inverse")
+    m1.metric("New Revenue Floor", f"$ {new_rev:,.0f}", delta=f"{rev_shock:.1%}")
+    m2.metric("New Profitability", f"$ {new_profit:,.0f}", delta=f"{new_profit - base_profit:,.0f}", delta_color="inverse")
+    m3.metric("Critical Cash Gap", f"$ {total_cash_gap:,.0f}", delta="Liquidity Drain", delta_color="inverse")
 
     # 5. RESILIENCE GAUGE
     st.subheader("🧭 Survival Analysis")
