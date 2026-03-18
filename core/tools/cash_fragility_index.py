@@ -29,8 +29,8 @@ def show_cash_fragility_index():
     col1, col2 = st.columns(2)
     
     default_cash = s.get('opening_cash', 0.0)
-    cash_on_hand = col1.number_input("Current Cash & Equivalents (€)", value=float(default_cash), step=1000.0)
-    unused_credit = col2.number_input("Available Credit Lines (€)", value=0.0, step=1000.0)
+    cash_on_hand = col1.number_input("Current Cash & Equivalents ($)", value=float(default_cash), step=1000.0)
+    unused_credit = col2.number_input("Available Credit Lines ($)", value=0.0, step=1000.0)
     
     total_liquidity = cash_on_hand + unused_credit
 
