@@ -37,10 +37,11 @@ def generate_professional_pdf(metrics, scenario_name):
     pdf.ln(2)
     
     pdf.set_font('Arial', '', 11)
+    # ΑΛΛΑΓΗ: Χρησιμοποιούμε "EUR" αντί για "€" για να αποφύγουμε το Latin-1 Error
     data = [
         ["ROIC", f"{metrics.get('roic', 0)*100:.2f}%"],
         ["Net Profit (NOPAT)", f"EUR {metrics.get('nopat', 0):,.2f}"],
-        ["Revenue", f"EUR {metrics.get('revenue', 0):,.2f}"]
+        ["Total Revenue", f"EUR {metrics.get('revenue', 0):,.2f}"]
     ]
     
     for item in data:
@@ -99,6 +100,7 @@ def generate_professional_pdf(metrics, scenario_name):
     pdf.set_font('Arial', 'I', 11)
     pdf.ln(2)
     
+    # Verdict Logic
     if metrics.get('net_cash_position', 0) < 0:
         verdict = "WARNING: Operation is burning through capital. Immediate liquidity injection required."
     elif mos < 10:
@@ -108,5 +110,5 @@ def generate_professional_pdf(metrics, scenario_name):
         
     pdf.multi_cell(0, 8, verdict, 0, 'C')
 
-    # Return as bytes
-    return pdf.output(dest='S').encode('latin-1')
+    # ΤΕΛΙΚΟ CHECK: Μετατροπή σε latin-1 με παράλειψη αγνώστων χαρακτήρων
+    return pdf.output(dest='S').encode('latin-1', 'ignore')
