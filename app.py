@@ -63,8 +63,12 @@ if "flow_step" not in s: s.flow_step = "home"
 if "selected_tool" not in s: s.selected_tool = None
 if "scenario_name" not in s: s.scenario_name = "Baseline Scenario"
 
+# --- NEW DEFAULTS FOR TAX & INTEREST ---
+if "tax_rate" not in s: s.tax_rate = 22.0
+if "annual_interest_only" not in s: s.annual_interest_only = 0.0
+
 # 4. RUN FINANCIAL ENGINE (Ενοποιημένη κλήση)
-# Χρησιμοποιούμε απευθείας τις τιμές που έρχονται από τα widgets του home.py
+# Προσθέτουμε tax_rate και διαχωρίζουμε τους τόκους αν χρειαστεί
 s.metrics = calculate_metrics(
     price=float(s.get("price", 150.0)),
     volume=float(s.get("volume", 15000)),
@@ -77,7 +81,10 @@ s.metrics = calculate_metrics(
     opening_cash=float(s.get("opening_cash", 150000.0)),
     total_debt=float(s.get("total_debt", 500000.0)),
     fixed_assets=float(s.get("fixed_assets", 800000.0)),
-    target_profit=float(s.get("target_profit_goal", 200000.0)) # Πρόσεξε αυτό το κλειδί!
+    target_profit=float(s.get("target_profit_goal", 200000.0)),
+    # --- NEW PARAMETERS ---
+    tax_rate=float(s.get("tax_rate", 22.0)),
+    annual_interest=float(s.get("annual_interest_only", 0.0))
 )
 
 # 5. SIDEBAR & ROUTING
