@@ -20,7 +20,7 @@ def run_cash_cycle_app():
     annual_cogs = q * vc 
     annual_revenue = q * p
     
-    st.write(f"**🔗 Linked Metrics:** Revenue: {annual_revenue:,.0f}€ | COGS: {annual_cogs:,.0f}€")
+    st.write(f"**🔗 Linked Metrics:** Revenue: {annual_revenue:,.0f}$ | COGS: {annual_cogs:,.0f}$")
     st.divider()
 
     # 2. INPUTS & DYNAMIC WRITING
@@ -57,7 +57,7 @@ def run_cash_cycle_app():
         st.markdown(f"Liquidity Status: :{color}[**{status}**]")
     
     with res2:
-        st.metric("Working Capital Requirement", f"{working_capital_req:,.0f} €")
+        st.metric("Working Capital Requirement", f"{working_capital_req:,.0f} $")
         st.caption("The amount of net cash required to sustain current operations.")
 
     # 6. VISUAL TIMELINE
@@ -68,7 +68,7 @@ def run_cash_cycle_app():
 
     # 7. COLD INSIGHT
     daily_cash_impact = (annual_cogs / days_in_year)
-    st.info(f"💡 **Cold Insight:** Every single day reduced from your CCC releases approximately **{daily_cash_impact:,.0f} €** in trapped cash flow.")
+    st.info(f"💡 **Cold Insight:** Every single day reduced from your CCC releases approximately **{daily_cash_impact:,.0f} $** in trapped cash flow.")
     
     # Ο Router στο app.py παρέχει ήδη κουμπί επιστροφής, αλλά αν θες και αυτό:
     if st.button("Apply & Back to Library Hub", type="primary"):
