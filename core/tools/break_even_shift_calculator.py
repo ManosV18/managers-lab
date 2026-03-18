@@ -23,8 +23,8 @@ def show_break_even_shift_calculator():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        sim_price = st.slider("Unit Price (€)", b_price * 0.5, b_price * 2.0, b_price)
-        sim_vc = st.slider("Variable Cost (€)", b_vc * 0.5, b_vc * 2.0, b_vc)
+        sim_price = st.slider("Unit Price ($)", b_price * 0.5, b_price * 2.0, b_price)
+        sim_vc = st.slider("Variable Cost ($)", b_vc * 0.5, b_vc * 2.0, b_vc)
 
     with col2:
         sim_fc = st.slider("Fixed Costs", b_fc * 0.5, b_fc * 2.5, b_fc)
@@ -65,7 +65,7 @@ def show_break_even_shift_calculator():
         c1.metric("Break Even", "N/A")
         st.error("Variable cost exceeds price")
 
-    c2.metric("Cash Burden", f"€{total_burden:,.0f}")
+    c2.metric("Cash Burden", f"${total_burden:,.0f}")
 
     # -------------------------------------------------
     # CHART (Plotly logic αμετάβλητη)
@@ -112,8 +112,8 @@ def show_break_even_shift_calculator():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        sim_price = st.slider("Unit Price (€)", b_price * 0.5, b_price * 2.0, b_price)
-        sim_vc = st.slider("Variable Cost (€)", b_vc * 0.5, b_vc * 2.0, b_vc)
+        sim_price = st.slider("Unit Price ($)", b_price * 0.5, b_price * 2.0, b_price)
+        sim_vc = st.slider("Variable Cost ($)", b_vc * 0.5, b_vc * 2.0, b_vc)
 
     with col2:
         sim_fc = st.slider("Fixed Costs", b_fc * 0.5, b_fc * 2.5, b_fc)
@@ -155,7 +155,7 @@ def show_break_even_shift_calculator():
         c1.metric("Break Even", "N/A")
         st.error("Variable cost exceeds price")
 
-    c2.metric("Cash Burden", f"€{total_burden:,.0f}")
+    c2.metric("Cash Burden", f"${total_burden:,.0f}")
 
     # -------------------------------------------------
     # CHART
