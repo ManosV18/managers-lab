@@ -15,9 +15,9 @@ def show_pricing_radar():
     
     with st.expander("🔍 Current Margin Baseline", expanded=False):
         c_a, c_b, c_c = st.columns(3)
-        c_a.metric("Base Price", f"€{current_price:,.2f}")
-        c_b.metric("Variable Cost", f"€{current_vc:,.2f}")
-        c_c.metric("Unit Contribution", f"€{current_cm:,.2f}")
+        c_a.metric("Base Price", f"${current_price:,.2f}")
+        c_b.metric("Variable Cost", f"${current_vc:,.2f}")
+        c_c.metric("Unit Contribution", f"${current_cm:,.2f}")
 
     if current_cm <= 0:
         st.error("🚨 Negative Contribution Margin detected. Pricing analysis is mathematically void until Unit Cost < Price.")
@@ -42,7 +42,7 @@ def show_pricing_radar():
 
     # 4. EXECUTIVE METRICS
     col1, col2 = st.columns(2)
-    col1.metric("New Simulated Price", f"€{new_price:,.2f}", f"{price_change_pct:+.1f}%")
+    col1.metric("New Simulated Price", f"${new_price:,.2f}", f"{price_change_pct:+.1f}%")
     
     # Logic: Upward price movement allows for downward volume movement.
     color_logic = "normal" if price_change_pct > 0 else "inverse"
@@ -77,7 +77,7 @@ def show_pricing_radar():
         
         sensitivity_data.append({
             "Price Change (%)": f"{pct:+d}%",
-            "Target Price (€)": f"{temp_price:,.2f}",
+            "Target Price ($)": f"{temp_price:,.2f}",
             "Volume Offset (%)": f"{vol_change:+.1f}%",
             "Strategic Profile": status
         })
