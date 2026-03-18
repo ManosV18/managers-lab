@@ -31,7 +31,7 @@ def show_growth_funding_needed():
     current_sales = float(m.get('revenue', 0.0))
     net_profit_margin = net_profit / current_sales if current_sales > 0 else 0
 
-    st.caption(f"Calculated Net Profit: **€ {net_profit:,.2f}** | Net Margin: **{net_profit_margin:.2%}**")
+    st.caption(f"Calculated Net Profit: **$ {net_profit:,.2f}** | Net Margin: **{net_profit_margin:.2%}**")
 
     # 3. GROWTH SCENARIO
     st.subheader("🚀 Growth Scenario")
@@ -56,11 +56,11 @@ def show_growth_funding_needed():
     # 6. RESULTS
     st.divider()
     m1, m2, m3 = st.columns(3)
-    m1.metric("New Sales Target", f"€ {new_total_sales:,.0f}")
-    m2.metric("Internal Reinvestment", f"€ {internal_funding:,.0f}")
+    m1.metric("New Sales Target", f"$ {new_total_sales:,.0f}")
+    m2.metric("Internal Reinvestment", f"$ {internal_funding:,.0f}")
     
     afn_val = max(0, afn)
-    m3.metric("AFN (External Capital)", f"€ {afn_val:,.0f}", 
+    m3.metric("AFN (External Capital)", f"$ {afn_val:,.0f}", 
               delta="Capital Needed" if afn > 0 else "Self-Funded", 
               delta_color="inverse" if afn > 0 else "normal")
 
@@ -83,7 +83,7 @@ def show_growth_funding_needed():
     # 8. VERDICT (Cold & Direct)
     st.subheader("💡 Strategic Verdict")
     if afn > 0:
-        st.error(f"**Financing Gap Detected:** Organic cash flow (after tax & interest) is insufficient. You need **€ {afn:,.0f}** in external debt or equity to sustain this growth rate without depleting liquidity.")
+        st.error(f"**Financing Gap Detected:** Organic cash flow (after tax & interest) is insufficient. You need **$ {afn:,.0f}** in external debt or equity to sustain this growth rate without depleting liquidity.")
     else:
         st.success(f"**Organic Sustainability:** The system generates enough net profit to self-fund this growth scenario. No external capital is required.")
 
