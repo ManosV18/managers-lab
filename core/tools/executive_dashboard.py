@@ -22,10 +22,19 @@ def show_executive_dashboard():
     # -------------------------------
     c1, c2, c3, c4 = st.columns(4)
 
+    # 1. ROIC (Απόδοση)
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
+    
+    # 2. Break-Even (Σημείο Μηδέν)
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
-    c3.metric("margin of safety", f"{m.get('margin_of_safety', 0):,.1f}%")
-    c4.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
+    
+    # 3. Net Cash (Ρευστότητα)
+    c3.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
+    
+    # 4. Margin of Safety (Ασφάλεια) - ΕΔΩ ΕΙΝΑΙ Η ΔΙΟΡΘΩΣΗ
+    # Πρέπει να είναι margin_of_safety (με _) και * 100
+    mos_val = m.get('margin_of_safety', 0) * 100
+    c4.metric("Margin of Safety", f"{mos_val:.1f}%")
 
     st.divider()
 
