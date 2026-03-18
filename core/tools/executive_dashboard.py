@@ -133,21 +133,20 @@ def show_executive_dashboard():
 
     curr_gap = float(m.get('wc_requirement', 0.0))
 
-    # 4. CORRECTED ENGINE CALL (Matching engine.py arguments)
-    # Arguments: price, volume, v_cost, f_cost, tax, ar, inv, ap, debt_service, cash
+    # 4. CORRECTED ENGINE CALL (Matching NEW engine.py arguments)
     optimized_results = calculate_metrics(
-        _safe_get('price', 100.0),
-        _safe_get('volume', 1000.0),
-        _safe_get('variable_cost', 60.0),
-        _safe_get('fixed_cost', 20000.0),
-        0.22, # Tax rate
-        opt_ar,
-        opt_inv,
-        opt_ap,
-        _safe_get('annual_debt_service', 0.0),
-        _safe_get('opening_cash', 10000.0)
+        price=_safe_get('price', 150.0),
+        volume=_safe_get('volume', 15000.0),
+        variable_cost=_safe_get('variable_cost', 90.0),
+        fixed_cost=_safe_get('fixed_cost', 450000.0),
+        ar_days=opt_ar,
+        inv_days=opt_inv,
+        ap_days=opt_ap,
+        annual_debt_service=_safe_get('annual_debt_service', 70000.0),
+        opening_cash=_safe_get('opening_cash', 150000.0),
+        total_debt=_safe_get('total_debt', 500000.0), # ΠΡΟΣΘΗΚΗ
+        fixed_assets=_safe_get('fixed_assets', 800000.0) # ΠΡΟΣΘΗΚΗ
     )
-
     opt_gap = float(optimized_results.get('wc_requirement', 0.0))
     cash_released = curr_gap - opt_gap
     annual_savings = cash_released * wacc_decimal
