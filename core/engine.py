@@ -73,12 +73,21 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     dol = contribution_margin / ebit if ebit != 0 else 0
 
     # 11. Cash Burn & Runway Engine (Monthly perspective)
-    # Net Profit already accounts for interest and taxes
     monthly_cf = (net_profit - (annual_debt_service - annual_interest)) / 12
     if monthly_cf < 0:
         runway = opening_cash / abs(monthly_cf)
     else:
         runway = float('inf')
+
+    # --- ADDED: ROIC AUDIT DATA ---
+    # Δημιουργούμε ένα dictionary για εύκολο debugging στο UI
+    roic_debug = {
+        "EBIT": ebit,
+        "Tax Factor": tax_factor,
+        "NOPAT": nopat,
+        "Invested Capital": invested_capital,
+        "Final ROIC": roic
+    }
 
     # --- RETURN FULL DICTIONARY ---
     return {
@@ -99,6 +108,7 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
         "wc_requirement": net_working_capital, 
         "invested_capital": invested_capital,
         "roic": roic,
+        "roic_debug": roic_debug, # Επιστρέφουμε και το debug info
         "net_debt": net_debt,
         "total_debt": total_debt,
         "ar_value": ar_value,
