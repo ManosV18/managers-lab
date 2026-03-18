@@ -217,3 +217,16 @@ def run_home():
                 if st.button("🏁 Executive Dashboard", use_container_width=True): s.selected_tool="executive_dashboard"; s.flow_step="tool"; st.rerun()
                 if st.button("📄 Executive Decision Report", use_container_width=True): s.selected_tool="decision_report"; s.flow_step="tool"; st.rerun()
                 if st.button("📊 Scenario Comparison", use_container_width=True): s.selected_tool="scenario_comparison"; s.flow_step="tool"; st.rerun()
+
+            # --- COLD LOGIC QUICK ANALYSIS ---
+            st.divider()
+            with st.expander("🔍 Capital Structure Analysis", expanded=True):
+                ca1, ca2 = st.columns(2)
+                ca1.write(f"**Total Debt:** €{s.get('total_debt', 0):,.0f}")
+                ca1.write(f"**Fixed Assets:** €{s.get('fixed_assets', 0):,.0f}")
+                
+                # Υπολογισμός Net Debt live
+                net_debt_val = s.get('total_debt', 0) - s.get('opening_cash', 0)
+                color = "red" if net_debt_val > 0 else "green"
+                ca2.markdown(f"**Net Debt:** <span style='color:{color}'>€{net_debt_val:,.0f}</span>", unsafe_allow_html=True)
+                ca2.write(f"**Invested Capital:** €{m.get('invested_capital', 0):,.0f}")
