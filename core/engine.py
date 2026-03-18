@@ -3,6 +3,7 @@ import streamlit as st
 def calculate_metrics(price, volume, variable_cost, fixed_cost,
                       ar_days, inv_days, ap_days,
                       annual_debt_service, opening_cash,
+                      fixed_assets=0.0,
                       target_profit=0.0):
     
     # 1. Base Unit Economics
