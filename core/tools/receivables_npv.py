@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 from decimal import Decimal, getcontext
 import numpy as np
 
-# --- CALCULATION ENGINE (ΑΠΑΡΑΛΛΑΚΤΟΣ) ---
+# --- CALCULATION ENGINE
 def calculate_discount_npv(
     current_sales, extra_sales, discount_trial, prc_clients_take_disc,
     days_curently_paying_clients_take_discount, days_curently_paying_clients_not_take_discount,
@@ -93,8 +93,8 @@ def show_receivables_analyzer_ui():
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("**Market Assumptions**")
-            c_sales = st.number_input("Current Sales (€)", value=sys_revenue)
-            e_sales = st.number_input("Projected Extra Sales (€)", value=sys_revenue * 0.10)
+            c_sales = st.number_input("Current Sales ($)", value=sys_revenue)
+            e_sales = st.number_input("Projected Extra Sales ($)", value=sys_revenue * 0.10)
             d_trial = st.number_input("Proposed Discount (%)", value=2.0, step=0.1) / 100
             p_take = st.number_input("% Clients Expected to Adopt", value=40.0, step=1.0) / 100
             d_take_current = st.number_input("Current Collection (Take Group) - Days", value=int(sys_ar_days))
@@ -102,7 +102,7 @@ def show_receivables_analyzer_ui():
         with col2:
             st.markdown("**Timeline & Capital Cost**")
             d_new_target = st.number_input("New Payment Target (Days)", value=10, step=1)
-            cogs_val = st.number_input("COGS (€)", value=sys_cogs)
+            cogs_val = st.number_input("COGS ($)", value=sys_cogs)
             wacc_val = st.number_input("Cost of Capital - WACC (%)", value=sys_wacc * 100, step=0.1) / 100
             d_supps = st.number_input("DPO (Supplier Days)", value=int(sys_ap_days))
             d_no_take = st.number_input("Collection for Non-Adopters (Days)", value=int(sys_ar_days * 1.5))
@@ -116,7 +116,7 @@ def show_receivables_analyzer_ui():
         st.divider()
         st.subheader("🏁 Financial Verdict")
         c1, c2, c3 = st.columns(3)
-        c1.metric("Strategy NPV", f"€{r['npv']:,.2f}", delta="Value Creator" if r['npv'] > 0 else "Value Destroyer")
+        c1.metric("Strategy NPV", f"${r['npv']:,.2f}", delta="Value Creator" if r['npv'] > 0 else "Value Destroyer")
         c2.metric("Break-even Discount", f"{r['max_discount']:.2f}%")
         c3.metric("Mathematical Optimum", f"{r['optimum_discount']:.2f}%")
 
@@ -128,7 +128,7 @@ def show_receivables_analyzer_ui():
             st.write(f"• New Weighted Avg Days: **{r['new_avg_collection_period']:.1f} days**")
         with col_right:
             st.write("**Liquidity Profile:**")
-            st.metric("Capital Liberated", f"€{r['free_capital']:,.2f}")
+            st.metric("Capital Liberated", f"${r['free_capital']:,.2f}")
 
         # Sensitivity Matrix
         st.divider()
