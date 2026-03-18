@@ -24,8 +24,8 @@ def show_executive_dashboard():
 
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
-    c3.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
-    c4.metric("margin of safety", f"{m.get('margin_of_safety', 0):,.1f}%")
+    c3.metric("margin of safety", f"{m.get('margin_of_safety', 0):,.1f}%")
+    c4.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
 
     st.divider()
 
