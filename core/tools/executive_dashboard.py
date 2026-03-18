@@ -41,18 +41,21 @@ def show_executive_dashboard():
     # ---------------------------------------------------------
     c1, c2, c3, c4 = st.columns(4)
 
-    # Σειρά: ROIC | Break-Even | Margin of Safety | Net Cash
+    # Στήλη 1: ROIC
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
+    
+    # Στήλη 2: Break-Even
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
     
-    # Margin of Safety με σωστό κλειδί και ποσοστό
+    # Στήλη 3: Margin of Safety (Τώρα στη σωστή θέση)
     mos_val = m.get('margin_of_safety', 0) * 100
     c3.metric("Margin of Safety", f"{mos_val:.1f}%")
     
-    c4.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
+    # Στήλη 4: Net Cash Position (Τώρα στην τελευταία θέση)
+    c4.metric("Net Cash Position", f"€{m.get('net_cash_position', 0):,.0f}")
 
     st.divider()
-
+    
     # ---------------------------------------------------------
     # 3. PERFORMANCE CHARTS
     # ---------------------------------------------------------
