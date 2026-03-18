@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 from fpdf import FPDF
 import plotly.express as px
+from core.pdf_report import generate_professional_pdf  # Εισαγωγή του νέου εργαλείου
 
 # --------------------------------------------------
 # REPORTING & DASHBOARD FUNCTIONS
@@ -27,13 +28,21 @@ def show_decision_report():
     col1, col2 = st.columns(2)
     with col1:
         st.download_button("Download CSV", df.to_csv(index=False).encode("utf-8"), file_name="decision_report.csv", mime="text/csv", use_container_width=True)
+    
     with col2:
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(200, 10, "Managers Lab - Executive Report", ln=True)
-        pdf_output = pdf.output(dest="S").encode("latin-1")
-        st.download_button("📄 Download PDF", pdf_output, file_name=f"report_{scenario_name}.pdf", mime="application/pdf", use_container_width=True)
+        # Χρήση του επαγγελματικού PDF Generator
+        if st.button("🚀 Generate Executive PDF", use_container_width=True, type="primary"):
+            try:
+                pdf_bytes = generate_professional_pdf(metrics, scenario_name)
+                st.download_button(
+                    label="📥 Download PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"ManagersLab_{scenario_name.replace(' ', '_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.error(f"Error generating professional report: {e}")
 
 def show_scenario_comparison():
     st.title("📊 Scenario Comparison")
