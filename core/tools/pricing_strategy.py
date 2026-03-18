@@ -43,8 +43,8 @@ def show_pricing_strategy_tool():
             current_p = float(s.get('price', 200.0))
             current_vc = float(s.get('variable_cost', 140.0))
             
-            main_p = st.number_input("Main Product Price (€)", value=current_p)
-            main_prof = st.number_input("Main Product Profit (€)", value=current_p - current_vc)
+            main_p = st.number_input("Main Product Price ($)", value=current_p)
+            main_prof = st.number_input("Main Product Profit ($)", value=current_p - current_vc)
             discount = st.slider("Proposed Discount on Main (%)", 0.0, 40.0, 10.0) / 100
         
         with c2:
@@ -63,8 +63,8 @@ def show_pricing_strategy_tool():
             if res and res > 0:
                 m1, m2, m3 = st.columns(3)
                 m1.metric("Required Vol. Growth", f"{res:.2f}%")
-                m2.metric("Weighted Attach Profit", f"€{avg_extra:.2f}")
-                m3.metric("New Effective Margin", f"€{(main_prof + avg_extra - (main_p * discount)):.2f}")
+                m2.metric("Weighted Attach Profit", f"${avg_extra:.2f}")
+                m3.metric("New Effective Margin", f"${(main_prof + avg_extra - (main_p * discount)):.2f}")
                 
                 if res > 25:
                     st.warning(f"⚠️ High Volume Dependency: You need a {res:.1f}% jump in sales to justify the discount.")
@@ -81,8 +81,8 @@ def show_pricing_strategy_tool():
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("**Target Product (Price Hike)**")
-            old_p = st.number_input("Current Price (€)", value=float(s.get('price', 100.0)), key="sub_old_p")
-            p_A = st.number_input("Unit Profit (€)", value=float(s.get('price', 100.0) - s.get('variable_cost', 70.0)), key="sub_prof_a")
+            old_p = st.number_input("Current Price ($)", value=float(s.get('price', 100.0)), key="sub_old_p")
+            p_A = st.number_input("Unit Profit ($)", value=float(s.get('price', 100.0) - s.get('variable_cost', 70.0)), key="sub_prof_a")
             p_inc = st.slider("Price Increase (%)", 0.0, 50.0, 10.0) / 100
         
         with col2:
