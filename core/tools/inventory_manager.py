@@ -21,14 +21,14 @@ def show_inventory_manager():
         st.markdown("**Supply Chain Data**")
         # Χρησιμοποιούμε το Volume από το κεντρικό Dashboard ως default Demand
         M = st.number_input("Annual Demand (Units)", value=float(s.get('volume', 10000.0)), format="%.2f")
-        kf = st.number_input("Cost per Order (€)", value=600.0, format="%.2f")
-        unit_p = st.number_input("Unit Purchase Price (€)", value=float(s.get('variable_cost', 30.0)), format="%.2f")
+        kf = st.number_input("Cost per Order ($)", value=600.0, format="%.2f")
+        unit_p = st.number_input("Unit Purchase Price ($)", value=float(s.get('variable_cost', 30.0)), format="%.2f")
         r_disc = st.number_input("Discount % (r)", value=0.0, step=0.1) / 100
 
     with col2:
         st.markdown("**Carrying Costs**")
-        storage_m = st.number_input("Monthly Storage/Rent (€)", value=600.0, format="%.2f")
-        insurance_m = st.number_input("Monthly Insurance (€)", value=150.0, format="%.2f")
+        storage_m = st.number_input("Monthly Storage/Rent ($)", value=600.0, format="%.2f")
+        insurance_m = st.number_input("Monthly Insurance ($)", value=150.0, format="%.2f")
         # Το WACC έρχεται αυτόματα από το WACC Optimizer
         interest_rate = st.number_input("Annual WACC/Interest (%)", value=sys_wacc * 100, step=0.1) / 100
 
@@ -62,7 +62,7 @@ def show_inventory_manager():
     
     audit_df = pd.DataFrame({
         "Cost Component": ["Total Ordering Costs (Fixed)", "Total Holding Costs (Variable)", "Total Optimization Cost"],
-        "Annual Amount (€)": [f"€ {KF:,.2f}", f"€ {KL:,.2f}", f"€ {(KF + KL):,.2f}"]
+        "Annual Amount ($)": [f"$ {KF:,.2f}", f"$ {KL:,.2f}", f"$ {(KF + KL):,.2f}"]
     })
     st.table(audit_df)
 
@@ -81,7 +81,7 @@ def show_inventory_manager():
         fig.add_trace(go.Scatter(x=q_range, y=kl_curve, name="Holding Cost", line=dict(dash="dot", color="#ef4444")))
         
         fig.add_vline(x=q_opt, line_dash="dash", line_color="orange", annotation_text="Optimal (EOQ)")
-        fig.update_layout(height=400, template="plotly_dark", xaxis_title="Order Quantity (Units)", yaxis_title="Annual Cost (€)", margin=dict(l=20, r=20, t=20, b=20))
+        fig.update_layout(height=400, template="plotly_dark", xaxis_title="Order Quantity (Units)", yaxis_title="Annual Cost ($)", margin=dict(l=20, r=20, t=20, b=20))
         st.plotly_chart(fig, use_container_width=True)
 
     # 6. VERDICT
