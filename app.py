@@ -5,10 +5,7 @@ from ui.sidebar import show_sidebar
 from ui.home import run_home
 from core.engine import calculate_metrics
 
-# --------------------------------------------------
-# PAGE CONFIG
-# --------------------------------------------------
-
+# 1. PAGE CONFIG
 st.set_page_config(
     page_title="Managers Lab | Strategy OS",
     page_icon="🎯",
@@ -57,81 +54,48 @@ TOOL_MAP = {
     "scenario_comparison": ("ui.home", "show_scenario_comparison")
 }
 
-# --------------------------------------------------
-# STATE INITIALIZATION
-# --------------------------------------------------
+# 3. STATE INITIALIZATION & DEFAULTS
+s = st.session_state
 
-if "baseline_locked" not in st.session_state:
-    st.session_state.baseline_locked = False
+if "baseline_locked" not in s: s.baseline_locked = False
+if "flow_step" not in s: s.flow_step = "home"
+if "selected_tool" not in s: s.selected_tool = None
+if "scenario_name" not in s: s.scenario_name = "Baseline Scenario"
 
-if "flow_step" not in st.session_state:
-    st.session_state.flow_step = "home"
-
-st.session_state.metrics = calculate_metrics(
-    float(st.session_state.get("price", 100)),
-    float(st.session_state.get("volume", 1000)),
-    float(st.session_state.get("variable_cost", 60)),
-    float(st.session_state.get("fixed_cost", 20000)),
-    float(st.session_state.get("ar_days", 30)),
-    float(st.session_state.get("inv_days", 40)),
-    float(st.session_state.get("ap_days", 20)),
-    float(st.session_state.get("annual_debt_service", 0)),
-    float(st.session_state.get("opening_cash", 10000))
+# 4. RUN FINANCIAL ENGINE (Ενοποιημένη κλήση)
+# Τρέχει σε κάθε rerun για να είναι πάντα ενημερωμένα τα metrics
+s.metrics = calculate_metrics(
+    price=float(s.get("price", 150.0)),
+    volume=float(s.get("volume", 15000)),
+    variable_cost=float(s.get("variable_cost", 90.0)),
+    fixed_cost=float(s.get("fixed_cost", 450000.0)),
+    ar_days=int(s.get("ar_days", 60)),
+    inv_days=int(s.get("inv_days", 45)),
+    ap_days=int(s.get("ap_days", 30)),
+    annual_debt_service=float(s.get("annual_debt_service", 70000.0)),
+    opening_cash=float(s.get("opening_cash", 150000.0)),
+    total_debt=float(s.get("total_debt", 500000.0)),
+    fixed_assets=float(s.get("fixed_assets", 800000.0)),
+    target_profit=float(s.get("target_profit_goal", 200000.0))
 )
 
-if "selected_tool" not in st.session_state:
-    st.session_state.selected_tool = None
-
-if "scenario_name" not in st.session_state:
-    st.session_state.scenario_name = "Baseline Scenario"
-
-# --------------------------------------------------
-# RUN FINANCIAL ENGINE
-# --------------------------------------------------
-
-if st.session_state.baseline_locked:
-    # Στο app.py, γύρω στη γραμμή 94
-    s = st.session_state
-    st.session_state.metrics = calculate_metrics(
-        price=float(s.get("price", 100)),
-        volume=float(s.get("volume", 1000)),
-        variable_cost=float(s.get("variable_cost", 60)),
-        fixed_cost=float(s.get("fixed_cost", 20000)),
-        ar_days=int(s.get("ar_days", 45)),
-        inv_days=int(s.get("inv_days", 60)),
-        ap_days=int(s.get("ap_days", 30)),
-        annual_debt_service=float(s.get("annual_debt_service", 0)),
-        opening_cash=float(s.get("opening_cash", 10000)),
-        total_debt=float(s.get("total_debt", 0)),      # <--- ΠΡΟΣΟΧΗ ΣΤΟ ΟΝΟΜΑ
-        fixed_assets=float(s.get("fixed_assets", 0)),  # <--- ΠΡΟΣΟΧΗ ΣΤΟ ΟΝΟΜΑ
-        target_profit=float(s.get("target_profit_goal", 0))
-    )
-    
-# --------------------------------------------------
-# SIDEBAR
-# --------------------------------------------------
-
+# 5. SIDEBAR & ROUTING
 show_sidebar()
-
-# --------------------------------------------------
-# ROUTING
-# --------------------------------------------------
-
-step = st.session_state.get("flow_step", "home")
+step = s.get("flow_step", "home")
 
 if step == "home":
-    st.session_state.selected_tool = None
+    s.selected_tool = None
     run_home()
     st.stop()
 
 elif step == "tool":
-    tool_key = st.session_state.get("selected_tool")
+    tool_key = s.get("selected_tool")
     if tool_key in TOOL_MAP:
         mod_name, func_name = TOOL_MAP[tool_key]
         col_title, col_back = st.columns([0.8, 0.2])
         col_title.caption(f"Strategy Room > {tool_key.replace('_',' ').title()}")
         if col_back.button("⬅ Back to Hub", use_container_width=True):
-            st.session_state.flow_step = "home"
+            s.flow_step = "home"
             st.rerun()
         st.divider()
         try:
