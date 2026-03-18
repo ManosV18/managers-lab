@@ -5,19 +5,33 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
                      annual_debt_service, opening_cash,
                      total_debt=0.0,    
                      fixed_assets=0.0,  
-                     target_profit=0.0):
+                     target_profit=0.0,
+                     tax_rate=22.0,      # New: Default value 22%
+                     annual_interest=0.0 # New: Monthly or Annual interest portion
+                     ):
     
     # 1. Base Unit Economics
     unit_contribution = price - variable_cost
     revenue = price * volume
     total_vc = variable_cost * volume
     total_costs = total_vc + fixed_cost
+    
+    # EBIT (Operating Profit)
     ebit = (unit_contribution * volume) - fixed_cost
     
-    # 2. Taxes & NOPAT (22% Corporate Tax)
-    tax_rate = 0.22
-    net_profit = ebit * (1 - tax_rate) if ebit > 0 else ebit
-    nopat = ebit * (1 - tax_rate)
+    # 2. Taxes, Interest & Net Profit
+    # EBT (Earnings Before Tax) = EBIT - Interest
+    ebt = ebit - annual_interest
+    
+    # Corporate Tax calculation on EBT
+    tax_factor = tax_rate / 100
+    tax_amount = max(0, ebt * tax_factor)
+    
+    # Net Profit (The actual bottom line)
+    net_profit = ebt - tax_amount
+    
+    # NOPAT (For ROIC calculation)
+    nopat = ebit * (1 - tax_factor) if ebit > 0 else ebit
 
     # 3. 365-Day Logic [User Instruction 2026-02-18]
     daily_rev = revenue / 365 if revenue > 0 else 0
@@ -27,11 +41,9 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     ar_value = daily_rev * ar_days
     inv_value = daily_vc * inv_days
     ap_value = daily_vc * ap_days
-    
     net_working_capital = ar_value + inv_value - ap_value
     
-    # 5. Invested Capital (Total Capital View - As requested)
-    # Περιλαμβάνει NWC, Πάγια ΚΑΙ το Διαθέσιμο Μετρητό
+    # 5. Invested Capital
     invested_capital = net_working_capital + fixed_assets + opening_cash
     
     # 6. ROIC (Return on Invested Capital)
@@ -42,7 +54,8 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     net_debt = total_debt - opening_cash
 
     # 8. Final Cash Position (The "Survival" Metric)
-    net_cash = opening_cash + net_profit - annual_debt_service - net_working_capital
+    # Note: annual_debt_service usually includes principal + interest
+    net_cash = opening_cash + net_profit - (annual_debt_service - annual_interest) - net_working_capital
     
     # 9. Break-Even Analysis (Cash Basis)
     cash_wall_requirements = fixed_cost + annual_debt_service + target_profit
@@ -59,8 +72,9 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     contribution_margin = unit_contribution * volume
     dol = contribution_margin / ebit if ebit != 0 else 0
 
-    # 11. Cash Burn & Runway Engine
-    monthly_cf = (net_profit - annual_debt_service) / 12
+    # 11. Cash Burn & Runway Engine (Monthly perspective)
+    # Net Profit already accounts for interest and taxes
+    monthly_cf = (net_profit - (annual_debt_service - annual_interest)) / 12
     if monthly_cf < 0:
         runway = opening_cash / abs(monthly_cf)
     else:
@@ -72,6 +86,10 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
         "revenue": revenue,
         "total_costs": total_costs,
         "ebit": ebit,
+        "ebt": ebt,
+        "tax_amount": tax_amount,
+        "tax_rate": tax_rate,
+        "annual_interest": annual_interest,
         "nopat": nopat,
         "net_profit": net_profit,
         "bep_units": bep_units,
