@@ -121,15 +121,22 @@ def run_home():
     st.divider()
 
     # --------------------------------------------------
-    # SNAPSHOT METRICS
+    # SNAPSHOT METRICS (Corrected Layout)
     # --------------------------------------------------
     st.subheader("📊 Executive Simulation Snapshot")
     c1, c2, c3, c4 = st.columns(4)
-    # Προσθήκη default values για να μην είναι κενά στην αρχή
-    c1.metric("Unit Price", f"€{s.get('price', 150.0)}")
+    
+    # c1: Η απόδοση των χρημάτων που επενδύθηκαν
+    c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
+    
+    # c2: Το σημείο μηδενισμού (μονάδες)
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
-    c3.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
-    c4.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
+    
+    # c3: Πόσο "αέρα" έχουν οι πωλήσεις πριν τις ζημιές (Αντικαθιστά το Unit Price που είναι input)
+    c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
+    
+    # c4: Το πραγματικό διαθέσιμο ταμείο
+    c4.metric("Net Cash Position", f"€{m.get('net_cash_position', 0):,.0f}")
     
     st.divider()
 
