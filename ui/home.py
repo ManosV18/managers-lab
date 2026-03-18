@@ -138,38 +138,43 @@ def run_home():
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
 
     with col_left:
-        st.subheader("⚙️ Business Baseline")
-        st.text_input("Scenario Name", value=s.get("scenario_name", "Baseline Scenario"), key="scenario_name")
-        
-        with st.expander("📊 Core Business Model", expanded=True):
-            st.number_input("Unit Price (€)", value=float(s.get("price", 100.0)), key="price")
-            st.number_input("Variable Cost (€)", value=float(s.get("variable_cost", 60.0)), key="variable_cost")
-            st.number_input("Annual Volume", value=int(s.get("volume", 1000)), key="volume")
-            st.number_input("Annual Fixed Costs (€)", value=float(s.get("fixed_cost", 20000.0)), key="fixed_cost")
-            st.number_input("Target Profit (€)", value=float(s.get("target_profit_goal", 0.0)), key="target_profit_goal")
-            st.number_input("Net Fixed Assets (€)", value=float(s.get("fixed_assets", 0.0)), key="fixed_assets", help="Book value of machinery, equipment, and buildings.")
-            st.number_input("Target Profit (€)", value=float(s.get("target_profit_goal", 0.0)), key="target_profit_goal")
+        # Εμφανίζουμε τα inputs ΜΟΝΟ αν είμαστε στο home step
+        # Αυτό αποτρέπει το Duplicate Key Error όταν φορτώνονται τα reports
+        if s.get("flow_step") == "home":
+            st.subheader("⚙️ Business Baseline")
+            st.text_input("Scenario Name", value=s.get("scenario_name", "Baseline Scenario"), key="scenario_name")
+            
+            with st.expander("📊 Core Business Model", expanded=True):
+                st.number_input("Unit Price (€)", value=float(s.get("price", 100.0)), key="price")
+                st.number_input("Variable Cost (€)", value=float(s.get("variable_cost", 60.0)), key="variable_cost")
+                st.number_input("Annual Volume", value=int(s.get("volume", 1000)), key="volume")
+                st.number_input("Annual Fixed Costs (€)", value=float(s.get("fixed_cost", 20000.0)), key="fixed_cost")
+                st.number_input("Net Fixed Assets (€)", value=float(s.get("fixed_assets", 0.0)), key="fixed_assets")
+                st.number_input("Target Profit (€)", value=float(s.get("target_profit_goal", 0.0)), key="target_profit_goal")
 
-        with st.expander("🔄 Working Capital & Liquidity"):
-            st.number_input("Opening Cash (€)", value=float(s.get("opening_cash", 10000.0)), key="opening_cash")
-            
-            st.number_input("A/R Days", value=int(s.get("ar_days", 45)), key="ar_days")
-            st.number_input("Inventory Days", value=int(s.get("inv_days", 60)), key="inv_days")
-            st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
-            st.number_input("Annual Debt Service (€)", value=float(s.get("annual_debt_service", 0.0)), key="annual_debt_service")
+            with st.expander("🔄 Working Capital & Liquidity"):
+                st.number_input("Opening Cash (€)", value=float(s.get("opening_cash", 10000.0)), key="opening_cash")
+                st.number_input("A/R Days", value=int(s.get("ar_days", 45)), key="ar_days")
+                st.number_input("Inventory Days", value=int(s.get("inv_days", 60)), key="inv_days")
+                st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
+                st.number_input("Annual Debt Service (€)", value=float(s.get("annual_debt_service", 0.0)), key="annual_debt_service")
 
-        if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
-            s.baseline_locked = True
-            st.rerun()
-            
-        if st.button("💾 Save Current Scenario", use_container_width=True):
-            s.saved_scenarios[s.scenario_name] = {
-                "price": s.get("price"),
-                "volume": s.get("volume"),
-                "metrics": dict(s.get("metrics", {}))
-            }
-            
-            st.success(f"Scenario '{s.scenario_name}' saved!")
+            if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
+                s.baseline_locked = True
+                st.rerun()
+                
+            if st.button("💾 Save Current Scenario", use_container_width=True):
+                s.saved_scenarios[s.scenario_name] = {
+                    "price": s.get("price"),
+                    "volume": s.get("volume"),
+                    "metrics": dict(s.get("metrics", {}))
+                }
+                st.success(f"Scenario '{s.scenario_name}' saved!")
+        else:
+            # Αν είμαστε σε tool/report, δείχνουμε απλώς μια σύνοψη χωρίς widgets
+            st.info(f"💡 Active Scenario: **{s.get('scenario_name')}**")
+            st.write(f"Price: €{s.get('price')}")
+            st.write(f"Volume: {s.get('volume')}")
 
     with col_right:
         st.subheader("🧠 Strategy Simulation Modules")
