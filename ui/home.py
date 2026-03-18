@@ -210,7 +210,6 @@ def run_home():
                 if st.button("💰 Working Capital Engine", use_container_width=True): s.selected_tool="wc_optimizer"; s.flow_step="tool"; st.rerun()
 
             with t4:
-                if st.button("🛡️ Strategic Shock Simulator", use_container_width=True): s.selected_tool="shock_simulator"; s.flow_step="tool"; st.rerun()
                 if st.button("🚨 Cash Fragility Index", use_container_width=True): s.selected_tool="cash_fragility"; s.flow_step="tool"; st.rerun()
                 if st.button("🗺️ Resilience Map", use_container_width=True): s.selected_tool="resilience_map"; s.flow_step="tool"; st.rerun()
                 if st.button("📉 Stress Test Simulator", use_container_width=True): s.selected_tool="stress_test"; s.flow_step="tool"; st.rerun()
