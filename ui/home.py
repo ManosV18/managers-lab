@@ -145,20 +145,20 @@ def run_home():
             st.text_input("Scenario Name", value=s.get("scenario_name", "Baseline Scenario"), key="scenario_name")
             
             with st.expander("📊 Core Business Model", expanded=True):
-                st.number_input("Unit Price (€)", value=float(s.get("price", 100.0)), key="price")
-                st.number_input("Variable Cost (€)", value=float(s.get("variable_cost", 60.0)), key="variable_cost")
-                st.number_input("Annual Volume", value=int(s.get("volume", 1000)), key="volume")
-                st.number_input("Annual Fixed Costs (€)", value=float(s.get("fixed_cost", 20000.0)), key="fixed_cost")
-                st.number_input("Net Fixed Assets (€)", value=float(s.get("fixed_assets", 0.0)), key="fixed_assets")
-                st.number_input("Target Profit (€)", value=float(s.get("target_profit_goal", 0.0)), key="target_profit_goal")
+                st.number_input("Unit Price (€)", value=float(s.get("price", 150.0)), key="price")
+                st.number_input("Variable Cost (€)", value=float(s.get("variable_cost", 90.0)), key="variable_cost")
+                st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
+                st.number_input("Annual Fixed Costs (€)", value=float(s.get("fixed_cost", 450000.0)), key="fixed_cost")
+                st.number_input("Net Fixed Assets (€)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
+                st.number_input("Target Profit (€)", value=float(s.get("target_profit_goal", 200000.0)), key="target_profit_goal")
 
             with st.expander("🔄 Working Capital & Liquidity"):
-                st.number_input("Opening Cash (€)", value=float(s.get("opening_cash", 10000.0)), key="opening_cash")
-                st.number_input("Total Debt (€)", value=float(s.get("total_debt", 0.0)), key="total_debt", help="Total bank loans and interest-bearing liabilities.")
-                st.number_input("A/R Days", value=int(s.get("ar_days", 45)), key="ar_days")
-                st.number_input("Inventory Days", value=int(s.get("inv_days", 60)), key="inv_days")
+                st.number_input("Opening Cash (€)", value=float(s.get("opening_cash", 150000.0)), key="opening_cash")
+                st.number_input("Total Debt (€)", value=float(s.get("total_debt", 500000.0)), key="total_debt", help="Total bank loans and interest-bearing liabilities.")
+                st.number_input("A/R Days", value=int(s.get("ar_days", 60)), key="ar_days")
+                st.number_input("Inventory Days", value=int(s.get("inv_days", 45)), key="inv_days")
                 st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
-                st.number_input("Annual Debt Service (€)", value=float(s.get("annual_debt_service", 0.0)), key="annual_debt_service")
+                st.number_input("Annual Debt Service (€)", value=float(s.get("annual_debt_service", 70000.0)), key="annual_debt_service")
 
             if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
                 s.baseline_locked = True
