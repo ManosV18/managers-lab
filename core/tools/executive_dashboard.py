@@ -16,9 +16,9 @@ def show_executive_dashboard():
     st.title("🏁 Executive Dashboard")
 
     # ---------------------------------------------------------
-    # 1. FORCE LIVE SYNC (Εδώ λύνεται το πρόβλημα)
+    # 1. FORCE LIVE SYNC (Here we solve the problem)
     # ---------------------------------------------------------
-    # Διαβάζουμε απευθείας από το session_state ό,τι έβαλε ο χρήστης στο Home
+    # Read from session_state what we have entered at Home
     m = calculate_metrics(
         price=_safe_get('price', 150.0),
         volume=_safe_get('volume', 15000.0),
