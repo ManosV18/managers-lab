@@ -101,6 +101,7 @@ if st.session_state.baseline_locked:
         ap_days=int(s.get("ap_days", 30)),
         annual_debt_service=float(s.get("annual_debt_service", 0)),
         opening_cash=float(s.get("opening_cash", 10000)),
+        fixed_assets=float(s.get("fixed_assets", 0)),
         target_profit=float(s.get("target_profit_goal", 0))
     )
 
