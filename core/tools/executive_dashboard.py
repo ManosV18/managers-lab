@@ -127,15 +127,11 @@ def show_executive_dashboard():
             key=f"opt_ap_eval"
         )
 
-    # 3. CALCULATIONS
+    # --- 3. CALCULATIONS & ENGINE CALL ---
     curr_ccc = curr_ar + curr_inv - curr_ap
     opt_ccc = opt_ar + opt_inv - opt_ap
 
-    curr_gap = float(m.get('net_working_capital', 0.0))
-    # Και αντίστοιχα για τα optimized results:
-    opt_gap = float(optimized_results.get('net_working_capital', 0.0))
-
-    # 4. CORRECTED ENGINE CALL (Matching NEW engine.py arguments)
+    # Πρώτα τρέχουμε την Engine για τα Optimized Results
     optimized_results = calculate_metrics(
         price=_safe_get('price', 150.0),
         volume=_safe_get('volume', 15000.0),
@@ -146,13 +142,17 @@ def show_executive_dashboard():
         ap_days=opt_ap,
         annual_debt_service=_safe_get('annual_debt_service', 70000.0),
         opening_cash=_safe_get('opening_cash', 150000.0),
-        total_debt=_safe_get('total_debt', 500000.0), # ΠΡΟΣΘΗΚΗ
-        fixed_assets=_safe_get('fixed_assets', 800000.0) # ΠΡΟΣΘΗΚΗ
+        total_debt=_safe_get('total_debt', 500000.0),
+        fixed_assets=_safe_get('fixed_assets', 800000.0)
     )
-    opt_gap = float(optimized_results.get('wc_requirement', 0.0))
+
+    # Τώρα τραβάμε τα Working Capital ποσά χρησιμοποιώντας το σωστό κλειδί: 'net_working_capital'
+    curr_gap = float(m.get('net_working_capital', 0.0))
+    opt_gap = float(optimized_results.get('net_working_capital', 0.0))
+    
     cash_released = curr_gap - opt_gap
     annual_savings = cash_released * wacc_decimal
-
+    
     # 5. COMPARISON DASHBOARD
     st.divider()
     st.subheader("📈 Scenario Comparison")
