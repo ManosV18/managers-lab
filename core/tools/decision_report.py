@@ -16,7 +16,7 @@ def show_decision_report():
     report = {
         "ROIC": f"{metrics.get('roic', 0)*100:.1f}%",
         "Break Even": f"{metrics.get('bep_units', 0):,.0f} units",
-        "Net Cash": f"EUR{metrics.get('net_cash_position', 0):,.2f}",
+        "Net Cash": f"${metrics.get('net_cash_position', 0):,.2f}",
         "Liquidity Buffer": f"{metrics.get('liquidity_buffer', 0):,.1f}%"
     }
 
