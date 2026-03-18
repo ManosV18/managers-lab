@@ -131,7 +131,9 @@ def show_executive_dashboard():
     curr_ccc = curr_ar + curr_inv - curr_ap
     opt_ccc = opt_ar + opt_inv - opt_ap
 
-    curr_gap = float(m.get('wc_requirement', 0.0))
+    curr_gap = float(m.get('net_working_capital', 0.0))
+    # Και αντίστοιχα για τα optimized results:
+    opt_gap = float(optimized_results.get('net_working_capital', 0.0))
 
     # 4. CORRECTED ENGINE CALL (Matching NEW engine.py arguments)
     optimized_results = calculate_metrics(
