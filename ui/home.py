@@ -18,7 +18,7 @@ def show_decision_report():
     report = {
         "ROIC": f"{metrics.get('roic',0)*100:.1f}%",
         "Break Even": f"{metrics.get('bep_units',0):,.0f} units",
-        "Net Cash": f"€{metrics.get('net_cash_position',0):,.0f}",
+        "Net Cash": f"EUR{metrics.get('net_cash_position',0):,.0f}",
         "Margin of Safety": f"{metrics.get('margin_of_safety', 0)*100:.1f}%"
     }
     
@@ -34,17 +34,17 @@ def show_decision_report():
     if st.button("🚀 Generate Executive PDF", use_container_width=True, type="primary"):
         try:
             # --- COLD CLEANING PROCESS ---
-            # Φτιάχνουμε ένα αντίγραφο των metrics χωρίς το σύμβολο € 
+            # Φτιάχνουμε ένα αντίγραφο των metrics χωρίς το σύμβολο EUR 
             # για να μην "σκάσει" η FPDF
             safe_metrics = {}
             for k, v in metrics.items():
                 if isinstance(v, str):
-                    safe_metrics[k] = v.replace("€", "EUR").replace("\u20ac", "EUR")
+                    safe_metrics[k] = v.replace("EUR", "EUR").replace("\u20ac", "EUR")
                 else:
                     safe_metrics[k] = v
             
             # Καθαρίζουμε και το όνομα του σεναρίου
-            safe_scenario = scenario_name.replace("€", "EUR").replace("\u20ac", "EUR")
+            safe_scenario = scenario_name.replace("EUR", "EUR").replace("\u20ac", "EUR")
 
             # Καλούμε τώρα το εργαλείο με τα "καθαρά" δεδομένα
             pdf_bytes = generate_professional_pdf(safe_metrics, safe_scenario)
@@ -85,14 +85,14 @@ def show_executive_dashboard():
 
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
-    c3.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
+    c3.metric("Net Cash", f"EUR{m.get('net_cash_position', 0):,.0f}")
     c4.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
 
     st.divider()
 
     c5, c6 = st.columns(2)
-    c5.metric("Revenue", f"€{m.get('revenue', 0):,.0f}")
-    c6.metric("Total Costs", f"€{m.get('total_costs', 0):,.0f}")
+    c5.metric("Revenue", f"EUR{m.get('revenue', 0):,.0f}")
+    c6.metric("Total Costs", f"EUR{m.get('total_costs', 0):,.0f}")
 
 # --------------------------------------------------
 # MAIN HOME RUNNER
@@ -160,7 +160,7 @@ def run_home():
     c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
     
     # c4: Το πραγματικό διαθέσιμο ταμείο
-    c4.metric("Net Cash Position", f"€{m.get('net_cash_position', 0):,.0f}")
+    c4.metric("Net Cash Position", f"EUR{m.get('net_cash_position', 0):,.0f}")
     
     st.divider()
 
@@ -177,20 +177,20 @@ def run_home():
             st.text_input("Scenario Name", value=s.get("scenario_name", "Baseline Scenario"), key="scenario_name")
             
             with st.expander("📊 Core Business Model", expanded=True):
-                st.number_input("Unit Price (€)", value=float(s.get("price", 150.0)), key="price")
-                st.number_input("Variable Cost (€)", value=float(s.get("variable_cost", 90.0)), key="variable_cost")
+                st.number_input("Unit Price (EUR)", value=float(s.get("price", 150.0)), key="price")
+                st.number_input("Variable Cost (EUR)", value=float(s.get("variable_cost", 90.0)), key="variable_cost")
                 st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
-                st.number_input("Annual Fixed Costs (€)", value=float(s.get("fixed_cost", 450000.0)), key="fixed_cost")
-                st.number_input("Net Fixed Assets (€)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
-                st.number_input("Target Profit (€)", value=float(s.get("target_profit_goal", 200000.0)), key="target_profit_goal")
+                st.number_input("Annual Fixed Costs (EUR)", value=float(s.get("fixed_cost", 450000.0)), key="fixed_cost")
+                st.number_input("Net Fixed Assets (EUR)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
+                st.number_input("Target Profit (EUR)", value=float(s.get("target_profit_goal", 200000.0)), key="target_profit_goal")
 
             with st.expander("🔄 Working Capital & Liquidity"):
-                st.number_input("Opening Cash (€)", value=float(s.get("opening_cash", 150000.0)), key="opening_cash")
-                st.number_input("Total Debt (€)", value=float(s.get("total_debt", 500000.0)), key="total_debt", help="Total bank loans and interest-bearing liabilities.")
+                st.number_input("Opening Cash (EUR)", value=float(s.get("opening_cash", 150000.0)), key="opening_cash")
+                st.number_input("Total Debt (EUR)", value=float(s.get("total_debt", 500000.0)), key="total_debt", help="Total bank loans and interest-bearing liabilities.")
                 st.number_input("A/R Days", value=int(s.get("ar_days", 60)), key="ar_days")
                 st.number_input("Inventory Days", value=int(s.get("inv_days", 45)), key="inv_days")
                 st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
-                st.number_input("Annual Debt Service (€)", value=float(s.get("annual_debt_service", 70000.0)), key="annual_debt_service")
+                st.number_input("Annual Debt Service (EUR)", value=float(s.get("annual_debt_service", 70000.0)), key="annual_debt_service")
 
             if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
                 s.baseline_locked = True
@@ -206,7 +206,7 @@ def run_home():
         else:
             # Αν είμαστε σε tool/report, δείχνουμε απλώς μια σύνοψη χωρίς widgets
             st.info(f"💡 Active Scenario: **{s.get('scenario_name')}**")
-            st.write(f"Price: €{s.get('price')}")
+            st.write(f"Price: EUR{s.get('price')}")
             st.write(f"Volume: {s.get('volume')}")
 
     with col_right:
@@ -253,11 +253,11 @@ def run_home():
             st.divider()
             with st.expander("🔍 Capital Structure Analysis", expanded=True):
                 ca1, ca2 = st.columns(2)
-                ca1.write(f"**Total Debt:** €{s.get('total_debt', 0):,.0f}")
-                ca1.write(f"**Fixed Assets:** €{s.get('fixed_assets', 0):,.0f}")
+                ca1.write(f"**Total Debt:** EUR{s.get('total_debt', 0):,.0f}")
+                ca1.write(f"**Fixed Assets:** EUR{s.get('fixed_assets', 0):,.0f}")
                 
                 # Υπολογισμός Net Debt live
                 net_debt_val = s.get('total_debt', 0) - s.get('opening_cash', 0)
                 color = "red" if net_debt_val > 0 else "green"
-                ca2.markdown(f"**Net Debt:** <span style='color:{color}'>€{net_debt_val:,.0f}</span>", unsafe_allow_html=True)
-                ca2.write(f"**Invested Capital:** €{m.get('invested_capital', 0):,.0f}")
+                ca2.markdown(f"**Net Debt:** <span style='color:{color}'>EUR{net_debt_val:,.0f}</span>", unsafe_allow_html=True)
+                ca2.write(f"**Invested Capital:** EUR{m.get('invested_capital', 0):,.0f}")
