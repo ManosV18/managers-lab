@@ -154,6 +154,7 @@ def run_home():
 
             with st.expander("🔄 Working Capital & Liquidity"):
                 st.number_input("Opening Cash (€)", value=float(s.get("opening_cash", 10000.0)), key="opening_cash")
+                st.number_input("Total Debt (€)", value=float(s.get("total_debt", 0.0)), key="total_debt", help="Total bank loans and interest-bearing liabilities.")
                 st.number_input("A/R Days", value=int(s.get("ar_days", 45)), key="ar_days")
                 st.number_input("Inventory Days", value=int(s.get("inv_days", 60)), key="inv_days")
                 st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
