@@ -22,10 +22,10 @@ def show_wc_optimizer():
     # 2. TOP KPI PANEL
     st.subheader("💰 Capital Efficiency")
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Receivables", f"€{receivables:,.0f}")
-    c2.metric("Inventory", f"€{inventory:,.0f}")
-    c3.metric("Payables", f"€{payables:,.0f}")
-    c4.metric("Invested Cap", f"€{invested_cap:,.0f}") # New Column
+    c1.metric("Receivables", f"${receivables:,.0f}")
+    c2.metric("Inventory", f"${inventory:,.0f}")
+    c3.metric("Payables", f"${payables:,.0f}")
+    c4.metric("Invested Cap", f"${invested_cap:,.0f}") # New Column
     c5.metric("ROIC", f"{roic*100:.1f}%") # New Column
 
     st.divider()
@@ -45,10 +45,10 @@ def show_wc_optimizer():
                 x=labels, 
                 y=values, 
                 marker_color=colors,
-                text=[f"€{v:,.0f}" for v in values],
+                text=[f"${v:,.0f}" for v in values],
                 textposition='auto'
             ))
-            fig.update_layout(title="Working Capital Components (€)", template="plotly_dark", height=400)
+            fig.update_layout(title="Working Capital Components ($)", template="plotly_dark", height=400)
             st.plotly_chart(fig, use_container_width=True)
 
         with col_b:
@@ -73,4 +73,4 @@ def show_wc_optimizer():
 
     if m.get('revenue', 0) > 0:
         daily_rev = m.get('revenue') / 365
-        st.info(f"💡 **Strategy:** If you reduce your collection days (AR) by 10 days, you will unlock **€{daily_rev*10:,.0f}** in immediate liquidity.")
+        st.info(f"💡 **Strategy:** If you reduce your collection days (AR) by 10 days, you will unlock **${daily_rev*10:,.0f}** in immediate liquidity.")
