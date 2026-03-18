@@ -24,10 +24,10 @@ def show_control_tower():
     # TOP LEVEL METRICS
     c1, c2, c3, c4 = st.columns(4)
     
-    c1.metric("Annual Revenue", f"€{revenue:,.0f}")
-    c2.metric("Net Profit (After Tax)", f"€{net_profit:,.0f}", 
+    c1.metric("Annual Revenue", f"${revenue:,.0f}")
+    c2.metric("Net Profit (After Tax)", f"${net_profit:,.0f}", 
               delta=f"{(net_profit/revenue*100 if revenue > 0 else 0):.1f}% Margin")
-    c3.metric("Invested Capital", f"€{invested_cap:,.0f}")
+    c3.metric("Invested Capital", f"${invested_cap:,.0f}")
     
     # WACC Logic (Assuming a default or locked value)
     wacc_input = s.get('wacc_optimizer_value', 15.0) # Look for optimizer value or default
