@@ -161,6 +161,7 @@ def run_home():
                 st.number_input("Inventory Days", value=int(s.get("inv_days", 45)), key="inv_days")
                 st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
                 st.number_input("Annual Debt Service ($)", value=float(s.get("annual_debt_service", 70000.0)), key="annual_debt_service")
+                st.session_state.tax_rate = st.sidebar.number_input("Corporate Tax Rate (%)", 0, 100, 22)
 
             if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
                 s.baseline_locked = True
