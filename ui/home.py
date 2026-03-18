@@ -157,12 +157,14 @@ def run_home():
             with st.expander("🔄 Working Capital & Liquidity"):
                 st.number_input("Opening Cash ($)", value=float(s.get("opening_cash", 150000.0)), key="opening_cash")
                 st.number_input("Total Debt ($)", value=float(s.get("total_debt", 500000.0)), key="total_debt", help="Total bank loans and interest-bearing liabilities.")
+                col_fin1, col_fin2 = st.columns(2)
+                col_fin1.number_input("Annual Interest Costs ($)", value=float(s.get("annual_interest_only", 0.0)), key="annual_interest_only", help="The interest portion only (tax deductible).")
+                col_fin2.number_input("Corporate Tax Rate (%)", value=float(s.get("tax_rate", 22.0)), key="tax_rate")
                 st.number_input("A/R Days", value=int(s.get("ar_days", 60)), key="ar_days")
                 st.number_input("Inventory Days", value=int(s.get("inv_days", 45)), key="inv_days")
                 st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
-                st.number_input("Annual Debt Service ($)", value=float(s.get("annual_debt_service", 70000.0)), key="annual_debt_service")
-                st.session_state.tax_rate = st.sidebar.number_input("Corporate Tax Rate (%)", 0, 100, 22)
-
+                st.number_input("Annual Debt Service ($)", value=float(s.get("annual_debt_service", 70000.0)), key="annual_debt_service", help="Total annual payment (Principal + Interest).")
+            
             if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
                 s.baseline_locked = True
                 st.rerun()
