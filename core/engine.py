@@ -3,8 +3,8 @@ import streamlit as st
 def calculate_metrics(price, volume, variable_cost, fixed_cost,
                      ar_days, inv_days, ap_days,
                      annual_debt_service, opening_cash,
-                     total_debt=0.0,    # <--- ΕΛΕΓΞΕ ΑΥΤΟ ΤΟ ΚΟΜΜΑ
-                     fixed_assets=0.0,  # <--- ΕΛΕΓΞΕ ΑΥΤΟ ΤΟ ΚΟΜΜΑ
+                     total_debt=0.0,    
+                     fixed_assets=0.0,  
                      target_profit=0.0):
     
     # 1. Base Unit Economics
@@ -28,10 +28,10 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     inv_value = daily_vc * inv_days
     ap_value = daily_vc * ap_days
     
-    # Το Working Capital που "δεσμεύει" μετρητά
     net_working_capital = ar_value + inv_value - ap_value
     
-    # 5. Invested Capital (Operating View)
+    # 5. Invested Capital (Total Capital View - As requested)
+    # Περιλαμβάνει NWC, Πάγια ΚΑΙ το Διαθέσιμο Μετρητό
     invested_capital = net_working_capital + fixed_assets + opening_cash
     
     # 6. ROIC (Return on Invested Capital)
@@ -66,7 +66,7 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     else:
         runway = float('inf')
 
-    # Επιστρέφουμε ΟΛΑ τα δεδομένα (πλήρες λεξικό)
+    # --- RETURN FULL DICTIONARY ---
     return {
         "unit_contribution": unit_contribution,
         "revenue": revenue,
@@ -77,8 +77,8 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
         "bep_units": bep_units,
         "margin_of_safety": margin_of_safety,
         "net_cash_position": net_cash,
-        "wc_requirement": net_working_capital, # <--- Διορθώθηκε το όνομα
-        "net_working_capital": net_working_capital, # <--- Για extra ασφάλεια
+        "net_working_capital": net_working_capital,
+        "wc_requirement": net_working_capital, 
         "invested_capital": invested_capital,
         "roic": roic,
         "net_debt": net_debt,
