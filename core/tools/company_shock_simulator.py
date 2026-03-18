@@ -85,10 +85,10 @@ def show_company_shock_simulator():
     liq_gap = min(shock_path)
     
     m1.metric("Survival Threshold", survival_display)
-    m2.metric("Monthly Net CF", f"€{int(shock_net_cash_monthly):,}")
-    m3.metric("Funding Required", f"€{int(abs(min(0, liq_gap))):,}")
+    m2.metric("Monthly Net CF", f"${int(shock_net_cash_monthly):,}")
+    m3.metric("Funding Required", f"${int(abs(min(0, liq_gap))):,}")
     m4.metric("CM Ratio", f"{cm_ratio:.1%}")
-    m5.metric("Liquidity Gap", f"€{int(liq_gap):,}")
+    m5.metric("Liquidity Gap", f"${int(liq_gap):,}")
 
     # 7. RISK ANALYSIS & CHARTS
     st.divider()
