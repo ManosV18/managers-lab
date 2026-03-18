@@ -15,18 +15,34 @@ def _safe_get(key, default=0.0):
 def show_executive_dashboard():
     st.title("🏁 Executive Dashboard")
 
-    m = st.session_state.get("metrics", {})
+    # ---------------------------------------------------------
+    # 0. LIVE SYNC: Επαναϋπολογισμός για απόλυτη ταύτιση με το Home
+    # ---------------------------------------------------------
+    m = calculate_metrics(
+        price=_safe_get('price', 150.0),
+        volume=_safe_get('volume', 15000.0),
+        variable_cost=_safe_get('variable_cost', 90.0),
+        fixed_cost=_safe_get('fixed_cost', 450000.0),
+        ar_days=_safe_get('ar_days', 60),
+        inv_days=_safe_get('inv_days', 45),
+        ap_days=_safe_get('ap_days', 30),
+        annual_debt_service=_safe_get('annual_debt_service', 70000.0),
+        opening_cash=_safe_get('opening_cash', 150000.0),
+        total_debt=_safe_get('total_debt', 500000.0),
+        fixed_assets=_safe_get('fixed_assets', 800000.0)
+    )
+    # Ενημέρωση του session_state για να είναι παντού τα ίδια
+    st.session_state.metrics = m 
 
-    # -------------------------------
-    # 1. KPIs
-    # -------------------------------
+    # ---------------------------------------------------------
+    # 1. KPIs (Τώρα θα δείχνουν Ο,ΤΙ και η αρχική σελίδα)
+    # ---------------------------------------------------------
     c1, c2, c3, c4 = st.columns(4)
-
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
     c3.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
     
-    # Διόρθωση Margin of Safety: Πολλαπλασιασμός * 100 και σωστό κλειδί
+    # Διόρθωση Margin of Safety (Key: margin_of_safety)
     mos_val = m.get('margin_of_safety', 0) * 100
     c4.metric("Margin of Safety", f"{mos_val:.1f}%")
 
