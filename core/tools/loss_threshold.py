@@ -23,12 +23,12 @@ def show_loss_threshold_before_price_cut():
     col1, col2 = st.columns(2)
     
     with col1:
-        comp_old = st.number_input("Competitor Original Price (€)", value=8.00, step=0.10)
-        our_price = st.number_input("Our Current Selling Price (€)", value=float(s.get('price', 8.00)), step=0.10)
+        comp_old = st.number_input("Competitor Original Price ($)", value=8.00, step=0.10)
+        our_price = st.number_input("Our Current Selling Price ($)", value=float(s.get('price', 8.00)), step=0.10)
     
     with col2:
-        comp_new = st.number_input("Competitor New Price (€)", value=7.20, step=0.10)
-        unit_cost = st.number_input("Our Unit Cost (VC) (€)", value=float(s.get('variable_cost', 4.50)), step=0.10)
+        comp_new = st.number_input("Competitor New Price ($)", value=7.20, step=0.10)
+        unit_cost = st.number_input("Our Unit Cost (VC) ($)", value=float(s.get('variable_cost', 4.50)), step=0.10)
 
     # 2. CALCULATION
     threshold = calculate_sales_loss_threshold(comp_old, comp_new, our_price, unit_cost)
