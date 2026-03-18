@@ -52,7 +52,7 @@ def show_executive_dashboard():
     c3.metric("Margin of Safety", f"{mos_val:.1f}%")
     
     # Στήλη 4: Net Cash Position (Τώρα στην τελευταία θέση)
-    c4.metric("Net Cash Position", f"€{m.get('net_cash_position', 0):,.0f}")
+    c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
 
     st.divider()
     
