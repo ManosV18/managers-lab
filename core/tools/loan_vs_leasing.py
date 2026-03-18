@@ -97,12 +97,12 @@ def loan_vs_leasing_ui():
 
     with col2:
         st.markdown("**Investment Details**")
-        property_value = st.number_input("Property Commercial Value (€)", value=250000.0)
+        property_value = st.number_input("Property Commercial Value ($)", value=250000.0)
         loan_financing = st.number_input("Loan Financing (%)", value=70.0) / 100
         leasing_financing = st.number_input("Leasing Financing (%)", value=100.0) / 100
         add_expenses_loan = st.number_input("Acquisition Expenses (Loan)", value=35000.0)
         add_expenses_leasing = st.number_input("Acquisition Expenses (Leasing)", value=30000.0)
-        residual_value = st.number_input("Leasing Residual Value (€)", value=3530.0)
+        residual_value = st.number_input("Leasing Residual Value ($)", value=3530.0)
         depreciation_years = st.number_input("Depreciation Period (Years)", value=30)
 
     st.divider()
@@ -117,8 +117,8 @@ def loan_vs_leasing_ui():
 
     st.subheader("📉 Financial Verdict")
     m1, m2 = st.columns(2)
-    m1.metric("Total Loan Burden", f"€ {format_number_gr(final_loan)}")
-    m2.metric("Total Leasing Burden", f"€ {format_number_gr(final_leasing)}")
+    m1.metric("Total Loan Burden", f"$ {format_number_gr(final_loan)}")
+    m2.metric("Total Leasing Burden", f"$ {format_number_gr(final_leasing)}")
 
     # Visual Comparison Chart
     
@@ -135,9 +135,9 @@ def loan_vs_leasing_ui():
         """)
         
         if final_loan < final_leasing:
-            st.success(f"**Loan** is more cost-effective by **€ {format_number_gr(final_leasing - final_loan)}**.")
+            st.success(f"**Loan** is more cost-effective by **$ {format_number_gr(final_leasing - final_loan)}**.")
         else:
-            st.success(f"**Leasing** is more cost-effective by **€ {format_number_gr(final_loan - final_leasing)}**.")
+            st.success(f"**Leasing** is more cost-effective by **$ {format_number_gr(final_loan - final_leasing)}**.")
 
     # Navigation (Ευθυγραμμισμένο με το νέο app.py)
     st.divider()
