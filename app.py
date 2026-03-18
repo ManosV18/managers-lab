@@ -42,7 +42,7 @@ TOOL_MAP = {
     "wc_optimizer": ("core.tools.working_capital_optimizer", "show_wc_optimizer"),
 
     # Risk
-    "executive_dashboard": ("ui.home", "show_executive_dashboard"),
+    "executive_dashboard": ("ui.executive_dashboard", "show_executive_dashboard"),
     "cash_fragility": ("core.tools.cash_fragility_index", "show_cash_fragility_index"),
     "resilience_map": ("core.tools.financial_resilience_app", "show_resilience_map"),
     "stress_test": ("core.tools.stress_test_simulator", "show_stress_test_tool"),
