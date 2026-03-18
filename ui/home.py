@@ -125,7 +125,8 @@ def run_home():
     # --------------------------------------------------
     st.subheader("📊 Executive Simulation Snapshot")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Unit Price", f"€{s.get('price', 100.0)}")
+    # Προσθήκη default values για να μην είναι κενά στην αρχή
+    c1.metric("Unit Price", f"€{s.get('price', 150.0)}")
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
     c3.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
     c4.metric("Net Cash", f"€{m.get('net_cash_position', 0):,.0f}")
