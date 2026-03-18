@@ -30,19 +30,33 @@ def show_decision_report():
         st.download_button("Download CSV", df.to_csv(index=False).encode("utf-8"), file_name="decision_report.csv", mime="text/csv", use_container_width=True)
     
     with col2:
-        # Χρήση του επαγγελματικού PDF Generator
-        if st.button("🚀 Generate Executive PDF", use_container_width=True, type="primary"):
-            try:
-                pdf_bytes = generate_professional_pdf(metrics, scenario_name)
-                st.download_button(
-                    label="📥 Download PDF Report",
-                    data=pdf_bytes,
-                    file_name=f"ManagersLab_{scenario_name.replace(' ', '_')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-            except Exception as e:
-                st.error(f"Error generating professional report: {e}")
+    if st.button("🚀 Generate Executive PDF", use_container_width=True, type="primary"):
+        try:
+            # --- COLD CLEANING PROCESS ---
+            # Φτιάχνουμε ένα αντίγραφο των metrics χωρίς το σύμβολο € 
+            # για να μην "σκάσει" η FPDF
+            safe_metrics = {}
+            for k, v in metrics.items():
+                if isinstance(v, str):
+                    safe_metrics[k] = v.replace("€", "EUR").replace("\u20ac", "EUR")
+                else:
+                    safe_metrics[k] = v
+            
+            # Καθαρίζουμε και το όνομα του σεναρίου
+            safe_scenario = scenario_name.replace("€", "EUR").replace("\u20ac", "EUR")
+
+            # Καλούμε τώρα το εργαλείο με τα "καθαρά" δεδομένα
+            pdf_bytes = generate_professional_pdf(safe_metrics, safe_scenario)
+            
+            st.download_button(
+                label="📥 Download Executive Report",
+                data=pdf_bytes,
+                file_name=f"Executive_Report_{safe_scenario}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Critical PDF Error: {e}")
 
 def show_scenario_comparison():
     st.title("📊 Scenario Comparison")
