@@ -63,7 +63,7 @@ if "selected_tool" not in s: s.selected_tool = None
 if "scenario_name" not in s: s.scenario_name = "Baseline Scenario"
 
 # 4. RUN FINANCIAL ENGINE (Ενοποιημένη κλήση)
-# Τρέχει σε κάθε rerun για να είναι πάντα ενημερωμένα τα metrics
+# Χρησιμοποιούμε απευθείας τις τιμές που έρχονται από τα widgets του home.py
 s.metrics = calculate_metrics(
     price=float(s.get("price", 150.0)),
     volume=float(s.get("volume", 15000)),
@@ -76,7 +76,7 @@ s.metrics = calculate_metrics(
     opening_cash=float(s.get("opening_cash", 150000.0)),
     total_debt=float(s.get("total_debt", 500000.0)),
     fixed_assets=float(s.get("fixed_assets", 800000.0)),
-    target_profit=float(s.get("target_profit_goal", 200000.0))
+    target_profit=float(s.get("target_profit_goal", 200000.0)) # Πρόσεξε αυτό το κλειδί!
 )
 
 # 5. SIDEBAR & ROUTING
