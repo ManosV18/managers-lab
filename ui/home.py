@@ -147,6 +147,8 @@ def run_home():
             st.number_input("Annual Volume", value=int(s.get("volume", 1000)), key="volume")
             st.number_input("Annual Fixed Costs (€)", value=float(s.get("fixed_cost", 20000.0)), key="fixed_cost")
             st.number_input("Target Profit (€)", value=float(s.get("target_profit_goal", 0.0)), key="target_profit_goal")
+            st.number_input("Net Fixed Assets (€)", value=float(s.get("fixed_assets", 0.0)), key="fixed_assets", help="Book value of machinery, equipment, and buildings.")
+            st.number_input("Target Profit (€)", value=float(s.get("target_profit_goal", 0.0)), key="target_profit_goal")
 
         with st.expander("🔄 Working Capital & Liquidity"):
             st.number_input("Opening Cash (€)", value=float(s.get("opening_cash", 10000.0)), key="opening_cash")
