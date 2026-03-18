@@ -41,7 +41,7 @@ def show_payables_manager():
     with col2:
         st.markdown("**Internal Economics**")
         # Fetching current revenue as proxy for purchase volume if not specified
-        CurrentSales = st.number_input("💰 Annual Purchase Volume (€)", min_value=0, value=int(m.get('revenue', 2000000)))
+        CurrentSales = st.number_input("💰 Annual Purchase Volume ($)", min_value=0, value=int(m.get('revenue', 2000000)))
         InterestRateOnDebt = st.number_input("🏦 Cost of Capital / WACC (%)", min_value=0.0, value=float(s.get('wacc', 0.10)) * 100)
 
     # 2. CALCULATION ENGINE
@@ -61,10 +61,10 @@ def show_payables_manager():
     
 
     m1, m2, m3 = st.columns(3)
-    m1.metric("Total Discount Gain", f"€ {discount_gain:,.0f}")
-    m2.metric("Opportunity Cost", f"-€ {credit_cost:,.0f}", help="The interest cost of using your own cash instead of the supplier's free credit.")
-    m3.metric("Net Economic Benefit", f"€ {net_gain:,.0f}", 
-              delta=f"{net_gain:,.0f} €", 
+    m1.metric("Total Discount Gain", f"$ {discount_gain:,.0f}")
+    m2.metric("Opportunity Cost", f"-$ {credit_cost:,.0f}", help="The interest cost of using your own cash instead of the supplier's free credit.")
+    m3.metric("Net Economic Benefit", f"$ {net_gain:,.0f}", 
+              delta=f"{net_gain:,.0f} $", 
               delta_color="normal" if net_gain >= 0 else "inverse")
 
     # 4. COLD ANALYTICAL VERDICT
@@ -72,7 +72,7 @@ def show_payables_manager():
     if net_gain > 0:
         st.success(f"🎯 **Decision: EXECUTE CASH OPTION.** The {Discount:.1f}% discount is mathematically superior to the {SupplierCreditDays}-day credit. Internal ROI on this move is higher than your cost of debt.")
     else:
-        st.error(f"🚨 **Decision: MAINTAIN CREDIT.** The value of the {SupplierCreditDays}-day 'interest-free loan' from your supplier is greater than the offered discount. Switching to cash would destroy € {abs(net_gain):,.0f} in value.")
+        st.error(f"🚨 **Decision: MAINTAIN CREDIT.** The value of the {SupplierCreditDays}-day 'interest-free loan' from your supplier is greater than the offered discount. Switching to cash would destroy $ {abs(net_gain):,.0f} in value.")
 
     # Navigation (Ευθυγραμμισμένο με το νέο app.py)
     st.divider()
