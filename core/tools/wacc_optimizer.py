@@ -23,8 +23,8 @@ def show_wacc_optimizer_ui():
     with col1:
         st.subheader("🏦 Capital Structure (Synced)")
         # Ο χρήστης βλέπει τα ποσά που όρισε στο Baseline, αλλά μπορεί να κάνει what-if
-        market_equity = st.number_input("Market Value of Equity (€)", value=baseline_equity, step=50000.0, help="Calculated as: Invested Capital - Total Debt")
-        total_debt = st.number_input("Total Debt (€)", value=baseline_debt, step=50000.0)
+        market_equity = st.number_input("Market Value of Equity ($)", value=baseline_equity, step=50000.0, help="Calculated as: Invested Capital - Total Debt")
+        total_debt = st.number_input("Total Debt ($)", value=baseline_debt, step=50000.0)
         tax_rate = st.number_input("Corporate Tax Rate (%)", value=22.0) / 100
         
         actual_total_cap = market_equity + total_debt
@@ -56,7 +56,7 @@ def show_wacc_optimizer_ui():
     res3.metric("Final WACC", f"{wacc_pct:.2f}%")
 
     # --- VISUALIZATION ---
-    st.write(f"**Capital Mix:** Equity {e_weight*100:.1f}% (€{market_equity:,.0f}) | Debt {d_weight*100:.1f}% (€{total_debt:,.0f})")
+    st.write(f"**Capital Mix:** Equity {e_weight*100:.1f}% (${market_equity:,.0f}) | Debt {d_weight*100:.1f}% (${total_debt:,.0f})")
     st.progress(e_weight)
     
     
