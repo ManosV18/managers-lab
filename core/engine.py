@@ -3,6 +3,7 @@ import streamlit as st
 def calculate_metrics(price, volume, variable_cost, fixed_cost,
                       ar_days, inv_days, ap_days,
                       annual_debt_service, opening_cash,
+                      total_debt=0.0
                       fixed_assets=0.0,
                       target_profit=0.0):
     
@@ -25,26 +26,34 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     daily_rev = revenue / 365 if revenue > 0 else 0
     daily_vc = total_vc / 365 if total_vc > 0 else 0
 
-    # 4. Working Capital & Invested Capital
+    # 4. Operating Working Capital (OWC)
     ar_value = daily_rev * ar_days
     inv_value = daily_vc * inv_days
     ap_value = daily_vc * ap_days
-    wc_req = ar_value + inv_value - ap_value
     
-    # Invested Capital = Working Capital + Operating Assets + Fixed Assets
-    # We include opening_cash as part of the total capital deployed in the business
-    invested_capital = opening_cash + wc_req + fixed_assets
+    # Το Working Capital που "δεσμεύει" μετρητά είναι: 
+    # (Απαιτήσεις + Αποθέματα) ΜΕΙΟΝ (Προμηθευτές)
+    net_working_capital = ar_value + inv_value - ap_value
     
-    # 5. ROIC (Return on Invested Capital)
-    # The gold standard for value creation: NOPAT / Total Capital Employed
-    invested_capital_for_roic = max(invested_capital, 1.0) # Guard against division by zero
+    # 5. Invested Capital (Operating View)
+    # Invested Capital = Net Working Capital + Fixed Assets + Operating Cash
+    # Εδώ το opening_cash θεωρείται το απαραίτητο "καύσιμο" στην ταμειακή.
+    invested_capital = net_working_capital + fixed_assets + opening_cash
+    
+    # 6. ROIC (Return on Invested Capital)
+    # NOPAT / Κεφάλαιο που απασχολείται ενεργά στην παραγωγή
+    invested_capital_for_roic = max(invested_capital, 1.0)
     roic = nopat / invested_capital_for_roic if nopat > 0 else 0
 
-    # 6. Final Cash Position
-    # Note: Net Cash is the liquidity at the end of the period
-    net_cash = opening_cash + net_profit - annual_debt_service - wc_req
+    # 7. Debt & Liquidity Analysis
+    # Net Debt = Total Debt - Opening Cash (Ψυχρή μέτρηση μόχλευσης)
+    net_debt = total_debt - opening_cash
 
-    # 7. Break-Even Analysis (Cash Basis)
+    # 8. Final Cash Position (The "Survival" Metric)
+    # Πόσα λεφτά μένουν στο τέλος αφού πληρώσουμε υποχρεώσεις και WC
+    net_cash = opening_cash + net_profit - annual_debt_service - net_working_capital
+    
+    # 9. Break-Even Analysis (Cash Basis)
     cash_wall_requirements = fixed_cost + annual_debt_service + target_profit
     
     if unit_contribution > 0:
