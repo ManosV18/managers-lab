@@ -120,16 +120,9 @@ def run_home():
     st.subheader("📊 Executive Simulation Snapshot")
     c1, c2, c3, c4 = st.columns(4)
     
-    # c1: Η απόδοση των χρημάτων που επενδύθηκαν
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
-    
-    # c2: Το σημείο μηδενισμού (μονάδες)
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
-    
-    # c3: Πόσο "αέρα" έχουν οι πωλήσεις πριν τις ζημιές (Αντικαθιστά το Unit Price που είναι input)
     c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
-    
-    # c4: Το πραγματικό διαθέσιμο ταμείο
     c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
     
     st.divider()
@@ -140,8 +133,6 @@ def run_home():
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
 
     with col_left:
-        # Εμφανίζουμε τα inputs ΜΟΝΟ αν είμαστε στο home step
-        # Αυτό αποτρέπει το Duplicate Key Error όταν φορτώνονται τα reports
         if s.get("flow_step") == "home":
             st.subheader("⚙️ Business Baseline")
             st.text_input("Scenario Name", value=s.get("scenario_name", "Baseline Scenario"), key="scenario_name")
@@ -152,14 +143,20 @@ def run_home():
                 st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
                 st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)), key="fixed_cost")
                 st.number_input("Net Fixed Assets ($)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
+                # ΝΕΟ ΠΕΔΙΟ: ΑΠΟΣΒΕΣΕΙΣ
+                st.number_input("Annual Depreciation ($)", value=float(s.get("depreciation", 50000.0)), key="depreciation", help="Annual non-cash expense for assets.")
                 st.number_input("Target Profit ($)", value=float(s.get("target_profit_goal", 200000.0)), key="target_profit_goal")
 
             with st.expander("🔄 Working Capital & Liquidity"):
                 st.number_input("Opening Cash ($)", value=float(s.get("opening_cash", 150000.0)), key="opening_cash")
+                # ΝΕΟ ΠΕΔΙΟ: ΙΔΙΑ ΚΕΦΑΛΑΙΑ (EQUITY)
+                st.number_input("Total Equity ($)", value=float(s.get("equity", 500000.0)), key="equity", help="Shareholder capital and retained earnings.")
                 st.number_input("Total Debt ($)", value=float(s.get("total_debt", 500000.0)), key="total_debt", help="Total bank loans and interest-bearing liabilities.")
+                
                 col_fin1, col_fin2 = st.columns(2)
                 col_fin1.number_input("Annual Interest Costs ($)", value=float(s.get("annual_interest_only", 0.0)), key="annual_interest_only", help="The interest portion only (tax deductible).")
                 col_fin2.number_input("Corporate Tax Rate (%)", value=float(s.get("tax_rate", 22.0)), key="tax_rate")
+                
                 st.number_input("A/R Days", value=int(s.get("ar_days", 60)), key="ar_days")
                 st.number_input("Inventory Days", value=int(s.get("inv_days", 45)), key="inv_days")
                 st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
@@ -177,7 +174,6 @@ def run_home():
                 }
                 st.success(f"Scenario '{s.scenario_name}' saved!")
         else:
-            # Αν είμαστε σε tool/report, δείχνουμε απλώς μια σύνοψη χωρίς widgets
             st.info(f"💡 Active Scenario: **{s.get('scenario_name')}**")
             st.write(f"Price: ${s.get('price')}")
             st.write(f"Volume: {s.get('volume')}")
@@ -221,14 +217,13 @@ def run_home():
                 if st.button("📄 Executive Decision Report", use_container_width=True): s.selected_tool="decision_report"; s.flow_step="tool"; st.rerun()
                 if st.button("📊 Scenario Comparison", use_container_width=True): s.selected_tool="scenario_comparison"; s.flow_step="tool"; st.rerun()
 
-            # --- COLD LOGIC QUICK ANALYSIS ---
             st.divider()
             with st.expander("🔍 Capital Structure Analysis", expanded=True):
                 ca1, ca2 = st.columns(2)
                 ca1.write(f"**Total Debt:** ${s.get('total_debt', 0):,.0f}")
+                ca1.write(f"**Total Equity:** ${s.get('equity', 0):,.0f}") # Προσθήκη στην ανάλυση
                 ca1.write(f"**Fixed Assets:** ${s.get('fixed_assets', 0):,.0f}")
                 
-                # Υπολογισμός Net Debt live
                 net_debt_val = s.get('total_debt', 0) - s.get('opening_cash', 0)
                 color = "red" if net_debt_val > 0 else "green"
                 ca2.markdown(f"**Net Debt:** <span style='color:{color}'>${net_debt_val:,.0f}</span>", unsafe_allow_html=True)
