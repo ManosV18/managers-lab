@@ -12,6 +12,7 @@ def run_cash_cycle_app():
     st.header("💰 Cash Conversion Cycle (CCC)")
     
     # 1. FETCH BASELINE DATA (Σύμφωνα με τις οδηγίες 365 ημέρες)
+    # Χρησιμοποιούμε τα ίδια ονόματα μεταβλητών με το home.py
     q = float(s.get('volume', 0))
     vc = float(s.get('variable_cost', 0.0))
     p = float(s.get('price', 0.0))
@@ -20,31 +21,33 @@ def run_cash_cycle_app():
     annual_cogs = q * vc 
     annual_revenue = q * p
     
-    st.write(f"**🔗 Linked Metrics:** Revenue: {annual_revenue:,.0f}$ | COGS: {annual_cogs:,.0f}$")
+    st.write(f"**🔗 Linked Metrics:** Revenue: ${annual_revenue:,.0f} | COGS: ${annual_cogs:,.0f}")
     st.divider()
 
     # 2. INPUTS & DYNAMIC WRITING
+    # ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιούμε τα κλειδιά ar_days, inv_days, ap_days για να συγχρονίζονται με το Home
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        inv_days = st.number_input("DIO (Inventory)", 0, 365, int(s.get('inventory_days', 60)), key="ccc_inv")
+        inv_days = st.number_input("DIO (Inventory)", 0, 365, int(s.get('inv_days', 45)), key="inv_days_input")
     with col2:
-        ar_days = st.number_input("DSO (Receivables)", 0, 365, int(s.get('ar_days', 45)), key="ccc_ar")
+        ar_days = st.number_input("DSO (Receivables)", 0, 365, int(s.get('ar_days', 60)), key="ar_days_input")
     with col3:
-        ap_days = st.number_input("DPO (Payables)", 0, 365, int(s.get('ap_days', 30)), key="ccc_ap")
+        ap_days = st.number_input("DPO (Payables)", 0, 365, int(s.get('ap_days', 30)), key="ap_days_input")
 
-    # 3. GLOBAL UPDATE (Ενημέρωση του Session State για συγχρονισμό με το Home)
-    s.inventory_days = inv_days
+    # 3. GLOBAL UPDATE (Συγχρονισμός με το κεντρικό State)
+    s.inv_days = inv_days
     s.ar_days = ar_days
     s.ap_days = ap_days
 
-    # 4. CALCULATIONS (Αμετάβλητη Λογική)
+    # 4. CALCULATIONS (Η λογική McKinsey)
     ccc = inv_days + ar_days - ap_days
     
-    # Υπολογισμός Απαιτήσεων Κεφαλαίου Κίνησης (Working Capital Requirement)
-    working_capital_req = ((inv_days/days_in_year) * annual_cogs) + \
-                          ((ar_days/days_in_year) * annual_revenue) - \
-                          ((ap_days/days_in_year) * annual_cogs)
+    # Υπολογισμός Working Capital Requirement (WCR)
+    # Χρησιμοποιούμε COGS για Inventory/Payables και Revenue για Receivables
+    wcr = ((inv_days/days_in_year) * annual_cogs) + \
+          ((ar_days/days_in_year) * annual_revenue) - \
+          ((ap_days/days_in_year) * annual_cogs)
     
     # 5. RESULTS DISPLAY
     st.divider()
@@ -57,8 +60,8 @@ def run_cash_cycle_app():
         st.markdown(f"Liquidity Status: :{color}[**{status}**]")
     
     with res2:
-        st.metric("Working Capital Requirement", f"{working_capital_req:,.0f} $")
-        st.caption("The amount of net cash required to sustain current operations.")
+        st.metric("Working Capital Requirement", f"${wcr:,.0f}")
+        st.caption("The amount of net cash trapped in operations.")
 
     # 6. VISUAL TIMELINE
     st.subheader("📅 Operational Timeline")
@@ -67,11 +70,11 @@ def run_cash_cycle_app():
     
 
     # 7. COLD INSIGHT
-    daily_cash_impact = (annual_cogs / days_in_year)
-    st.info(f"💡 **Cold Insight:** Every single day reduced from your CCC releases approximately **{daily_cash_impact:,.0f} $** in trapped cash flow.")
+    # Ο πραγματικός αντίκτυπος στο ταμείο ανά ημέρα βελτίωσης
+    daily_cash_impact = (annual_revenue / days_in_year) # Χρησιμοποιούμε revenue για πιο "επιθετική" εκτίμηση release
+    st.info(f"💡 **Cold Insight:** Every single day reduced from your CCC releases approximately **${daily_cash_impact:,.0f}** in trapped cash flow.")
     
-    # Ο Router στο app.py παρέχει ήδη κουμπί επιστροφής, αλλά αν θες και αυτό:
-    if st.button("Apply & Back to Library Hub", type="primary"):
-        st.session_state.flow_step = "home"
-        st.session_state.selected_tool = None
+    if st.button("Apply & Back to Library Hub", type="primary", use_container_width=True):
+        s.flow_step = "home"
+        s.selected_tool = None
         st.rerun()
