@@ -44,9 +44,6 @@ TOOL_MAP = {
     "clv_calculator": ("core.tools.clv_calculator", "show_clv_calculator"),
     "shock_simulator": ("core.tools.company_shock_simulator", "show_company_shock_simulator"),
 
-    # Reports
-    "decision_report": ("core.tools.decision_report", "show_decision_report"),
-    "scenario_comparison": ("core.tools.scenario_comparison", "show_scenario_comparison")
 }
 
 # 3. STATE INITIALIZATION & DEFAULTS
