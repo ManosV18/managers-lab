@@ -72,7 +72,7 @@ def calculate_metrics(price, volume, variable_cost, fixed_cost,
     net_cash = opening_cash + net_profit + depreciation - (annual_debt_service - annual_interest) - net_working_capital
     
     # 9. Break-Even Analysis (Cash Basis)
-    # Σημείωση: Οι αποσβέσεις δεν επηρεάζουν το Cash Break-even άμεσα, αλλά ο φόρος ναι.
+    # Χρησιμοποιούμε μόνο τα Cash Fixed Costs. Οι αποσβέσεις εξαιρούνται γιατί δεν είναι ταμειακή εκροή.
     cash_wall_requirements = fixed_cost + annual_debt_service + target_profit
     
     if unit_contribution > 0:
