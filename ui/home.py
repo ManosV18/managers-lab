@@ -77,46 +77,45 @@ def run_home():
                 st.number_input("Unit Price ($)", value=float(s.get("price", 150.0)), key="price")
                 
                 # --- Variable Cost Section ---
-                # Χρησιμοποιούμε το 'variable_cost' ως το κεντρικό key
-                st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.0)), key="variable_cost")
+                # Αλλάζουμε το key σε 'vc_input' για να μην μπερδεύεται με το s.variable_cost
+                current_vc = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.0)), key="vc_input")
+                s.variable_cost = current_vc # Ενημέρωση του state
                 
                 with st.expander("🔍 Audit Variable Cost Breakdown"):
                     v1 = st.number_input("Raw Materials/Unit", value=0.0, key="audit_v1")
                     v2 = st.number_input("Logistics/Shipping", value=0.0, key="audit_v2")
                     v3 = st.number_input("Commissions/Other", value=0.0, key="audit_v3")
-                    v_total = v1 + v2 + v3
+                    v_total = float(v1 + v2 + v3)
                     st.write(f"Calculated Total: **${v_total:.2f}**")
-                    if st.button("Apply to Variable Cost"):
-                        # Ενημερώνουμε απευθείας το widget key
-                        st.session_state["variable_cost"] = float(v_total)
+                    if st.button("Apply to Variable Cost", key="btn_vc"):
+                        st.session_state.variable_cost = v_total
+                        st.session_state.vc_input = v_total # Ενημερώνουμε και το widget
                         st.rerun()
 
                 st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
                 
                 # --- Fixed Cost Section ---
-                # Χρησιμοποιούμε το 'fixed_cost' ως το κεντρικό key
-                st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)), key="fixed_cost")
+                # Αλλάζουμε το key σε 'fc_input' 
+                current_fc = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)), key="fc_input")
+                s.fixed_cost = current_fc # Ενημέρωση του state
                 
                 with st.expander("🔍 Audit Fixed Cost Breakdown"):
                     f1 = st.number_input("Monthly Rent", value=0.0, key="audit_f1") 
                     f2 = st.number_input("Annual Salaries", value=0.0, key="audit_f2")
                     f3 = st.number_input("Annual Admin & Utilities", value=0.0, key="audit_f3")
                     
-                    # Υπολογισμός: Ενοίκιο x 12 + τα υπόλοιπα ετήσια
-                    f_total = (f1 * 12) + f2 + f3
+                    f_total = float((f1 * 12) + f2 + f3)
+                    st.info(f"Annual Breakdown: Rent ${f1*12:,.0f} | Salaries ${f2:,.0f} | Admin ${f3:,.0f}")
                     
-                    st.info(f"Analysis: Rent (Annual: ${f1*12:,.0f}) + Salaries (${f2:,.0f}) + Admin (${f3:,.0f})")
-                    st.write(f"**Total Annual Fixed Cost: ${f_total:,.0f}**")
-                    
-                    if st.button("Apply to Fixed Costs"):
-                        # Ενημερώνουμε απευθείας το widget key
-                        st.session_state["fixed_cost"] = float(f_total)
+                    if st.button("Apply to Fixed Costs", key="btn_fc"):
+                        st.session_state.fixed_cost = f_total
+                        st.session_state.fc_input = f_total # Ενημερώνουμε και το widget
                         st.rerun()
 
                 st.number_input("Net Fixed Assets ($)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
                 st.number_input("Annual Depreciation ($)", value=float(s.get("depreciation", 50000.0)), key="depreciation")
                 st.number_input("Target Profit ($)", value=float(s.get("target_profit_goal", 200000.0)), key="target_profit_goal")
-    
+        
             with st.expander("🔄 Working Capital & Liquidity"):
                 st.number_input("Opening Cash ($)", value=float(s.get("opening_cash", 150000.0)), key="opening_cash")
                 st.number_input("Total Equity ($)", value=float(s.get("equity", 500000.0)), key="equity")
