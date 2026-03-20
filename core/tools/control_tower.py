@@ -18,8 +18,7 @@ def show_control_tower():
     
     s = st.session_state
     
-    # --- 1. LIVE SYNC (Από το Executive Dashboard) ---
-    # Υπολογίζουμε τα metrics live για να είναι πάντα ενημερωμένα
+    # --- 1. LIVE SYNC ---
     m = calculate_metrics(
         price=_safe_get('price', 150.0),
         volume=_safe_get('volume', 15000.0),
@@ -36,7 +35,7 @@ def show_control_tower():
     s.metrics = m
     
     if not s.get("baseline_locked"):
-        st.warning("⚠️ Baseline not locked. Using session parameters.")
+        st.warning("⚠️ Baseline not locked. Showing real-time simulation.")
 
     # --- 2. FETCH DATA ---
     revenue = m.get("revenue", 0.0)
@@ -49,7 +48,7 @@ def show_control_tower():
     # TOP LEVEL METRICS
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Annual Revenue", f"${revenue:,.0f}")
-    c2.metric("Net Profit (After Tax)", f"${net_profit:,.0f}", 
+    c2.metric("Net Profit", f"${net_profit:,.0f}", 
               delta=f"{(net_profit/revenue*100 if revenue > 0 else 0):.1f}% Margin")
     c3.metric("Invested Capital", f"${invested_cap:,.0f}")
     
@@ -58,39 +57,33 @@ def show_control_tower():
 
     st.divider()
 
+    # --- 3. QUADRANTS ---
     q1, q2 = st.columns(2)
     q3, q4 = st.columns(2)
 
-    with q1: # QUADRANT 1: PROFITABILITY (Αντικατάσταση με Γράφημα Break-Even)
+    with q1: # QUADRANT 1: PROFITABILITY (Break-Even Curve)
         st.subheader("🎯 Profitability Hub")
-        p = _safe_get('price', 150.0)
-        v = _safe_get('volume', 15000.0)
-        vc = _safe_get('variable_cost', 90.0)
-        fc = _safe_get('fixed_cost', 450000.0)
-        
+        p, v, vc, fc = _safe_get('price'), _safe_get('volume'), _safe_get('variable_cost'), _safe_get('fixed_cost')
         v_range = list(range(0, int(v * 2), int(max(1, v/10))))
         df_be = pd.DataFrame({
             "Volume": v_range,
             "Revenue": [vol * p for vol in v_range],
             "Costs": [fc + (vol * vc) for vol in v_range]
         })
-        fig_be = px.line(df_be, x="Volume", y=["Revenue", "Costs"], title="Break-Even Analysis")
-        fig_be.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10), template="plotly_dark")
+        fig_be = px.line(df_be, x="Volume", y=["Revenue", "Costs"])
+        fig_be.update_layout(height=250, margin=dict(l=10, r=10, t=30, b=10), template="plotly_dark")
         st.plotly_chart(fig_be, use_container_width=True)
 
-    with q2: # QUADRANT 2: LIQUIDITY ENGINE (Όπως το είχες)
+    with q2: # QUADRANT 2: LIQUIDITY ENGINE
         st.subheader("💧 Liquidity Engine")
-        st.write(f"**Cash Conversion Cycle (CCC):** {ccc:.0f} Days")
-        ar = s.get("ar_days", 30)
-        inv = s.get("inv_days", 60)
-        ap = s.get("ap_days", 45)
-        
+        st.write(f"**CCC:** {ccc:.0f} Days")
+        ar, inv, ap = s.get("ar_days", 30), s.get("inv_days", 60), s.get("ap_days", 45)
         fig_ccc = go.Figure(go.Bar(y=['Receivables', 'Inventory', 'Payables'], x=[ar, inv, -ap], 
                                  orientation='h', marker_color=['#3b82f6', '#10b981', '#ef4444']))
-        fig_ccc.update_layout(height=200, margin=dict(l=20, r=20, t=10, b=10), template="plotly_dark")
+        fig_ccc.update_layout(height=200, margin=dict(l=10, r=10, t=10, b=10), template="plotly_dark")
         st.plotly_chart(fig_ccc, use_container_width=True)
 
-    with q3: # QUADRANT 3: RISK RADAR (Όπως το είχες)
+    with q3: # QUADRANT 3: RISK RADAR
         st.subheader("🛡️ Risk Radar")
         prob_fail = m.get("insolvency_prob", 0.0)
         runway = m.get("runway_months", 0.0)
@@ -98,24 +91,23 @@ def show_control_tower():
         col_r1.metric("Insolvency Prob.", f"{prob_fail:.1f}%")
         if runway == float('inf'): col_r2.metric("Runway", "∞ (Cash Positive)")
         else: col_r2.metric("Runway", f"{runway:.1f} Months")
-        st.progress(min(prob_fail / 100, 1.0), text="Stochastic Risk Level")
+        st.progress(min(prob_fail / 100, 1.0), text="Insolvency Risk Level")
 
-    with q4: # QUADRANT 4: GROWTH & VALUE (Όπως το είχες)
+    with q4: # QUADRANT 4: VALUE CREATION
         st.subheader("🚀 Value Creation")
         st.write(f"**Implied ROIC:** {roic:.1%}")
         if (roic * 100) > wacc_input: 
-            st.success(f"✅ Value Creation (ROIC {roic:.1%} > WACC {wacc_input:.1f}%)")
+            st.success(f"✅ ROIC > WACC (Value Creation)")
         else: 
-            st.warning(f"🚨 Value Destruction (ROIC {roic:.1%} < WACC {wacc_input:.1f}%)")
+            st.error(f"🚨 ROIC < WACC (Value Destruction)")
+        
+        # Προσθήκη Margin of Safety
+        mos = m.get('margin_of_safety', 0.0) * 100
+        st.write(f"**Margin of Safety:** {mos:.1f}%")
 
-    # NAVIGATION BUTTONS
     st.divider()
-    col_b1, col_b2, col_b3, col_b4 = st.columns(4)
-    if col_b1.button("🔬 Stress Test", use_container_width=True): s.selected_tool = "stress_test_tool"; s.flow_step = "tool"; st.rerun()
-    if col_b2.button("📦 Inventory", use_container_width=True): s.selected_tool = "inventory_manager"; s.flow_step = "tool"; st.rerun()
-    if col_b3.button("👥 CLV Simulator", use_container_width=True): s.selected_tool = "clv_calculator"; s.flow_step = "tool"; st.rerun()
-    if col_b4.button("📉 WACC Opt.", use_container_width=True): s.selected_tool = "wacc_optimizer"; s.flow_step = "tool"; st.rerun()
-
-    if st.button("⬅️ Return to Home", use_container_width=True):
+    
+    # --- 4. BACK NAVIGATION ONLY ---
+    if st.button("⬅️ Return to Global Baseline (Home)", use_container_width=True):
         s.flow_step = "home"
         st.rerun()
