@@ -168,7 +168,6 @@ def run_home():
 
             with t3:
                 # Εδώ μπορείς να αλλάξεις το όνομα του κουμπιού αν θες
-                if st.button("🔢 Unit Cost Analyzer", use_container_width=True): s.selected_tool="unit_cost_analyzer"; s.flow_step="tool"; st.rerun()
                 if st.button("📦 Inventory Optimizer", use_container_width=True): s.selected_tool="inventory_manager"; s.flow_step="tool"; st.rerun()
                 if st.button("📊 NPV Receivables Analyzer", use_container_width=True): s.selected_tool="receivables_npv"; s.flow_step="tool"; st.rerun()
                 if st.button("🔄 Cash Conversion Cycle", use_container_width=True): s.selected_tool="cash_cycle"; s.flow_step="tool"; st.rerun()
