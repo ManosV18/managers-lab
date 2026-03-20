@@ -52,50 +52,69 @@ def show_control_tower():
     q1, q2 = st.columns(2)
     q3, q4 = st.columns(2)
 
-    with q1: # QUADRANT 1: BREAK-EVEN CHART (ΕΠΑΝΑΦΟΡΑ)
+    with q1: # QUADRANT 1: BREAK-EVEN CHART (RE-FIXED)
         st.subheader("🎯 Profitability Hub")
-        p, v, vc, fc = _safe_get('price'), _safe_get('volume'), _safe_get('variable_cost'), _safe_get('fixed_cost')
+        p = _safe_get('price', 150.0)
+        v = _safe_get('volume', 15000.0)
+        vc = _safe_get('variable_cost', 90.0)
+        fc = _safe_get('fixed_cost', 450000.0)
         
-        # Δημιουργία εύρους για το γράφημα (από 0 έως 2x το τρέχον volume)
-        v_range = list(range(0, int(v * 2) + 1, int(max(1, v/10))))
+        # Εξασφάλιση ότι το v_range δεν είναι μηδενικό
+        upper_limit = int(v * 2) if v > 0 else 1000
+        step = int(max(1, upper_limit / 10))
+        v_range = list(range(0, upper_limit + step, step))
+        
         df_be = pd.DataFrame({
-            "Volume": v_range,
+            "Units": v_range,
             "Revenue": [vol * p for vol in v_range],
             "Total Costs": [fc + (vol * vc) for vol in v_range]
         })
         
-        fig_be = px.line(df_be, x="Volume", y=["Revenue", "Total Costs"], 
-                         color_discrete_map={"Revenue": "#10b981", "Total Costs": "#ef4444"})
-        fig_be.update_layout(height=300, margin=dict(l=10, r=10, t=30, b=10), template="plotly_dark", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        # Χρήση go.Figure για απόλυτο έλεγχο αντί για px.line
+        fig_be = go.Figure()
+        fig_be.add_trace(go.Scatter(x=df_be["Units"], y=df_be["Revenue"], name="Revenue", line=dict(color='#10b981', width=3)))
+        fig_be.add_trace(go.Scatter(x=df_be["Units"], y=df_be["Total Costs"], name="Total Costs", line=dict(color='#ef4444', width=3)))
+        
+        # Προσθήκη κάθετης γραμμής για το τρέχον Volume
+        fig_be.add_vline(x=v, line_dash="dash", line_color="white", annotation_text="Current Volume")
+
+        fig_be.update_layout(
+            height=300, 
+            template="plotly_dark", 
+            margin=dict(l=10, r=10, t=30, b=10),
+            legend=dict(orientation="h", y=1.1),
+            xaxis_title="Volume (Units)",
+            yaxis_title="Value ($)"
+        )
         st.plotly_chart(fig_be, use_container_width=True)
+        
 
     with q2: # QUADRANT 2: LIQUIDITY (CCC)
         st.subheader("💧 Working Capital Velocity")
         ccc = m.get("ccc", 0.0)
         st.write(f"**CCC:** {ccc:.0f} Days")
-        ar, inv, ap = s.get("ar_days", 30), s.get("inv_days", 60), s.get("ap_days", 45)
-        fig_ccc = go.Figure(go.Bar(y=['Receivables', 'Inventory', 'Payables'], x=[ar, inv, -ap], 
-                                 orientation='h', marker_color=['#3b82f6', '#f59e0b', '#ef4444']))
+        ar, inv, ap = _safe_get("ar_days", 30), _safe_get("inv_days", 60), _safe_get("ap_days", 45)
+        
+        fig_ccc = go.Figure(go.Bar(
+            y=['Receivables', 'Inventory', 'Payables'], 
+            x=[ar, inv, -ap], 
+            orientation='h', 
+            marker_color=['#3b82f6', '#f59e0b', '#ef4444']
+        ))
         fig_ccc.update_layout(height=250, margin=dict(l=10, r=10, t=10, b=10), template="plotly_dark")
         st.plotly_chart(fig_ccc, use_container_width=True)
 
-    with q3: # QUADRANT 3: RISK RADAR (ΑΠΛΟΠΟΙΗΜΕΝΟ)
+    with q3: # QUADRANT 3: RISK RADAR (SURVIVAL DAYS)
         st.subheader("🛡️ Risk Radar")
-        # Υπολογισμός ημερών επιβίωσης: (Διαθέσιμα Μετρητά / Ημερήσια Έξοδα)
         cash = m.get('net_cash_position', 0.0)
-        daily_burn = (fc + (v * vc)) / 365 # [2026-02-18] 365 days
-        survival_days = cash / daily_burn if daily_burn > 0 else float('inf')
+        daily_burn = (fc + (v * vc)) / 365 # 365 Days per instruction
+        survival_days = cash / daily_burn if daily_burn > 0 else 0
         
-        st.metric("Survival (Zero Income)", f"{survival_days:.0f} Days", 
-                  help="How many days the business survives with current cash if revenue drops to zero.")
+        st.metric("Survival (Zero Income)", f"{survival_days:.0f} Days")
         
-        # Οπτική ένδειξη κινδύνου
-        if survival_days < 30:
-            st.error("🚨 Critical Cash Position (< 30 days)")
-        elif survival_days < 90:
-            st.warning("⚠️ Tight Liquidity (30-90 days)")
-        else:
-            st.success("✅ Safe Runway (> 90 days)")
+        if survival_days < 30: st.error("🚨 Critical Runway")
+        elif survival_days < 90: st.warning("⚠️ Tight Runway")
+        else: st.success("✅ Safe Runway")
 
     with q4: # QUADRANT 4: VALUE CREATION
         st.subheader("🚀 Value Creation")
@@ -103,14 +122,10 @@ def show_control_tower():
         spread = roic - wacc_locked
         st.metric("ROIC", f"{roic:.2f}%", delta=f"{spread:.2f}% vs WACC")
         
-        if spread > 0:
-            st.success("Value Creation Mode")
-        else:
-            st.error("Value Destruction Mode")
+        if spread > 0: st.success("Value Creation")
+        else: st.error("Value Destruction")
 
     st.divider()
-    
-    # NAVIGATION
     if st.button("⬅️ Return to Global Baseline (Home)", use_container_width=True):
         s.flow_step = "home"
         st.rerun()
