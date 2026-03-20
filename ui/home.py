@@ -180,10 +180,6 @@ def run_home():
                 if st.button("🗺️ Resilience Map", use_container_width=True): s.selected_tool="resilience_map"; s.flow_step="tool"; st.rerun()
                 if st.button("📉 Stress Test Simulator", use_container_width=True): s.selected_tool="stress_test"; s.flow_step="tool"; st.rerun()
                 st.divider()
-                # Τα παρακάτω μπορούν να καταργηθούν αφού έχουμε το Mission Control
-                if st.button("🏁 Executive Dashboard", use_container_width=True): s.selected_tool="executive_dashboard"; s.flow_step="tool"; st.rerun()
-                if st.button("📄 Executive Decision Report", use_container_width=True): s.selected_tool="decision_report"; s.flow_step="tool"; st.rerun()
-                if st.button("📊 Scenario Comparison", use_container_width=True): s.selected_tool="scenario_comparison"; s.flow_step="tool"; st.rerun()
 
             st.divider()
             with st.expander("🔍 Capital Structure Analysis", expanded=True):
