@@ -77,7 +77,9 @@ def run_home():
                 st.number_input("Unit Price ($)", value=float(s.get("price", 150.0)), key="price")
                 
                 # --- Variable Cost Section ---
+                # Χρησιμοποιούμε το 'variable_cost' ως το κεντρικό key
                 st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.0)), key="variable_cost")
+                
                 with st.expander("🔍 Audit Variable Cost Breakdown"):
                     v1 = st.number_input("Raw Materials/Unit", value=0.0, key="audit_v1")
                     v2 = st.number_input("Logistics/Shipping", value=0.0, key="audit_v2")
@@ -85,21 +87,30 @@ def run_home():
                     v_total = v1 + v2 + v3
                     st.write(f"Calculated Total: **${v_total:.2f}**")
                     if st.button("Apply to Variable Cost"):
-                        s.variable_cost = v_total
+                        # Ενημερώνουμε απευθείας το widget key
+                        st.session_state["variable_cost"] = float(v_total)
                         st.rerun()
 
                 st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
                 
                 # --- Fixed Cost Section ---
+                # Χρησιμοποιούμε το 'fixed_cost' ως το κεντρικό key
                 st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)), key="fixed_cost")
+                
                 with st.expander("🔍 Audit Fixed Cost Breakdown"):
-                    f1 = st.number_input("Monthly Rent", value=0.0, key="audit_f1") * 12
+                    f1 = st.number_input("Monthly Rent", value=0.0, key="audit_f1") 
                     f2 = st.number_input("Annual Salaries", value=0.0, key="audit_f2")
-                    f3 = st.number_input("Admin & Utilities", value=0.0, key="audit_f3")
-                    f_total = f1 + f2 + f3
-                    st.write(f"Calculated Annual Total: **${f_total:,.0f}**")
+                    f3 = st.number_input("Annual Admin & Utilities", value=0.0, key="audit_f3")
+                    
+                    # Υπολογισμός: Ενοίκιο x 12 + τα υπόλοιπα ετήσια
+                    f_total = (f1 * 12) + f2 + f3
+                    
+                    st.info(f"Analysis: Rent (Annual: ${f1*12:,.0f}) + Salaries (${f2:,.0f}) + Admin (${f3:,.0f})")
+                    st.write(f"**Total Annual Fixed Cost: ${f_total:,.0f}**")
+                    
                     if st.button("Apply to Fixed Costs"):
-                        s.fixed_cost = f_total
+                        # Ενημερώνουμε απευθείας το widget key
+                        st.session_state["fixed_cost"] = float(f_total)
                         st.rerun()
 
                 st.number_input("Net Fixed Assets ($)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
