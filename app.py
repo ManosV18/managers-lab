@@ -14,18 +14,15 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# TOOL MAP
+# TOOL MAP (Updated: Removing redundant tools)
 # --------------------------------------------------
-
 TOOL_MAP = {
-    # Strategy
+    # Strategy & Analysis
     "control_tower": ("core.tools.control_tower", "show_control_tower"),
     "pricing_strategy": ("core.tools.pricing_strategy", "show_pricing_strategy_tool"),
     "pricing_radar": ("core.tools.pricing_radar", "show_pricing_radar"),
     "loss_threshold": ("core.tools.loss_threshold", "show_loss_threshold_before_price_cut"),
     "qspm_analyzer": ("core.tools.qspm_analyzer", "show_qspm_tool"),
-
-    # Survival
     "break_even_shift": ("core.tools.break_even_shift_calculator", "show_break_even_shift_calculator"),
 
     # Finance
@@ -34,7 +31,6 @@ TOOL_MAP = {
     "growth_funding": ("core.tools.growth_funding", "show_growth_funding_needed"),
 
     # Operations
-    "unit_cost_analyzer": ("core.tools.unit_cost_analyzer", "show_unit_cost_app"),
     "inventory_manager": ("core.tools.inventory_manager", "show_inventory_manager"),
     "receivables_npv": ("core.tools.receivables_npv", "show_receivables_analyzer_ui"),
     "cash_cycle": ("core.tools.cash_cycle", "run_cash_cycle_app"),
@@ -42,7 +38,6 @@ TOOL_MAP = {
     "wc_optimizer": ("core.tools.working_capital_optimizer", "show_wc_optimizer"),
 
     # Risk
-    "executive_dashboard": ("core.tools.executive_dashboard", "show_executive_dashboard"),
     "cash_fragility": ("core.tools.cash_fragility_index", "show_cash_fragility_index"),
     "resilience_map": ("core.tools.financial_resilience_app", "show_resilience_map"),
     "stress_test": ("core.tools.stress_test_simulator", "show_stress_test_tool"),
@@ -52,46 +47,64 @@ TOOL_MAP = {
     # Reports
     "decision_report": ("core.tools.decision_report", "show_decision_report"),
     "scenario_comparison": ("core.tools.scenario_comparison", "show_scenario_comparison")
-    
 }
 
 # 3. STATE INITIALIZATION & DEFAULTS
 s = st.session_state
 
-if "baseline_locked" not in s: s.baseline_locked = False
-if "flow_step" not in s: s.flow_step = "home"
-if "selected_tool" not in s: s.selected_tool = None
-if "scenario_name" not in s: s.scenario_name = "Baseline Scenario"
+# Βασικές παράμετροι - Αν δεν υπάρχουν, τις ορίζουμε
+# Αυτό είναι κρίσιμο γιατί στο Home αφαιρέσαμε τα απευθείας keys
+defaults = {
+    "baseline_locked": False,
+    "flow_step": "home",
+    "selected_tool": None,
+    "scenario_name": "Baseline Scenario",
+    "price": 150.0,
+    "variable_cost": 90.0,
+    "volume": 15000,
+    "fixed_cost": 450000.0,
+    "fixed_assets": 800000.0,
+    "depreciation": 50000.0,
+    "target_profit_goal": 200000.0,
+    "opening_cash": 150000.0,
+    "equity": 500000.0,
+    "total_debt": 500000.0,
+    "annual_interest_only": 0.0,
+    "tax_rate": 22.0,
+    "ar_days": 60,
+    "inv_days": 45,
+    "ap_days": 30,
+    "annual_debt_service": 70000.0
+}
 
-# --- NEW DEFAULTS FOR TAX & INTEREST ---
-if "tax_rate" not in s: s.tax_rate = 22.0
-if "annual_interest_only" not in s: s.annual_interest_only = 0.0
+for key, val in defaults.items():
+    if key not in s:
+        s[key] = val
 
-# 4. RUN FINANCIAL ENGINE (Ενοποιημένη κλήση)
-# Προσθέτουμε tax_rate, equity, depreciation και διαχωρίζουμε τους τόκους
+# 4. RUN FINANCIAL ENGINE
+# Όλοι οι υπολογισμοί βασίζονται στο s (Session State)
 s.metrics = calculate_metrics(
-    price=float(s.get("price", 150.0)),
-    volume=float(s.get("volume", 15000)),
-    variable_cost=float(s.get("variable_cost", 90.0)),
-    fixed_cost=float(s.get("fixed_cost", 450000.0)),
-    ar_days=int(s.get("ar_days", 60)),
-    inv_days=int(s.get("inv_days", 45)),
-    ap_days=int(s.get("ap_days", 30)),
-    annual_debt_service=float(s.get("annual_debt_service", 70000.0)),
-    opening_cash=float(s.get("opening_cash", 150000.0)),
-    total_debt=float(s.get("total_debt", 500000.0)),
-    fixed_assets=float(s.get("fixed_assets", 800000.0)),
-    target_profit=float(s.get("target_profit_goal", 200000.0)),
-    # --- NEW & UPDATED PARAMETERS ---
-    tax_rate=float(s.get("tax_rate", 22.0)),
-    annual_interest=float(s.get("annual_interest_only", 0.0)),
-    equity=float(s.get("equity", 500000.0)),        # Προσθήκη για McKinsey Logic
-    depreciation=float(s.get("depreciation", 50000.0)) # Προσθήκη για Tax Shield/Cash Flow
+    price=float(s.price),
+    volume=float(s.volume),
+    variable_cost=float(s.variable_cost),
+    fixed_cost=float(s.fixed_cost),
+    ar_days=int(s.ar_days),
+    inv_days=int(s.inv_days),
+    ap_days=int(s.ap_days),
+    annual_debt_service=float(s.annual_debt_service),
+    opening_cash=float(s.opening_cash),
+    total_debt=float(s.total_debt),
+    fixed_assets=float(s.fixed_assets),
+    target_profit=float(s.target_profit_goal),
+    tax_rate=float(s.tax_rate),
+    annual_interest=float(s.annual_interest_only),
+    equity=float(s.equity),
+    depreciation=float(s.depreciation)
 )
 
 # 5. SIDEBAR & ROUTING
 show_sidebar()
-step = s.get("flow_step", "home")
+step = s.flow_step
 
 if step == "home":
     s.selected_tool = None
@@ -99,15 +112,19 @@ if step == "home":
     st.stop()
 
 elif step == "tool":
-    tool_key = s.get("selected_tool")
+    tool_key = s.selected_tool
     if tool_key in TOOL_MAP:
         mod_name, func_name = TOOL_MAP[tool_key]
+        
+        # Header πλοήγησης μέσα στο εργαλείο
         col_title, col_back = st.columns([0.8, 0.2])
         col_title.caption(f"Strategy Room > {tool_key.replace('_',' ').title()}")
         if col_back.button("⬅ Back to Hub", use_container_width=True):
             s.flow_step = "home"
             st.rerun()
+            
         st.divider()
+        
         try:
             module = importlib.import_module(mod_name)
             func = getattr(module, func_name)
