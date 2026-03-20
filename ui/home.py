@@ -76,46 +76,36 @@ def run_home():
                 # Unit Price
                 st.number_input("Unit Price ($)", value=float(s.get("price", 150.0)), key="price")
                 
-                # --- Variable Cost Section με Audit Popover ---
-                col_vc_input, col_vc_pop = st.columns([0.7, 0.3])
-                with col_vc_input:
-                    st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.0)), key="variable_cost")
-                with col_vc_pop:
-                    st.write("") # Alignment padding
-                    with st.popover("🔍 Audit VC"):
-                        st.caption("Variable Cost Breakdown")
-                        v1 = st.number_input("Raw Materials/Unit", value=0.0)
-                        v2 = st.number_input("Logistics/Shipping", value=0.0)
-                        v3 = st.number_input("Commissions/Other", value=0.0)
-                        v_total = v1 + v2 + v3
-                        st.info(f"Total: ${v_total:.2f}")
-                        if st.button("Apply Total VC"):
-                            s.variable_cost = v_total
-                            st.rerun()
+                # --- Variable Cost Section ---
+                st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.0)), key="variable_cost")
+                with st.expander("🔍 Audit Variable Cost Breakdown"):
+                    v1 = st.number_input("Raw Materials/Unit", value=0.0, key="audit_v1")
+                    v2 = st.number_input("Logistics/Shipping", value=0.0, key="audit_v2")
+                    v3 = st.number_input("Commissions/Other", value=0.0, key="audit_v3")
+                    v_total = v1 + v2 + v3
+                    st.write(f"Calculated Total: **${v_total:.2f}**")
+                    if st.button("Apply to Variable Cost"):
+                        s.variable_cost = v_total
+                        st.rerun()
 
                 st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
                 
-                # --- Fixed Cost Section με Audit Popover ---
-                col_fc_input, col_fc_pop = st.columns([0.7, 0.3])
-                with col_fc_input:
-                    st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)), key="fixed_cost")
-                with col_fc_pop:
-                    st.write("") # Alignment padding
-                    with st.popover("🔍 Audit FC"):
-                        st.caption("Fixed Cost Breakdown")
-                        f1 = st.number_input("Monthly Rent", value=0.0) * 12
-                        f2 = st.number_input("Annual Salaries", value=0.0)
-                        f3 = st.number_input("Admin & Utilities", value=0.0)
-                        f_total = f1 + f2 + f3
-                        st.info(f"Annual Total: ${f_total:,.0f}")
-                        if st.button("Apply Total FC"):
-                            s.fixed_cost = f_total
-                            st.rerun()
+                # --- Fixed Cost Section ---
+                st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)), key="fixed_cost")
+                with st.expander("🔍 Audit Fixed Cost Breakdown"):
+                    f1 = st.number_input("Monthly Rent", value=0.0, key="audit_f1") * 12
+                    f2 = st.number_input("Annual Salaries", value=0.0, key="audit_f2")
+                    f3 = st.number_input("Admin & Utilities", value=0.0, key="audit_f3")
+                    f_total = f1 + f2 + f3
+                    st.write(f"Calculated Annual Total: **${f_total:,.0f}**")
+                    if st.button("Apply to Fixed Costs"):
+                        s.fixed_cost = f_total
+                        st.rerun()
 
                 st.number_input("Net Fixed Assets ($)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
                 st.number_input("Annual Depreciation ($)", value=float(s.get("depreciation", 50000.0)), key="depreciation")
                 st.number_input("Target Profit ($)", value=float(s.get("target_profit_goal", 200000.0)), key="target_profit_goal")
-
+    
             with st.expander("🔄 Working Capital & Liquidity"):
                 st.number_input("Opening Cash ($)", value=float(s.get("opening_cash", 150000.0)), key="opening_cash")
                 st.number_input("Total Equity ($)", value=float(s.get("equity", 500000.0)), key="equity")
