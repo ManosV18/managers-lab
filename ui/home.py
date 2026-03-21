@@ -105,10 +105,11 @@ def run_home():
                 f_total = float(f1 + f2 + f3)
     
                 st.info(f"Total Annual Fixed Cost: **${f_total:,.0f}**")
+                # Διόρθωση εσοχής (Indent) για το κουμπί
                 if st.button("Apply to Fixed Costs", key="btn_fc"):
                     s.fixed_cost = f_total
                     st.rerun()
-                
+                            
                 st.number_input("Net Fixed Assets ($)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
                 st.number_input("Annual Depreciation ($)", value=float(s.get("depreciation", 50000.0)), key="depreciation")
                 st.number_input("Target Profit ($)", value=float(s.get("target_profit_goal", 200000.0)), key="target_profit_goal")
