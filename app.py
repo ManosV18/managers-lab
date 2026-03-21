@@ -3,6 +3,7 @@ import importlib
 
 from ui.sidebar import show_sidebar
 from ui.home import run_home
+from ui.about import show_about  # Εισαγωγή της νέας οθόνης
 from core.engine import calculate_metrics
 
 # 1. PAGE CONFIG
@@ -43,14 +44,11 @@ TOOL_MAP = {
     "stress_test": ("core.tools.stress_test_simulator", "show_stress_test_tool"),
     "clv_calculator": ("core.tools.clv_calculator", "show_clv_calculator"),
     "shock_simulator": ("core.tools.company_shock_simulator", "show_company_shock_simulator"),
-
 }
 
 # 3. STATE INITIALIZATION & DEFAULTS
 s = st.session_state
 
-# Βασικές παράμετροι - Αν δεν υπάρχουν, τις ορίζουμε
-# Αυτό είναι κρίσιμο γιατί στο Home αφαιρέσαμε τα απευθείας keys
 defaults = {
     "baseline_locked": False,
     "flow_step": "home",
@@ -79,7 +77,6 @@ for key, val in defaults.items():
         s[key] = val
 
 # 4. RUN FINANCIAL ENGINE
-# Όλοι οι υπολογισμοί βασίζονται στο s (Session State)
 s.metrics = calculate_metrics(
     price=float(s.price),
     volume=float(s.volume),
@@ -108,12 +105,15 @@ if step == "home":
     run_home()
     st.stop()
 
+elif step == "about":
+    show_about()
+    st.stop()
+
 elif step == "tool":
     tool_key = s.selected_tool
     if tool_key in TOOL_MAP:
         mod_name, func_name = TOOL_MAP[tool_key]
         
-        # Header πλοήγησης μέσα στο εργαλείο
         col_title, col_back = st.columns([0.8, 0.2])
         col_title.caption(f"Strategy Room > {tool_key.replace('_',' ').title()}")
         if col_back.button("⬅ Back to Hub", use_container_width=True):
