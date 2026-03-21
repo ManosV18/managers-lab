@@ -107,14 +107,20 @@ def show_control_tower():
     with q3: # QUADRANT 3: RISK RADAR (SURVIVAL DAYS)
         st.subheader("🛡️ Risk Radar")
         cash = m.get('net_cash_position', 0.0)
-        daily_burn = (fc + (v * vc)) / 365 # 365 Days per instruction
-        survival_days = cash / daily_burn if daily_burn > 0 else 0
+        # Σωστός υπολογισμός βάσει 365 ημερών (Instruction sync)
+        daily_burn = (fc + (v * vc)) / 365 
+        survival_days = int(cash / daily_burn) if daily_burn > 0 else 0
         
-        st.metric("Survival (Zero Income)", f"{survival_days:.0f} Days")
+        # Ψυχρή διόρθωση πληθυντικού για απόλυτη ακρίβεια
+        day_label = "Day" if survival_days == 1 else "Days"
+        st.metric("Survival (Zero Income)", f"{survival_days} {day_label}")
         
-        if survival_days < 30: st.error("🚨 Critical Runway")
-        elif survival_days < 90: st.warning("⚠️ Tight Runway")
-        else: st.success("✅ Safe Runway")
+        if survival_days < 30: 
+            st.error("🚨 Critical Runway: High Fragility Detected")
+        elif survival_days < 90: 
+            st.warning("⚠️ Tight Runway: Monitor Cash Cycle")
+        else: 
+            st.success("✅ Safe Runway: Structural Resilience")
 
     with q4: # QUADRANT 4: VALUE CREATION
         st.subheader("🚀 Value Creation")
