@@ -10,6 +10,11 @@ def show_sidebar():
             st.session_state.flow_step = "home"
             st.session_state.selected_tool = None
             st.rerun()
+
+        # --- ΠΡΟΣΘΗΚΗ: ΚΟΥΜΠΙ ΓΙΑ ΤΟ ABOUT ---
+        if st.button("🧪 System Architecture", use_container_width=True):
+            st.session_state.flow_step = "about" # Αυτό θα καλεί τη show_about() στο main
+            st.rerun()
             
         st.divider()
         
