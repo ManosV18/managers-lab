@@ -122,14 +122,18 @@ def show_control_tower():
         else: 
             st.success("✅ Safe Runway: Structural Resilience")
 
-    with q4: # QUADRANT 4: VALUE CREATION
-        st.subheader("🚀 Value Creation")
-        roic = m.get("roic", 0.0) * 100
-        spread = roic - wacc_locked
-        st.metric("ROIC", f"{roic:.2f}%", delta=f"{spread:.2f}% vs WACC")
+    # --- 4. STRATEGIC INTELLIGENCE CHECKLIST ---
+    st.markdown("### 🧠 Strategic Intelligence Checklist")
+    col_ch1, col_ch2, col_ch3 = st.columns(3)
+    
+    with col_ch1:
+        st.info("**Pricing Power**\n\nCan you raise prices by 2% without losing 5% volume? If not, your brand is fragile.")
+    
+    with col_ch2:
+        st.info("**Cash Velocity**\n\nIf you reduce Receivables by 5 days, how much 'Dead Capital' do you unlock?")
         
-        if spread > 0: st.success("Value Creation")
-        else: st.error("Value Destruction")
+    with col_ch3:
+        st.info("**Survival Buffer**\n\nIs your survival runway (>90 days) enough to pivot your entire business model?")
 
     st.divider()
     if st.button("⬅️ Return to Global Baseline (Home)", use_container_width=True):
