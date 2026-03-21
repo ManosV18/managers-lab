@@ -94,22 +94,20 @@ def run_home():
                 st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
                 
                 # --- Fixed Cost Section ---
-                # Χρησιμοποιούμε value αντί για απευθείας key binding
-                fc_val = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)))
-                s.fixed_cost = fc_val # Ενημερώνουμε το state χειροκίνητα
-                
+            fc_val = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)))
+            s.fixed_cost = fc_val 
+            
             with st.expander("🔍 Audit Fixed Cost Breakdown"):
                 f1 = st.number_input("Annual Rent", value=0.0, key="audit_f1", help="Το συνολικό ετήσιο κόστος ενοικίων.") 
                 f2 = st.number_input("Annual Salaries", value=0.0, key="audit_f2", help="Μικτά + Εργοδοτικές εισφορές (ετήσια).")
                 f3 = st.number_input("Annual Admin & Utilities", value=0.0, key="audit_f3", help="Λειτουργικά έξοδα, συνδρομές κτλ (ετήσια).")
     
-                # Πλέον δεν πολλαπλασιάζουμε το f1 με 12, είναι όλα ετήσια
                 f_total = float(f1 + f2 + f3)
     
-                st.info(f"Total Annual Fixed Cost to be applied: **${f_total:,.0f}**")
-                    if st.button("Apply to Fixed Costs", key="btn_fc"):
-                        s.fixed_cost = f_total
-                        st.rerun()
+                st.info(f"Total Annual Fixed Cost: **${f_total:,.0f}**")
+                if st.button("Apply to Fixed Costs", key="btn_fc"):
+                    s.fixed_cost = f_total
+                    st.rerun()
                 
                 st.number_input("Net Fixed Assets ($)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
                 st.number_input("Annual Depreciation ($)", value=float(s.get("depreciation", 50000.0)), key="depreciation")
