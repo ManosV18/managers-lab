@@ -96,6 +96,61 @@ s.metrics = calculate_metrics(
     depreciation=float(s.depreciation)
 )
 
+# ... (προηγούμενος κώδικας 1, 2, 3, 4 παραμένει ίδιος) ...
+
+# 5. SIDEBAR & ROUTING
+show_sidebar()
+step = s.flow_step
+
+if step == "home":
+    s.selected_tool = None
+    run_home()
+    st.stop()
+
+elif step == "about":
+    show_about()
+    st.stop()
+
+# --- ΝΕΟ STEP: ΑΠΕΥΘΕΙΑΣ ΣΤΟ CONTROL TOWER ---
+elif step == "control_tower":
+    # Φορτώνουμε το Control Tower αυτόματα
+    mod_name, func_name = TOOL_MAP["control_tower"]
+    try:
+        module = importlib.import_module(mod_name)
+        func = getattr(module, func_name)
+        
+        # Προσθέτουμε ένα κουμπί επιστροφής στο Home αν θέλει ο χρήστης
+        if st.sidebar.button("🏠 Back to Strategy Hub", use_container_width=True):
+            s.flow_step = "home"
+            st.rerun()
+            
+        func() # Εκτέλεση του Control Tower
+    except Exception as e:
+        st.error(f"Error loading Mission Control: {e}")
+    st.stop()
+
+elif step == "tool":
+    tool_key = s.selected_tool
+    if tool_key in TOOL_MAP:
+        mod_name, func_name = TOOL_MAP[tool_key]
+        
+        col_title, col_back = st.columns([0.8, 0.2])
+        col_title.caption(f"Strategy Room > {tool_key.replace('_',' ').title()}")
+        if col_back.button("⬅ Back to Hub", use_container_width=True):
+            # Αν είναι το control tower, ίσως θέλουμε να γυρίζει στο home
+            s.flow_step = "home"
+            st.rerun()
+            
+        st.divider()
+        
+        try:
+            module = importlib.import_module(mod_name)
+            func = getattr(module, func_name)
+            func()
+        except Exception as e:
+            st.error(f"Error loading module: {e}")
+
+
 # 5. SIDEBAR & ROUTING
 show_sidebar()
 step = s.flow_step
