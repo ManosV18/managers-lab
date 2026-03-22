@@ -156,6 +156,27 @@ def show_control_tower():
     with col_ch3:
         st.info("**Survival Buffer**\n\nIs your survival runway (>90 days) enough to pivot your entire business model?")
 
+    st.subheader("🛠️ Strategic Gap Analysis: How to fix the $185k hole")
+
+# Υπολογισμός των 'Breakeven' ημερών
+daily_cogs = (m['variable_cost'] * m['volume']) / 365
+required_ap_extension = wc_cash_delta / daily_cogs if daily_cogs > 0 else 0
+required_inv_reduction = wc_cash_delta / daily_cogs if daily_cogs > 0 else 0
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write("#### Option 1: Pressure Suppliers")
+    st.warning(f"To offset the 90-day terms, you must increase Payables by **{required_ap_extension:.1f} days**.")
+    st.caption(f"Target AP Days: {m['ap_days'] + required_ap_extension:.0f} Days")
+
+with col2:
+    st.write("#### Option 2: Lean Operations")
+    if required_inv_reduction > m['inv_days']:
+        st.error(f"IMPOSSIBLE: You need to cut **{required_inv_reduction:.1f} days** of stock, but you only have {m['inv_days']}.")
+    else:
+        st.success(f"Reduce Inventory by **{required_inv_reduction:.1f} days** to break even on cash.")
+
     st.divider()
     if st.button("⬅️ Return to Global Baseline (Home)", use_container_width=True):
         s.flow_step = "home"
