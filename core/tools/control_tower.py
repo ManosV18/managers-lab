@@ -37,13 +37,20 @@ def show_control_tower():
     # --- 1.1 BASELINE CALCULATION (For Delta WC Logic) ---
     # Ορίζουμε τη βάση σύγκρισης για να βλέπουμε τη μεταβολή στα μετρητά
     if 'baseline_nwc' not in s:
-        # Υπολογισμός με τις αρχικές παραμέτρους (60/45/30)
+        # ΠΡΟΣΟΧΗ: Πρέπει να περάσουμε ΟΛΕΣ τις παραμέτρους που απαιτεί η core/engine.py
         b = calculate_metrics(
-            price=150.0, volume=15000.0, variable_cost=90.0, fixed_cost=450000.0,
-            ar_days=60, inv_days=45, ap_days=30
+            price=150.0, 
+            volume=15000.0, 
+            variable_cost=90.0, 
+            fixed_cost=450000.0,
+            ar_days=60, 
+            inv_days=45, 
+            ap_days=30,
+            annual_debt_service=_safe_get('annual_debt_service', 70000.0), # Προσθήκη
+            opening_cash=_safe_get('opening_cash', 150000.0)              # Προσθήκη
         )
         s.baseline_nwc = (b.get('ar_value', 0.0) + b.get('inv_value', 0.0)) - b.get('ap_value', 0.0)
-
+    
     # --- 2. TOP LEVEL METRICS (Dynamic Strategic FCF) ---
     revenue = m.get("revenue", 0.0)
     net_profit = m.get("net_profit", 0.0)
