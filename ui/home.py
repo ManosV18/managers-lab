@@ -128,12 +128,26 @@ def run_home():
                 st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
                 st.number_input("Annual Debt Service ($)", value=float(s.get("annual_debt_service", 70000.0)), key="annual_debt_service")
             
-            if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
-                s.baseline_locked = True
-                # --- Η ΑΛΛΑΓΗ ΕΔΩ ---
-                s.flow_step = "control_tower" # Στέλνει τον χρήστη απευθείας στο Tower
-                st.rerun()
-                
+            # --- ΕΛΕΓΧΟΣ ΑΝ ΕΙΝΑΙ ΚΛΕΙΔΩΜΕΝΟ ΤΟ BASELINE ---
+            if not s.get("baseline_locked"):
+                # Εμφάνιση κουμπιού LOCK αν είναι ξεκλείδωτο
+                if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
+                    s.baseline_locked = True
+                    s.flow_step = "control_tower" 
+                    st.rerun()
+            else:
+                # Εμφάνιση κουμπιών πλοήγησης αν είναι ήδη κλειδωμένο
+                col_nav1, col_nav2 = st.columns(2)
+                with col_nav1:
+                    if st.button("🕹️ Go to Tower", type="primary", use_container_width=True):
+                        s.flow_step = "control_tower"
+                        st.rerun()
+                with col_nav2:
+                    if st.button("🔓 Unlock", use_container_width=True):
+                        s.baseline_locked = False
+                        st.rerun()
+
+            # Το κουμπί Save παραμένει πάντα διαθέσιμο
             if st.button("💾 Save Current Scenario", use_container_width=True):
                 s.saved_scenarios[s.scenario_name] = {
                     "price": s.get("price"),
@@ -141,6 +155,7 @@ def run_home():
                     "metrics": dict(s.get("metrics", {}))
                 }
                 st.success(f"Scenario '{s.scenario_name}' saved!")
+            
         else:
             st.info(f"💡 Active Scenario: **{s.get('scenario_name')}**")
             st.write(f"Price: ${s.get('price')}")
