@@ -34,18 +34,35 @@ def show_control_tower():
     )
     s.metrics = m
 
-    # --- 2. TOP LEVEL METRICS ---
+    # --- 2. TOP LEVEL METRICS (Updated with FCF) ---
     revenue = m.get("revenue", 0.0)
     net_profit = m.get("net_profit", 0.0)
-    invested_cap = m.get("invested_capital", 0.0)
-    wacc_locked = s.get('wacc_locked', 15.0)
+    
+    # Υπολογισμός Free Cash Flow (Simple Proxy for Strategy)
+    # FCF = Net Profit + Depreciation - ΔWC - Debt Service
+    # Εδώ εστιάζουμε στην ταμειακή επιβίωση
+    depreciation = _safe_get('depreciation', 0.0)
+    debt_service = _safe_get('annual_debt_service', 0.0)
+    
+    # Υπολογισμός επένδυσης σε Working Capital (απλοποιημένα για το Dashboard)
+    # Αν το CCC είναι θετικό, δεσμεύει μετρητά
+    wc_investment = (m.get('ar_value', 0.0) + m.get('inv_value', 0.0)) - m.get('ap_value', 0.0)
+    
+    # Το Free Cash Flow που απομένει για τον μέτοχο
+    fcf = net_profit + depreciation - debt_service # (Μπορείς να αφαιρέσεις και το WC αν θέλεις πιο "βίαιο" αποτέλεσμα)
     
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Annual Revenue", f"${revenue:,.0f}")
-    c2.metric("Net Profit", f"${net_profit:,.0f}")
-    c3.metric("Invested Capital", f"${invested_cap:,.0f}")
+    
+    # Net Profit vs FCF: Η στιγμή της αλήθειας
+    c2.metric("Net Profit (P&L)", f"${net_profit:,.0f}")
+    
+    fcf_color = "normal" if fcf > 0 else "inverse"
+    c3.metric("Free Cash Flow", f"${fcf:,.0f}", delta=f"{fcf-net_profit:,.0f} vs Profit", delta_color=fcf_color)
+    
+    wacc_locked = s.get('wacc_locked', 15.0)
     c4.metric("WACC Target", f"{wacc_locked:.2f}%")
-
+    
     st.divider()
 
     # --- 3. QUADRANTS ---
