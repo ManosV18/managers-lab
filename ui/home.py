@@ -130,6 +130,8 @@ def run_home():
             
             if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
                 s.baseline_locked = True
+                # --- Η ΑΛΛΑΓΗ ΕΔΩ ---
+                s.flow_step = "control_tower" # Στέλνει τον χρήστη απευθείας στο Tower
                 st.rerun()
                 
             if st.button("💾 Save Current Scenario", use_container_width=True):
