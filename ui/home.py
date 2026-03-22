@@ -171,7 +171,6 @@ def run_home():
             
             with t1:
                 # STRATEGY & PRICING
-                if st.button("🕹️ Business Control Tower", use_container_width=True, type="primary"): s.selected_tool="control_tower"; s.flow_step="tool"; st.rerun()
                 if st.button("🎯 Price & Profit Planner", use_container_width=True): s.selected_tool="pricing_strategy"; s.flow_step="tool"; st.rerun()
                 if st.button("📡 Competitor Price Radar", use_container_width=True): s.selected_tool="pricing_radar"; s.flow_step="tool"; st.rerun()
                 if st.button("📉 Sales Safety Margin", use_container_width=True): s.selected_tool="loss_threshold"; s.flow_step="tool"; st.rerun()
