@@ -186,6 +186,7 @@ def run_home():
 
             with t3:
                 # DAY-TO-DAY OPS
+                if st.button("🕵️ Deal & Cash Gap Auditor", use_container_width=True):s.selected_tool="deal_auditor"; s.flow_step="tool"; st.rerun()
                 if st.button("🔄 Cash Speed (Cycle)", use_container_width=True): s.selected_tool="cash_cycle"; s.flow_step="tool"; st.rerun()
                 if st.button("💰 Cash Unlocker (Working Cap)", use_container_width=True): s.selected_tool="wc_optimizer"; s.flow_step="tool"; st.rerun()
                 if st.button("📦 Stock & Inventory Lab", use_container_width=True): s.selected_tool="inventory_manager"; s.flow_step="tool"; st.rerun()
