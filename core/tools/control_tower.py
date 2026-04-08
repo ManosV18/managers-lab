@@ -153,6 +153,55 @@ def show_control_tower():
 
     st.divider()
 
+        # --- 5. STRATEGIC GAP ANALYSIS (The "Fix-it" Logic) ---
+    st.subheader(f"🛠️ Strategic Gap Analysis: How to fix the ${abs(wc_cash_impact):,.0f} hole")
+    
+    current_v = _safe_get('volume', 15000.0)
+    current_vc = _safe_get('variable_cost', 90.0)
+    
+    daily_cogs = (current_vc * current_v) / 365
+    required_days = wc_cash_impact / daily_cogs if daily_cogs > 0 else 0
+
+    col1, col2 = st.columns(2)
+
+    # --- OPTION 1 ---
+    with col1:
+        st.write("#### Option 1: Pressure Suppliers")
+        st.warning(f"To offset this, you must increase Payables by **{required_days:.1f} days**.")
+        st.caption(f"Target AP Days: {_safe_get('ap_days', 30) + required_days:.0f} Days")
+
+    # --- OPTION 2 ---
+    with col2:
+        st.write("#### Option 2: Lean Operations")
+        inv_days_now = _safe_get('inv_days', 45)
+
+        max_inventory_reduction = inv_days_now
+        
+        if required_days > max_inventory_reduction:
+            st.error(
+                f"Not enough: maximum inventory reduction only saves "
+                f"**{max_inventory_reduction:.1f} days**."
+            )
+        else:
+            st.success(f"Reduce Inventory by **{required_days:.1f} days** to break even on cash.")
+
+    # --- STRATEGIC INSIGHT ---
+    st.markdown("### 🧠 Strategic Insight")
+
+    if required_days > inv_days_now:
+        st.info(
+            "No single lever closes the gap. "
+            "A **combined strategy** is required:\n\n"
+            "• Extend payables\n"
+            "• Reduce inventory\n"
+            "• Accelerate receivables"
+        )
+    else:
+        st.success(
+            "Gap can be closed with a single operational adjustment."
+        )
+    
+    
     # --- 5. STRATEGIC GAP ANALYSIS (The "Fix-it" Logic) ---
     st.subheader(f"🛠️ Strategic Gap Analysis: How to fix the ${abs(wc_cash_impact):,.0f} hole")
     
