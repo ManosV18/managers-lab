@@ -200,36 +200,3 @@ def show_control_tower():
         st.success(
             "Gap can be closed with a single operational adjustment."
         )
-    
-    
-    # --- 5. STRATEGIC GAP ANALYSIS (The "Fix-it" Logic) ---
-    st.subheader(f"🛠️ Strategic Gap Analysis: How to fix the ${abs(wc_cash_impact):,.0f} hole")
-    
-    # Παίρνουμε τις τιμές απευθείας από το session state / defaults
-    current_v = _safe_get('volume', 15000.0)
-    current_vc = _safe_get('variable_cost', 90.0)
-    
-    daily_cogs = (current_vc * current_v) / 365
-    
-    # Υπολογισμός των ημερών που απαιτούνται για να καλυφθεί το impact
-    required_days = wc_cash_impact / daily_cogs if daily_cogs > 0 else 0
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.write("#### Option 1: Pressure Suppliers")
-        st.warning(f"To offset this, you must increase Payables by **{required_days:.1f} days**.")
-        st.caption(f"Target AP Days: {_safe_get('ap_days', 30) + required_days:.0f} Days")
-
-    with col2:
-        st.write("#### Option 2: Lean Operations")
-        inv_days_now = _safe_get('inv_days', 45)
-        if required_days > inv_days_now:
-            st.error(f"IMPOSSIBLE: You need to cut **{required_days:.1f} days** of stock, but you only have {inv_days_now}.")
-        else:
-            st.success(f"Reduce Inventory by **{required_days:.1f} days** to break even on cash.")
-
-    st.divider()
-    if st.button("⬅️ Return to Global Baseline (Home)", use_container_width=True):
-        s.flow_step = "home"
-        st.rerun()
