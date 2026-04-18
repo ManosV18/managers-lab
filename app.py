@@ -1,23 +1,28 @@
 import streamlit as st
 import importlib
-import streamlit_analytics  # Εισαγωγή της βιβλιοθήκης
+import streamlit as st
 
-# 1. PAGE CONFIG (Πάντα πρώτο)
-st.set_page_config(
-    page_title="Managers Lab | Strategy OS",
-    page_icon="🎯",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# 1. PAGE CONFIG (ΠΑΝΤΑ ΠΡΩΤΟ)
+st.set_page_config(page_title="Managers Lab", layout="wide")
 
-# 2. ΕΝΕΡΓΟΠΟΙΗΣΗ ANALYTICS
-# Όλος ο κώδικας από εδώ και κάτω μπαίνει μέσα στο block του analytics
-with streamlit_analytics.track():
-    
-    from ui.sidebar import show_sidebar
-    from ui.home import run_home
-    from ui.about import show_about  
-    from core.engine import calculate_metrics
+# 2. ΑΠΕΥΘΕΙΑΣ ΕΝΣΩΜΑΤΩΣΗ GOOGLE ANALYTICS
+import streamlit.components.v1 as components
+
+# Βάλε το δικό σου Measurement ID (G-XXXXXXXXXX)
+GA_ID = "G-VK912Z8XF8" 
+
+ga_code = f"""
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){{dataLayer.push(arguments);}}
+  gtag('js', new Date());
+  gtag('config', '{GA_ID}');
+</script>
+"""
+# Αυτό "ψεκάζει" τον κώδικα της Google μέσα στο app
+components.html(ga_code, height=0)
+
 
     # --------------------------------------------------
     # TOOL MAP
