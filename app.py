@@ -10,24 +10,24 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. ΣΥΝΔΕΣΗ ΜΕ GOOGLE ANALYTICS (The Parent Window Fix)
+# 2. GOOGLE ANALYTICS (ΑΠΛΗ & ΣΤΑΘΕΡΗ ΕΚΔΟΣΗ)
 GA_ID = "G-VK912Z8XF8"
 
 ga_code = f"""
+<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
 <script>
-  // Σύνδεση του dataLayer με το γονικό παράθυρο (Streamlit Parent)
-  window.parent.dataLayer = window.parent.dataLayer || [];
-  function gtag(){{window.parent.dataLayer.push(arguments);}}
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){{dataLayer.push(arguments);}}
   gtag('js', new Date());
   gtag('config', '{GA_ID}');
 </script>
 """
 
-# Εισαγωγή του κώδικα
-components.html(ga_code, height=0, width=0)
-    
-# 3. ΕΙΣΑΓΩΓΕΣ MODULES (ΧΩΡΙΣ ΕΣΟΧΗ)
+# IMPORTANT: height > 0
+components.html(ga_code, height=10)
+
+# 3. ΕΙΣΑΓΩΓΕΣ MODULES
 from ui.sidebar import show_sidebar
 from ui.home import run_home
 from ui.about import show_about
@@ -151,4 +151,3 @@ elif step == "tool":
             func()
         except Exception as e:
             st.error(f"Error loading module: {e}")
-
