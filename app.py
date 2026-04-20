@@ -10,8 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. ΣΥΝΔΕΣΗ ΜΕ GOOGLE ANALYTICS (ΑΠΕΥΘΕΙΑΣ)
-# Αντικατάστησε το G-XXXXXXXXXX με το ID που πήρες από το Google Analytics
+# 2. ΣΥΝΔΕΣΗ ΜΕ GOOGLE ANALYTICS (Βελτιωμένη έκδοση)
 GA_ID = "G-VK912Z8XF8" 
 
 ga_code = f"""
@@ -20,11 +19,18 @@ ga_code = f"""
   window.dataLayer = window.dataLayer || [];
   function gtag(){{dataLayer.push(arguments);}}
   gtag('js', new Date());
-  gtag('config', '{GA_ID}');
+  gtag('config', '{GA_ID}', {{
+      'send_page_view': true,
+      'cookie_flags': 'SameSite=None;Secure'
+  }});
 </script>
 """
-components.html(ga_code, height=0)
 
+# Χρήση session_state για να μην "χτυπάει" το script σε κάθε rerun
+if "ga_loaded" not in st.session_state:
+    components.html(ga_code, height=0, width=0)
+    st.session_state.ga_loaded = True
+    
 # 3. ΕΙΣΑΓΩΓΕΣ MODULES (ΧΩΡΙΣ ΕΣΟΧΗ)
 from ui.sidebar import show_sidebar
 from ui.home import run_home
