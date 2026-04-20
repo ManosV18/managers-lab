@@ -1,7 +1,11 @@
-import streamlit as st 
-import streamlit.components.v1 as components
+import importlib
 
-# 1. PAGE CONFIG (Πάντα πρώτο)
+from ui.sidebar import show_sidebar
+from ui.home import run_home
+from ui.about import show_about  # Εισαγωγή της νέας οθόνης
+from core.engine import calculate_metrics
+
+# 1. PAGE CONFIG
 st.set_page_config(
     page_title="Managers Lab | Strategy OS",
     page_icon="🎯",
@@ -9,56 +13,32 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. GOOGLE ANALYTICS CONFIG
-GA_ID = "G-VK912Z8XF8" 
-
-ga_code = f"""
-<script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){{dataLayer.push(arguments);}}
-  gtag('js', new Date());
-  gtag('config', '{GA_ID}', {{
-      'send_page_view': true
-  }});
-</script>
-"""
-
-# Έλεγχος ώστε να φορτωθεί μόνο μία φορά ανά session
-if "ga_loaded" not in st.session_state:
-    components.html(
-        ga_code,
-        height=0,
-        width=0,
-        scrolling=False
-    )
-    st.session_state.ga_loaded = True
-
-# 3. ΕΙΣΑΓΩΓΕΣ MODULES (ΧΩΡΙΣ ΕΣΟΧΗ)
-from ui.sidebar import show_sidebar
-from ui.home import run_home
-from ui.about import show_about
-from core.engine import calculate_metrics
-
 # --------------------------------------------------
-# TOOL MAP
+# TOOL MAP (Updated: Removing redundant tools)
 # --------------------------------------------------
 TOOL_MAP = {
+    # Strategy & Analysis
     "control_tower": ("core.tools.control_tower", "show_control_tower"),
     "pricing_strategy": ("core.tools.pricing_strategy", "show_pricing_strategy_tool"),
     "pricing_radar": ("core.tools.pricing_radar", "show_pricing_radar"),
     "loss_threshold": ("core.tools.loss_threshold", "show_loss_threshold_before_price_cut"),
     "qspm_analyzer": ("core.tools.qspm_analyzer", "show_qspm_tool"),
     "break_even_shift": ("core.tools.break_even_shift_calculator", "show_break_even_shift_calculator"),
+
+    # Finance
     "wacc_optimizer": ("core.tools.wacc_optimizer", "show_wacc_optimizer_ui"),
     "loan_vs_leasing": ("core.tools.loan_vs_leasing", "loan_vs_leasing_ui"),
     "growth_funding": ("core.tools.growth_funding", "show_growth_funding_needed"),
+
+    # Operations
     "inventory_manager": ("core.tools.inventory_manager", "show_inventory_manager"),
     "receivables_npv": ("core.tools.receivables_npv", "show_receivables_analyzer_ui"),
     "cash_cycle": ("core.tools.cash_cycle", "run_cash_cycle_app"),
     "payables_manager": ("core.tools.payables_manager", "show_payables_manager"),
     "deal_auditor": ("core.tools.deal_auditor", "show_deal_auditor"),
     "wc_optimizer": ("core.tools.working_capital_optimizer", "show_wc_optimizer"),
+
+    # Risk
     "cash_fragility": ("core.tools.cash_fragility_index", "show_cash_fragility_index"),
     "resilience_map": ("core.tools.financial_resilience_app", "show_resilience_map"),
     "stress_test": ("core.tools.stress_test_simulator", "show_stress_test_tool"),
@@ -66,7 +46,7 @@ TOOL_MAP = {
     "shock_simulator": ("core.tools.company_shock_simulator", "show_company_shock_simulator"),
 }
 
-# 4. STATE INITIALIZATION
+# 3. STATE INITIALIZATION & DEFAULTS
 s = st.session_state
 
 defaults = {
@@ -96,7 +76,7 @@ for key, val in defaults.items():
     if key not in s:
         s[key] = val
 
-# 5. RUN FINANCIAL ENGINE
+# 4. RUN FINANCIAL ENGINE
 s.metrics = calculate_metrics(
     price=float(s.price),
     volume=float(s.volume),
@@ -116,7 +96,7 @@ s.metrics = calculate_metrics(
     depreciation=float(s.depreciation)
 )
 
-# 6. SIDEBAR & ROUTING
+# 5. SIDEBAR & ROUTING
 show_sidebar()
 step = s.flow_step
 
@@ -129,15 +109,20 @@ elif step == "about":
     show_about()
     st.stop()
 
+# --- ΝΕΟ STEP: ΑΠΕΥΘΕΙΑΣ ΣΤΟ CONTROL TOWER ---
 elif step == "control_tower":
+    # Φορτώνουμε το Control Tower αυτόματα
     mod_name, func_name = TOOL_MAP["control_tower"]
     try:
         module = importlib.import_module(mod_name)
         func = getattr(module, func_name)
+        
+        # Προσθέτουμε ένα κουμπί επιστροφής στο Home αν θέλει ο χρήστης
         if st.sidebar.button("🏠 Back to Strategy Hub", use_container_width=True):
             s.flow_step = "home"
             st.rerun()
-        func() 
+            
+        func() # Εκτέλεση του Control Tower
     except Exception as e:
         st.error(f"Error loading Mission Control: {e}")
     st.stop()
@@ -146,15 +131,20 @@ elif step == "tool":
     tool_key = s.selected_tool
     if tool_key in TOOL_MAP:
         mod_name, func_name = TOOL_MAP[tool_key]
+        
         col_title, col_back = st.columns([0.8, 0.2])
         col_title.caption(f"Strategy Room > {tool_key.replace('_',' ').title()}")
         if col_back.button("⬅ Back to Hub", use_container_width=True):
+            # Αν είναι το control tower, ίσως θέλουμε να γυρίζει στο home
             s.flow_step = "home"
             st.rerun()
+            
         st.divider()
+        
         try:
             module = importlib.import_module(mod_name)
             func = getattr(module, func_name)
             func()
         except Exception as e:
             st.error(f"Error loading module: {e}")
+
