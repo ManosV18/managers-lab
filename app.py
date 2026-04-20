@@ -10,22 +10,19 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. GOOGLE ANALYTICS (ΑΠΛΗ & ΣΤΑΘΕΡΗ ΕΚΔΟΣΗ)
-GA_ID = "G-VK912Z8XF8"
-
-ga_code = f"""
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){{dataLayer.push(arguments);}}
-  gtag('js', new Date());
-  gtag('config', '{GA_ID}');
+# 2. MICROSOFT CLARITY (ΑΝΤΙΚΑΤΑΣΤΑΣΗ GOOGLE ANALYTICS)
+clarity_code = """
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "wettzzob1v");
 </script>
 """
 
-# IMPORTANT: height > 0
-components.html(ga_code, height=50)
+# Ενσωμάτωση Clarity - Το ύψος 0 το κρατάει κρυφό
+components.html(clarity_code, height=0)
 
 # 3. ΕΙΣΑΓΩΓΕΣ MODULES
 from ui.sidebar import show_sidebar
