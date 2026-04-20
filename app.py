@@ -1,8 +1,7 @@
-import streamlit as st
-import importlib
+import streamlit as st 
 import streamlit.components.v1 as components
 
-# 1. PAGE CONFIG (ΠΑΝΤΑ ΠΡΩΤΟ - ΧΩΡΙΣ ΕΣΟΧΗ)
+# 1. PAGE CONFIG (Πάντα πρώτο)
 st.set_page_config(
     page_title="Managers Lab | Strategy OS",
     page_icon="🎯",
@@ -10,8 +9,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. ΣΥΝΔΕΣΗ ΜΕ GOOGLE ANALYTICS (ΑΠΕΥΘΕΙΑΣ)
-# Αντικατάστησε το G-XXXXXXXXXX με το ID που πήρες από το Google Analytics
+# 2. GOOGLE ANALYTICS CONFIG
 GA_ID = "G-VK912Z8XF8" 
 
 ga_code = f"""
@@ -20,10 +18,21 @@ ga_code = f"""
   window.dataLayer = window.dataLayer || [];
   function gtag(){{dataLayer.push(arguments);}}
   gtag('js', new Date());
-  gtag('config', '{GA_ID}');
+  gtag('config', '{GA_ID}', {{
+      'send_page_view': true
+  }});
 </script>
 """
-components.html(ga_code, height=0)
+
+# Έλεγχος ώστε να φορτωθεί μόνο μία φορά ανά session
+if "ga_loaded" not in st.session_state:
+    components.html(
+        ga_code,
+        height=0,
+        width=0,
+        scrolling=False
+    )
+    st.session_state.ga_loaded = True
 
 # 3. ΕΙΣΑΓΩΓΕΣ MODULES (ΧΩΡΙΣ ΕΣΟΧΗ)
 from ui.sidebar import show_sidebar
