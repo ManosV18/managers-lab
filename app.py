@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. ΣΥΝΔΕΣΗ ΜΕ GOOGLE ANALYTICS (Βελτιωμένη έκδοση)
+# 2. ΣΥΝΔΕΣΗ ΜΕ GOOGLE ANALYTICS (Force Debug Mode)
 GA_ID = "G-VK912Z8XF8" 
 
 ga_code = f"""
@@ -21,12 +21,11 @@ ga_code = f"""
   gtag('js', new Date());
   gtag('config', '{GA_ID}', {{
       'send_page_view': true,
-      'cookie_flags': 'SameSite=None;Secure'
+      'debug_mode': true
   }});
 </script>
 """
 
-# Χρήση session_state για να μην "χτυπάει" το script σε κάθε rerun
 if "ga_loaded" not in st.session_state:
     components.html(ga_code, height=0, width=0)
     st.session_state.ga_loaded = True
