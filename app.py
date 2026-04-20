@@ -10,25 +10,22 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. ΣΥΝΔΕΣΗ ΜΕ GOOGLE ANALYTICS (Alternative Method)
+# 2. ΣΥΝΔΕΣΗ ΜΕ GOOGLE ANALYTICS (The Parent Window Fix)
 GA_ID = "G-VK912Z8XF8"
 
 ga_code = f"""
-    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){{dataLayer.push(arguments);}}
-        gtag('js', new Date());
-        gtag('config', '{GA_ID}', {{
-            'send_page_view': true,
-            'cookie_flags': 'SameSite=None;Secure',
-            'debug_mode': true
-        }});
-    </script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
+<script>
+  // Σύνδεση του dataLayer με το γονικό παράθυρο (Streamlit Parent)
+  window.parent.dataLayer = window.parent.dataLayer || [];
+  function gtag(){{window.parent.dataLayer.push(arguments);}}
+  gtag('js', new Date());
+  gtag('config', '{GA_ID}');
+</script>
 """
 
-# Εισαγωγή του κώδικα μέσω markdown για να "ξεγελάσουμε" το sandbox
-st.markdown(ga_code, unsafe_allow_html=True)
+# Εισαγωγή του κώδικα
+components.html(ga_code, height=0, width=0)
     
 # 3. ΕΙΣΑΓΩΓΕΣ MODULES (ΧΩΡΙΣ ΕΣΟΧΗ)
 from ui.sidebar import show_sidebar
