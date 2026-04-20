@@ -25,7 +25,7 @@ ga_code = f"""
 """
 
 # IMPORTANT: height > 0
-components.html(ga_code, height=10)
+components.html(ga_code, height=50)
 
 # 3. ΕΙΣΑΓΩΓΕΣ MODULES
 from ui.sidebar import show_sidebar
