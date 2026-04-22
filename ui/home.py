@@ -22,23 +22,7 @@ def run_home():
     """,
     unsafe_allow_html=True
 )
-    # --------------------------------------------------
-    # STRATEGY EXPLANATION
-    # --------------------------------------------------
-    colA, colB = st.columns(2)
-    with colA:
-        st.markdown("""
-        ### ⚙️ Financial Simulation Engine
-        All modules run on a unified **financial engine** that converts business assumptions into real-time metrics.
-        """)
-    with colB:
-        st.markdown("""
-        ### 🔁 Strategy Simulation Loop
-        1️⃣ Define Baseline ➡️ 2️⃣ Run Diagnostics ➡️ 3️⃣ Simulate Decisions ➡️ 4️⃣ Optimize
-        """)
-
-    st.divider()
-
+    
     # --------------------------------------------------
     # SNAPSHOT METRICS
     # --------------------------------------------------
