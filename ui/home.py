@@ -31,12 +31,17 @@ def run_home():
     with col_left:
         if s.get("flow_step") == "home":
             st.subheader("⚙️ Business Baseline")
-            st.text_input("Scenario Name", value=s.get("scenario_name", "Baseline Scenario"), key="scenario_name")
+            
+            # Scenario Name Default
+            st.text_input("Scenario Name", value=s.get("scenario_name", "Enterprise Tower Baseline"), key="scenario_name")
             
             with st.expander("📊 Core Business Model", expanded=True):
-                st.number_input("Unit Price ($)", value=float(s.get("price", 150.0)), key="price")
+                # Unit Price & Volume ρυθμισμένα για $1.5M Revenue
+                st.number_input("Unit Price ($)", value=float(s.get("price", 100.0)), key="price")
+                st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
                 
-                vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 100.0)))
+                # Variable & Fixed Costs ρυθμισμένα για το "Hole" σενάριο
+                vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.73)))
                 s.variable_cost = vc_val 
                 
                 with st.expander("🔍 Audit Variable Cost Breakdown"):
@@ -49,9 +54,7 @@ def run_home():
                         s.variable_cost = v_total
                         st.rerun()
 
-                st.number_input("Annual Volume", value=int(s.get("volume", 10000)), key="volume")
-                
-                fc_val = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)))
+                fc_val = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 100000.0)))
                 s.fixed_cost = fc_val 
             
             with st.expander("🔍 Audit Fixed Cost Breakdown"):
@@ -66,10 +69,13 @@ def run_home():
                             
                 st.number_input("Net Fixed Assets ($)", value=float(s.get("fixed_assets", 800000.0)), key="fixed_assets")
                 st.number_input("Annual Depreciation ($)", value=float(s.get("depreciation", 50000.0)), key="depreciation")
-                st.number_input("Target Profit ($)", value=float(s.get("target_profit_goal", 200000.0)), key="target_profit_goal")
+                
+                # Target Profit Goal που δημιουργεί το $137k Gap
+                st.number_input("Target Profit ($)", value=float(s.get("target_profit_goal", 176671.0)), key="target_profit_goal")
             
             with st.expander("🔄 Working Capital & Liquidity"):
-                st.number_input("Opening Cash ($)", value=float(s.get("opening_cash", 150000.0)), key="opening_cash")
+                # Opening Cash χαμηλό για να δείχνει Risk
+                st.number_input("Opening Cash ($)", value=float(s.get("opening_cash", 10000.0)), key="opening_cash")
                 st.number_input("Total Equity ($)", value=float(s.get("equity", 500000.0)), key="equity")
                 st.number_input("Total Debt ($)", value=float(s.get("total_debt", 500000.0)), key="total_debt")
                 
@@ -77,6 +83,7 @@ def run_home():
                 col_fin1.number_input("Annual Interest Costs ($)", value=float(s.get("annual_interest_only", 0.0)), key="annual_interest_only")
                 col_fin2.number_input("Corporate Tax Rate (%)", value=float(s.get("tax_rate", 22.0)), key="tax_rate")
                 
+                # CCC 75 Days
                 st.number_input("A/R Days", value=int(s.get("ar_days", 60)), key="ar_days")
                 st.number_input("Inventory Days", value=int(s.get("inv_days", 45)), key="inv_days")
                 st.number_input("A/P Days", value=int(s.get("ap_days", 30)), key="ap_days")
@@ -115,7 +122,6 @@ def run_home():
     with col_right:
         st.subheader("🧠 Business Strategy Modules")
         
-        # Check if locked to enable buttons
         is_disabled = not s.get("baseline_locked")
         if is_disabled:
             st.warning("🔒 Please lock the baseline to enable these tools.")
@@ -161,7 +167,7 @@ def run_home():
             ca2.write(f"**Invested Capital:** ${m.get('invested_capital', 0):,.0f}")
 
     # --------------------------------------------------
-    # SNAPSHOT METRICS (Moved to Bottom)
+    # SNAPSHOT METRICS (Bottom)
     # --------------------------------------------------
     st.divider()
     st.subheader("📊 Executive Simulation Snapshot")
