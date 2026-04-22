@@ -4,9 +4,9 @@ from datetime import datetime
 
 
 # --------------------------------------------------
-# STATE INITIALIZER (PRODUCTION SAFE)
+# STATE INIT (NO CRASH VERSION)
 # --------------------------------------------------
-def init_state(s):
+def init_state():
     defaults = {
         "scenario_name": "Baseline Scenario",
         "price": 150.0,
@@ -30,16 +30,18 @@ def init_state(s):
     }
 
     for k, v in defaults.items():
-        if k not in s:
-            s[k] = v
+        if k not in st.session_state:
+            st.session_state[k] = v
 
 
 # --------------------------------------------------
-# MAIN MODULE
+# MAIN APP
 # --------------------------------------------------
 def run_home():
+
+    init_state()
+
     s = st.session_state
-    init_state(s)
     m = s.get("metrics", {})
 
     if "saved_scenarios" not in s:
@@ -50,7 +52,7 @@ def run_home():
     # --------------------------------------------------
     st.markdown(
         """
-        <div style='text-align:center; padding: 8px 0 10px 0;'>
+        <div style='text-align:center; padding: 10px 0;'>
             <div style='font-size:22px; font-weight:600; color:#1E3A8A;'>
             Test your decisions before they impact your business
             </div>
@@ -60,10 +62,13 @@ def run_home():
     )
 
     # --------------------------------------------------
-    # MAIN LAYOUT
+    # LAYOUT
     # --------------------------------------------------
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
 
+    # ==================================================
+    # LEFT SIDE (INPUTS)
+    # ==================================================
     with col_left:
 
         if s["flow_step"] == "home":
@@ -72,84 +77,70 @@ def run_home():
 
             st.text_input(
                 "Scenario Name",
-                value=s["scenario_name"],
                 key="scenario_name"
             )
 
             with st.expander("📊 Core Business Model", expanded=True):
 
-                st.number_input(
-                    "Unit Price ($)",
-                    value=s["price"],
-                    key="price"
-                )
+                st.number_input("Unit Price ($)", key="price")
 
-                st.number_input(
-                    "Variable Cost ($)",
-                    key="variable_cost"
-                )
-               
-                with st.expander("🔍 Audit Variable Cost Breakdown"):
+                st.number_input("Variable Cost ($)", key="variable_cost")
+
+                with st.expander("🔍 Variable Cost Breakdown"):
                     v1 = st.number_input("Raw Materials/Unit", value=0.0)
                     v2 = st.number_input("Logistics/Shipping", value=0.0)
                     v3 = st.number_input("Commissions/Other", value=0.0)
 
-                    v_total = v1 + v2 + v3
-                    st.write(f"Calculated Total: **${v_total:.2f}**")
+                    total = v1 + v2 + v3
+                    st.write(f"Calculated Total: **${total:.2f}**")
 
-                    if st.button("Apply to Variable Cost"):
-                        s["variable_cost"] = v_total
+                    if st.button("Apply Breakdown"):
+                        s["variable_cost"] = total
                         st.rerun()
 
-                s["volume"] = st.number_input(
-                    "Annual Volume",
-                    value=s["volume"],
-                    key="volume"
-                )
+                st.number_input("Annual Volume", key="volume")
 
-                s["fixed_cost"] = st.number_input(
-                    "Annual Fixed Costs ($)",
-                    value=s["fixed_cost"],
-                    key="fixed_cost"
-                )
+                st.number_input("Annual Fixed Costs ($)", key="fixed_cost")
 
-            with st.expander("🔍 Audit Fixed Cost Breakdown"):
+            with st.expander("🔍 Fixed Cost Breakdown"):
                 f1 = st.number_input("Rent", value=0.0)
                 f2 = st.number_input("Salaries", value=0.0)
                 f3 = st.number_input("Admin & Utilities", value=0.0)
 
-                f_total = f1 + f2 + f3
-                st.info(f"Total Fixed Cost: ${f_total:,.0f}")
+                total_f = f1 + f2 + f3
+                st.info(f"Total Fixed Cost: ${total_f:,.0f}")
 
-                if st.button("Apply to Fixed Costs"):
-                    s["fixed_cost"] = f_total
+                if st.button("Apply Fixed Costs"):
+                    s["fixed_cost"] = total_f
                     st.rerun()
 
-            st.number_input("Net Fixed Assets ($)", value=s["fixed_assets"], key="fixed_assets")
-            st.number_input("Depreciation ($)", value=s["depreciation"], key="depreciation")
-            st.number_input("Target Profit ($)", value=s["target_profit_goal"], key="target_profit_goal")
+            st.number_input("Net Fixed Assets ($)", key="fixed_assets")
+            st.number_input("Depreciation ($)", key="depreciation")
+            st.number_input("Target Profit ($)", key="target_profit_goal")
 
             with st.expander("🔄 Working Capital"):
-                st.number_input("Opening Cash ($)", value=s["opening_cash"], key="opening_cash")
-                st.number_input("Equity ($)", value=s["equity"], key="equity")
-                st.number_input("Debt ($)", value=s["total_debt"], key="total_debt")
-                st.number_input("Interest ($)", value=s["annual_interest_only"], key="annual_interest_only")
-                st.number_input("Tax Rate (%)", value=s["tax_rate"], key="tax_rate")
+                st.number_input("Opening Cash ($)", key="opening_cash")
+                st.number_input("Equity ($)", key="equity")
+                st.number_input("Debt ($)", key="total_debt")
+                st.number_input("Interest ($)", key="annual_interest_only")
+                st.number_input("Tax Rate (%)", key="tax_rate")
 
             # --------------------------------------------------
-            # LOCK SYSTEM
+            # LOCK
             # --------------------------------------------------
             if not s["baseline_locked"]:
-                if st.button("🔒 Lock & Activate Simulation", type="primary"):
+                if st.button("🔒 Lock & Activate", type="primary"):
                     s["baseline_locked"] = True
                     s["flow_step"] = "control_tower"
                     st.rerun()
             else:
                 col1, col2 = st.columns(2)
+
                 with col1:
-                    if st.button("🕹️ Go to Tower"):
+                    if st.button("🕹️ Tower"):
                         s["flow_step"] = "control_tower"
                         st.rerun()
+
                 with col2:
                     if st.button("🔓 Unlock"):
                         s["baseline_locked"] = False
@@ -168,10 +159,11 @@ def run_home():
             st.write(f"Price: {s['price']}")
             st.write(f"Volume: {s['volume']}")
 
-    # --------------------------------------------------
-    # RIGHT SIDE (UNCHANGED STRUCTURE)
-    # --------------------------------------------------
+    # ==================================================
+    # RIGHT SIDE (MODULES)
+    # ==================================================
     with col_right:
+
         st.subheader("🧠 Strategy Modules")
 
         if not s["baseline_locked"]:
@@ -179,14 +171,15 @@ def run_home():
         else:
             st.write("Modules active...")
 
-    # --------------------------------------------------
-    # SNAPSHOT (BOTTOM)
-    # --------------------------------------------------
+    # ==================================================
+    # SNAPSHOT
+    # ==================================================
     st.divider()
     st.subheader("📊 Snapshot")
 
     c1, c2, c3, c4 = st.columns(4)
+
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
-    c2.metric("BEP", f"{m.get('bep_units', 0):,.0f}")
-    c3.metric("MOS", f"{m.get('margin_of_safety', 0)*100:.1f}%")
+    c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f}")
+    c3.metric("Margin", f"{m.get('margin_of_safety', 0)*100:.1f}%")
     c4.metric("Cash", f"${m.get('net_cash_position', 0):,.0f}")
