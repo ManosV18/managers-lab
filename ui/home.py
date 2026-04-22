@@ -9,7 +9,7 @@ def run_home():
     if "saved_scenarios" not in s:
         s.saved_scenarios = {}
 
-    # ---------------- DEFAULT STATE (IMPORTANT FIX) ----------------
+    # ---------------- DEFAULT STATE SAFE ----------------
     defaults = {
         "scenario_name": "Baseline Scenario",
         "price": 150.0,
@@ -36,23 +36,16 @@ def run_home():
         if k not in s:
             s[k] = v
 
-    # --------------------------------------------------
-    # HERO
-    # --------------------------------------------------
-    st.markdown(
-        """
-        <div style='text-align:center; padding: 8px 0 10px 0;'>
-            <div style='font-size:22px; font-weight:600; color:#1E3A8A;'>
-            Test your decisions before they impact your business
-            </div>
+    # ---------------- HERO ----------------
+    st.markdown("""
+    <div style='text-align:center; padding: 8px 0 10px 0;'>
+        <div style='font-size:22px; font-weight:600; color:#1E3A8A;'>
+        Test your decisions before they impact your business
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    </div>
+    """, unsafe_allow_html=True)
 
-    # --------------------------------------------------
-    # MAIN LAYOUT
-    # --------------------------------------------------
+    # ---------------- MAIN LAYOUT ----------------
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
 
     # ================= LEFT =================
@@ -65,20 +58,15 @@ def run_home():
         with st.expander("📊 Core Business Model", expanded=True):
 
             st.number_input("Unit Price ($)", key="price")
-
             st.number_input("Variable Cost ($)", key="variable_cost")
-
             st.number_input("Annual Volume", key="volume")
-
             st.number_input("Annual Fixed Costs ($)", key="fixed_cost")
 
             st.number_input("Net Fixed Assets ($)", key="fixed_assets")
-
             st.number_input("Annual Depreciation ($)", key="depreciation")
-
             st.number_input("Target Profit ($)", key="target_profit_goal")
 
-        with st.expander("🔍 Audit Variable Cost Breakdown"):
+        with st.expander("🔍 Variable Cost Breakdown"):
 
             v1 = st.number_input("Raw Materials/Unit", value=0.0, key="audit_v1")
             v2 = st.number_input("Logistics/Shipping", value=0.0, key="audit_v2")
@@ -88,7 +76,7 @@ def run_home():
 
             st.write(f"Calculated Total: **${v_total:.2f}**")
 
-            if st.button("Apply to Variable Cost", key="btn_vc"):
+            if st.button("Apply Variable Cost"):
                 s.variable_cost = v_total
                 st.rerun()
 
@@ -110,7 +98,7 @@ def run_home():
 
         # ---------------- LOCK ----------------
         if not s.baseline_locked:
-            if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
+            if st.button("🔒 Lock & Activate Simulation", use_container_width=True):
                 s.baseline_locked = True
                 s.flow_step = "control_tower"
                 st.rerun()
@@ -118,7 +106,7 @@ def run_home():
             col_nav1, col_nav2 = st.columns(2)
 
             with col_nav1:
-                if st.button("🕹️ Go to Tower", type="primary", use_container_width=True):
+                if st.button("🕹️ Go to Tower", use_container_width=True):
                     s.flow_step = "control_tower"
                     st.rerun()
 
@@ -128,64 +116,74 @@ def run_home():
                     st.rerun()
 
         # ---------------- SAVE ----------------
-        if st.button("💾 Save Current Scenario", use_container_width=True):
+        if st.button("💾 Save Scenario", use_container_width=True):
             s.saved_scenarios[s.scenario_name] = {
-                "price": s.get("price"),
-                "volume": s.get("volume"),
+                "price": s.price,
+                "volume": s.volume,
                 "metrics": dict(s.get("metrics", {}))
             }
-            st.success(f"Scenario '{s.scenario_name}' saved!")
+            st.success("Saved!")
 
     # ================= RIGHT =================
     with col_right:
 
-        st.subheader("🧠 Business Strategy Modules")
+        st.subheader("🧠 Business Modules")
 
         if not s.baseline_locked:
-            st.info("🔒 Lock the baseline to activate modules.")
+            st.info("Lock baseline to activate modules")
         else:
 
-            t1, t2, t3, t4 = st.tabs(["Strategy", "Finance", "Operations", "Risk"])
+            t1, t2, t3, t4 = st.tabs(["Strategy", "Finance", "Ops", "Risk"])
 
+            # -------- STRATEGY --------
             with t1:
-                if st.button("🎯 Price & Profit Planner", use_container_width=True):
+                st.markdown("**Pricing & demand decisions**")
+
+                if st.button("Price Planner", use_container_width=True):
                     s.selected_tool = "pricing_strategy"
                     st.rerun()
 
-                if st.button("📉 Sales Safety Margin", use_container_width=True):
-                    s.selected_tool = "loss_threshold"
+                if st.button("Break-even", use_container_width=True):
+                    s.selected_tool = "break_even_shift"
                     st.rerun()
 
+            # -------- FINANCE --------
             with t2:
-                if st.button("📈 Funding Growth", use_container_width=True):
+                st.markdown("**Capital decisions**")
+
+                if st.button("Funding", use_container_width=True):
                     s.selected_tool = "growth_funding"
                     st.rerun()
 
-                if st.button("📉 WACC", use_container_width=True):
+                if st.button("WACC", use_container_width=True):
                     s.selected_tool = "wacc_optimizer"
                     st.rerun()
 
+            # -------- OPS --------
             with t3:
-                if st.button("🔄 Cash Cycle", use_container_width=True):
+                st.markdown("**Operations**")
+
+                if st.button("Cash Cycle", use_container_width=True):
                     s.selected_tool = "cash_cycle"
                     st.rerun()
 
-                if st.button("💰 Working Capital", use_container_width=True):
+                if st.button("Working Capital", use_container_width=True):
                     s.selected_tool = "wc_optimizer"
                     st.rerun()
 
+            # -------- RISK --------
             with t4:
-                if st.button("🚨 Cash Risk", use_container_width=True):
+                st.markdown("**Risk analysis**")
+
+                if st.button("Cash Risk", use_container_width=True):
                     s.selected_tool = "cash_fragility"
                     st.rerun()
 
-                if st.button("📉 Stress Test", use_container_width=True):
+                if st.button("Stress Test", use_container_width=True):
                     s.selected_tool = "stress_test"
                     st.rerun()
 
-    # --------------------------------------------------
-    # SNAPSHOT (BOTTOM - όπως ζήτησες)
-    # --------------------------------------------------
+    # ================= SNAPSHOT BOTTOM =================
     st.divider()
 
     st.subheader("📊 Executive Simulation Snapshot")
@@ -194,5 +192,5 @@ def run_home():
 
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f}")
-    c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
-    c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
+    c3.metric("MOS", f"{m.get('margin_of_safety', 0)*100:.1f}%")
+    c4.metric("Cash", f"${m.get('net_cash_position', 0):,.0f}")
