@@ -9,8 +9,8 @@ def run_home():
     # χωρίς να αλλάξει τα keys που χρειάζονται τα άλλα modules.
     if "force_fix_applied" not in s:
         s["volume"] = 10000
-        s["price"] = 100.0
-        s["variable_cost"] = 90.73
+        s["price"] = 150.0
+        s["variable_cost"] = 100
         s["fixed_cost"] = 100000.0
         s["target_profit_goal"] = 176671.0
         s["force_fix_applied"] = True
