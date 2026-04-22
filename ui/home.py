@@ -15,8 +15,8 @@ def run_home():
     # --------------------------------------------------
     defaults = {
         "price": 150.0,
-        "variable_cost": 90.0,
-        "volume": 15000,
+        "variable_cost": 100.0,
+        "volume": 10000,
         "fixed_cost": 450000.0,
         "fixed_assets": 800000.0,
         "depreciation": 50000.0,
