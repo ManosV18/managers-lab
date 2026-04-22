@@ -33,8 +33,16 @@ def render_quickstart(s):
         vc_qs = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 0.0)), key="qs_vc")
 
     with col2:
-        volume_qs = st.number_input("Monthly Units", value=int(s.get("volume", 0) // 12) if s.get("volume") else 0, key="qs_vol")
-        fc_qs = st.number_input("Monthly Fixed Costs ($)", value=float(s.get("fixed_cost", 0.0) / 12) if s.get("fixed_cost") else 0.0, key="qs_fc")
+        volume_qs = st.number_input(
+            "Monthly Units",
+            value=int(s.get("volume", 0) // 12) if s.get("volume") else 0,
+            key="qs_vol"
+        )
+        fc_qs = st.number_input(
+            "Monthly Fixed Costs ($)",
+            value=float(s.get("fixed_cost", 0.0) / 12) if s.get("fixed_cost") else 0.0,
+            key="qs_fc"
+        )
 
     # ---------------- LIVE PREVIEW ----------------
     if price_qs > 0 and vc_qs >= 0 and volume_qs > 0 and fc_qs > 0:
@@ -78,6 +86,7 @@ def render_quickstart(s):
 # MAIN APP
 # --------------------------------------------------
 def run_home():
+
     s = st.session_state
     m = s.get("metrics", {})
 
@@ -85,7 +94,7 @@ def run_home():
         s.saved_scenarios = {}
 
     # --------------------------------------------------
-    # HERO (SIMPLIFIED)
+    # HERO
     # --------------------------------------------------
     st.markdown(
         """
@@ -104,7 +113,7 @@ def run_home():
     st.divider()
 
     # --------------------------------------------------
-    # STRATEGY EXPLANATION (KEPT BUT LOWER IMPACT)
+    # STRATEGY EXPLANATION
     # --------------------------------------------------
     colA, colB = st.columns(2)
 
@@ -130,7 +139,7 @@ def run_home():
     st.divider()
 
     # --------------------------------------------------
-    # REST OF YOUR APP (UNCHANGED)
+    # REST OF APP
     # --------------------------------------------------
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
 
@@ -138,61 +147,60 @@ def run_home():
         st.info(f"Active Scenario: {s.get('scenario_name','Baseline')}")
 
     with col_right:
-    st.subheader("🧠 Business Modules")
 
-    st.caption("Choose one area to test your assumptions")
+        st.subheader("🧠 Business Modules")
+        st.caption("Choose one area to test your assumptions")
 
-    if not s.get("baseline_locked"):
-        st.info("Lock your baseline to activate modules.")
-    else:
+        if not s.get("baseline_locked"):
+            st.info("Lock your baseline to activate modules.")
+        else:
 
-        t1, t2, t3, t4 = st.tabs(["Strategy", "Finance", "Ops", "Risk"])
+            t1, t2, t3, t4 = st.tabs(["Strategy", "Finance", "Ops", "Risk"])
 
-        with t1:
-            st.markdown("**Pricing & demand decisions**")
-            if st.button("Price & Profit Planner", use_container_width=True):
-                s.selected_tool = "pricing_strategy"
-                s.flow_step = "tool"
-                st.rerun()
+            with t1:
+                st.markdown("**Pricing & demand decisions**")
+                if st.button("Price & Profit Planner", use_container_width=True):
+                    s.selected_tool = "pricing_strategy"
+                    s.flow_step = "tool"
+                    st.rerun()
 
-            if st.button("Break-even Shift", use_container_width=True):
-                s.selected_tool = "break_even_shift"
-                s.flow_step = "tool"
-                st.rerun()
+                if st.button("Break-even Shift", use_container_width=True):
+                    s.selected_tool = "break_even_shift"
+                    s.flow_step = "tool"
+                    st.rerun()
 
-        with t2:
-            st.markdown("**Funding & capital decisions**")
-            if st.button("Cash & Funding View", use_container_width=True):
-                s.selected_tool = "growth_funding"
-                s.flow_step = "tool"
-                st.rerun()
+            with t2:
+                st.markdown("**Funding & capital decisions**")
+                if st.button("Cash & Funding View", use_container_width=True):
+                    s.selected_tool = "growth_funding"
+                    s.flow_step = "tool"
+                    st.rerun()
 
-            if st.button("Cost of Capital (WACC)", use_container_width=True):
-                s.selected_tool = "wacc_optimizer"
-                s.flow_step = "tool"
-                st.rerun()
+                if st.button("Cost of Capital (WACC)", use_container_width=True):
+                    s.selected_tool = "wacc_optimizer"
+                    s.flow_step = "tool"
+                    st.rerun()
 
-        with t3:
-            st.markdown("**Cash flow & operations**")
-            if st.button("Cash Conversion Cycle", use_container_width=True):
-                s.selected_tool = "cash_cycle"
-                s.flow_step = "tool"
-                st.rerun()
+            with t3:
+                st.markdown("**Cash flow & operations**")
+                if st.button("Cash Conversion Cycle", use_container_width=True):
+                    s.selected_tool = "cash_cycle"
+                    s.flow_step = "tool"
+                    st.rerun()
 
-            if st.button("Working Capital Unlock", use_container_width=True):
-                s.selected_tool = "wc_optimizer"
-                s.flow_step = "tool"
-                st.rerun()
+                if st.button("Working Capital Unlock", use_container_width=True):
+                    s.selected_tool = "wc_optimizer"
+                    s.flow_step = "tool"
+                    st.rerun()
 
-        with t4:
-            st.markdown("**Risk & stress testing**")
-            if st.button("Cash Runway Risk", use_container_width=True):
-                s.selected_tool = "cash_fragility"
-                s.flow_step = "tool"
-                st.rerun()
+            with t4:
+                st.markdown("**Risk & stress testing**")
+                if st.button("Cash Runway Risk", use_container_width=True):
+                    s.selected_tool = "cash_fragility"
+                    s.flow_step = "tool"
+                    st.rerun()
 
-            if st.button("Worst Case Scenario", use_container_width=True):
-                s.selected_tool = "stress_test"
-                s.flow_step = "tool"
-                st.rerun()
-    
+                if st.button("Worst Case Scenario", use_container_width=True):
+                    s.selected_tool = "stress_test"
+                    s.flow_step = "tool"
+                    st.rerun()
