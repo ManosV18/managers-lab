@@ -25,7 +25,7 @@ def run_home():
     # --------------------------------------------------
     # STRATEGY EXPLANATION
     # --------------------------------------------------
-    colA, colB = st.columns(2)
+    colA, colB = st.columns([0.6, 0.4])
     with colA:
         st.markdown("""
         ### ⚙️ Financial Simulation Engine
