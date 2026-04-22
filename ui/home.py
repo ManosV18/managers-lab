@@ -64,7 +64,7 @@ def run_home():
                 st.number_input("Unit Price ($)", key="price", min_value=0.0, step=1.0)
 
                 # Variable Cost — χειροκίνητο state γιατί έχει audit breakdown
-                vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.0)))
+                vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 100.0)))
                 s.variable_cost = vc_val
 
                 with st.expander("🔍 Audit Variable Cost Breakdown"):
