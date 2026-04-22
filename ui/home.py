@@ -13,25 +13,14 @@ def run_home():
     # FULL HERO SECTION
     # --------------------------------------------------
     st.markdown(
-        """
-        <div style='text-align:center; padding: 10px 0 30px 0;'>
-            <h1 style='font-size:64px; font-weight:900; color:#1E3A8A;'>
-            Managers Lab<span style='color:#ef4444;'>.</span>
-            </h1>
-            <div style='font-size:26px; font-weight:700; margin-top:10px;'>
-            Business Strategy Simulator
-            </div>
-            <div style='font-size:18px; color:#475569; max-width:750px; margin:auto; margin-top:10px;'>
-            Test pricing, financing and operational decisions before implementing them in the real world.
-            </div>
-            <div style='font-size:14px; color:#94a3b8; margin-top:10px;'>
-            Financial Stress Testing & Strategy Simulation Platform
-            </div>
+    """
+    <div style='text-align:center; padding: 8px 0 10px 0;'>
+        <div style='font-size:22px; font-weight:600; color:#1E3A8A;'>
+        Test your pricing before you make the decision
         </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+    </div>
+    """,
+    unsafe_allow_html=True
     # --------------------------------------------------
     # STRATEGY EXPLANATION
     # --------------------------------------------------
