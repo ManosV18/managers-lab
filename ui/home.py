@@ -11,8 +11,8 @@ def run_home():
         s["volume"] = 10000
         s["price"] = 150.0
         s["variable_cost"] = 100
-        s["fixed_cost"] = 100000.0
-        s["target_profit_goal"] = 176671.0
+        s["fixed_cost"] = 450000.0
+        s["target_profit_goal"] = 170000
         s["force_fix_applied"] = True
         st.rerun() 
     # --------------------------
