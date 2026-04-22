@@ -22,47 +22,22 @@ def run_home():
     """,
     unsafe_allow_html=True
 )
-    
-    # --------------------------------------------------
-    # QUICK DECISION LANE (NEW TOP FOCUS)
-    # --------------------------------------------------
-
-with st.container():
-    st.markdown("### ⚡ Quick Decision Inputs")
-
-    col_q1, col_q2, col_q3, col_q4 = st.columns(4)
-
-    price = col_q1.number_input("Price", value=float(s.get("price", 150.0)), key="q_price")
-    vc = col_q2.number_input("Variable Cost", value=float(s.get("variable_cost", 90.0)), key="q_vc")
-    volume = col_q3.number_input("Monthly Volume", value=int(s.get("volume", 1000)), key="q_vol")
-    fc = col_q4.number_input("Fixed Costs (monthly)", value=float(s.get("fixed_cost", 30000.0)/12), key="q_fc")
-
-    margin = price - vc
-    profit = (margin * volume) - fc
-    bep = fc / margin if margin > 0 else 0
-
-    col_m1, col_m2, col_m3 = st.columns(3)
-    col_m1.metric("Margin", f"${margin:.2f}")
-    col_m2.metric("Profit", f"${profit:,.0f}")
-    col_m3.metric("Break-even", f"{bep:,.0f}")
-
-    if st.button("🚀 Push to Full Model", type="primary"):
-        s.price = price
-        s.variable_cost = vc
-        s.volume = volume * 12
-        s.fixed_cost = fc * 12
-        st.rerun()
-
-st.divider()
-        
     # --------------------------------------------------
     # STRATEGY EXPLANATION
     # --------------------------------------------------
-    colA, colB = st.columns([0.6, 0.4])
+    colA, colB = st.columns(2)
     with colA:
-    st.markdown("### Engine")
+        st.markdown("""
+        ### ⚙️ Financial Simulation Engine
+        All modules run on a unified **financial engine** that converts business assumptions into real-time metrics.
+        """)
     with colB:
-    st.markdown("### Loop")
+        st.markdown("""
+        ### 🔁 Strategy Simulation Loop
+        1️⃣ Define Baseline ➡️ 2️⃣ Run Diagnostics ➡️ 3️⃣ Simulate Decisions ➡️ 4️⃣ Optimize
+        """)
+
+    st.divider()
 
     # --------------------------------------------------
     # SNAPSHOT METRICS
@@ -225,4 +200,5 @@ st.divider()
                 color = "red" if net_debt_val > 0 else "green"
                 ca2.markdown(f"**Net Debt:** <span style='color:{color}'>${net_debt_val:,.0f}</span>", unsafe_allow_html=True)
                 ca2.write(f"**Invested Capital:** ${m.get('invested_capital', 0):,.0f}")
+
 
