@@ -25,7 +25,7 @@ def run_home():
             Test pricing, financing and operational decisions before implementing them in the real world.
             </div>
             <div style='font-size:14px; color:#94a3b8; margin-top:10px;'>
-            Financial Stress Testing & Strategy Simulation Platform
+            Test your business decisions before reality does.
             </div>
         </div>
         """,
