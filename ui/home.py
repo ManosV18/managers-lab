@@ -36,7 +36,7 @@ def run_home():
             with st.expander("📊 Core Business Model", expanded=True):
                 st.number_input("Unit Price ($)", value=float(s.get("price", 150.0)), key="price")
                 
-                vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.0)),
+                vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 100.0)),
                 key="variable_cost")
                 
                 with st.expander("🔍 Audit Variable Cost Breakdown"):
