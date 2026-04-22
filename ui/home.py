@@ -4,6 +4,16 @@ from datetime import datetime
 
 def run_home():
     s = st.session_state
+    # --- ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΝΕΟ ΚΟΜΜΑΤΙ ΓΙΑ ΤΟ RESET ---
+    if "init_fix_v1" not in s:
+        s.volume = 10000
+        s.price = 100.0
+        s.variable_cost = 90.73
+        s.fixed_cost = 100000.0
+        s.target_profit_goal = 176671.0
+        s.opening_cash = 10000.0
+        s.init_fix_v1 = True # Σημάδι ότι η αρχικοποίηση έγινε
+    # ----------------------------------------------
     m = s.get("metrics", {})
     
     if "saved_scenarios" not in s:
