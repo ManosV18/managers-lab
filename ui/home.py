@@ -23,9 +23,9 @@ def run_home():
     unsafe_allow_html=True
 )
     
-# --------------------------------------------------
-# QUICK DECISION LANE (NEW TOP FOCUS)
-# --------------------------------------------------
+    # --------------------------------------------------
+    # QUICK DECISION LANE (NEW TOP FOCUS)
+    # --------------------------------------------------
 
 with st.container():
     st.markdown("### ⚡ Quick Decision Inputs")
