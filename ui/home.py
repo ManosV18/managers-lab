@@ -138,5 +138,61 @@ def run_home():
         st.info(f"Active Scenario: {s.get('scenario_name','Baseline')}")
 
     with col_right:
-        st.subheader("Modules")
-        st.write("... keep your existing tools here unchanged ...")
+    st.subheader("🧠 Business Modules")
+
+    st.caption("Choose one area to test your assumptions")
+
+    if not s.get("baseline_locked"):
+        st.info("Lock your baseline to activate modules.")
+    else:
+
+        t1, t2, t3, t4 = st.tabs(["Strategy", "Finance", "Ops", "Risk"])
+
+        with t1:
+            st.markdown("**Pricing & demand decisions**")
+            if st.button("Price & Profit Planner", use_container_width=True):
+                s.selected_tool = "pricing_strategy"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("Break-even Shift", use_container_width=True):
+                s.selected_tool = "break_even_shift"
+                s.flow_step = "tool"
+                st.rerun()
+
+        with t2:
+            st.markdown("**Funding & capital decisions**")
+            if st.button("Cash & Funding View", use_container_width=True):
+                s.selected_tool = "growth_funding"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("Cost of Capital (WACC)", use_container_width=True):
+                s.selected_tool = "wacc_optimizer"
+                s.flow_step = "tool"
+                st.rerun()
+
+        with t3:
+            st.markdown("**Cash flow & operations**")
+            if st.button("Cash Conversion Cycle", use_container_width=True):
+                s.selected_tool = "cash_cycle"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("Working Capital Unlock", use_container_width=True):
+                s.selected_tool = "wc_optimizer"
+                s.flow_step = "tool"
+                st.rerun()
+
+        with t4:
+            st.markdown("**Risk & stress testing**")
+            if st.button("Cash Runway Risk", use_container_width=True):
+                s.selected_tool = "cash_fragility"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("Worst Case Scenario", use_container_width=True):
+                s.selected_tool = "stress_test"
+                s.flow_step = "tool"
+                st.rerun()
+   
