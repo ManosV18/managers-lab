@@ -21,8 +21,8 @@ def show_control_tower():
     # --- 1. LIVE SYNC ---
     m = calculate_metrics(
         price=_safe_get('price', 150.0),
-        volume=_safe_get('volume', 15000.0),
-        variable_cost=_safe_get('variable_cost', 90.0),
+        volume=_safe_get('volume', 10000.0),
+        variable_cost=_safe_get('variable_cost', 100.0),
         fixed_cost=_safe_get('fixed_cost', 450000.0),
         ar_days=_safe_get('ar_days', 60),
         inv_days=_safe_get('inv_days', 45),
