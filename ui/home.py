@@ -84,12 +84,11 @@ def run_home():
                     key="price"
                 )
 
-                s["variable_cost"] = st.number_input(
+                st.number_input(
                     "Variable Cost ($)",
-                    value=s["variable_cost"],
                     key="variable_cost"
                 )
-
+               
                 with st.expander("🔍 Audit Variable Cost Breakdown"):
                     v1 = st.number_input("Raw Materials/Unit", value=0.0)
                     v2 = st.number_input("Logistics/Shipping", value=0.0)
