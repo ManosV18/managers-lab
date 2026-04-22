@@ -22,19 +22,7 @@ def run_home():
     """,
     unsafe_allow_html=True
 )
-    # --------------------------------------------------
-    # STRATEGY EXPLANATION
-    # --------------------------------------------------
-    colA, colB = st.columns([0.6, 0.4])
-
-    with colA:
-        st.markdown("### Engine")
-
-    with colB:
-        st.markdown("### Loop")
-    
-    st.divider()
-
+  
     # --------------------------------------------------
     # SNAPSHOT METRICS
     # --------------------------------------------------
