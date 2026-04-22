@@ -24,19 +24,6 @@ def run_home():
 )
     
     # --------------------------------------------------
-    # SNAPSHOT METRICS
-    # --------------------------------------------------
-    st.subheader("📊 Executive Simulation Snapshot")
-    c1, c2, c3, c4 = st.columns(4)
-    
-    c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
-    c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
-    c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
-    c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
-    
-    st.divider()
-
-    # --------------------------------------------------
     # MAIN LAYOUT
     # --------------------------------------------------
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
@@ -66,6 +53,20 @@ def run_home():
                         st.rerun()
 
                 st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
+
+        # --------------------------------------------------
+        # SNAPSHOT METRICS (MOVED BELOW INPUTS)
+        # --------------------------------------------------
+        st.subheader("📊 Executive Simulation Snapshot")
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
+        c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
+        c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
+        c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
+
+        st.divider()
                 
                 # --- Fixed Cost Section ---
             fc_val = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)))
