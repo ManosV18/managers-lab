@@ -26,6 +26,7 @@ def run_home():
     # STRATEGY EXPLANATION
     # --------------------------------------------------
     colA, colB = st.columns([0.6, 0.4])
+    
     with colA:
     st.markdown("### Engine")
     with colB:
