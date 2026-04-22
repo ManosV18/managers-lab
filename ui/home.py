@@ -49,7 +49,7 @@ def run_home():
                         s.variable_cost = v_total
                         st.rerun()
 
-                st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
+                st.number_input("Annual Volume", value=int(s.get("volume", 10000)), key="volume")
                 
                 
                 fc_val = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)))
