@@ -38,7 +38,7 @@ def run_home():
             with st.expander("📊 Core Business Model", expanded=True):
                 # Unit Price & Volume ρυθμισμένα για $1.5M Revenue
                 st.number_input("Unit Price ($)", value=float(s.get("price", 100.0)), key="price")
-                st.number_input("Annual Volume", value=int(s.get("volume", 15000)), key="volume")
+                st.number_input("Annual Volume", value=int(s.get("volume", 10000)), key="volume")
                 
                 # Variable & Fixed Costs ρυθμισμένα για το "Hole" σενάριο
                 vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 90.73)))
