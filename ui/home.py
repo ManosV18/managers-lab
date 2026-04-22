@@ -54,25 +54,15 @@ with st.container():
         st.rerun()
 
 st.divider()
-    
-    
-    
+        
     # --------------------------------------------------
     # STRATEGY EXPLANATION
     # --------------------------------------------------
     colA, colB = st.columns([0.6, 0.4])
     with colA:
-        st.markdown("""
-        ### ⚙️ Financial Simulation Engine
-        All modules run on a unified **financial engine** that converts business assumptions into real-time metrics.
-        """)
+    st.markdown("### Engine")
     with colB:
-        st.markdown("""
-        ### 🔁 Strategy Simulation Loop
-        1️⃣ Define Baseline ➡️ 2️⃣ Run Diagnostics ➡️ 3️⃣ Simulate Decisions ➡️ 4️⃣ Optimize
-        """)
-
-    st.divider()
+    st.markdown("### Loop")
 
     # --------------------------------------------------
     # SNAPSHOT METRICS
