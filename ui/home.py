@@ -146,39 +146,39 @@ def run_home():
             st.write(f"Volume: {s.get('volume')}")
 
     with col_right:
-        st.subheader("🧠 Business Strategy Modules")
+        st.subheader("🧠 Test a Decision")
 
         is_disabled = not s.get("baseline_locked")
         if is_disabled:
-            st.warning("🔒 Please lock the baseline to enable these tools.")
+            st.warning("Set your baseline first — then test decisions.")
 
-        t1, t2, t3, t4 = st.tabs(["Strategy", "Finance", "Operations", "Risk"])
+        t1, t2, t3, t4 = st.tabs(["Grow", "Fund", "Operate", "Stress"])
 
         with t1:
-            if st.button("🎯 Price & Profit Planner", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_strategy"; s.flow_step="tool"; st.rerun()
-            if st.button("📡 Competitor Price Radar", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_radar"; s.flow_step="tool"; st.rerun()
-            if st.button("📉 Sales Safety Margin", use_container_width=True, disabled=is_disabled): s.selected_tool="loss_threshold"; s.flow_step="tool"; st.rerun()
-            if st.button("⚖️ Cash Survival Goal (BEP)", use_container_width=True, disabled=is_disabled): s.selected_tool="break_even_shift"; s.flow_step="tool"; st.rerun()
-            if st.button("🧭 Strategy Decision Matrix", use_container_width=True, disabled=is_disabled): s.selected_tool="qspm_analyzer"; s.flow_step="tool"; st.rerun()
-            if st.button("👥 Customer Value (CLV)", use_container_width=True, disabled=is_disabled): s.selected_tool="clv_calculator"; s.flow_step="tool"; st.rerun()
+            if st.button("🎯 Test Pricing & Profit", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_strategy"; s.flow_step="tool"; st.rerun()
+            if st.button("📡 Compare Market Pricing", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_radar"; s.flow_step="tool"; st.rerun()
+            if st.button("📉 How much sales can I lose?", use_container_width=True, disabled=is_disabled): s.selected_tool="loss_threshold"; s.flow_step="tool"; st.rerun()
+            if st.button("⚖️ When do I break even?", use_container_width=True, disabled=is_disabled): s.selected_tool="break_even_shift"; s.flow_step="tool"; st.rerun()
+            if st.button("🧭 Compare strategies", use_container_width=True, disabled=is_disabled): s.selected_tool="qspm_analyzer"; s.flow_step="tool"; st.rerun()
+            if st.button("👥 What is a customer worth?", use_container_width=True, disabled=is_disabled): s.selected_tool="clv_calculator"; s.flow_step="tool"; st.rerun()
 
         with t2:
-            if st.button("📈 Funding for Growth", use_container_width=True, disabled=is_disabled): s.selected_tool="growth_funding"; s.flow_step="tool"; st.rerun()
+            if st.button("📈 Can I fund growth?", use_container_width=True, disabled=is_disabled): s.selected_tool="growth_funding"; s.flow_step="tool"; st.rerun()
             if st.button("📉 Cost of Capital (WACC)", use_container_width=True, disabled=is_disabled): s.selected_tool="wacc_optimizer"; s.flow_step="tool"; st.rerun()
-            if st.button("⚖️ Buy vs Lease Finder", use_container_width=True, disabled=is_disabled): s.selected_tool="loan_vs_leasing"; s.flow_step="tool"; st.rerun()
+            if st.button("⚖️ Should I buy or lease?", use_container_width=True, disabled=is_disabled): s.selected_tool="loan_vs_leasing"; s.flow_step="tool"; st.rerun()
 
         with t3:
-            if st.button("🕵️ Deal & Cash Gap Auditor", use_container_width=True, disabled=is_disabled): s.selected_tool="deal_auditor"; s.flow_step="tool"; st.rerun()
-            if st.button("🔄 Cash Speed (Cycle)", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_cycle"; s.flow_step="tool"; st.rerun()
-            if st.button("💰 Cash Unlocker (Working Cap)", use_container_width=True, disabled=is_disabled): s.selected_tool="wc_optimizer"; s.flow_step="tool"; st.rerun()
-            if st.button("📦 Stock & Inventory Lab", use_container_width=True, disabled=is_disabled): s.selected_tool="inventory_manager"; s.flow_step="tool"; st.rerun()
-            if st.button("📊 Customer Credit NPV", use_container_width=True, disabled=is_disabled): s.selected_tool="receivables_npv"; s.flow_step="tool"; st.rerun()
-            if st.button("🤝 Supplier Payment Mgr", use_container_width=True, disabled=is_disabled): s.selected_tool="payables_manager"; s.flow_step="tool"; st.rerun()
+            if st.button("🕵️ Where is cash leaking?", use_container_width=True, disabled=is_disabled): s.selected_tool="deal_auditor"; s.flow_step="tool"; st.rerun()
+            if st.button("🔄 How fast does cash move?", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_cycle"; s.flow_step="tool"; st.rerun()
+            if st.button("💰 How much cash can I unlock?", use_container_width=True, disabled=is_disabled): s.selected_tool="wc_optimizer"; s.flow_step="tool"; st.rerun()
+            if st.button("📦 Am I overstocked?", use_container_width=True, disabled=is_disabled): s.selected_tool="inventory_manager"; s.flow_step="tool"; st.rerun()
+            if st.button("📊 Is offering credit worth it?", use_container_width=True, disabled=is_disabled): s.selected_tool="receivables_npv"; s.flow_step="tool"; st.rerun()
+            if st.button("🤝 Should I delay payments?", use_container_width=True, disabled=is_disabled): s.selected_tool="payables_manager"; s.flow_step="tool"; st.rerun()
 
         with t4:
             if st.button("🚨 When do I run out of Cash?", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_fragility"; s.flow_step="tool"; st.rerun()
-            if st.button("📉 Worst-Case Scenario", use_container_width=True, disabled=is_disabled): s.selected_tool="stress_test"; s.flow_step="tool"; st.rerun()
-            if st.button("🗺️ Business Resilience Map", use_container_width=True, disabled=is_disabled): s.selected_tool="resilience_map"; s.flow_step="tool"; st.rerun()
+            if st.button("📉 What happens in a worst case?", use_container_width=True, disabled=is_disabled): s.selected_tool="stress_test"; s.flow_step="tool"; st.rerun()
+            if st.button("🗺️ Where is my business fragile?", use_container_width=True, disabled=is_disabled): s.selected_tool="resilience_map"; s.flow_step="tool"; st.rerun()
 
         st.divider()
         with st.expander("🔍 Capital Structure Analysis", expanded=True):
