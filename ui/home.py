@@ -116,7 +116,7 @@ def run_home():
 
             # --- LOCK / UNLOCK LOGIC ---
             if not s.get("baseline_locked"):
-                if st.button("🔒 Lock & Activate Simulation", type="primary", use_container_width=True):
+                if st.button("▶ Test My Business", type="primary", use_container_width=True):
                     s.baseline_locked = True
                     s.flow_step = "control_tower"
                     st.rerun()
