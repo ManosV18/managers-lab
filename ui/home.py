@@ -43,7 +43,7 @@ def run_home():
         """
         <div style='text-align:center; padding: 8px 0 10px 0;'>
             <div style='font-size:22px; font-weight:600; color:#1E3A8A;'>
-            Test your decisions before they impact your business
+            Test decisions. See what breaks.
             </div>
         </div>
         """,
