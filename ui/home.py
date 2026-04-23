@@ -58,6 +58,7 @@ def run_home():
     with col_left:
         if s.get("flow_step") == "home":
             st.subheader("⚙️ Business Baseline")
+            st.caption("Set your baseline — then test what happens when things change.")
             st.text_input("Scenario Name", key="scenario_name")
 
             with st.expander("📊 Core Business Model", expanded=True):
