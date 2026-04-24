@@ -156,16 +156,16 @@ def run_home():
 
         st.subheader("What this tests")
 
-st.markdown("""
-- Pricing vs cost pressure  
-- Cash timing (receivables vs payables)  
-- Inventory drag  
-- Contribution margin  
+        st.markdown("""
+        - Pricing vs cost pressure  
+        - Cash timing (receivables vs payables)  
+        - Inventory drag  
+        - Contribution margin  
 
-**Change one input → the system reacts**
-""")
+        **Change one input → the system reacts**
+        """)
 
-st.info("👉 Start on the left. Change one number and watch what happens.")
+        st.info("👉 Start on the left. Change one number and watch what happens.")
         
         
 
