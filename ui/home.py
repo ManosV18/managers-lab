@@ -154,45 +154,20 @@ def run_home():
         if is_disabled:
             st.warning("Set your baseline first — then test decisions.")
 
-        t1, t2, t3, t4 = st.tabs(["Grow", "Fund", "Operate", "Stress"])
+        st.subheader("What this tests")
 
-        with t1:
-            if st.button("🎯 Test Pricing & Profit", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_strategy"; s.flow_step="tool"; st.rerun()
-            if st.button("📡 Compare Market Pricing", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_radar"; s.flow_step="tool"; st.rerun()
-            if st.button("📉 How much sales can I lose?", use_container_width=True, disabled=is_disabled): s.selected_tool="loss_threshold"; s.flow_step="tool"; st.rerun()
-            if st.button("⚖️ When do I break even?", use_container_width=True, disabled=is_disabled): s.selected_tool="break_even_shift"; s.flow_step="tool"; st.rerun()
-            if st.button("🧭 Compare strategies", use_container_width=True, disabled=is_disabled): s.selected_tool="qspm_analyzer"; s.flow_step="tool"; st.rerun()
-            if st.button("👥 What is a customer worth?", use_container_width=True, disabled=is_disabled): s.selected_tool="clv_calculator"; s.flow_step="tool"; st.rerun()
+st.markdown("""
+- Pricing vs cost pressure  
+- Cash timing (receivables vs payables)  
+- Inventory drag  
+- Contribution margin  
 
-        with t2:
-            if st.button("📈 Can I fund growth?", use_container_width=True, disabled=is_disabled): s.selected_tool="growth_funding"; s.flow_step="tool"; st.rerun()
-            if st.button("📉 Cost of Capital (WACC)", use_container_width=True, disabled=is_disabled): s.selected_tool="wacc_optimizer"; s.flow_step="tool"; st.rerun()
-            if st.button("⚖️ Should I buy or lease?", use_container_width=True, disabled=is_disabled): s.selected_tool="loan_vs_leasing"; s.flow_step="tool"; st.rerun()
+**Change one input → the system reacts**
+""")
 
-        with t3:
-            if st.button("🕵️ Where is cash leaking?", use_container_width=True, disabled=is_disabled): s.selected_tool="deal_auditor"; s.flow_step="tool"; st.rerun()
-            if st.button("🔄 How fast does cash move?", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_cycle"; s.flow_step="tool"; st.rerun()
-            if st.button("💰 How much cash can I unlock?", use_container_width=True, disabled=is_disabled): s.selected_tool="wc_optimizer"; s.flow_step="tool"; st.rerun()
-            if st.button("📦 Am I overstocked?", use_container_width=True, disabled=is_disabled): s.selected_tool="inventory_manager"; s.flow_step="tool"; st.rerun()
-            if st.button("📊 Is offering credit worth it?", use_container_width=True, disabled=is_disabled): s.selected_tool="receivables_npv"; s.flow_step="tool"; st.rerun()
-            if st.button("🤝 Should I delay payments?", use_container_width=True, disabled=is_disabled): s.selected_tool="payables_manager"; s.flow_step="tool"; st.rerun()
-
-        with t4:
-            if st.button("🚨 When do I run out of Cash?", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_fragility"; s.flow_step="tool"; st.rerun()
-            if st.button("📉 What happens in a worst case?", use_container_width=True, disabled=is_disabled): s.selected_tool="stress_test"; s.flow_step="tool"; st.rerun()
-            if st.button("🗺️ Where is my business fragile?", use_container_width=True, disabled=is_disabled): s.selected_tool="resilience_map"; s.flow_step="tool"; st.rerun()
-
-        st.divider()
-        with st.expander("🔍 Capital Structure Analysis", expanded=True):
-            ca1, ca2 = st.columns(2)
-            ca1.write(f"**Total Debt:** ${s.get('total_debt', 0):,.0f}")
-            ca1.write(f"**Total Equity:** ${s.get('equity', 0):,.0f}")
-            ca1.write(f"**Fixed Assets:** ${s.get('fixed_assets', 0):,.0f}")
-
-            net_debt_val = s.get('total_debt', 0) - s.get('opening_cash', 0)
-            color = "red" if net_debt_val > 0 else "green"
-            ca2.markdown(f"**Net Debt:** <span style='color:{color}'>${net_debt_val:,.0f}</span>", unsafe_allow_html=True)
-            ca2.write(f"**Invested Capital:** ${m.get('invested_capital', 0):,.0f}")
+st.info("👉 Start on the left. Change one number and watch what happens.")
+        
+        
 
     # --------------------------------------------------
     # SNAPSHOT METRICS
