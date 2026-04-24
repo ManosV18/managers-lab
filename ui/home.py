@@ -1,7 +1,4 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime
-
 
 def run_home():
     s = st.session_state
@@ -10,9 +7,7 @@ def run_home():
     if "saved_scenarios" not in s:
         s.saved_scenarios = {}
 
-    # --------------------------------------------------
-    # DEFAULTS — τρέχουν μόνο αν δεν υπάρχουν ήδη
-    # --------------------------------------------------
+    # ---------------- DEFAULTS ----------------
     defaults = {
         "price": 150.0,
         "variable_cost": 100.0,
@@ -30,149 +25,83 @@ def run_home():
         "inv_days": 45,
         "ap_days": 30,
         "annual_debt_service": 70000.0,
-        "_name": "Baseline Scenario",
+        "scenario_name": "Baseline Scenario",
     }
+
     for k, v in defaults.items():
         if k not in s:
             s[k] = v
 
-    # --------------------------------------------------
-    # HERO SECTION
-    # --------------------------------------------------
+    # ---------------- HERO ----------------
     st.markdown("""
-<div style='text-align:center; padding: 10px 0 5px 0;'>
-    <div style='font-size:26px; font-weight:700; color:#111;'>
-        Your business looks profitable.
+    <div style='text-align:center; padding: 10px 0;'>
+        <div style='font-size:26px; font-weight:700;'>
+            Your business looks profitable.
+        </div>
+        <div style='font-size:22px; font-weight:600; color:#DC2626;'>
+            But it may be running out of cash.
+        </div>
+        <div style='font-size:14px; color:#6B7280; margin-top:6px;'>
+            Change one assumption. See what breaks.
+        </div>
     </div>
-    <div style='font-size:22px; font-weight:600; color:#DC2626;'>
-        But it may be running out of cash.
-    </div>
-    <div style='font-size:14px; color:#6B7280; margin-top:8px;'>
-        Change one assumption. See what breaks.
-    </div>
-</div>
-""", unsafe_allow_html=True)
-    
-    # --------------------------------------------------
-    # MAIN LAYOUT
-    # --------------------------------------------------
-    col_left, col_right = st.columns([0.4, 0.6], gap="large")
+    """, unsafe_allow_html=True)
 
+    col_left, col_right = st.columns([0.4, 0.6])
+
+    # ================= LEFT =================
     with col_left:
-        if s.get("flow_step") == "home":
-            st.subheader("⚙️ Start with a real scenario")
-            st.caption("**Start simple. Then stress the system.**")
 
-            with st.expander("📊 Core Business Model", expanded=False):
-                st.number_input("Unit Price ($)", key="price", min_value=0.0, step=1.0)
+        st.subheader("⚙️ Start with a real scenario")
+        st.caption("Start simple. Then stress the system.")
 
-                # Variable Cost — χειροκίνητο state γιατί έχει audit breakdown
-                vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 100.0)))
-                s.variable_cost = vc_val
+        st.text_input("Scenario Name", key="scenario_name")
 
-                with st.expander("🔍 Audit Variable Cost Breakdown"):
-                    v1 = st.number_input("Raw Materials/Unit", value=0.0, key="audit_v1")
-                    v2 = st.number_input("Logistics/Shipping", value=0.0, key="audit_v2")
-                    v3 = st.number_input("Commissions/Other", value=0.0, key="audit_v3")
-                    v_total = float(v1 + v2 + v3)
-                    st.write(f"Calculated Total: **${v_total:.2f}**")
-                    if st.button("Apply to Variable Cost", key="btn_vc"):
-                        s.variable_cost = v_total
-                        st.rerun()
+        # -------- CORE MODEL --------
+        with st.expander("📊 Core Business Model", expanded=True):
 
-                st.number_input("Annual Volume", key="volume", min_value=0, step=100)
+            st.number_input("Unit Price ($)", key="price", min_value=0.0)
+            st.number_input("Variable Cost ($)", key="variable_cost", min_value=0.0)
+            st.number_input("Annual Volume", key="volume", min_value=0)
 
-            # Fixed Cost — χειροκίνητο state γιατί έχει audit breakdown
-            fc_val = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)))
-            s.fixed_cost = fc_val
+        # -------- FIXED COST --------
+        st.number_input("Annual Fixed Costs ($)", key="fixed_cost", min_value=0.0)
 
-            with st.expander("🔍 Audit Fixed Cost Breakdown"):
-                f1 = st.number_input("Annual Rent", value=0.0, key="audit_f1")
-                f2 = st.number_input("Annual Salaries", value=0.0, key="audit_f2")
-                f3 = st.number_input("Annual Admin & Utilities", value=0.0, key="audit_f3")
-                f_total = float(f1 + f2 + f3)
-                st.info(f"Total Annual Fixed Cost: **${f_total:,.0f}**")
-                if st.button("Apply to Fixed Costs", key="btn_fc"):
-                    s.fixed_cost = f_total
-                    st.rerun()
+        # -------- WORKING CAPITAL --------
+        with st.expander("🔄 Working Capital"):
 
-            with st.expander("📐 Assets & Targets"):
-                st.number_input("Net Fixed Assets ($)", key="fixed_assets", min_value=0.0, step=1000.0)
-                st.number_input("Annual Depreciation ($)", key="depreciation", min_value=0.0, step=1000.0)
-                st.number_input("Target Profit ($)", key="target_profit_goal", min_value=0.0, step=1000.0)
+            st.number_input("Opening Cash ($)", key="opening_cash")
+            st.number_input("A/R Days", key="ar_days")
+            st.number_input("Inventory Days", key="inv_days")
+            st.number_input("A/P Days", key="ap_days")
 
-            with st.expander("🔄 Working Capital & Liquidity"):
-                st.number_input("Opening Cash ($)", key="opening_cash", min_value=0.0, step=1000.0)
-                st.number_input("Total Equity ($)", key="equity", min_value=0.0, step=1000.0)
-                st.number_input("Total Debt ($)", key="total_debt", min_value=0.0, step=1000.0)
+        # ================= CORE SIGNAL =================
+        st.divider()
 
-                col_fin1, col_fin2 = st.columns(2)
-                with col_fin1:
-                    st.number_input("Annual Interest Costs ($)", key="annual_interest_only", min_value=0.0, step=100.0)
-                with col_fin2:
-                    st.number_input("Corporate Tax Rate (%)", key="tax_rate", min_value=0.0, max_value=100.0, step=0.5)
+        cash_flag = m.get("net_cash_position", 0)
 
-                st.number_input("A/R Days", key="ar_days", min_value=0, step=1)
-                st.number_input("Inventory Days", key="inv_days", min_value=0, step=1)
-                st.number_input("A/P Days", key="ap_days", min_value=0, step=1)
-                st.number_input("Annual Debt Service ($)", key="annual_debt_service", min_value=0.0, step=1000.0)
-
-            # --------------------------------------------------
-            # CORE PROBLEM SIGNAL (CRITICAL)
-            # --------------------------------------------------
-            st.divider()
-
-            cash_flag = m.get("net_cash_position", 0)
-
-            if cash_flag < 0:
-                st.error("⚠️ Cash turns negative — even though the business looks profitable.")
-            else:
-                st.success("✔ Business looks stable — now try to break it.")
-
-            # --------------------------------------------------
-            # AUTO DEMO BUTTON
-            # --------------------------------------------------
-            if st.button("Test: What if costs increase 10%?", use_container_width=True):
-                s.variable_cost = s.variable_cost * 1.10
-                st.rerun()
-            
-            # --- LOCK / UNLOCK LOGIC ---
-            if not s.get("baseline_locked"):
-                if st.button("▶ Test My Business", type="primary", use_container_width=True):
-                    s.baseline_locked = True
-                    s.flow_step = "control_tower"
-                    st.rerun()
-            else:
-                col_nav1, col_nav2 = st.columns(2)
-                with col_nav1:
-                    if st.button("🕹️ Go to Tower", type="primary", use_container_width=True):
-                        s.flow_step = "control_tower"
-                        st.rerun()
-                with col_nav2:
-                    if st.button("🔓 Unlock", use_container_width=True):
-                        s.baseline_locked = False
-                        st.rerun()
-
-            scenario_name = s.get("scenario_name", "Scenario")
-            if st.button("💾 Save Current Scenario", use_container_width=True):
-                s.saved_scenarios[s.scenario_name] = {
-                    "price": s.get("price"),
-                    "volume": s.get("volume"),
-                    "metrics": dict(s.get("metrics", {}))
-                }
-                st.success(f"Scenario '{s.scenario_name}' saved!")
-
+        if cash_flag < 0:
+            st.error("⚠️ Cash turns negative — even though the business looks profitable.")
+            st.markdown("💥 This business will need external financing.")
         else:
-            st.info(f"💡 Active Scenario: **{s.get('scenario_name')}**")
-            st.write(f"Price: ${s.get('price')}")
-            st.write(f"Volume: {s.get('volume')}")
+            st.success("✔ Looks stable. Now change one number and try to break it.")
 
+        # ================= AUTO DEMO =================
+        if st.button("Test: What if costs increase 10%?", use_container_width=True):
+            s.variable_cost = s.get("variable_cost", 0) * 1.10
+            st.rerun()
+
+        # ================= ACTION =================
+        if st.button("▶ Test My Business", type="primary", use_container_width=True):
+            s.baseline_locked = True
+            st.rerun()
+
+        if st.button("💾 Save Scenario", use_container_width=True):
+            s.saved_scenarios[s.scenario_name] = dict(s)
+            st.success(f"Saved: {s.scenario_name}")
+
+    # ================= RIGHT =================
     with col_right:
-    
-
-        is_disabled = not s.get("baseline_locked")
-        if is_disabled:
-            st.warning("Set your baseline first — then test decisions.")
 
         st.subheader("What this tests")
 
@@ -181,22 +110,19 @@ def run_home():
         - Cash timing (receivables vs payables)  
         - Inventory drag  
         - Contribution margin  
-
-        **Change one input → the system reacts**
         """)
 
-        st.info("👉 Start on the left. Change one number and watch what happens.")
-        
-        
+        st.info("👉 Change one number on the left")
 
-    # --------------------------------------------------
-    # SNAPSHOT METRICS
-    # --------------------------------------------------
+        st.markdown("**Try this:** Increase cost by 10% 👈")
+
+    # ================= METRICS =================
     st.divider()
     st.subheader("📊 What happens under pressure")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
-    c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
-    c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
-    c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
 
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
+    c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f}")
+    c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
+    c4.metric("Net Cash", f"${m.get('net_cash_position', 0):,.0f}")
