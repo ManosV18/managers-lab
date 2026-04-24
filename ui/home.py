@@ -191,14 +191,3 @@ def run_home():
             color = "red" if net_debt_val > 0 else "green"
             ca2.markdown(f"**Net Debt:** <span style='color:{color}'>${net_debt_val:,.0f}</span>", unsafe_allow_html=True)
             ca2.write(f"**Invested Capital:** ${m.get('invested_capital', 0):,.0f}")
-
-    # --------------------------------------------------
-    # SNAPSHOT METRICS
-    # --------------------------------------------------
-    st.divider()
-    st.subheader("📊 Executive Simulation Snapshot")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
-    c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
-    c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
-    c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
