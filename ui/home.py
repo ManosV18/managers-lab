@@ -30,7 +30,7 @@ def run_home():
         "inv_days": 45,
         "ap_days": 30,
         "annual_debt_service": 70000.0,
-        "_name": "Baseline Scenario",
+        "scenario_name": "Baseline Scenario",
     }
     for k, v in defaults.items():
         if k not in s:
@@ -39,20 +39,17 @@ def run_home():
     # --------------------------------------------------
     # HERO SECTION
     # --------------------------------------------------
-    st.markdown("""
-<div style='text-align:center; padding: 10px 0 5px 0;'>
-    <div style='font-size:26px; font-weight:700; color:#111;'>
-        Your business looks profitable.
-    </div>
-    <div style='font-size:22px; font-weight:600; color:#DC2626;'>
-        But it may be running out of cash.
-    </div>
-    <div style='font-size:14px; color:#6B7280; margin-top:8px;'>
-        Change one assumption. See what breaks.
-    </div>
-</div>
-""", unsafe_allow_html=True)
-    
+    st.markdown(
+        """
+        <div style='text-align:center; padding: 8px 0 10px 0;'>
+            <div style='font-size:22px; font-weight:600; color:#1E3A8A;'>
+            Test decisions. See what breaks.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     # --------------------------------------------------
     # MAIN LAYOUT
     # --------------------------------------------------
@@ -60,10 +57,11 @@ def run_home():
 
     with col_left:
         if s.get("flow_step") == "home":
-            st.subheader("⚙️ Start with a real scenario")
-            st.caption("**Start simple. Then stress the system.**")
+            st.subheader("⚙️ Business Baseline")
+            st.caption("**Set your baseline — then test what happens when things change.**")
+            st.text_input("Scenario Name", key="scenario_name")
 
-            with st.expander("📊 Core Business Model", expanded=False):
+            with st.expander("📊 Core Business Model", expanded=True):
                 st.number_input("Unit Price ($)", key="price", min_value=0.0, step=1.0)
 
                 # Variable Cost — χειροκίνητο state γιατί έχει audit breakdown
@@ -117,25 +115,6 @@ def run_home():
                 st.number_input("A/P Days", key="ap_days", min_value=0, step=1)
                 st.number_input("Annual Debt Service ($)", key="annual_debt_service", min_value=0.0, step=1000.0)
 
-            # --------------------------------------------------
-            # CORE PROBLEM SIGNAL (CRITICAL)
-            # --------------------------------------------------
-            st.divider()
-
-            cash_flag = m.get("net_cash_position", 0)
-
-            if cash_flag < 0:
-                st.error("⚠️ Cash turns negative — even though the business looks profitable.")
-            else:
-                st.success("✔ Business looks stable — now try to break it.")
-
-            # --------------------------------------------------
-            # AUTO DEMO BUTTON
-            # --------------------------------------------------
-            if st.button("Test: What if costs increase 10%?", use_container_width=True):
-                s.variable_cost = s.variable_cost * 1.10
-                st.rerun()
-            
             # --- LOCK / UNLOCK LOGIC ---
             if not s.get("baseline_locked"):
                 if st.button("▶ Test My Business", type="primary", use_container_width=True):
@@ -173,30 +152,53 @@ def run_home():
         if is_disabled:
             st.warning("Set your baseline first — then test decisions.")
 
-        st.subheader("What this tests")
+        t1, t2, t3, t4 = st.tabs(["Grow", "Fund", "Operate", "Stress"])
 
-        st.markdown("""
-        - Pricing vs cost pressure  
-        - Cash timing (receivables vs payables)  
-        - Inventory drag  
-        - Contribution margin  
+        with t1:
+            if st.button("🎯 Test Pricing & Profit", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_strategy"; s.flow_step="tool"; st.rerun()
+            if st.button("📡 Compare Market Pricing", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_radar"; s.flow_step="tool"; st.rerun()
+            if st.button("📉 How much sales can I lose?", use_container_width=True, disabled=is_disabled): s.selected_tool="loss_threshold"; s.flow_step="tool"; st.rerun()
+            if st.button("⚖️ When do I break even?", use_container_width=True, disabled=is_disabled): s.selected_tool="break_even_shift"; s.flow_step="tool"; st.rerun()
+            if st.button("🧭 Compare strategies", use_container_width=True, disabled=is_disabled): s.selected_tool="qspm_analyzer"; s.flow_step="tool"; st.rerun()
+            if st.button("👥 What is a customer worth?", use_container_width=True, disabled=is_disabled): s.selected_tool="clv_calculator"; s.flow_step="tool"; st.rerun()
 
-        **Change one input → the system reacts**
-        """)
+        with t2:
+            if st.button("📈 Can I fund growth?", use_container_width=True, disabled=is_disabled): s.selected_tool="growth_funding"; s.flow_step="tool"; st.rerun()
+            if st.button("📉 Cost of Capital (WACC)", use_container_width=True, disabled=is_disabled): s.selected_tool="wacc_optimizer"; s.flow_step="tool"; st.rerun()
+            if st.button("⚖️ Should I buy or lease?", use_container_width=True, disabled=is_disabled): s.selected_tool="loan_vs_leasing"; s.flow_step="tool"; st.rerun()
 
-        st.info("👉 Start on the left. Change one number and watch what happens.")
-        
-        
+        with t3:
+            if st.button("🕵️ Where is cash leaking?", use_container_width=True, disabled=is_disabled): s.selected_tool="deal_auditor"; s.flow_step="tool"; st.rerun()
+            if st.button("🔄 How fast does cash move?", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_cycle"; s.flow_step="tool"; st.rerun()
+            if st.button("💰 How much cash can I unlock?", use_container_width=True, disabled=is_disabled): s.selected_tool="wc_optimizer"; s.flow_step="tool"; st.rerun()
+            if st.button("📦 Am I overstocked?", use_container_width=True, disabled=is_disabled): s.selected_tool="inventory_manager"; s.flow_step="tool"; st.rerun()
+            if st.button("📊 Is offering credit worth it?", use_container_width=True, disabled=is_disabled): s.selected_tool="receivables_npv"; s.flow_step="tool"; st.rerun()
+            if st.button("🤝 Should I delay payments?", use_container_width=True, disabled=is_disabled): s.selected_tool="payables_manager"; s.flow_step="tool"; st.rerun()
+
+        with t4:
+            if st.button("🚨 When do I run out of Cash?", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_fragility"; s.flow_step="tool"; st.rerun()
+            if st.button("📉 What happens in a worst case?", use_container_width=True, disabled=is_disabled): s.selected_tool="stress_test"; s.flow_step="tool"; st.rerun()
+            if st.button("🗺️ Where is my business fragile?", use_container_width=True, disabled=is_disabled): s.selected_tool="resilience_map"; s.flow_step="tool"; st.rerun()
+
+        st.divider()
+        with st.expander("🔍 Capital Structure Analysis", expanded=True):
+            ca1, ca2 = st.columns(2)
+            ca1.write(f"**Total Debt:** ${s.get('total_debt', 0):,.0f}")
+            ca1.write(f"**Total Equity:** ${s.get('equity', 0):,.0f}")
+            ca1.write(f"**Fixed Assets:** ${s.get('fixed_assets', 0):,.0f}")
+
+            net_debt_val = s.get('total_debt', 0) - s.get('opening_cash', 0)
+            color = "red" if net_debt_val > 0 else "green"
+            ca2.markdown(f"**Net Debt:** <span style='color:{color}'>${net_debt_val:,.0f}</span>", unsafe_allow_html=True)
+            ca2.write(f"**Invested Capital:** ${m.get('invested_capital', 0):,.0f}")
 
     # --------------------------------------------------
     # SNAPSHOT METRICS
     # --------------------------------------------------
     st.divider()
-    st.subheader("📊 What happens under pressure")
+    st.subheader("📊 Executive Simulation Snapshot")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
     c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
     c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
-
-
