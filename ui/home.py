@@ -202,5 +202,3 @@ def run_home():
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
     c3.metric("Margin of Safety", f"{m.get('margin_of_safety', 0)*100:.1f}%")
     c4.metric("Net Cash Position", f"${m.get('net_cash_position', 0):,.0f}")
-
-
