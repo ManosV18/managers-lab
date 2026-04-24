@@ -39,17 +39,20 @@ def run_home():
     # --------------------------------------------------
     # HERO SECTION
     # --------------------------------------------------
-    st.markdown(
-        """
-        <div style='text-align:center; padding: 8px 0 10px 0;'>
-            <div style='font-size:22px; font-weight:600; color:#1E3A8A;'>
-            Test decisions. See what breaks.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+    st.markdown("""
+<div style='text-align:center; padding: 10px 0 5px 0;'>
+    <div style='font-size:26px; font-weight:700; color:#111;'>
+        Your business looks profitable.
+    </div>
+    <div style='font-size:22px; font-weight:600; color:#DC2626;'>
+        But it may be running out of cash.
+    </div>
+    <div style='font-size:14px; color:#6B7280; margin-top:8px;'>
+        Change one assumption. See what breaks.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+    
     # --------------------------------------------------
     # MAIN LAYOUT
     # --------------------------------------------------
