@@ -173,7 +173,7 @@ def run_home():
     # SNAPSHOT METRICS
     # --------------------------------------------------
     st.divider()
-    st.subheader("📊 Executive Simulation Snapshot")
+    st.subheader("📊 What happens under pressure")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("ROIC", f"{m.get('roic', 0)*100:.1f}%")
     c2.metric("Break-Even", f"{m.get('bep_units', 0):,.0f} units")
