@@ -167,23 +167,23 @@ def show_control_tower():
     # --- OPTION 1 ---
     with col1:
         st.write("#### Option 1: Pressure Suppliers")
-        st.warning(f"To offset this, you must increase Payables by **{required_days:.1f} days**.")
+        # Χρησιμοποιούμε abs() για να δείχνει θετικό αριθμό και αλλάζουμε το κείμενο
+        st.warning(f"To offset this, you must **extend** Payables by **{abs(required_days):.1f} days**.")
         st.caption(f"Target AP Days: {_safe_get('ap_days', 30) + required_days:.0f} Days")
 
     # --- OPTION 2 ---
     with col2:
         st.write("#### Option 2: Lean Operations")
         inv_days_now = _safe_get('inv_days', 45)
-
-        max_inventory_reduction = inv_days_now
         
-        if required_days > max_inventory_reduction:
+        # Εδώ επίσης abs() για να είναι καθαρό το νούμερο
+        if required_days > inv_days_now:
             st.error(
                 f"Not enough: maximum inventory reduction only saves "
-                f"**{max_inventory_reduction:.1f} days**."
+                f"**{inv_days_now:.1f} days**."
             )
         else:
-            st.success(f"Reduce Inventory by **{required_days:.1f} days** to break even on cash.")
+            st.success(f"**Reduce** Inventory by **{abs(required_days):.1f} days** to break even on cash.")
 
     # --- STRATEGIC INSIGHT ---
     st.markdown("### 🧠 Strategic Insight")
