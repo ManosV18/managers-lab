@@ -153,6 +153,7 @@ def run_home():
                         s.baseline_locked = False
                         st.rerun()
 
+            scenario_name = s.get("scenario_name", "Scenario")
             if st.button("💾 Save Current Scenario", use_container_width=True):
                 s.saved_scenarios[s.scenario_name] = {
                     "price": s.get("price"),
