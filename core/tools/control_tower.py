@@ -160,7 +160,8 @@ def show_control_tower():
     current_vc = _safe_get('variable_cost', 90.0)
     
     daily_cogs = (current_vc * current_v) / 365
-    required_days = wc_cash_impact / daily_cogs if daily_cogs > 0 else 0
+    # Υπολογίζουμε την απόλυτη ανάγκη σε ημέρες, ώστε να έχουμε πάντα θετικό αριθμό
+    required_days = abs(wc_cash_impact / daily_cogs) if daily_cogs > 0 else 0
 
     col1, col2 = st.columns(2)
 
