@@ -59,7 +59,6 @@ def run_home():
         if s.get("flow_step") == "home":
             st.subheader("⚙️ Business Baseline")
             st.caption("**Set your baseline — then test what happens when things change.**")
-            st.text_input("Scenario Name", key="scenario_name")
 
             with st.expander("📊 Core Business Model", expanded=True):
                 st.number_input("Unit Price ($)", key="price", min_value=0.0, step=1.0)
