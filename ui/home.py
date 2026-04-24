@@ -125,7 +125,7 @@ def run_home():
             cash_flag = m.get("net_cash_position", 0)
 
             if cash_flag < 0:
-            st.error("⚠️ Cash turns negative — even though the business looks profitable.")
+                st.error("⚠️ Cash turns negative — even though the business looks profitable.")
             else:
                 st.success("✔ Business looks stable — now try to break it.")
 
