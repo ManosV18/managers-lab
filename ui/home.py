@@ -109,7 +109,7 @@ def run_home():
             else:
                 col_nav1, col_nav2 = st.columns(2)
                 with col_nav1:
-                    if st.button("🕹️ Go to Tower", type="primary", use_container_width=True):
+                    if st.button("🕹️ See the results", type="primary", use_container_width=True):
                         s.flow_step = "control_tower"
                         st.rerun()
                 with col_nav2:
