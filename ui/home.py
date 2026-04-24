@@ -117,6 +117,25 @@ def run_home():
                 st.number_input("A/P Days", key="ap_days", min_value=0, step=1)
                 st.number_input("Annual Debt Service ($)", key="annual_debt_service", min_value=0.0, step=1000.0)
 
+            # --------------------------------------------------
+            # CORE PROBLEM SIGNAL (CRITICAL)
+            # --------------------------------------------------
+            st.divider()
+
+            cash_flag = m.get("net_cash_position", 0)
+
+            if cash_flag < 0:
+            st.error("⚠️ Cash turns negative — even though the business looks profitable.")
+            else:
+                st.success("✔ Business looks stable — now try to break it.")
+
+            # --------------------------------------------------
+            # AUTO DEMO BUTTON
+            # --------------------------------------------------
+            if st.button("Test: What if costs increase 10%?", use_container_width=True):
+                s.variable_cost = s.variable_cost * 1.10
+                st.rerun()
+            
             # --- LOCK / UNLOCK LOGIC ---
             if not s.get("baseline_locked"):
                 if st.button("▶ Test My Business", type="primary", use_container_width=True):
