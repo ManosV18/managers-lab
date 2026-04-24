@@ -37,20 +37,6 @@ def run_home():
             s[k] = v
 
     # --------------------------------------------------
-    # HERO SECTION
-    # --------------------------------------------------
-    st.markdown(
-        """
-        <div style='text-align:center; padding: 8px 0 10px 0;'>
-            <div style='font-size:22px; font-weight:600; color:#1E3A8A;'>
-            Test decisions. See what breaks.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # --------------------------------------------------
     # MAIN LAYOUT
     # --------------------------------------------------
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
