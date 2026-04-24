@@ -61,7 +61,7 @@ def run_home():
     with col_left:
         if s.get("flow_step") == "home":
             st.subheader("⚙️ Start with a real scenario")
-            st.caption("**Set your baseline — then test what happens when things change.**")
+            st.caption("**Start simple. Then stress the system.**")
 
             with st.expander("📊 Core Business Model", expanded=False):
                 st.number_input("Unit Price ($)", key="price", min_value=0.0, step=1.0)
