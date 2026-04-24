@@ -30,7 +30,7 @@ def run_home():
         "inv_days": 45,
         "ap_days": 30,
         "annual_debt_service": 70000.0,
-        "scenario_name": "Baseline Scenario",
+        "_name": "Baseline Scenario",
     }
     for k, v in defaults.items():
         if k not in s:
@@ -57,7 +57,7 @@ def run_home():
 
     with col_left:
         if s.get("flow_step") == "home":
-            st.subheader("⚙️ Business Baseline")
+            st.subheader("⚙️ Start with a real scenario")
             st.caption("**Set your baseline — then test what happens when things change.**")
             st.text_input("Scenario Name", key="scenario_name")
 
