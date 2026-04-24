@@ -63,7 +63,7 @@ def run_home():
             st.subheader("⚙️ Start with a real scenario")
             st.caption("**Set your baseline — then test what happens when things change.**")
 
-            with st.expander("📊 Core Business Model", expanded=True):
+            with st.expander("📊 Core Business Model", expanded=False):
                 st.number_input("Unit Price ($)", key="price", min_value=0.0, step=1.0)
 
                 # Variable Cost — χειροκίνητο state γιατί έχει audit breakdown
