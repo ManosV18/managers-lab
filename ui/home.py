@@ -130,7 +130,7 @@ def run_home():
             st.write(f"Volume: {s.get('volume')}")
 
     with col_right:
-        st.subheader("🛠️ Pick a Tool & Solve a Problem")
+        st.markdown("##### Pick a problem. Run it.")
 
         is_disabled = not s.get("baseline_locked")
         if is_disabled:
