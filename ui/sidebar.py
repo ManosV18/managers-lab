@@ -11,9 +11,9 @@ def show_sidebar():
             st.session_state.selected_tool = None
             st.rerun()
 
-        # --- ΠΡΟΣΘΗΚΗ: ΚΟΥΜΠΙ ΓΙΑ ΤΟ ABOUT ---
+        # About
         if st.button("🧪 System Architecture", use_container_width=True):
-            st.session_state.flow_step = "about" # Αυτό θα καλεί τη show_about() στο main
+            st.session_state.flow_step = "about"
             st.rerun()
             
         st.divider()
@@ -27,3 +27,15 @@ def show_sidebar():
         if st.button("🔄 Global Reset", type="secondary", use_container_width=True):
             st.session_state.clear()
             st.rerun()
+
+        st.divider()
+
+        # Product Hunt badge
+        st.markdown("### 🚀 Featured on Product Hunt")
+        st.markdown("""
+        <a href="https://www.producthunt.com/products/managers-lab?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-managers-lab" target="_blank">
+            <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1132085&theme=light"
+            alt="Managers' Lab - Product Hunt"
+            width="250" />
+        </a>
+        """, unsafe_allow_html=True)
