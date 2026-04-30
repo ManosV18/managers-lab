@@ -2,6 +2,39 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
+def render_feedback(s):
+    if not s.get("baseline_locked"):
+        return
+
+    st.divider()
+    st.markdown("**Was this useful?**")
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("👍 Yes", use_container_width=True, key="feedback_up"):
+            s.feedback = "up"
+            st.rerun()
+    with col2:
+        if st.button("👎 No", use_container_width=True, key="feedback_down"):
+            s.feedback = "down"
+            st.rerun()
+
+    if s.get("feedback") == "up":
+        st.success("Thanks! Glad it helped.")
+        
+    if s.get("feedback") == "down":
+        st.warning("Thanks for letting us know.")
+        comment = st.text_input(
+            "What was missing?",
+            key="feedback_comment",
+            placeholder="Optional — 1-2 lines is enough"
+        )
+        if comment and st.button("Send", key="feedback_send"):
+            if "feedback_comments" not in s:
+                s.feedback_comments = []
+            s.feedback_comments.append(comment)
+            st.success("Got it. Thank you.")
 
 def run_home():
     s = st.session_state
@@ -115,6 +148,9 @@ def run_home():
                     if st.button("🔓 Unlock", use_container_width=True):
                         s.baseline_locked = False
                         st.rerun()
+            
+            # ΕΝΣΩΜΑΤΩΣΗ FEEDBACK
+            render_feedback(s)
 
         else:
             st.info(f"💡 Active Scenario: **{s.get('scenario_name')}**")
