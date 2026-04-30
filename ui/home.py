@@ -116,14 +116,6 @@ def run_home():
                         s.baseline_locked = False
                         st.rerun()
 
-            if st.button("💾 Save Current Scenario", use_container_width=True):
-                s.saved_scenarios[s.scenario_name] = {
-                    "price": s.get("price"),
-                    "volume": s.get("volume"),
-                    "metrics": dict(s.get("metrics", {}))
-                }
-                st.success(f"Scenario '{s.scenario_name}' saved!")
-
         else:
             st.info(f"💡 Active Scenario: **{s.get('scenario_name')}**")
             st.write(f"Price: ${s.get('price')}")
