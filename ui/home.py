@@ -15,6 +15,7 @@ def render_feedback(s):
         if st.button("👍 Yes", use_container_width=True, key="feedback_up"):
             s.feedback = "up"
             st.rerun()
+
     with col2:
         if st.button("👎 No", use_container_width=True, key="feedback_down"):
             s.feedback = "down"
@@ -30,11 +31,13 @@ def render_feedback(s):
             key="feedback_comment",
             placeholder="Optional — 1-2 lines is enough"
         )
+
         if comment and st.button("Send", key="feedback_send"):
             if "feedback_comments" not in s:
                 s.feedback_comments = []
             s.feedback_comments.append(comment)
             st.success("Got it. Thank you.")
+
 
 def run_home():
     s = st.session_state
@@ -65,12 +68,13 @@ def run_home():
         "annual_debt_service": 70000.0,
         "scenario_name": "Baseline Scenario",
     }
+
     for k, v in defaults.items():
         if k not in s:
             s[k] = v
 
     # --------------------------------------------------
-    # MAIN LAYOUΤ
+    # MAIN LAYOUT
     # --------------------------------------------------
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
 
@@ -82,31 +86,41 @@ def run_home():
                 st.number_input("Unit Price ($)", key="price", min_value=0.0, step=1.0)
 
                 # Variable Cost — χειροκίνητο state γιατί έχει audit breakdown
-                vc_val = st.number_input("Variable Cost ($)", value=float(s.get("variable_cost", 100.0)))
+                vc_val = st.number_input(
+                    "Variable Cost ($)",
+                    value=float(s.get("variable_cost", 100.0))
+                )
                 s.variable_cost = vc_val
 
                 with st.expander("🔍 Audit Variable Cost Breakdown"):
                     v1 = st.number_input("Raw Materials/Unit", value=0.0, key="audit_v1")
                     v2 = st.number_input("Logistics/Shipping", value=0.0, key="audit_v2")
                     v3 = st.number_input("Commissions/Other", value=0.0, key="audit_v3")
+
                     v_total = float(v1 + v2 + v3)
                     st.write(f"Calculated Total: **${v_total:.2f}**")
+
                     if st.button("Apply to Variable Cost", key="btn_vc"):
                         s.variable_cost = v_total
                         st.rerun()
 
                 st.number_input("Annual Volume", key="volume", min_value=0, step=100)
 
-            # Fixed Cost — χειροκίνητο state γιατί έχει audit breakdown
-            fc_val = st.number_input("Annual Fixed Costs ($)", value=float(s.get("fixed_cost", 450000.0)))
+            # Fixed Cost
+            fc_val = st.number_input(
+                "Annual Fixed Costs ($)",
+                value=float(s.get("fixed_cost", 450000.0))
+            )
             s.fixed_cost = fc_val
 
             with st.expander("🔍 Audit Fixed Cost Breakdown"):
                 f1 = st.number_input("Annual Rent", value=0.0, key="audit_f1")
                 f2 = st.number_input("Annual Salaries", value=0.0, key="audit_f2")
                 f3 = st.number_input("Annual Admin & Utilities", value=0.0, key="audit_f3")
+
                 f_total = float(f1 + f2 + f3)
                 st.info(f"Total Annual Fixed Cost: **${f_total:,.0f}**")
+
                 if st.button("Apply to Fixed Costs", key="btn_fc"):
                     s.fixed_cost = f_total
                     st.rerun()
@@ -122,17 +136,36 @@ def run_home():
                 st.number_input("Total Debt ($)", key="total_debt", min_value=0.0, step=1000.0)
 
                 col_fin1, col_fin2 = st.columns(2)
+
                 with col_fin1:
-                    st.number_input("Annual Interest Costs ($)", key="annual_interest_only", min_value=0.0, step=100.0)
+                    st.number_input(
+                        "Annual Interest Costs ($)",
+                        key="annual_interest_only",
+                        min_value=0.0,
+                        step=100.0
+                    )
+
                 with col_fin2:
-                    st.number_input("Corporate Tax Rate (%)", key="tax_rate", min_value=0.0, max_value=100.0, step=0.5)
+                    st.number_input(
+                        "Corporate Tax Rate (%)",
+                        key="tax_rate",
+                        min_value=0.0,
+                        max_value=100.0,
+                        step=0.5
+                    )
 
                 st.number_input("A/R Days", key="ar_days", min_value=0, step=1)
                 st.number_input("Inventory Days", key="inv_days", min_value=0, step=1)
                 st.number_input("A/P Days", key="ap_days", min_value=0, step=1)
-                st.number_input("Annual Debt Service ($)", key="annual_debt_service", min_value=0.0, step=1000.0)
 
-            # --- LOCK / UNLOCK LOGIC ---
+                st.number_input(
+                    "Annual Debt Service ($)",
+                    key="annual_debt_service",
+                    min_value=0.0,
+                    step=1000.0
+                )
+
+            # LOCK / UNLOCK LOGIC
             if not s.get("baseline_locked"):
                 if st.button("▶ Test My Business", type="primary", use_container_width=True):
                     s.baseline_locked = True
@@ -140,66 +173,144 @@ def run_home():
                     st.rerun()
             else:
                 col_nav1, col_nav2 = st.columns(2)
+
                 with col_nav1:
                     if st.button("🕹️ See the results", type="primary", use_container_width=True):
                         s.flow_step = "control_tower"
                         st.rerun()
+
                 with col_nav2:
                     if st.button("🔓 Unlock", use_container_width=True):
                         s.baseline_locked = False
                         st.rerun()
-            
-            # ΕΝΣΩΜΑΤΩΣΗ FEEDBACK
-            render_feedback(s)
 
         else:
             st.info(f"💡 Active Scenario: **{s.get('scenario_name')}**")
             st.write(f"Price: ${s.get('price')}")
             st.write(f"Volume: {s.get('volume')}")
 
+        # FEEDBACK MOVED HERE (fixed)
+        render_feedback(s)
+
     with col_right:
         st.markdown("##### Pick a problem. Run it.")
 
         is_disabled = not s.get("baseline_locked")
+
         if is_disabled:
             st.warning("Set your baseline first — then test decisions.")
 
         t1, t2, t3, t4 = st.tabs(["Grow", "Fund", "Operate", "Stress"])
 
         with t1:
-            if st.button("🎯 Test Pricing & Profit", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_strategy"; s.flow_step="tool"; st.rerun()
-            if st.button("📡 Compare Market Pricing", use_container_width=True, disabled=is_disabled): s.selected_tool="pricing_radar"; s.flow_step="tool"; st.rerun()
-            if st.button("📉 How much sales can I lose?", use_container_width=True, disabled=is_disabled): s.selected_tool="loss_threshold"; s.flow_step="tool"; st.rerun()
-            if st.button("⚖️ When do I break even?", use_container_width=True, disabled=is_disabled): s.selected_tool="break_even_shift"; s.flow_step="tool"; st.rerun()
-            if st.button("🧭 Compare strategies", use_container_width=True, disabled=is_disabled): s.selected_tool="qspm_analyzer"; s.flow_step="tool"; st.rerun()
-            if st.button("👥 What is a customer worth?", use_container_width=True, disabled=is_disabled): s.selected_tool="clv_calculator"; s.flow_step="tool"; st.rerun()
+            if st.button("🎯 Test Pricing & Profit", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "pricing_strategy"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("📡 Compare Market Pricing", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "pricing_radar"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("📉 How much sales can I lose?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "loss_threshold"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("⚖️ When do I break even?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "break_even_shift"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("🧭 Compare strategies", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "qspm_analyzer"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("👥 What is a customer worth?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "clv_calculator"
+                s.flow_step = "tool"
+                st.rerun()
 
         with t2:
-            if st.button("📈 Can I fund growth?", use_container_width=True, disabled=is_disabled): s.selected_tool="growth_funding"; s.flow_step="tool"; st.rerun()
-            if st.button("📉 Cost of Capital (WACC)", use_container_width=True, disabled=is_disabled): s.selected_tool="wacc_optimizer"; s.flow_step="tool"; st.rerun()
-            if st.button("⚖️ Should I buy or lease?", use_container_width=True, disabled=is_disabled): s.selected_tool="loan_vs_leasing"; s.flow_step="tool"; st.rerun()
+            if st.button("📈 Can I fund growth?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "growth_funding"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("📉 Cost of Capital (WACC)", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "wacc_optimizer"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("⚖️ Should I buy or lease?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "loan_vs_leasing"
+                s.flow_step = "tool"
+                st.rerun()
 
         with t3:
-            if st.button("🕵️ Where is cash leaking?", use_container_width=True, disabled=is_disabled): s.selected_tool="deal_auditor"; s.flow_step="tool"; st.rerun()
-            if st.button("🔄 How fast does cash move?", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_cycle"; s.flow_step="tool"; st.rerun()
-            if st.button("💰 How much cash can I unlock?", use_container_width=True, disabled=is_disabled): s.selected_tool="wc_optimizer"; s.flow_step="tool"; st.rerun()
-            if st.button("📦 Am I overstocked?", use_container_width=True, disabled=is_disabled): s.selected_tool="inventory_manager"; s.flow_step="tool"; st.rerun()
-            if st.button("📊 Is offering credit worth it?", use_container_width=True, disabled=is_disabled): s.selected_tool="receivables_npv"; s.flow_step="tool"; st.rerun()
-            if st.button("🤝 Should I delay payments?", use_container_width=True, disabled=is_disabled): s.selected_tool="payables_manager"; s.flow_step="tool"; st.rerun()
+            if st.button("🕵️ Where is cash leaking?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "deal_auditor"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("🔄 How fast does cash move?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "cash_cycle"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("💰 How much cash can I unlock?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "wc_optimizer"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("📦 Am I overstocked?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "inventory_manager"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("📊 Is offering credit worth it?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "receivables_npv"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("🤝 Should I delay payments?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "payables_manager"
+                s.flow_step = "tool"
+                st.rerun()
 
         with t4:
-            if st.button("🚨 When do I run out of Cash?", use_container_width=True, disabled=is_disabled): s.selected_tool="cash_fragility"; s.flow_step="tool"; st.rerun()
-            if st.button("📉 What happens in a worst case?", use_container_width=True, disabled=is_disabled): s.selected_tool="stress_test"; s.flow_step="tool"; st.rerun()
-            if st.button("🗺️ Where is my business fragile?", use_container_width=True, disabled=is_disabled): s.selected_tool="resilience_map"; s.flow_step="tool"; st.rerun()
+            if st.button("🚨 When do I run out of Cash?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "cash_fragility"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("📉 What happens in a worst case?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "stress_test"
+                s.flow_step = "tool"
+                st.rerun()
+
+            if st.button("🗺️ Where is my business fragile?", use_container_width=True, disabled=is_disabled):
+                s.selected_tool = "resilience_map"
+                s.flow_step = "tool"
+                st.rerun()
 
         st.divider()
+
         with st.expander("🔍 Capital Structure Analysis", expanded=True):
             ca1, ca2 = st.columns(2)
+
             ca1.write(f"**Total Debt:** ${s.get('total_debt', 0):,.0f}")
             ca1.write(f"**Total Equity:** ${s.get('equity', 0):,.0f}")
             ca1.write(f"**Fixed Assets:** ${s.get('fixed_assets', 0):,.0f}")
 
             net_debt_val = s.get('total_debt', 0) - s.get('opening_cash', 0)
             color = "red" if net_debt_val > 0 else "green"
-            ca2.markdown(f"**Net Debt:** <span style='color:{color}'>${net_debt_val:,.0f}</span>", unsafe_allow_html=True)
+
+            ca2.markdown(
+                f"**Net Debt:** <span style='color:{color}'>${net_debt_val:,.0f}</span>",
+                unsafe_allow_html=True
+            )
+
             ca2.write(f"**Invested Capital:** ${m.get('invested_capital', 0):,.0f}")
