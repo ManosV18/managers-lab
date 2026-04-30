@@ -70,7 +70,7 @@ def run_home():
             s[k] = v
 
     # --------------------------------------------------
-    # MAIN LAYOUT
+    # MAIN LAYOUΤ
     # --------------------------------------------------
     col_left, col_right = st.columns([0.4, 0.6], gap="large")
 
