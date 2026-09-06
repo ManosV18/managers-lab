@@ -24,6 +24,10 @@ FIELD_TYPES = {
     "ap_days": float,
     "wacc": float,
     "cost_of_debt": float,
+    # Reported Financial Results 
+    "profit_before_tax": float, 
+    "tax": float, 
+    "net_profit": float,
 }
 
 
@@ -174,6 +178,10 @@ def validate_import_data(data):
         "ap_days",
         "wacc",
         "cost_of_debt",
+        # Reported Financial Results 
+        "profit_before_tax", 
+        "tax", 
+        "net_profit",
     ]
 
     # -----------------------------------------------------
@@ -461,6 +469,9 @@ cost_of_debt,6.00,Cost of debt in %
 ar_days,90,Accounts receivable days
 inv_days,75,Inventory days
 ap_days,45,Accounts payable days
+profit_before_tax,150000.00, Reported Profit Before Tax 
+tax,33000.00, Reported Tax 
+net_profit,117000.00,Reported Net Profit
 """
 
     st.download_button(
