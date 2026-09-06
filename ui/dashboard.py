@@ -281,7 +281,24 @@ def _render_executive_decision(
     c1.metric("Revenue", _fmt_eur(p.revenue), _fmt_signed_eur(revenue_delta))
     c2.metric("EBITDA", _fmt_eur(p.ebitda), _fmt_signed_eur(ebitda_delta))
     c3.metric("Net Profit", _fmt_eur(projected_state.net_profit), _fmt_signed_eur(net_profit_delta))
-    c4.metric("FCFE", _fmt_eur(projected_fin.fcfe), _fmt_signed_eur(fcfe_delta))
+    
+    baseline_fcfe = (
+        baseline_state.net_profit
+        + baseline_state.drivers.depreciation
+        - baseline_state.capital_structure.principal_payments
+    )
+    if decision_plan is None:
+        c4.metric(
+            "FCFE",
+            _fmt_eur(baseline_fcfe),
+            _fmt_signed_eur(0),
+        )
+    else:
+        c4.metric(
+            "FCFE",
+            _fmt_eur(projected_fin.fcfe),
+            _fmt_signed_eur(fcfe_delta),
+        )
 
     if wc_cash_impact < 0:
         st.warning(f"💧 Working capital absorbs {_fmt_eur(abs(wc_cash_impact))} of additional cash.")
