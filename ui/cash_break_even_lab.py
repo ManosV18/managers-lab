@@ -123,31 +123,32 @@ def render_cash_break_even_lab(
     projected_state,
     financial_projection=None,
 ) -> None:
-    """
-    Cash Break-Even Decision Lab.
+    
+   """
+   Cash Break-Even Decision Lab.
 
-    Architecture:
+   Architecture:
 
-        Locked Baseline
-              ↓
-        DecisionPlan
-              ↓
-        DecisionEvaluator
-              ↓
-        Projected CompanyState
-              ↓
-        Cash Break-Even Lab
+       Locked Baseline
+             ↓
+       DecisionPlan
+             ↓
+       DecisionEvaluator
+             ↓
+       Projected CompanyState
+             ↓
+       Cash Break-Even Lab
 
-    Important:
+   Important:
 
-        The Lab does NOT execute Decisions.
+       The Lab does NOT execute Decisions.
 
-        If projected_state is supplied, it represents the
-        already evaluated DecisionPlan projection.
+       If projected_state is supplied, it represents the
+       already evaluated DecisionPlan projection.
 
-        The Lab therefore remains an analytical layer.
-    """
-
+       The Lab therefore remains an analytical layer.
+   """
+   
     st.title("💧 Cash Break-Even Lab")
 
     st.info(
