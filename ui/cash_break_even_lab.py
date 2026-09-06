@@ -77,7 +77,7 @@ def _extract_cash_inputs(state):
 
         Baseline
             vs
-        DecisionPlan Projection
+        Projected CompanyState
     """
 
     drivers = state.drivers
@@ -123,32 +123,22 @@ def render_cash_break_even_lab(
     projected_state,
     financial_projection=None,
 ) -> None:
-    
-   """
-   Cash Break-Even Decision Lab.
+    """
+    Cash Break-Even Analysis Lab.
 
-   Architecture:
+    Architecture:
 
-       Locked Baseline
-             ↓
-       DecisionPlan
-             ↓
-       DecisionEvaluator
-             ↓
-       Projected CompanyState
-             ↓
-       Cash Break-Even Lab
+        Locked Baseline
+              ↓
+        Optional Projected CompanyState
+              ↓
+        Cash Break-Even Analysis
 
-   Important:
+    The Lab is an analytical what-if tool.
 
-       The Lab does NOT execute Decisions.
+    It does not create, execute, or add Decisions to the Decision Plan.
+    """
 
-       If projected_state is supplied, it represents the
-       already evaluated DecisionPlan projection.
-
-       The Lab therefore remains an analytical layer.
-   """
-   
     st.title("💧 Cash Break-Even Lab")
 
     st.info(
@@ -305,29 +295,29 @@ def render_cash_break_even_lab(
             )
 
     # =====================================================
-    # DECISION PROJECTION STATUS
+    # PROJECTED COMPANY STATE STATUS
     # =====================================================
 
     if projected_state is not None:
 
-       st.success(
-          """
-          🔄 **Projected CompanyState detected**
+        st.success(
+            """
+            🔄 **Projected CompanyState detected**
 
-          The analysis below starts from the projected company state.
-          """
-         ) 
-       
+            The analysis below starts from the projected company state.
+            """
+        )
+
     else:
 
-       st.info(
-          """
-          No projected CompanyState is currently available.
+        st.info(
+            """
+            No projected CompanyState is currently available.
 
-          The analysis therefore starts from the locked baseline.
-          """
-         ) 
-       
+            The analysis therefore starts from the locked baseline.
+            """
+        )
+
     # =====================================================
     # TEST A CASH DECISION
     # =====================================================
@@ -344,7 +334,7 @@ def render_cash_break_even_lab(
         break-even requirement changes.
 
         These controls are a what-if analysis.
-        The locked baseline and DecisionPlan are not modified.
+        The locked baseline and any existing Decision Plan are not modified.
         """
     )
 
@@ -487,13 +477,13 @@ def render_cash_break_even_lab(
         cash_sales_buffer = None
 
     # =====================================================
-    # BASELINE VS DECISION PROJECTION
+    # BASELINE VS PROJECTED STATE
     # =====================================================
 
     st.divider()
 
     st.subheader(
-        "📊 Baseline vs Decision Projection"
+        "📊 Baseline vs Projected CompanyState"
     )
 
     projection_overview = {
@@ -529,7 +519,7 @@ def render_cash_break_even_lab(
             ),
         ],
 
-        "Decision Projection": [
+        "Projected CompanyState": [
             f"€ {projected['price']:,.0f}",
             f"€ {projected['variable_cost']:,.0f}",
             f"{projected['volume']:,.0f}",
