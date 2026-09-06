@@ -178,17 +178,11 @@ def render_cash_break_even_lab(
     # PROJECTED INPUTS
     # =====================================================
     #
-    # If a DecisionPlan has been evaluated, projected_state
-    # contains the resulting business state.
-    #
-    # Example:
-    #
-    # Baseline price      = €150
-    # Decision            = Price → €160
-    # Projected price     = €160
+    # If a projected CompanyState is supplied, the Lab
+    # uses it as the starting point for analysis.
     #
     # If there is no projection, projected_state defaults
-    # to baseline.
+    # to the locked baseline.
     # =====================================================
 
     if projected_state is not None:
