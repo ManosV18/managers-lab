@@ -778,8 +778,27 @@ net_profit,117000.00,Reported Net Profit
                 f"{raw_data['ap_days']:.0f}"
             ),
         },
+        {
+            "Field": "Profit Before Tax (EBT)",
+            "Value": (
+                f"€ {raw_data['profit_before_tax']:,.0f}"
+            ),
+        },
+        {
+            "Field": "Tax",
+            "Value": (
+                f"€ {raw_data['tax']:,.0f}"
+            ),
+        },
+        {
+            "Field": "Net Profit",
+            "Value": (
+                f"€ {raw_data['net_profit']:,.0f}"
+            ),
+        },
     ]
-
+    
+   
     st.dataframe(
         confirmation_rows,
         use_container_width=True,
