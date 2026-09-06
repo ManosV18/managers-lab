@@ -1,4 +1,3 @@
-```python
 import sys
 from pathlib import Path
 
@@ -1318,4 +1317,3 @@ if current_page == "📈 Sales Volume":
         st.rerun()
 
     st.stop()
-```
