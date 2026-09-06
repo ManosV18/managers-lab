@@ -139,4 +139,3 @@ drivers: OperationalDrivers
 reported_financials: ReportedFinancials
 capital_structure: CapitalStructure
 working_capital: WorkingCapitalPolicy
-```
