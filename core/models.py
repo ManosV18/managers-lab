@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 # =========================================================
@@ -88,9 +87,8 @@ class CompanyState:
             ↓
         Control Tower
 
-    The CompanyState intentionally preserves the broader
-    Managers Lab baseline data so downstream Decision Labs
-    can use the required fields.
+    Baseline financial results are user-entered/imported.
+    They are not calculated when the Baseline is created.
     """
 
     version: int
@@ -100,3 +98,13 @@ class CompanyState:
     drivers: OperationalDrivers
     capital_structure: CapitalStructure
     working_capital: WorkingCapitalPolicy
+
+    # -----------------------------------------------------
+    # REPORTED BASELINE FINANCIAL RESULTS
+    # -----------------------------------------------------
+    # These values are entered/imported by the user.
+    # They are NOT calculated by the Baseline UI.
+
+    profit_before_tax: float = 0.0
+    tax: float = 0.0
+    net_profit: float = 0.0
