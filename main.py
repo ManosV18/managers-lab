@@ -1,3 +1,4 @@
+```python
 import sys
 from pathlib import Path
 
@@ -188,9 +189,7 @@ def build_projection():
         )
 
     evaluation = DecisionEvaluator.evaluate(
-
         baseline_state=baseline_state,
-
         plan=decision_plan,
     )
 
@@ -235,31 +234,6 @@ def build_projection():
 # SMALL UI HELPERS
 # =========================================================
 
-def home_button(
-    label: str,
-    page: str,
-    key: str,
-    description: str,
-):
-
-    st.markdown(
-        f"### {label}"
-    )
-
-    st.caption(
-        description
-    )
-
-    if st.button(
-        "Explore →",
-        key=key,
-        use_container_width=True,
-    ):
-
-        navigate_to(page)
-        st.rerun()
-
-
 def navigation_button(
     label: str,
     page: str,
@@ -274,6 +248,156 @@ def navigation_button(
 
         navigate_to(page)
         st.rerun()
+
+
+# =========================================================
+# COMPANY SETUP
+# =========================================================
+
+def render_company_setup():
+
+    baseline = get_safe_baseline()
+
+    st.title(
+        "🏢 Set Up Your Company"
+    )
+
+    st.markdown(
+        "Before making decisions, we need a clear "
+        "starting point for your business."
+    )
+
+    st.caption(
+        "You can enter the numbers yourself or import "
+        "your existing company data."
+    )
+
+    st.divider()
+
+    # =====================================================
+    # EXISTING BASELINE
+    # =====================================================
+
+    if baseline is not None:
+
+        st.success(
+            "Your company data is available."
+        )
+
+        st.markdown(
+            "### Review your company"
+        )
+
+        st.caption(
+            "Review the values below before locking "
+            "your baseline."
+        )
+
+        st.divider()
+
+        # The existing baseline screen is now the
+        # review / editing destination.
+        render_baseline_setup()
+
+        return
+
+    # =====================================================
+    # TWO WAYS TO SET UP
+    # =====================================================
+
+    col1, col2 = st.columns(
+        2,
+        gap="large",
+    )
+
+    # -----------------------------------------------------
+    # MANUAL ENTRY
+    # -----------------------------------------------------
+
+    with col1:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## ✍️ Enter Manually"
+            )
+
+            st.caption(
+                "Enter your key business numbers "
+                "directly."
+            )
+
+            st.markdown(
+                """
+                Revenue  
+                Price & Sales Volume  
+                Costs  
+                Cash & Debt  
+                Receivables, Inventory & Suppliers
+                """
+            )
+
+            if st.button(
+                "Enter Company Data →",
+                key="setup_manual_entry",
+                type="primary",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🏢 Baseline Snapshot"
+                )
+
+                st.rerun()
+
+    # -----------------------------------------------------
+    # IMPORT
+    # -----------------------------------------------------
+
+    with col2:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## 📥 Import Data"
+            )
+
+            st.caption(
+                "Use your existing company data "
+                "instead of entering everything manually."
+            )
+
+            st.markdown(
+                """
+                Upload your data  
+                Map the available fields  
+                Review the imported values  
+                Lock your baseline
+                """
+            )
+
+            if st.button(
+                "Import Company Data →",
+                key="setup_import_data",
+                use_container_width=True,
+            ):
+
+                st.session_state[
+                    "return_to_company_setup"
+                ] = True
+
+                navigate_to(
+                    "📥 Import Data"
+                )
+
+                st.rerun()
+
+    st.divider()
+
+    st.caption(
+        "Your baseline will not be locked until "
+        "you review and confirm the company data."
+    )
 
 
 # =========================================================
@@ -324,7 +448,7 @@ with st.sidebar:
     st.divider()
 
     # -----------------------------------------------------
-    # BASELINE
+    # COMPANY
     # -----------------------------------------------------
 
     baseline = get_safe_baseline()
@@ -343,11 +467,35 @@ with st.sidebar:
             f"Version {getattr(baseline, 'version', 1)}"
         )
 
+        if st.button(
+            "View Company →",
+            key="sidebar_company",
+            use_container_width=True,
+        ):
+
+            navigate_to(
+                "🏢 Baseline Snapshot"
+            )
+
+            st.rerun()
+
     else:
 
         st.warning(
             "Baseline not set"
         )
+
+        if st.button(
+            "Set Up Company →",
+            key="sidebar_setup_company",
+            use_container_width=True,
+        ):
+
+            navigate_to(
+                "🏢 Company Setup"
+            )
+
+            st.rerun()
 
     # -----------------------------------------------------
     # PLAN
@@ -364,6 +512,10 @@ with st.sidebar:
 
         count = decision_plan.decision_count
 
+        st.markdown(
+            "### 🎯 Current Plan"
+        )
+
         if count == 0:
 
             st.caption(
@@ -373,8 +525,8 @@ with st.sidebar:
         else:
 
             st.info(
-                f"🎯 {count} decision"
-                f"{'s' if count != 1 else ''} in plan"
+                f"{count} decision"
+                f"{'s' if count != 1 else ''}"
             )
 
     st.divider()
@@ -392,6 +544,10 @@ with st.sidebar:
             key="sidebar_import",
             use_container_width=True,
         ):
+
+            st.session_state[
+                "return_to_company_setup"
+            ] = True
 
             navigate_to(
                 "📥 Import Data"
@@ -439,10 +595,6 @@ with st.sidebar:
 # =========================================================
 
 def render_home():
-
-    # -----------------------------------------------------
-    # HEADER
-    # -----------------------------------------------------
 
     st.title(
         "🧠 Managers Lab"
@@ -517,7 +669,7 @@ def render_home():
     else:
 
         st.info(
-            "Set up your company baseline to begin."
+            "Let's start by setting up your company."
         )
 
         if st.button(
@@ -527,7 +679,7 @@ def render_home():
         ):
 
             navigate_to(
-                "🏢 Baseline Snapshot"
+                "🏢 Company Setup"
             )
 
             st.rerun()
@@ -546,7 +698,10 @@ def render_home():
         "Choose the business outcome you want to work on."
     )
 
-    col1, col2 = st.columns(2, gap="large")
+    col1, col2 = st.columns(
+        2,
+        gap="large"
+    )
 
     # =====================================================
     # MAKE MORE MONEY
@@ -654,11 +809,14 @@ def render_home():
                     "home_working_capital",
                 )
 
-    # -----------------------------------------------------
+    # =====================================================
     # FUND GROWTH
-    # -----------------------------------------------------
+    # =====================================================
 
-    col1, col2 = st.columns(2, gap="large")
+    col1, col2 = st.columns(
+        2,
+        gap="large"
+    )
 
     with col1:
 
@@ -791,7 +949,7 @@ def render_home():
 
 
 # =========================================================
-# HOME ROUTE
+# ROUTING
 # =========================================================
 
 current_page = st.session_state.get(
@@ -799,9 +957,25 @@ current_page = st.session_state.get(
     "main",
 )
 
+
+# =========================================================
+# HOME
+# =========================================================
+
 if current_page == "main":
 
     render_home()
+
+    st.stop()
+
+
+# =========================================================
+# COMPANY SETUP
+# =========================================================
+
+if current_page == "🏢 Company Setup":
+
+    render_company_setup()
 
     st.stop()
 
@@ -813,18 +987,29 @@ if current_page == "main":
 if current_page == "🏢 Baseline Snapshot":
 
     render_baseline_setup()
+
     st.stop()
 
+
+# =========================================================
+# IMPORT DATA
+# =========================================================
 
 if current_page == "📥 Import Data":
 
     render_data_import()
+
     st.stop()
 
+
+# =========================================================
+# WORKING CAPITAL DATA
+# =========================================================
 
 if current_page == "📐 Working Capital Data Analyzer":
 
     render_working_capital_data_analyzer()
+
     st.stop()
 
 
@@ -845,10 +1030,13 @@ if baseline is None:
     )
 
     if st.button(
-        "🏠 Back to Home"
+        "🏢 Set Up Company"
     ):
 
-        go_to_main()
+        navigate_to(
+            "🏢 Company Setup"
+        )
+
         st.rerun()
 
     st.stop()
@@ -1092,6 +1280,7 @@ if current_page == "🧠 QSPM Strategic Evaluation":
 if current_page == "🧩 Decision Manager":
 
     render_decision_view()
+
     st.stop()
 
 
@@ -1125,6 +1314,8 @@ if current_page == "📈 Sales Volume":
     if st.button("← Back"):
 
         go_to_main()
+
         st.rerun()
 
     st.stop()
+```
