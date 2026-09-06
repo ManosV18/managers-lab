@@ -803,19 +803,3 @@ def render_cash_break_even_lab(
         It shows the cash consequences of the assumptions selected.
         """
     )
-
-    # =====================================================
-    # ARCHITECTURAL NOTE
-    # =====================================================
-
-    st.info(
-        """
-        **Note:** Target Cash Profit is currently an analytical target,
-        not a CompanyState Decision driver.
-
-        It is therefore used in the Cash Break-Even calculation but is
-        not added to the DecisionPlan.
-
-        This keeps the current DecisionEngine contract clean.
-        """
-    )
