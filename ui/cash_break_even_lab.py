@@ -310,15 +310,14 @@ def render_cash_break_even_lab(
 
     if projected_state is not None:
 
-        st.success(
-            """
-            🔄 **Decision projection detected**
+       st.success(
+          """
+          🔄 **Projected CompanyState detected**
 
-            The scenario below reflects the currently evaluated
-            DecisionPlan rather than the locked baseline.
-            """
-        )
-
+          The analysis below starts from the projected company state.
+          """
+         ) 
+       
     else:
 
         st.info(
