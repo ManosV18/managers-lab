@@ -310,6 +310,10 @@ def store_imported_baseline(
         "imported_baseline_data"
     ] = dict(raw_data)
 
+    st.session_state.pop("custom_baseline", None)
+    st.session_state.pop("baseline_state", None)
+    st.session_state["baseline_locked"] = False
+
     # -----------------------------------------------------
     # Import metadata
     # -----------------------------------------------------
@@ -706,122 +710,5 @@ net_profit,117000.00,Reported Net Profit
         "✅ Imported data successfully loaded "
         "into the Baseline Snapshot."
     )
-
-    st.info(
-        "➡️ Go to **Baseline Company Snapshot**. "
-        "The imported values are now loaded there. "
-        "Review them and press **Lock Baseline**."
-    )
-
-    # =====================================================
-    # IMPORTED DATA CONFIRMATION
-    # =====================================================
-
-    st.subheader(
-        "🔎 Imported Baseline Confirmation"
-    )
-
-    confirmation_rows = [
-        {
-            "Field": "Price",
-            "Value": (
-                f"€ {raw_data['price']:,.2f}"
-            ),
-        },
-        {
-            "Field": "Variable Cost / Unit",
-            "Value": (
-                f"€ {raw_data['variable_cost']:,.2f}"
-            ),
-        },
-        {
-            "Field": "Volume",
-            "Value": (
-                f"{raw_data['volume']:,.0f}"
-            ),
-        },
-        {
-            "Field": "Fixed Costs",
-            "Value": (
-                f"€ {raw_data['fixed_cost']:,.0f}"
-            ),
-        },
-        {
-            "Field": "Depreciation",
-            "Value": (
-                f"€ {raw_data['depreciation']:,.0f}"
-            ),
-        },
-        {
-            "Field": "Equity",
-            "Value": (
-                f"€ {raw_data['equity']:,.0f}"
-            ),
-        },
-        {
-            "Field": "Total Debt",
-            "Value": (
-                f"€ {raw_data['total_debt']:,.0f}"
-            ),
-        },
-        {
-            "Field": "WACC",
-            "Value": (
-                f"{raw_data['wacc']:.2f}%"
-            ),
-        },
-        {
-            "Field": "Cost of Debt",
-            "Value": (
-                f"{raw_data['cost_of_debt']:.2f}%"
-            ),
-        },
-        {
-            "Field": "Tax Rate",
-            "Value": (
-                f"{raw_data['tax_rate']:.2f}%"
-            ),
-        },
-        {
-            "Field": "AR Days",
-            "Value": (
-                f"{raw_data['ar_days']:.0f}"
-            ),
-        },
-        {
-            "Field": "Inventory Days",
-            "Value": (
-                f"{raw_data['inv_days']:.0f}"
-            ),
-        },
-        {
-            "Field": "AP Days",
-            "Value": (
-                f"{raw_data['ap_days']:.0f}"
-            ),
-        },
-        {
-            "Field": "Profit Before Tax (EBT)",
-            "Value": (
-                f"€ {raw_data['profit_before_tax']:,.0f}"
-            ),
-        },
-        {
-            "Field": "Tax",
-            "Value": (
-                f"€ {raw_data['tax']:,.0f}"
-            ),
-        },
-        {
-            "Field": "Net Profit",
-            "Value": (
-                f"€ {raw_data['net_profit']:,.0f}"
-            ),
-        },
-    ]
-
-    st.dataframe(
-        confirmation_rows,
-        use_container_width=True,
-        hide_index=True,
-    )
+    st.session_state["current_page"] = "🏢 Baseline Snapshot"
+    st.rerun()
