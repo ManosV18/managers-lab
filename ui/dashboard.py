@@ -280,7 +280,7 @@ def _render_executive_decision(
 
     c1.metric("Revenue", _fmt_eur(p.revenue), _fmt_signed_eur(revenue_delta))
     c2.metric("EBITDA", _fmt_eur(p.ebitda), _fmt_signed_eur(ebitda_delta))
-    c3.metric("Net Profit", _fmt_eur(p.net_profit), _fmt_signed_eur(net_profit_delta))
+    c3.metric("Net Profit", _fmt_eur(projected_state.net_profit), _fmt_signed_eur(net_profit_delta))
     c4.metric("FCFE", _fmt_eur(projected_fin.fcfe), _fmt_signed_eur(fcfe_delta))
 
     if wc_cash_impact < 0:
@@ -401,27 +401,43 @@ def _render_financial_impact(financial_impact):
 # =========================================================
 
 def _render_profitability_snapshot(
-    baseline_fin,
+    baseline_state,
+    projected_state,
     projected_fin,
 ):
-    b = baseline_fin.income_statement
     p = projected_fin.income_statement
 
     st.subheader("📌 Profitability Snapshot")
 
-    base_ebitda_margin = _margin(b.ebitda, b.revenue)
-    proj_ebitda_margin = _margin(p.ebitda, p.revenue)
+    baseline_revenue = (
+        baseline_state.drivers.price
+        * baseline_state.drivers.volume
+    )
 
-    base_net_margin = _margin(b.net_profit, b.revenue)
-    proj_net_margin = _margin(p.net_profit, p.revenue)
+    projected_revenue = p.revenue
 
-    c1, c2, c3, c4 = st.columns(4)
+    base_net_margin = _margin(
+        baseline_state.net_profit,
+        baseline_revenue,
+    )
 
-    c1.metric("Baseline EBITDA Margin", f"{base_ebitda_margin:.1f}%")
-    c2.metric("Projected EBITDA Margin", f"{proj_ebitda_margin:.1f}%", f"{proj_ebitda_margin - base_ebitda_margin:+.1f} pp")
+    proj_net_margin = _margin(
+        projected_state.net_profit,
+        projected_revenue,
+    )
 
-    c3.metric("Baseline Net Margin", f"{base_net_margin:.1f}%")
-    c4.metric("Projected Net Margin", f"{proj_net_margin:.1f}%", f"{proj_net_margin - base_net_margin:+.1f} pp")
+    c1, c2 = st.columns(2)
+
+    c1.metric(
+        "Baseline Net Margin",
+        f"{base_net_margin:.1f}%",
+    )
+
+    c2.metric(
+        "Projected Net Margin",
+        f"{proj_net_margin:.1f}%",
+        f"{proj_net_margin - base_net_margin:+.1f} pp",
+    )
 
 
 # =========================================================
@@ -986,7 +1002,8 @@ def render_dashboard(
     st.divider()
 
     _render_profitability_snapshot(
-        baseline_fin=baseline_fin,
+        baseline_state=baseline_state,
+        projected_state=projected_state,
         projected_fin=projected_fin,
     )
 
