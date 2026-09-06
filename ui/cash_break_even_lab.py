@@ -267,7 +267,7 @@ def render_cash_break_even_lab(
     # =====================================================
 
     st.subheader(
-        "📌 Current Cash Position"
+        "📌 Baseline Cash Position"
     )
 
     current_col1, current_col2, current_col3 = (
@@ -345,7 +345,7 @@ def render_cash_break_even_lab(
     st.divider()
 
     st.subheader(
-        "🔄 Test a Cash Decision"
+        "🔄 What-If Cash Scenario"
     )
 
     st.caption(
@@ -633,7 +633,7 @@ def render_cash_break_even_lab(
     if scenario_cash_bep is not None:
 
         c1.metric(
-            "Cash Break-Even Volume",
+            "What-If Cash Break-Even",
             f"{scenario_cash_bep:,.0f} units",
             delta=(
                 f"{scenario_cash_bep - baseline_cash_bep:,.0f}"
@@ -649,7 +649,7 @@ def render_cash_break_even_lab(
         )
 
         c3.metric(
-            "Cash Sales Buffer",
+            "What-If Cash Sales Buffer",
             f"{cash_sales_buffer:,.0f} units",
             delta=f"{cash_sales_buffer:,.0f}",
             delta_color=(
@@ -672,7 +672,7 @@ def render_cash_break_even_lab(
         )
 
         c3.metric(
-            "Cash Sales Buffer",
+            "What-If Cash Sales Buffer",
             "N/A",
         )
 
