@@ -62,7 +62,6 @@ def _sync_imported_data_to_baseline():
         # REPORTED FINANCIAL RESULTS
         # -----------------------------------------------------
         "profit_before_tax": "baseline_profit_before_tax",
-        "ebt": "baseline_profit_before_tax",
         "tax": "baseline_tax",
         "net_profit": "baseline_net_profit",
     }
@@ -310,7 +309,6 @@ def render_baseline_setup():
 
         profit_before_tax = st.number_input(
             "Profit Before Tax (EBT) (€)",
-            min_value=0.0,
             value=_get_float(
                 "baseline_profit_before_tax",
                 150000.0,
@@ -323,7 +321,6 @@ def render_baseline_setup():
 
         tax = st.number_input(
             "Tax (€)",
-            min_value=0.0,
             value=_get_float(
                 "baseline_tax",
                 33000.0,
@@ -336,7 +333,6 @@ def render_baseline_setup():
 
         net_profit = st.number_input(
             "Net Profit (€)",
-            min_value=0.0,
             value=_get_float(
                 "baseline_net_profit",
                 117000.0,
