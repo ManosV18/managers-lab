@@ -19,7 +19,7 @@ import streamlit as st
 
 st.set_page_config(
     page_title="Managers Lab",
-    page_icon="🧠",
+    page_icon="🧪",
     layout="wide",
 )
 
@@ -35,7 +35,7 @@ from core.state_builder import StateBuilder
 
 
 # =========================================================
-# UI / TOOL IMPORTS
+# UI / TOOL MODULE IMPORTS
 # =========================================================
 
 from tools.loan_vs_leasing import render_loan_vs_leasing_lab
@@ -64,6 +64,7 @@ from ui.substitute_products_lab import (
 )
 
 from ui.deal_auditor_lab import render_deal_auditor_lab
+
 from ui.stress_test_lab import render_stress_test_lab
 
 from ui.customer_cash_economics_lab import (
@@ -87,8 +88,8 @@ from ui.working_capital_data_analyzer import (
 )
 
 from ui.qspm_lab import render_qspm_lab
-from ui.concentration_lab import render_concentration_lab
 
+from ui.concentration_lab import render_concentration_lab
 
 # =========================================================
 # APPLICATION SERVICES
@@ -125,7 +126,7 @@ def get_safe_baseline():
 
 
 # =========================================================
-# APPLICATION STATE
+# APPLICATION STATE INITIALIZATION
 # =========================================================
 
 def initialize_app() -> None:
@@ -146,14 +147,16 @@ initialize_app()
 
 
 # =========================================================
-# NAVIGATION
+# NAVIGATION HELPERS
 # =========================================================
 
 def navigate_to(page_name: str) -> None:
+
     st.session_state.current_page = page_name
 
 
 def go_to_main() -> None:
+
     st.session_state.current_page = "main"
 
 
@@ -168,7 +171,7 @@ def build_projection():
     if baseline_state is None:
 
         st.error(
-            "Please set and confirm a Baseline first."
+            "⚠️ Please set and confirm a Baseline first."
         )
 
         st.stop()
@@ -177,18 +180,56 @@ def build_projection():
         "decision_plan"
     )
 
+    # -----------------------------------------------------
+    # NO DECISION PLAN
+    # -----------------------------------------------------
+
     if not isinstance(
         decision_plan,
         DecisionPlan,
     ):
 
-        decision_plan = DecisionPlan.create(
-            plan_id="empty_plan",
-            name="Empty Decision Plan",
+        evaluation = DecisionEvaluator.evaluate(
+
+            baseline_state=baseline_state,
+
+            plan=DecisionPlan.create(
+                plan_id="empty_plan",
+                name="Empty Decision Plan",
+            ),
         )
 
+        trace = dict(
+            evaluation.execution_report
+        )
+
+        trace.update(
+            {
+                "projection_mode": "baseline",
+
+                "plan": None,
+
+                "message":
+                    "No DecisionPlan exists. "
+                    "Projection equals locked baseline.",
+            }
+        )
+
+        return (
+            evaluation.baseline_state,
+            evaluation.projected_state,
+            evaluation.financial_projection,
+            trace,
+        )
+
+    # -----------------------------------------------------
+    # DECISION PLAN
+    # -----------------------------------------------------
+
     evaluation = DecisionEvaluator.evaluate(
+
         baseline_state=baseline_state,
+
         plan=decision_plan,
     )
 
@@ -199,9 +240,7 @@ def build_projection():
     trace.update(
         {
             "projection_mode":
-                "baseline"
-                if decision_plan.is_empty
-                else "decision_plan",
+                "decision_plan",
 
             "plan":
                 {
@@ -217,7 +256,7 @@ def build_projection():
 
             "message":
                 "Projection generated from "
-                "the current Decision Plan.",
+                "DecisionPlan through DecisionEvaluator.",
         }
     )
 
@@ -230,274 +269,77 @@ def build_projection():
 
 
 # =========================================================
-# SMALL UI HELPERS
-# =========================================================
-
-def navigation_button(
-    label: str,
-    page: str,
-    key: str,
-):
-
-    if st.button(
-        label,
-        key=key,
-        use_container_width=True,
-    ):
-
-        navigate_to(page)
-        st.rerun()
-
-
-# =========================================================
-# COMPANY SETUP
-# =========================================================
-
-def render_company_setup():
-
-    baseline = get_safe_baseline()
-
-    st.title(
-        "🏢 Set Up Your Company"
-    )
-
-    st.markdown(
-        "Before making decisions, we need a clear "
-        "starting point for your business."
-    )
-
-    st.caption(
-        "You can enter the numbers yourself or import "
-        "your existing company data."
-    )
-
-    st.divider()
-
-    # =====================================================
-    # EXISTING BASELINE
-    # =====================================================
-
-    if baseline is not None:
-
-        st.success(
-            "Your company data is available."
-        )
-
-        st.markdown(
-            "### Review your company"
-        )
-
-        st.caption(
-            "Review the values below before locking "
-            "your baseline."
-        )
-
-        st.divider()
-
-        # The existing baseline screen is now the
-        # review / editing destination.
-        render_baseline_setup()
-
-        return
-
-    # =====================================================
-    # TWO WAYS TO SET UP
-    # =====================================================
-
-    col1, col2 = st.columns(
-        2,
-        gap="large",
-    )
-
-    # -----------------------------------------------------
-    # MANUAL ENTRY
-    # -----------------------------------------------------
-
-    with col1:
-
-        with st.container(border=True):
-
-            st.markdown(
-                "## ✍️ Enter Manually"
-            )
-
-            st.caption(
-                "Enter your key business numbers "
-                "directly."
-            )
-
-            st.markdown(
-                """
-                Revenue  
-                Price & Sales Volume  
-                Costs  
-                Cash & Debt  
-                Receivables, Inventory & Suppliers
-                """
-            )
-
-            if st.button(
-                "Enter Company Data →",
-                key="setup_manual_entry",
-                type="primary",
-                use_container_width=True,
-            ):
-
-                navigate_to(
-                    "🏢 Baseline Snapshot"
-                )
-
-                st.rerun()
-
-    # -----------------------------------------------------
-    # IMPORT
-    # -----------------------------------------------------
-
-    with col2:
-
-        with st.container(border=True):
-
-            st.markdown(
-                "## 📥 Import Data"
-            )
-
-            st.caption(
-                "Use your existing company data "
-                "instead of entering everything manually."
-            )
-
-            st.markdown(
-                """
-                Upload your data  
-                Map the available fields  
-                Review the imported values  
-                Lock your baseline
-                """
-            )
-
-            if st.button(
-                "Import Company Data →",
-                key="setup_import_data",
-                use_container_width=True,
-            ):
-
-                st.session_state[
-                    "return_to_company_setup"
-                ] = True
-
-                navigate_to(
-                    "📥 Import Data"
-                )
-
-                st.rerun()
-
-    st.divider()
-
-    st.caption(
-        "Your baseline will not be locked until "
-        "you review and confirm the company data."
-    )
-
-
-# =========================================================
 # SIDEBAR
 # =========================================================
 
 with st.sidebar:
 
-    st.markdown(
-        "## 🧠 Managers Lab"
-    )
+    # =====================================================
+    # BRANDING
+    # =====================================================
+
+    st.markdown("## 🧠 Managers Lab")
 
     st.caption(
-        "Decision Intelligence for Owner-Managers"
+        "Decision Intelligence System"
     )
 
     st.divider()
 
-    # -----------------------------------------------------
-    # HOME
-    # -----------------------------------------------------
+    # =====================================================
+    # NAVIGATION
+    # =====================================================
+
+    st.markdown("### 🗺️ Navigation")
+
+    if st.session_state.current_page != "main":
+
+        if st.button(
+            "🏠 Main Dashboard",
+            key="sidebar_main_dashboard",
+            use_container_width=True,
+        ):
+            go_to_main()
+            st.rerun()
 
     if st.button(
-        "🏠 Home",
-        key="sidebar_home",
-        use_container_width=True,
-    ):
-
-        go_to_main()
-        st.rerun()
-
-    # -----------------------------------------------------
-    # COMPANY IMPACT
-    # -----------------------------------------------------
-
-    if st.button(
-        "📊 Company Impact",
+        "📊 Control Tower",
         key="sidebar_control_tower",
         use_container_width=True,
     ):
-
-        navigate_to(
-            "📊 Control Tower"
-        )
-
+        navigate_to("📊 Control Tower")
         st.rerun()
 
     st.divider()
 
-    # -----------------------------------------------------
-    # COMPANY
-    # -----------------------------------------------------
+    # =====================================================
+    # CURRENT STATE
+    # =====================================================
+
+    st.markdown("### 🏢 Current State")
 
     baseline = get_safe_baseline()
-
-    st.markdown(
-        "### 🏢 Your Company"
-    )
 
     if baseline:
 
         st.success(
-            "🔒 Baseline locked"
+            f"🔒 Baseline: "
+            f"{getattr(baseline, 'label', 'Locked')}"
         )
 
         st.caption(
-            f"Version {getattr(baseline, 'version', 1)}"
+            f"Version: "
+            f"{getattr(baseline, 'version', '1')}"
         )
-
-        if st.button(
-            "View Company →",
-            key="sidebar_company",
-            use_container_width=True,
-        ):
-
-            navigate_to(
-                "🏢 Baseline Snapshot"
-            )
-
-            st.rerun()
 
     else:
 
         st.warning(
-            "Baseline not set"
+            "⚠️ No locked baseline"
         )
 
-        if st.button(
-            "Set Up Company →",
-            key="sidebar_setup_company",
-            use_container_width=True,
-        ):
-
-            navigate_to(
-                "🏢 Company Setup"
-            )
-
-            st.rerun()
-
     # -----------------------------------------------------
-    # PLAN
+    # DECISION PLAN
     # -----------------------------------------------------
 
     decision_plan = st.session_state.get(
@@ -509,446 +351,555 @@ with st.sidebar:
         DecisionPlan,
     ):
 
-        count = decision_plan.decision_count
+        if decision_plan.is_empty:
 
-        st.markdown(
-            "### 🎯 Current Plan"
-        )
-
-        if count == 0:
-
-            st.caption(
-                "No decisions selected"
+            st.info(
+                "🎯 Decision Plan: Empty"
             )
 
         else:
 
             st.info(
-                f"{count} decision"
-                f"{'s' if count != 1 else ''}"
+                f"🎯 Decision Plan: "
+                f"{decision_plan.decision_count} decision(s)"
             )
 
     st.divider()
 
-    # -----------------------------------------------------
-    # SETTINGS
-    # -----------------------------------------------------
-
-    with st.expander(
-        "⚙️ Settings"
-    ):
-
-        if st.button(
-            "📥 Import Company Data",
-            key="sidebar_import",
-            use_container_width=True,
-        ):
-
-            st.session_state[
-                "return_to_company_setup"
-            ] = True
-
-            navigate_to(
-                "📥 Import Data"
-            )
-
-            st.rerun()
-
-        if st.button(
-            "🗑️ Clear Decision Plan",
-            key="sidebar_clear_plan",
-            use_container_width=True,
-        ):
-
-            st.session_state.decision_plan = (
-                DecisionPlan.create(
-                    plan_id="main_plan",
-                    name="Current Decision Plan",
-                )
-            )
-
-            st.rerun()
-
-        if st.button(
-            "💥 Reset Application",
-            key="sidebar_reset",
-            use_container_width=True,
-        ):
-
-            st.session_state.clear()
-
-            st.session_state.decision_plan = (
-                DecisionPlan.create(
-                    plan_id="main_plan",
-                    name="Current Decision Plan",
-                )
-            )
-
-            st.session_state.current_page = "main"
-
-            st.rerun()
-
-
-# =========================================================
-# HOME
-# =========================================================
-
-def render_home():
-
-    st.title(
-        "🧠 Managers Lab"
-    )
-
-    st.markdown(
-        "### Make better business decisions. "
-        "Not more software."
-    )
-
-    st.caption(
-        "Start with your company. "
-        "Choose what you want to improve. "
-        "See the financial impact."
-    )
-
-    st.divider()
-
-    # -----------------------------------------------------
-    # COMPANY SNAPSHOT
-    # -----------------------------------------------------
-
-    baseline = get_safe_baseline()
-
-    if baseline is not None:
-
-        try:
-
-            from core.engine import FinancialEngine
-
-            financials = (
-                FinancialEngine.calculate_statements(
-                    baseline
-                )
-            )
-
-            income = financials.income_statement
-            wc = financials.working_capital
-
-            col1, col2, col3, col4 = st.columns(4)
-
-            with col1:
-                st.metric(
-                    "Revenue",
-                    f"€{income.revenue:,.0f}"
-                )
-
-            with col2:
-                st.metric(
-                    "EBITDA",
-                    f"€{income.ebitda:,.0f}"
-                )
-
-            with col3:
-                st.metric(
-                    "Cash",
-                    f"€{baseline.drivers.opening_cash:,.0f}"
-                )
-
-            with col4:
-                st.metric(
-                    "Working Capital",
-                    f"€{wc.nwc:,.0f}"
-                )
-
-        except Exception:
-
-            st.info(
-                "Your company baseline is ready."
-            )
-
-    else:
-
-        st.info(
-            "Let's start by setting up your company."
-        )
-
-        if st.button(
-            "🏢 Set Up My Company",
-            type="primary",
-            use_container_width=False,
-        ):
-
-            navigate_to(
-                "🏢 Company Setup"
-            )
-
-            st.rerun()
-
-        st.divider()
-
-    # -----------------------------------------------------
-    # DECIDE
-    # -----------------------------------------------------
-
-    st.markdown(
-        "## What are you trying to do?"
-    )
-
-    st.caption(
-        "Choose the business outcome you want to work on."
-    )
-
-    col1, col2 = st.columns(
-        2,
-        gap="large"
-    )
-
     # =====================================================
-    # MAKE MORE MONEY
+    # SYSTEM
     # =====================================================
 
-    with col1:
-
-        with st.container(border=True):
-
-            st.markdown(
-                "## 💰 Make More Money"
-            )
-
-            st.caption(
-                "Improve price, margin, sales or "
-                "customer economics."
-            )
-
-            b1, b2 = st.columns(2)
-
-            with b1:
-
-                navigation_button(
-                    "Price",
-                    "💰 Pricing Lab",
-                    "home_price",
-                )
-
-            with b2:
-
-                navigation_button(
-                    "Sales Volume",
-                    "📈 Sales Volume",
-                    "home_volume",
-                )
-
-            b3, b4 = st.columns(2)
-
-            with b3:
-
-                navigation_button(
-                    "Variable Cost",
-                    "💧 Cash Break-Even Lab",
-                    "home_variable_cost",
-                )
-
-            with b4:
-
-                navigation_button(
-                    "Customer Economics",
-                    "👥 Customer Economics Lab",
-                    "home_customer_economics",
-                )
-
-    # =====================================================
-    # FREE UP CASH
-    # =====================================================
-
-    with col2:
-
-        with st.container(border=True):
-
-            st.markdown(
-                "## 💧 Free Up Cash"
-            )
-
-            st.caption(
-                "Reduce cash tied up in customers, "
-                "inventory and suppliers."
-            )
-
-            b1, b2 = st.columns(2)
-
-            with b1:
-
-                navigation_button(
-                    "Receivables",
-                    "💶 Receivables Lab",
-                    "home_receivables",
-                )
-
-            with b2:
-
-                navigation_button(
-                    "Inventory",
-                    "📦 Inventory Lab",
-                    "home_inventory",
-                )
-
-            b3, b4 = st.columns(2)
-
-            with b3:
-
-                navigation_button(
-                    "Supplier Terms",
-                    "🚚 Suppliers & Payables Lab",
-                    "home_suppliers",
-                )
-
-            with b4:
-
-                navigation_button(
-                    "Working Capital",
-                    "📐 Working Capital Data Analyzer",
-                    "home_working_capital",
-                )
-
-    # =====================================================
-    # FUND GROWTH
-    # =====================================================
-
-    col1, col2 = st.columns(
-        2,
-        gap="large"
-    )
-
-    with col1:
-
-        with st.container(border=True):
-
-            st.markdown(
-                "## 🚀 Fund Growth"
-            )
-
-            st.caption(
-                "Understand growth funding needs "
-                "and financing choices."
-            )
-
-            b1, b2 = st.columns(2)
-
-            with b1:
-
-                navigation_button(
-                    "Growth Funding",
-                    "📈 Growth & Funding Lab",
-                    "home_growth",
-                )
-
-            with b2:
-
-                navigation_button(
-                    "Debt & WACC",
-                    "🏦 WACC Lab",
-                    "home_wacc",
-                )
-
-            b3, b4 = st.columns(2)
-
-            with b3:
-
-                navigation_button(
-                    "Loan vs Leasing",
-                    "🏦 Loan vs Leasing",
-                    "home_loan_lease",
-                )
-
-            with b4:
-
-                navigation_button(
-                    "Strategic Options",
-                    "🧠 QSPM Strategic Evaluation",
-                    "home_strategy",
-                )
-
-    # =====================================================
-    # PROTECT BUSINESS
-    # =====================================================
-
-    with col2:
-
-        with st.container(border=True):
-
-            st.markdown(
-                "## 🛡️ Protect the Business"
-            )
-
-            st.caption(
-                "Test liquidity, survival and "
-                "business fragility."
-            )
-
-            b1, b2 = st.columns(2)
-
-            with b1:
-
-                navigation_button(
-                    "Cash Fragility",
-                    "🩺 Cash Fragility Diagnostic",
-                    "home_fragility",
-                )
-
-            with b2:
-
-                navigation_button(
-                    "Stress Test",
-                    "🛡️ Stress Test Simulator",
-                    "home_stress",
-                )
-
-            b3, b4 = st.columns(2)
-
-            with b3:
-
-                navigation_button(
-                    "Monthly Survival",
-                    "📅 Monthly Cash Coverage",
-                    "home_survival",
-                )
-
-            with b4:
-
-                navigation_button(
-                    "Deal Auditor",
-                    "🔎 Deal Auditor",
-                    "home_deal_auditor",
-                )
+    st.markdown("### ⚙️ System")
 
     # -----------------------------------------------------
-    # COMPANY IMPACT
+    # CLEAR DECISION PLAN
     # -----------------------------------------------------
-
-    st.divider()
-
-    st.markdown(
-        "## 📊 Company Impact"
-    )
-
-    st.caption(
-        "See what your decisions mean for the company as a whole."
-    )
 
     if st.button(
-        "Open Control Tower →",
-        key="home_control_tower",
-        type="primary",
+        "🗑️ Clear Decision Plan",
         use_container_width=True,
+        key="sidebar_clear_decision_plan",
     ):
 
-        navigate_to(
-            "📊 Control Tower"
+        st.session_state.decision_plan = (
+            DecisionPlan.create(
+                plan_id="main_plan",
+                name="Current Decision Plan",
+            )
         )
 
         st.rerun()
 
+    # -----------------------------------------------------
+    # RESET APPLICATION
+    # -----------------------------------------------------
+
+    if st.button(
+        "💥 Reset Application",
+        use_container_width=True,
+        key="sidebar_reset_application",
+    ):
+
+        st.session_state.clear()
+
+        st.session_state.decision_plan = (
+            DecisionPlan.create(
+                plan_id="main_plan",
+                name="Current Decision Plan",
+            )
+        )
+
+        st.session_state.current_page = "main"
+
+        st.rerun()
+
+    st.divider()
+
+    # =====================================================
+    # PRODUCT HUNT
+    # =====================================================
+
+    st.markdown(
+        "### 🚀 Featured on Product Hunt"
+    )
+
+    st.markdown(
+        """
+        <a href="https://www.producthunt.com/products/managers-lab?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-managers-lab"
+           target="_blank"
+           rel="noopener noreferrer">
+
+            <img
+                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1132085&theme=light"
+                alt="Managers' Lab - Built for better decisions. Not more software."
+                width="100%"
+            />
+
+        </a>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.divider()
+
+    # =====================================================
+    # ALTERNATIVETO
+    # =====================================================
+
+    st.markdown(
+        "### 🔎 Listed on AlternativeTo"
+    )
+
+    st.markdown(
+        """
+        <a href="https://alternativeto.net/software/managers-lab/about/"
+           target="_blank"
+           rel="noopener noreferrer"
+           style="
+               display:block;
+               padding:8px;
+               background-color:#262730;
+               border-radius:5px;
+               text-align:center;
+               color:#1E3A8A;
+               font-weight:bold;
+               text-decoration:none;
+           ">
+            🔗 View on AlternativeTo
+        </a>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # =========================================================
-# ROUTING
+# MAIN DASHBOARD
+# =========================================================
+
+def render_main_screen():
+
+    # =====================================================
+    # MAIN TWO-COLUMN LAYOUT
+    # =====================================================
+
+    col_left, col_right = st.columns(
+        [0.42, 0.58],
+        gap="large",
+    )
+
+    # =====================================================
+    # LEFT COLUMN
+    # BASELINE
+    # =====================================================
+
+    with col_left:
+
+        st.markdown(
+            "### 🏢 COMPANY BASELINE"
+        )
+
+        st.caption(
+            "Edit the numbers, then confirm the baseline below."
+        )
+
+        render_baseline_setup()
+
+    # =====================================================
+    # RIGHT COLUMN
+    # BUSINESS QUESTIONS
+    # =====================================================
+
+    with col_right:
+
+        st.markdown(
+            "### 🎯 BUSINESS QUESTIONS"
+        )
+
+        st.caption(
+            "Pick an area of focus to evaluate "
+            "strategies against your baseline."
+        )
+
+        # =================================================
+        # BUSINESS AREA TABS
+        # =================================================
+
+        tab_grow, tab_fund, tab_operate, tab_stress = (
+            st.tabs(
+                [
+                    "🚀 Grow",
+                    "💰 Fund",
+                    "⚙️ Operate",
+                    "🛡️ Stress",
+                ]
+            )
+        )
+
+        # =================================================
+        # GROW
+        # =================================================
+
+        with tab_grow:
+
+            if st.button(
+                "💰 Pricing Lab",
+                key="m_pricing",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "💰 Pricing Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🎯 Pricing Threshold & Sensitivity",
+                key="m_pricing_thresh",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🎯 Pricing Threshold"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "👥 Customer Economics (CLV)",
+                key="m_clv",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "👥 Customer Economics Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🧩 Complementary Products Diagnostic",
+                key="m_comp_prod",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🧩 Complementary Products Diagnostic"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🔄 Substitute Products Diagnostic",
+                key="m_sub_prod",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🔄 Substitute Products Diagnostic"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🧠 QSPM Strategic Evaluation",
+                key="m_mgmt_qspm",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🧠 QSPM Strategic Evaluation"
+                )
+
+                st.rerun()
+                
+        # =================================================
+        # FUND
+        # =================================================
+
+        with tab_fund:
+
+            if st.button(
+                "📈 Growth & Funding Lab",
+                key="m_growth_fund",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "📈 Growth & Funding Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🏦 WACC Lab",
+                key="m_wacc",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🏦 WACC Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "⚖️ Loan vs Leasing",
+                key="m_loan_lease",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🏦 Loan vs Leasing"
+                )
+
+                st.rerun()
+
+        # =================================================
+        # OPERATE
+        # =================================================
+
+        with tab_operate:
+
+            if st.button(
+                "💧 Cash Break-Even Lab",
+                key="m_be",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "💧 Cash Break-Even Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🔎 Deal Auditor",
+                key="m_deal_audit",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🔎 Deal Auditor"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🎯 Customer Concentration Diagnostic",
+                key="m_concentration",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🎯 Customer Concentration Diagnostic"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "💼 Customer Cash & Economics",
+                key="m_cust_cash",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "💼 Customer Cash & Economics"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "👤 Salesperson Value Lab",
+                key="m_sales_val",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "👤 Salesperson Value Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "📦 Inventory Lab",
+                key="m_inv",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "📦 Inventory Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🛒 Inventory Ordering Optimizer",
+                key="m_inv_ord",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "📦 Inventory Ordering Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "💶 Receivables Lab",
+                key="m_recv",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "💶 Receivables Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🚚 Suppliers & Payables Lab",
+                key="m_supp",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🚚 Suppliers & Payables Lab"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "📐 Working Capital Data Analyzer",
+                key="m_wc_analyzer",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "📐 Working Capital Data Analyzer"
+                )
+
+                st.rerun()
+
+        # =================================================
+        # STRESS
+        # =================================================
+
+        with tab_stress:
+
+            if st.button(
+                "🩺 Cash Fragility Diagnostic",
+                key="m_fragility",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🩺 Cash Fragility Diagnostic"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "📅 Monthly Cash Coverage Analysis",
+                key="m_monthly_survival",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "📅 Monthly Cash Coverage"
+                )
+
+                st.rerun()
+
+            if st.button(
+                "🛡️ Dynamic Stress Test Simulator",
+                key="m_stress",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🛡️ Stress Test Simulator"
+                )
+
+                st.rerun()
+
+        # =================================================
+        # MANAGEMENT TOOLS
+        # =================================================
+
+        st.divider()
+
+        st.markdown(
+            "### 📊 MANAGEMENT TOOLS"
+        )
+
+        st.caption(
+            "Manage decisions, review the company-wide impact, "
+            "or import new business data."
+        )
+
+        management_col1, management_col2, management_col3 = (
+            st.columns(3, gap="small")
+        )
+
+        # -------------------------------------------------
+        # CONTROL TOWER
+        # -------------------------------------------------
+
+        with management_col1:
+
+            if st.button(
+                "📊 Control Tower",
+                key="m_mgmt_control",
+                use_container_width=True,
+                type="primary",
+            ):
+
+                navigate_to(
+                    "📊 Control Tower"
+                )
+
+                st.rerun()
+
+        # -------------------------------------------------
+        # DECISION MANAGER
+        # -------------------------------------------------
+
+        with management_col2:
+
+            if st.button(
+                "🧩 Decision Manager",
+                key="m_mgmt_decisions",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🧩 Decision Manager"
+                )
+
+                st.rerun()
+
+        # -------------------------------------------------
+        # IMPORT DATA
+        # -------------------------------------------------
+
+        with management_col3:
+
+            if st.button(
+                "📥 Import Company Data",
+                key="m_mgmt_import",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "📥 Import Data"
+                )
+
+                st.rerun()
+
+
+# =========================================================
+# APPLICATION ROUTER
 # =========================================================
 
 current_page = st.session_state.get(
@@ -958,29 +909,18 @@ current_page = st.session_state.get(
 
 
 # =========================================================
-# HOME
+# MAIN HOME ROUTE
 # =========================================================
 
 if current_page == "main":
 
-    render_home()
+    render_main_screen()
 
     st.stop()
 
 
 # =========================================================
-# COMPANY SETUP
-# =========================================================
-
-if current_page == "🏢 Company Setup":
-
-    render_company_setup()
-
-    st.stop()
-
-
-# =========================================================
-# BASELINE / DATA
+# STANDALONE SETUP PAGES
 # =========================================================
 
 if current_page == "🏢 Baseline Snapshot":
@@ -990,20 +930,12 @@ if current_page == "🏢 Baseline Snapshot":
     st.stop()
 
 
-# =========================================================
-# IMPORT DATA
-# =========================================================
-
 if current_page == "📥 Import Data":
 
     render_data_import()
 
     st.stop()
 
-
-# =========================================================
-# WORKING CAPITAL DATA
-# =========================================================
 
 if current_page == "📐 Working Capital Data Analyzer":
 
@@ -1013,28 +945,28 @@ if current_page == "📐 Working Capital Data Analyzer":
 
 
 # =========================================================
-# BASELINE GUARD
+# SAFE BASELINE GUARD
 # =========================================================
 
 baseline = get_safe_baseline()
 
+
 if baseline is None:
 
     st.warning(
-        "🔒 No company baseline found."
+        "🔒 NO LOCKED BASELINE FOUND."
     )
 
     st.info(
-        "Please set up your company baseline first."
+        "Please fill in the details on the Home Page "
+        "and confirm the Baseline."
     )
 
     if st.button(
-        "🏢 Set Up Company"
+        "🏠 Back to Home"
     ):
 
-        navigate_to(
-            "🏢 Company Setup"
-        )
+        go_to_main()
 
         st.rerun()
 
@@ -1042,7 +974,7 @@ if baseline is None:
 
 
 # =========================================================
-# DECISION LABS
+# INDIVIDUAL DECISION LABS
 # =========================================================
 
 if current_page == "💰 Pricing Lab":
@@ -1106,8 +1038,11 @@ if current_page == "💧 Cash Break-Even Lab":
     )
 
     render_cash_break_even_lab(
+
         baseline_state=b_state,
+
         projected_state=p_state,
+
         financial_projection=fin_proj,
     )
 
@@ -1139,8 +1074,11 @@ if current_page == "📈 Growth & Funding Lab":
     )
 
     render_growth_funding_lab(
+
         baseline_state=b_state,
+
         projected_state=p_state,
+
         financial_projection=fin_proj,
     )
 
@@ -1200,7 +1138,7 @@ if current_page == "🎯 Customer Concentration Diagnostic":
 
     st.stop()
 
-
+    
 if current_page == "👤 Salesperson Value Lab":
 
     render_salesperson_value_lab(
@@ -1226,8 +1164,11 @@ if current_page == "🩺 Cash Fragility Diagnostic":
     )
 
     render_cash_fragility_lab(
+
         baseline_state=b_state,
+
         projected_state=p_state,
+
         financial_projection=fin_proj,
     )
 
@@ -1271,9 +1212,8 @@ if current_page == "🧠 QSPM Strategic Evaluation":
 
     st.stop()
 
-
 # =========================================================
-# MANAGEMENT
+# MANAGEMENT ROUTES
 # =========================================================
 
 if current_page == "🧩 Decision Manager":
@@ -1290,30 +1230,14 @@ if current_page == "📊 Control Tower":
     )
 
     render_dashboard(
+
         baseline_state=b_state,
+
         projected_state=p_state,
+
         financial_projection=fin_proj,
+
         trace=trace,
     )
-
-    st.stop()
-
-
-# =========================================================
-# OPTIONAL / LEGACY ROUTES
-# =========================================================
-
-if current_page == "📈 Sales Volume":
-
-    st.info(
-        "Sales Volume decision interface "
-        "will be connected here."
-    )
-
-    if st.button("← Back"):
-
-        go_to_main()
-
-        st.rerun()
 
     st.stop()
