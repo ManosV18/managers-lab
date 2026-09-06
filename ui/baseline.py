@@ -39,6 +39,15 @@ def _sync_imported_data_to_baseline():
         "opening_cash": "baseline_opening_cash",
 
         # -----------------------------------------------------
+        # REPORTED FINANCIAL RESULTS
+        # -----------------------------------------------------
+
+        "profit_before_tax": "baseline_profit_before_tax",
+        "ebt": "baseline_profit_before_tax",
+        "tax": "baseline_tax",
+        "net_profit": "baseline_net_profit",
+
+        # -----------------------------------------------------
         # CAPITAL STRUCTURE
         # -----------------------------------------------------
 
@@ -143,12 +152,6 @@ def render_baseline_setup():
 
     # =========================================================
     # INTERNAL BASELINE METADATA
-    # =========================================================
-    # These values are no longer displayed as separate
-    # "Company Information" inputs.
-    #
-    # They remain available internally because CompanyState
-    # requires label and version.
     # =========================================================
 
     label = str(
@@ -300,6 +303,60 @@ def render_baseline_setup():
             ),
             step=10000.0,
             key="baseline_opening_cash",
+        )
+
+    # =========================================================
+    # REPORTED FINANCIAL RESULTS
+    # =========================================================
+
+    st.divider()
+
+    st.subheader("📊 Reported Financial Results")
+
+    st.caption(
+        "Enter the company's reported figures. "
+        "Managers Lab does not calculate the Baseline."
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        profit_before_tax = st.number_input(
+            "Profit Before Tax (EBT) (€)",
+            min_value=0.0,
+            value=_get_float(
+                "baseline_profit_before_tax",
+                0.0,
+            ),
+            step=10000.0,
+            key="baseline_profit_before_tax",
+        )
+
+    with col2:
+
+        tax = st.number_input(
+            "Tax (€)",
+            min_value=0.0,
+            value=_get_float(
+                "baseline_tax",
+                0.0,
+            ),
+            step=5000.0,
+            key="baseline_tax",
+        )
+
+    with col3:
+
+        net_profit = st.number_input(
+            "Net Profit (€)",
+            min_value=0.0,
+            value=_get_float(
+                "baseline_net_profit",
+                0.0,
+            ),
+            step=10000.0,
+            key="baseline_net_profit",
         )
 
     # =========================================================
@@ -658,6 +715,11 @@ def render_baseline_setup():
         drivers=drivers,
         capital_structure=capital_structure,
         working_capital=working_capital,
+
+        # REPORTED BASELINE FINANCIALS
+        profit_before_tax=float(profit_before_tax),
+        tax=float(tax),
+        net_profit=float(net_profit),
     )
 
     # =========================================================
