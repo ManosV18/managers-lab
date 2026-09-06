@@ -106,24 +106,11 @@ state_builder = StateBuilder(
 # =========================================================
 
 def get_safe_baseline():
-    """
-    Returns the active baseline if available.
-
-    Priority:
-        1. custom_baseline in session state
-        2. BaselineRepository
-        3. None
-    """
-
-    if "custom_baseline" in st.session_state:
-        return st.session_state.custom_baseline
-
     try:
         return state_builder.build_baseline_only()
     except Exception:
         return None
-
-
+    
 # =========================================================
 # APPLICATION STATE
 # =========================================================
