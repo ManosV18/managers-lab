@@ -320,14 +320,14 @@ def render_cash_break_even_lab(
        
     else:
 
-        st.info(
-            """
-            No DecisionPlan projection is currently available.
+       st.info(
+          """
+          No projected CompanyState is currently available.
 
-            The scenario therefore starts from the locked baseline.
-            """
-        )
-
+          The analysis therefore starts from the locked baseline.
+          """
+         ) 
+       
     # =====================================================
     # TEST A CASH DECISION
     # =====================================================
