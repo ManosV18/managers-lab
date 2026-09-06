@@ -27,7 +27,6 @@ def _sync_imported_data_to_baseline():
         # -----------------------------------------------------
         # OPERATING DRIVERS
         # -----------------------------------------------------
-
         "price": "baseline_price",
         "variable_cost": "baseline_variable_cost",
         "volume": "baseline_volume",
@@ -39,39 +38,33 @@ def _sync_imported_data_to_baseline():
         "opening_cash": "baseline_opening_cash",
 
         # -----------------------------------------------------
-        # REPORTED FINANCIAL RESULTS
-        # -----------------------------------------------------
-
-        "profit_before_tax": "baseline_profit_before_tax",
-        "ebt": "baseline_profit_before_tax",
-        "tax": "baseline_tax",
-        "net_profit": "baseline_net_profit",
-
-        # -----------------------------------------------------
         # CAPITAL STRUCTURE
         # -----------------------------------------------------
-
         "wacc": "baseline_wacc",
         "total_debt": "baseline_total_debt",
         "equity": "baseline_equity",
         "cost_of_debt": "baseline_cost_of_debt",
-        "annual_cash_interest_paid":
-            "baseline_annual_cash_interest_paid",
-        "annual_debt_service":
-            "baseline_annual_debt_service",
-        "principal_payments":
-            "baseline_principal_payments",
-        "tax_rate":
-            "baseline_tax_rate",
+        "annual_cash_interest_paid": "baseline_annual_cash_interest_paid",
+        "annual_interest_only": "baseline_annual_cash_interest_paid",
+        "annual_debt_service": "baseline_annual_debt_service",
+        "principal_payments": "baseline_principal_payments",
+        "tax_rate": "baseline_tax_rate",
 
         # -----------------------------------------------------
         # WORKING CAPITAL
         # -----------------------------------------------------
-
         "ar_days": "baseline_ar_days",
         "inv_days": "baseline_inventory_days",
         "inventory_days": "baseline_inventory_days",
         "ap_days": "baseline_ap_days",
+
+        # -----------------------------------------------------
+        # REPORTED FINANCIAL RESULTS
+        # -----------------------------------------------------
+        "profit_before_tax": "baseline_profit_before_tax",
+        "ebt": "baseline_profit_before_tax",
+        "tax": "baseline_tax",
+        "net_profit": "baseline_net_profit",
     }
 
     for imported_key, baseline_key in imported_to_baseline.items():
@@ -131,15 +124,6 @@ def render_baseline_setup():
     CompanyState
         ↓
     BaselineRepository
-
-    This module:
-
-        - captures the starting company position
-        - creates the canonical CompanyState
-        - locks the baseline
-        - does not execute decisions
-        - does not create scenarios
-        - does not project scenarios
     """
 
     # =========================================================
@@ -171,6 +155,8 @@ def render_baseline_setup():
     # =========================================================
     # PAGE HEADER
     # =========================================================
+
+    st.title("🏢 Baseline Company Snapshot")
 
     st.caption(
         "Review the current position and confirm the baseline "
@@ -286,7 +272,7 @@ def render_baseline_setup():
             min_value=0.0,
             value=_get_float(
                 "baseline_target_profit_goal",
-                0.0,
+                200000.0,
             ),
             step=10000.0,
             key="baseline_target_profit_goal",
@@ -327,7 +313,7 @@ def render_baseline_setup():
             min_value=0.0,
             value=_get_float(
                 "baseline_profit_before_tax",
-                0.0,
+                150000.0,
             ),
             step=10000.0,
             key="baseline_profit_before_tax",
@@ -340,7 +326,7 @@ def render_baseline_setup():
             min_value=0.0,
             value=_get_float(
                 "baseline_tax",
-                0.0,
+                33000.0,
             ),
             step=5000.0,
             key="baseline_tax",
@@ -353,7 +339,7 @@ def render_baseline_setup():
             min_value=0.0,
             value=_get_float(
                 "baseline_net_profit",
-                0.0,
+                117000.0,
             ),
             step=10000.0,
             key="baseline_net_profit",
@@ -557,91 +543,47 @@ def render_baseline_setup():
     # =========================================================
 
     if not label.strip():
-
-        st.error(
-            "Baseline label cannot be empty."
-        )
-
+        st.error("Baseline label cannot be empty.")
         return
 
     if price <= 0:
-
-        st.error(
-            "Unit Price must be greater than zero."
-        )
-
+        st.error("Unit Price must be greater than zero.")
         return
 
     if volume <= 0:
-
-        st.error(
-            "Annual Volume must be greater than zero."
-        )
-
+        st.error("Annual Volume must be greater than zero.")
         return
 
     if variable_cost_per_unit < 0:
-
-        st.error(
-            "Variable Cost cannot be negative."
-        )
-
+        st.error("Variable Cost cannot be negative.")
         return
 
     if fixed_opex < 0:
-
-        st.error(
-            "Fixed Operating Costs cannot be negative."
-        )
-
+        st.error("Fixed Operating Costs cannot be negative.")
         return
 
     if fixed_assets < 0:
-
-        st.error(
-            "Fixed Assets cannot be negative."
-        )
-
+        st.error("Fixed Assets cannot be negative.")
         return
 
     if depreciation < 0:
-
-        st.error(
-            "Depreciation cannot be negative."
-        )
-
+        st.error("Depreciation cannot be negative.")
         return
 
     if wacc < 0:
-
-        st.error(
-            "WACC cannot be negative."
-        )
-
+        st.error("WACC cannot be negative.")
         return
 
     if cost_of_debt < 0:
-
-        st.error(
-            "Cost of Debt cannot be negative."
-        )
-
+        st.error("Cost of Debt cannot be negative.")
         return
 
     if total_debt < 0:
-
-        st.error(
-            "Total Debt cannot be negative."
-        )
-
+        st.error("Total Debt cannot be negative.")
         return
 
     if equity < 0:
-
-        st.error(
-            "Equity cannot be negative."
-        )
-
+        st.error("Equity cannot be negative.")
         return
 
     # =========================================================
@@ -651,24 +593,12 @@ def render_baseline_setup():
     drivers = OperationalDrivers(
         price=float(price),
         volume=float(volume),
-        variable_cost_per_unit=float(
-            variable_cost_per_unit
-        ),
-        fixed_opex=float(
-            fixed_opex
-        ),
-        fixed_assets=float(
-            fixed_assets
-        ),
-        depreciation=float(
-            depreciation
-        ),
-        target_profit_goal=float(
-            target_profit_goal
-        ),
-        opening_cash=float(
-            opening_cash
-        ),
+        variable_cost_per_unit=float(variable_cost_per_unit),
+        fixed_opex=float(fixed_opex),
+        fixed_assets=float(fixed_assets),
+        depreciation=float(depreciation),
+        target_profit_goal=float(target_profit_goal),
+        opening_cash=float(opening_cash),
     )
 
     # =========================================================
@@ -680,15 +610,9 @@ def render_baseline_setup():
         total_debt=float(total_debt),
         equity=float(equity),
         cost_of_debt=float(cost_of_debt) / 100.0,
-        annual_cash_interest_paid=float(
-            annual_cash_interest_paid
-        ),
-        annual_debt_service=float(
-            annual_debt_service
-        ),
-        principal_payments=float(
-            principal_payments
-        ),
+        annual_cash_interest_paid=float(annual_cash_interest_paid),
+        annual_debt_service=float(annual_debt_service),
+        principal_payments=float(principal_payments),
         tax_rate=float(tax_rate) / 100.0,
     )
 
@@ -708,15 +632,13 @@ def render_baseline_setup():
 
     baseline = CompanyState(
         version=int(version),
-        created_at=datetime.now().isoformat(
-            timespec="seconds"
-        ),
+        created_at=datetime.utcnow().isoformat(timespec="seconds"),
         label=label.strip(),
         drivers=drivers,
         capital_structure=capital_structure,
         working_capital=working_capital,
 
-        # REPORTED BASELINE FINANCIALS
+        # REPORTED BASELINE FINANCIALS (NO CALCULATIONS)
         profit_before_tax=float(profit_before_tax),
         tax=float(tax),
         net_profit=float(net_profit),
@@ -726,16 +648,13 @@ def render_baseline_setup():
     # SAVE CANONICAL BASELINE
     # =========================================================
 
-    BaselineRepository.save(
-        baseline
-    )
+    BaselineRepository.save(baseline)
 
     # =========================================================
     # SESSION STATE
     # =========================================================
 
     st.session_state["baseline_locked"] = True
-
     st.session_state["baseline_state"] = baseline
 
     # =========================================================
@@ -743,26 +662,10 @@ def render_baseline_setup():
     # =========================================================
 
     st.session_state["decisions"] = []
-
-    st.session_state.pop(
-        "selected_decision",
-        None,
-    )
-
-    st.session_state.pop(
-        "decision_plan",
-        None,
-    )
-
-    st.session_state.pop(
-        "wacc_locked",
-        None,
-    )
-
-    st.session_state.pop(
-        "wacc_result",
-        None,
-    )
+    st.session_state.pop("selected_decision", None)
+    st.session_state.pop("decision_plan", None)
+    st.session_state.pop("wacc_locked", None)
+    st.session_state.pop("wacc_result", None)
 
     # =========================================================
     # SUCCESS
@@ -792,28 +695,23 @@ def render_baseline_setup():
             f"Version {current.version}"
         )
 
-        st.caption(
-            f"Created: {current.created_at}"
-        )
+        st.caption(f"Created: {current.created_at}")
 
         c1, c2, c3 = st.columns(3)
 
         with c1:
-
             st.metric(
                 "Price",
                 f"€ {current.drivers.price:,.2f}",
             )
 
         with c2:
-
             st.metric(
                 "Volume",
                 f"{current.drivers.volume:,.0f}",
             )
 
         with c3:
-
             st.metric(
                 "AR Days",
                 f"{current.working_capital.ar_days:,.1f}",
@@ -822,25 +720,19 @@ def render_baseline_setup():
         c4, c5, c6 = st.columns(3)
 
         with c4:
-
             st.metric(
                 "Variable Cost",
-                f"€ "
-                f"{current.drivers.variable_cost_per_unit:,.2f}",
+                f"€ {current.drivers.variable_cost_per_unit:,.2f}",
             )
 
         with c5:
-
             st.metric(
                 "Fixed OPEX",
-                f"€ "
-                f"{current.drivers.fixed_opex:,.0f}",
+                f"€ {current.drivers.fixed_opex:,.0f}",
             )
 
         with c6:
-
             st.metric(
                 "Total Debt",
-                f"€ "
-                f"{current.capital_structure.total_debt:,.0f}",
+                f"€ {current.capital_structure.total_debt:,.0f}",
             )
