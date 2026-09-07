@@ -360,18 +360,18 @@ def render_company_setup():
                 """
             )
 
-        if st.button(
-            "Import Company Data →",
-            key="setup_import_data",
-        type="primary",
-        use_container_width=True,
-    ):
+            if st.button(
+                "Import Company Data →",
+                key="setup_import_data",
+                type="primary",
+                use_container_width=True,
+            ):
 
-    navigate_to(
-        "📥 Import Data"
-    )
+                navigate_to(
+                    "📥 Import Data"
+                )
 
-    st.rerun()
+                st.rerun()
 
     st.divider()
 
@@ -527,16 +527,6 @@ with st.sidebar:
     st.markdown(
         "### ⚙️ Settings"
     )
-
-        st.session_state[
-            "return_to_company_setup"
-        ] = True
-
-        navigate_to(
-            "📥 Import Data"
-        )
-
-        st.rerun()
 
     if st.button(
         "🗑️ Clear Decision Plan",
