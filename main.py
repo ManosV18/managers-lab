@@ -360,22 +360,6 @@ def render_company_setup():
                 """
             )
 
-            if st.button(
-                "Import Company Data →",
-                key="setup_import_data",
-                use_container_width=True,
-            ):
-
-                st.session_state[
-                    "return_to_company_setup"
-                ] = True
-
-                navigate_to(
-                    "📥 Import Data"
-                )
-
-                st.rerun()
-
     st.divider()
 
     st.caption(
