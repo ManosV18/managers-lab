@@ -469,6 +469,35 @@ def render_data_import():
     )
 
     # =====================================================
+    # SALES & COST ANALYZER
+    # =====================================================
+
+    st.subheader(
+        "📊 Need to derive Price, Volume & Variable Cost?"
+    )
+
+    st.caption(
+        "If you have sales data but do not have reliable "
+        "unit economics, use the Sales & Cost Analyzer "
+        "to calculate the operating inputs for your baseline."
+    )
+
+    if st.button(
+        "Open Sales & Cost Analyzer →",
+        key="open_sales_cost_analyzer",
+        use_container_width=True,
+    ):
+
+        st.session_state["current_page"] = (
+            "📊 Sales & Cost Analyzer"
+        )
+
+        st.rerun()
+
+    st.divider()
+    
+    
+    # =====================================================
     # STEP 1 — TEMPLATE
     # =====================================================
 
