@@ -46,6 +46,7 @@ from ui.cash_fragility_lab import render_cash_fragility_lab
 from ui.clv_lab import render_clv_lab
 from ui.dashboard import render_dashboard
 from ui.data_import import render_data_import
+from ui.sales_cost_analyzer import render_sales_cost_analyzer
 from ui.decision_view import render_decision_view
 from ui.inventory_lab import show_inventory_lab
 from ui.pricing_lab import render_pricing_lab
@@ -933,7 +934,16 @@ if current_page == "📥 Import Data":
 
     st.stop()
 
+# =========================================================
+# SALES & COST ANALYZER
+# =========================================================
 
+if current_page == "📊 Sales & Cost Analyzer":
+
+    render_sales_cost_analyzer()
+
+    st.stop()
+    
 # =========================================================
 # WORKING CAPITAL DATA
 # =========================================================
