@@ -592,16 +592,7 @@ def render_home():
     # -----------------------------------------------------
 
     st.markdown(
-        "## What are you trying to do?"
-    )
-
-    st.caption(
-        "Choose the business outcome you want to work on."
-    )
-
-    col1, col2 = st.columns(
-        2,
-        gap="large"
+        "## What do you want to improve?"
     )
 
     # =====================================================
