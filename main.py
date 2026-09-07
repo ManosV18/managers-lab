@@ -600,7 +600,7 @@ def render_home():
     st.divider()
 
     # -----------------------------------------------------
-    # COMPANY SNAPSHOT
+    # COMPANY STATUS
     # -----------------------------------------------------
 
     baseline = get_safe_baseline()
@@ -610,33 +610,6 @@ def render_home():
         st.success(
             "🔒 Your company baseline is ready."
         )
-
-        st.markdown(
-            "### 📊 Reported Financial Results"
-        )
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-
-            st.metric(
-                "Profit Before Tax (EBT)",
-                f"€ {baseline.profit_before_tax:,.0f}",
-            )
-
-        with col2:
-
-            st.metric(
-                "Tax",
-                f"€ {baseline.tax:,.0f}",
-            )
-
-        with col3:
-
-            st.metric(
-                "Net Profit",
-                f"€ {baseline.net_profit:,.0f}",
-            )
 
     else:
 
