@@ -585,11 +585,6 @@ def render_home():
     st.title(
         "🧠 Managers Lab"
     )
-
-    st.caption(
-        "Choose what you want to work on. "
-    )
-
     st.divider()
 
     # -----------------------------------------------------
