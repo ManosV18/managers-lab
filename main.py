@@ -885,7 +885,7 @@ def render_home():
     )
 
     st.caption(
-        "See what your decisions mean for the company as a whole."
+        "See the impact on the company as a whole."
     )
 
     if st.button(
