@@ -588,38 +588,6 @@ def render_home():
     st.divider()
 
     # -----------------------------------------------------
-    # COMPANY STATUS
-    # -----------------------------------------------------
-
-    baseline = get_safe_baseline()
-
-    if baseline is not None:
-
-        st.success(
-            "🔒 Your company baseline is ready."
-        )
-
-    else:
-
-        st.info(
-            "Let's start by setting up your company."
-        )
-
-        if st.button(
-            "🏢 Set Up My Company",
-            type="primary",
-            use_container_width=False,
-        ):
-
-            navigate_to(
-                "🏢 Company Setup"
-            )
-
-            st.rerun()
-
-    st.divider()
-
-    # -----------------------------------------------------
     # DECIDE
     # -----------------------------------------------------
 
