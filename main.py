@@ -110,7 +110,7 @@ def get_safe_baseline():
         return state_builder.build_baseline_only()
     except Exception:
         return None
-    
+
 # =========================================================
 # APPLICATION STATE
 # =========================================================
@@ -281,8 +281,6 @@ def render_company_setup():
 
         st.divider()
 
-        # The existing baseline screen is now the
-        # review / editing destination.
         render_baseline_setup()
 
         return
@@ -403,7 +401,7 @@ with st.sidebar:
     st.divider()
 
     # -----------------------------------------------------
-    # HOME
+    # HOME & IMPACT
     # -----------------------------------------------------
 
     if st.button(
@@ -414,10 +412,6 @@ with st.sidebar:
 
         go_to_main()
         st.rerun()
-
-    # -----------------------------------------------------
-    # COMPANY IMPACT
-    # -----------------------------------------------------
 
     if st.button(
         "📊 Company Impact",
@@ -518,62 +512,62 @@ with st.sidebar:
     st.divider()
 
     # -----------------------------------------------------
-    # SETTINGS
+    # SETTINGS (VISIBLE DIRECTLY)
     # -----------------------------------------------------
 
-    with st.expander(
-        "⚙️ Settings"
+    st.markdown(
+        "### ⚙️ Settings"
+    )
+
+    if st.button(
+        "📥 Import Company Data",
+        key="sidebar_import",
+        use_container_width=True,
     ):
 
-        if st.button(
-            "📥 Import Company Data",
-            key="sidebar_import",
-            use_container_width=True,
-        ):
+        st.session_state[
+            "return_to_company_setup"
+        ] = True
 
-            st.session_state[
-                "return_to_company_setup"
-            ] = True
+        navigate_to(
+            "📥 Import Data"
+        )
 
-            navigate_to(
-                "📥 Import Data"
+        st.rerun()
+
+    if st.button(
+        "🗑️ Clear Decision Plan",
+        key="sidebar_clear_plan",
+        use_container_width=True,
+    ):
+
+        st.session_state.decision_plan = (
+            DecisionPlan.create(
+                plan_id="main_plan",
+                name="Current Decision Plan",
             )
+        )
 
-            st.rerun()
+        st.rerun()
 
-        if st.button(
-            "🗑️ Clear Decision Plan",
-            key="sidebar_clear_plan",
-            use_container_width=True,
-        ):
+    if st.button(
+        "💥 Reset Application",
+        key="sidebar_reset",
+        use_container_width=True,
+    ):
 
-            st.session_state.decision_plan = (
-                DecisionPlan.create(
-                    plan_id="main_plan",
-                    name="Current Decision Plan",
-                )
+        st.session_state.clear()
+
+        st.session_state.decision_plan = (
+            DecisionPlan.create(
+                plan_id="main_plan",
+                name="Current Decision Plan",
             )
+        )
 
-            st.rerun()
+        st.session_state.current_page = "main"
 
-        if st.button(
-            "💥 Reset Application",
-            key="sidebar_reset",
-            use_container_width=True,
-        ):
-
-            st.session_state.clear()
-
-            st.session_state.decision_plan = (
-                DecisionPlan.create(
-                    plan_id="main_plan",
-                    name="Current Decision Plan",
-                )
-            )
-
-            st.session_state.current_page = "main"
-
-            st.rerun()
+        st.rerun()
 
 
 # =========================================================
@@ -585,11 +579,6 @@ def render_home():
     st.title(
         "🧠 Managers Lab"
     )
-    st.divider()
-    
-    # -----------------------------------------------------
-    # DECIDE
-    # -----------------------------------------------------
 
     st.markdown(
         "## What do you want to improve?"
@@ -707,13 +696,17 @@ def render_home():
                 )
 
     # =====================================================
-    # FUND GROWTH
+    # FUND GROWTH & PROTECT BUSINESS
     # =====================================================
 
     col1, col2 = st.columns(
         2,
         gap="large"
     )
+
+    # -----------------------------------------------------
+    # FUND GROWTH
+    # -----------------------------------------------------
 
     with col1:
 
@@ -764,9 +757,9 @@ def render_home():
                     "home_strategy",
                 )
 
-    # =====================================================
+    # -----------------------------------------------------
     # PROTECT BUSINESS
-    # =====================================================
+    # -----------------------------------------------------
 
     with col2:
 
@@ -818,7 +811,7 @@ def render_home():
                 )
 
     # =====================================================
-    # INDEPENDENT WHAT-IF / ANALYTICAL TOOLS
+    # EXPLORE & TEST (CLEANED UP - NO DUPLICATES)
     # =====================================================
 
     st.divider()
@@ -828,7 +821,7 @@ def render_home():
     )
 
     st.caption(
-        "Analyze business questions without changing your Decision Plan."
+        "Analyze specific business questions."
     )
 
     col1, col2 = st.columns(
@@ -844,12 +837,10 @@ def render_home():
             with b1:
                 navigation_button("Cash Break-Even", "💧 Cash Break-Even Lab", "home_cash_break_even")
             with b2:
-                navigation_button("Pricing Threshold", "🎯 Pricing Threshold", "home_pricing_threshold")
-
-            b3, b4 = st.columns(2)
-            with b3:
                 navigation_button("Customer Cash Economics", "💼 Customer Cash & Economics", "home_customer_cash")
-            with b4:
+
+            b3, _ = st.columns(2)
+            with b3:
                 navigation_button("Salesperson Value", "👤 Salesperson Value Lab", "home_salesperson_value")
 
     with col2:
@@ -860,23 +851,17 @@ def render_home():
             with b1:
                 navigation_button("Inventory Ordering", "📦 Inventory Ordering Lab", "home_inventory_ordering")
             with b2:
-                navigation_button("Loan vs Leasing", "🏦 Loan vs Leasing", "home_loan_lease_analysis")
+                navigation_button("Complementary Products", "🧩 Complementary Products Diagnostic", "home_complementary")
 
             b3, b4 = st.columns(2)
             with b3:
-                navigation_button("Complementary Products", "🧩 Complementary Products Diagnostic", "home_complementary")
-            with b4:
                 navigation_button("Substitute Products", "🔄 Substitute Products Diagnostic", "home_substitute")
-
-            b5, b6 = st.columns(2)
-            with b5:
-                navigation_button("Deal Auditor", "🔎 Deal Auditor", "home_deal_auditor_analysis")
-            with b6:
+            with b4:
                 navigation_button("Customer Concentration", "🎯 Customer Concentration Diagnostic", "home_concentration")
 
-    # -----------------------------------------------------
+    # =====================================================
     # COMPANY IMPACT
-    # -----------------------------------------------------
+    # =====================================================
 
     st.divider()
 
@@ -913,7 +898,7 @@ current_page = st.session_state.get(
 
 
 # =========================================================
-# HOME
+# HOME ROUTE
 # =========================================================
 
 if current_page == "main":
