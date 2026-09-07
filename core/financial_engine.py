@@ -200,7 +200,6 @@ class FinancialEngine:
             fcfe_delta=proj_fin.fcfe - base_fin.fcfe
         )
 
-   
     @classmethod
     def build_projection(
         cls,
@@ -212,14 +211,115 @@ class FinancialEngine:
             baseline_state
         )
 
-        projected_fin = cls.calculate_statements(
+        projected_fin_model = cls.calculate_statements(
             projected_state,
             prior_nwc=baseline_fin.working_capital.nwc,
         )
 
-        impact = cls.calculate_variance_impact(
-            baseline_state,
-            projected_state,
+        # -----------------------------------------------------
+        # REPORTED BASELINE RECONCILIATION
+        # -----------------------------------------------------
+        #
+        # The financial engine calculates the incremental
+        # economic impact of the decision.
+        #
+        # The starting Net Profit, however, is the REPORTED
+        # baseline Net Profit entered/imported by the user.
+        #
+        # Therefore:
+        #
+        # Projected NP
+        # = Reported Baseline NP
+        #   + Modelled Incremental NP
+        #
+        modelled_net_profit_delta = (
+            projected_fin_model.income_statement.net_profit
+            - baseline_fin.income_statement.net_profit
+        )
+
+        reconciled_net_profit = (
+            baseline_state.net_profit
+            + modelled_net_profit_delta
+        )
+
+        # -----------------------------------------------------
+        # RECONCILED FCFE
+        # -----------------------------------------------------
+
+        reconciled_fcfe = (
+            reconciled_net_profit
+            + projected_fin_model.income_statement.depreciation
+            - projected_fin_model.principal_payments
+            + projected_fin_model.working_capital.wc_cash_impact
+        )
+
+        # -----------------------------------------------------
+        # Build projected Income Statement with reconciled
+        # Net Profit for presentation / projection purposes.
+        # -----------------------------------------------------
+
+        projected_is = projected_fin_model.income_statement
+
+        reconciled_income_statement = IncomeStatement(
+            revenue=projected_is.revenue,
+            cogs=projected_is.cogs,
+            gross_profit=projected_is.gross_profit,
+            fixed_opex=projected_is.fixed_opex,
+            ebitda=projected_is.ebitda,
+            depreciation=projected_is.depreciation,
+            ebit=projected_is.ebit,
+            interest_expense=projected_is.interest_expense,
+            ebt=projected_is.ebt,
+            tax=projected_is.tax,
+            net_profit=reconciled_net_profit,
+        )
+
+        projected_fin = FinancialStatements(
+            income_statement=reconciled_income_statement,
+            working_capital=projected_fin_model.working_capital,
+            principal_payments=projected_fin_model.principal_payments,
+            fcfe=reconciled_fcfe,
+        )
+
+        impact = VarianceImpact(
+            revenue_delta=(
+                projected_fin.income_statement.revenue
+                - baseline_fin.income_statement.revenue
+            ),
+            price_effect=(
+                baseline_state.drivers.volume
+                * (
+                    projected_state.drivers.price
+                    - baseline_state.drivers.price
+                )
+            ),
+            volume_effect=(
+                (
+                    projected_state.drivers.volume
+                    - baseline_state.drivers.volume
+                )
+                * projected_state.drivers.price
+            ),
+            gross_profit_delta=(
+                projected_fin.income_statement.gross_profit
+                - baseline_fin.income_statement.gross_profit
+            ),
+            ebitda_delta=(
+                projected_fin.income_statement.ebitda
+                - baseline_fin.income_statement.ebitda
+            ),
+            net_profit_delta=modelled_net_profit_delta,
+            nwc_cash_impact_delta=(
+                projected_fin.working_capital.wc_cash_impact
+            ),
+            fcfe_delta=(
+                projected_fin.fcfe
+                - (
+                    baseline_state.net_profit
+                    + baseline_fin.income_statement.depreciation
+                    - baseline_fin.principal_payments
+                )
+            ),
         )
 
         return FinancialProjection(
