@@ -509,6 +509,18 @@ with st.sidebar:
                 f"{'s' if count != 1 else ''}"
             )
 
+        if st.button(
+            "View Current Plan →",
+            key="sidebar_current_plan",
+            use_container_width=True,
+        ):
+
+            navigate_to(
+                "🧩 Decision Manager"
+            )
+
+            st.rerun()
+
     st.divider()
 
     # -----------------------------------------------------
