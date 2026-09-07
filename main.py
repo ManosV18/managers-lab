@@ -586,15 +586,8 @@ def render_home():
         "🧠 Managers Lab"
     )
 
-    st.markdown(
-        "### Make better business decisions. "
-        "Not more software."
-    )
-
     st.caption(
-        "Start with your company. "
-        "Choose what you want to improve. "
-        "See the financial impact."
+        "Choose what you want to work on. "
     )
 
     st.divider()
