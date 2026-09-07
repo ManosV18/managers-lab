@@ -278,27 +278,28 @@ def _render_executive_decision(
     st.subheader("🧭 Management Summary")
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric("Revenue", _fmt_eur(p.revenue), _fmt_signed_eur(revenue_delta))
-    c2.metric("EBITDA", _fmt_eur(p.ebitda), _fmt_signed_eur(ebitda_delta))
-    c3.metric("Net Profit", _fmt_eur(projected_state.net_profit), _fmt_signed_eur(net_profit_delta))
-    
-    baseline_fcfe = (
-        baseline_state.net_profit
-        + baseline_state.drivers.depreciation
-        - baseline_state.capital_structure.principal_payments
+    c1.metric(
+        "Revenue",
+        _fmt_eur(p.revenue),
+        _fmt_signed_eur(revenue_delta),
     )
-    if decision_plan is None:
-        c4.metric(
-            "FCFE",
-            _fmt_eur(baseline_fcfe),
-            _fmt_signed_eur(0),
-        )
-    else:
-        c4.metric(
-            "FCFE",
-            _fmt_eur(projected_fin.fcfe),
-            _fmt_signed_eur(fcfe_delta),
-        )
+    c2.metric(
+        "EBIT",
+        _fmt_eur(p.ebit),
+        _fmt_signed_eur(
+            p.ebit - baseline_fin.income_statement.ebit
+        ),
+    )
+    c3.metric(
+        "Net Profit",
+        _fmt_eur(p.net_profit),
+        _fmt_signed_eur(net_profit_delta),
+    )
+    c4.metric(
+        "FCFE",
+        _fmt_eur(projected_fin.fcfe),
+        _fmt_signed_eur(fcfe_delta if decision_plan is not None else 0.0),
+    )
 
     if wc_cash_impact < 0:
         st.warning(f"💧 Working capital absorbs {_fmt_eur(abs(wc_cash_impact))} of additional cash.")
@@ -439,7 +440,7 @@ def _render_profitability_snapshot(
     )
 
     proj_net_margin = _margin(
-        projected_state.net_profit,
+        p.net_profit,
         projected_revenue,
     )
 
@@ -605,15 +606,10 @@ def _render_cash_fragility_diagnostic(
     )
 
     if health_improved:
-
         health_signal = "🟢 Improved"
-
     elif health_deteriorated:
-
         health_signal = "🔴 Deteriorated"
-
     else:
-
         health_signal = "🟡 Mixed / Neutral"
 
     # -----------------------------------------------------
@@ -692,21 +688,16 @@ def _render_cash_fragility_diagnostic(
     # -----------------------------------------------------
 
     if health_improved:
-
         st.success(
             "🟢 The company's liquidity health "
             "improves versus the locked baseline."
         )
-
     elif health_deteriorated:
-
         st.error(
             "🔴 The company's liquidity health "
             "deteriorates versus the locked baseline."
         )
-
     else:
-
         st.warning(
             "🟡 The company's liquidity diagnostics "
             "show a mixed or neutral movement versus baseline."
@@ -720,7 +711,6 @@ def _render_cash_fragility_diagnostic(
         "🧭 Diagnostic Interpretation",
         expanded=False,
     ):
-
         st.markdown("**Baseline**")
         st.info(
             baseline_diag["interpretation"]
@@ -945,14 +935,11 @@ def _render_decision_diagnostics(
     )
 
     if abs(reconciliation_difference) < 0.01:
-
         st.success(
             f"✅ Working capital cash release reconciles to "
             f"{_fmt_signed_eur(engine_cash_effect)}."
         )
-
     else:
-
         st.error(
             f"⚠️ Working capital reconciliation mismatch: "
             f"{_fmt_signed_eur(reconciliation_difference)}."
