@@ -415,100 +415,6 @@ with st.sidebar:
         go_to_main()
         st.rerun()
 
-    # =====================================================
-    # INDEPENDENT WHAT-IF / ANALYTICAL TOOLS
-    # =====================================================
-
-    st.divider()
-
-    st.markdown(
-        "## 🔬 Explore & Test"
-    )
-
-    st.caption(
-        "Analyze business questions without changing your Decision Plan."
-    )
-
-    col1, col2 = st.columns(2, gap="large")
-
-    with col1:
-        with st.container(border=True):
-            st.markdown("### 💧 Cash & Commercial Analysis")
-
-            b1, b2 = st.columns(2)
-            with b1:
-                navigation_button(
-                    "Cash Break-Even",
-                    "💧 Cash Break-Even Lab",
-                    "home_cash_break_even",
-                )
-            with b2:
-                navigation_button(
-                    "Pricing Threshold",
-                    "🎯 Pricing Threshold",
-                    "home_pricing_threshold",
-                )
-
-            b3, b4 = st.columns(2)
-            with b3:
-                navigation_button(
-                    "Customer Cash Economics",
-                    "💼 Customer Cash & Economics",
-                    "home_customer_cash",
-                )
-            with b4:
-                navigation_button(
-                    "Salesperson Value",
-                    "👤 Salesperson Value Lab",
-                    "home_salesperson_value",
-                )
-
-    with col2:
-        with st.container(border=True):
-            st.markdown("### 📦 Operations & Strategic Analysis")
-
-            b1, b2 = st.columns(2)
-            with b1:
-                navigation_button(
-                    "Inventory Ordering",
-                    "📦 Inventory Ordering Lab",
-                    "home_inventory_ordering",
-                )
-            with b2:
-                navigation_button(
-                    "Loan vs Leasing",
-                    "🏦 Loan vs Leasing",
-                    "home_loan_lease_analysis",
-                )
-
-            b3, b4 = st.columns(2)
-            with b3:
-                navigation_button(
-                    "Complementary Products",
-                    "🧩 Complementary Products Diagnostic",
-                    "home_complementary",
-                )
-            with b4:
-                navigation_button(
-                    "Substitute Products",
-                    "🔄 Substitute Products Diagnostic",
-                    "home_substitute",
-                )
-
-            b5, b6 = st.columns(2)
-            with b5:
-                navigation_button(
-                    "Deal Auditor",
-                    "🔎 Deal Auditor",
-                    "home_deal_auditor_analysis",
-                )
-            with b6:
-                navigation_button(
-                    "Customer Concentration",
-                    "🎯 Customer Concentration Diagnostic",
-                    "home_concentration",
-                )
-
     # -----------------------------------------------------
     # COMPANY IMPACT
     # -----------------------------------------------------
@@ -985,6 +891,63 @@ def render_home():
                     "🔎 Deal Auditor",
                     "home_deal_auditor",
                 )
+
+    # =====================================================
+    # INDEPENDENT WHAT-IF / ANALYTICAL TOOLS
+    # =====================================================
+
+    st.divider()
+
+    st.markdown(
+        "## 🔬 Explore & Test"
+    )
+
+    st.caption(
+        "Analyze business questions without changing your Decision Plan."
+    )
+
+    col1, col2 = st.columns(
+        2,
+        gap="large",
+    )
+
+    with col1:
+        with st.container(border=True):
+            st.markdown("### 💧 Cash & Commercial Analysis")
+
+            b1, b2 = st.columns(2)
+            with b1:
+                navigation_button("Cash Break-Even", "💧 Cash Break-Even Lab", "home_cash_break_even")
+            with b2:
+                navigation_button("Pricing Threshold", "🎯 Pricing Threshold", "home_pricing_threshold")
+
+            b3, b4 = st.columns(2)
+            with b3:
+                navigation_button("Customer Cash Economics", "💼 Customer Cash & Economics", "home_customer_cash")
+            with b4:
+                navigation_button("Salesperson Value", "👤 Salesperson Value Lab", "home_salesperson_value")
+
+    with col2:
+        with st.container(border=True):
+            st.markdown("### 📦 Operations & Strategic Analysis")
+
+            b1, b2 = st.columns(2)
+            with b1:
+                navigation_button("Inventory Ordering", "📦 Inventory Ordering Lab", "home_inventory_ordering")
+            with b2:
+                navigation_button("Loan vs Leasing", "🏦 Loan vs Leasing", "home_loan_lease_analysis")
+
+            b3, b4 = st.columns(2)
+            with b3:
+                navigation_button("Complementary Products", "🧩 Complementary Products Diagnostic", "home_complementary")
+            with b4:
+                navigation_button("Substitute Products", "🔄 Substitute Products Diagnostic", "home_substitute")
+
+            b5, b6 = st.columns(2)
+            with b5:
+                navigation_button("Deal Auditor", "🔎 Deal Auditor", "home_deal_auditor_analysis")
+            with b6:
+                navigation_button("Customer Concentration", "🎯 Customer Concentration Diagnostic", "home_concentration")
 
     # -----------------------------------------------------
     # COMPANY IMPACT
