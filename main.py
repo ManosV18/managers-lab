@@ -621,7 +621,7 @@ def render_home():
             with b1:
 
                 navigation_button(
-                    "Price",
+                    "Pricing",
                     "💰 Pricing Lab",
                     "home_price",
                 )
