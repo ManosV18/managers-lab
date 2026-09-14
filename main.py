@@ -647,8 +647,8 @@ def render_home():
             with b4:
 
                 navigation_button(
-                    "Customer Economics",
-                    "👥 Customer Economics Lab",
+                    "Customer Value",
+                    "👥 Customer Value",
                     "home_customer_economics",
                 )
 
@@ -1101,7 +1101,7 @@ if current_page == "📈 Growth & Funding Lab":
     st.stop()
 
 
-if current_page == "👥 Customer Economics Lab":
+if current_page == "👥 Customer Value":
 
     render_clv_lab(
         baseline_state=baseline
