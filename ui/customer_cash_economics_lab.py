@@ -13,7 +13,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
     st.header("👥 Customer Profit & Cash Lab")
 
     st.caption(
-        "Which customers create economic value — and which customers consume cash?"
+        "Which customers create profit — and which customers tie up cash?"
     )
 
     with st.expander(
@@ -71,7 +71,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
     st.subheader("👥 Customer Portfolio")
 
     st.caption(
-        "Enter the economics of the customers you want to compare. "
+        "Enter the customers you want to compare. "
         "These inputs are used only for this diagnostic."
     )
 
