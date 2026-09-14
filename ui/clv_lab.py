@@ -8,8 +8,8 @@ from tools.clv_calculator import (
 
 
 def render_clv_lab(baseline_state) -> None:
-    st.title("👥 Customer Economics & CLV Lab")
-    st.caption("Analyze Customer Lifetime Value (CLV), Acquisition Costs (CAC), and Portfolio Impact.")
+    st.title("👥 Customer Value")
+    st.caption("Understand customer value, acquisition cost, retention, and portfolio impact.")
 
     st.markdown("---")
 
