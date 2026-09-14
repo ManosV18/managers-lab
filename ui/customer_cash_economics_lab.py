@@ -76,7 +76,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
     )
 
     if "customer_profit_cash_rows" not in st.session_state:
-        st.session_state.customer_economics_rows = [
+        st.session_state.customer_profit_cash_rows = [
             {
                 "Customer": "Customer 1",
                 "Annual Revenue ($)": 500000.0,
@@ -87,7 +87,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
             }
         ]
 
-    rows = st.session_state.customer_economics_rows
+    rows = st.session_state.customer_profit_cash_rows
 
     # =========================================================
     # CUSTOMER EDITORS
@@ -165,7 +165,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
                 }
             )
 
-    st.session_state.customer_economics_rows = updated_rows
+    st.session_state.customer_profit_cash_rows = updated_rows
 
     # =========================================================
     # ADD CUSTOMER
@@ -175,9 +175,9 @@ def render_customer_cash_economics_lab(baseline_state=None):
         "➕ Add Customer",
         use_container_width=True,
     ):
-        number = len(st.session_state.customer_economics_rows) + 1
+        number = len(st.session_state.customer_profit_cash_rows) + 1
 
-        st.session_state.customer_economics_rows.append(
+        st.session_state.customer_profit_cash_rows.append(
             {
                 "Customer": f"Customer {number}",
                 "Annual Revenue ($)": 0.0,
@@ -195,7 +195,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
     # =========================================================
 
     df = pd.DataFrame(
-        st.session_state.customer_economics_rows
+        st.session_state.customer_profit_cash_rows
     )
 
     if df.empty:
@@ -363,7 +363,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
         max_value=120,
         value=15,
         step=5,
-        key="customer_economics_reduction_days",
+        key="customer_profit_cash_reduction_days",
     )
 
     released_capital = calculate_released_capital(
