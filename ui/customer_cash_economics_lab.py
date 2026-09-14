@@ -10,7 +10,7 @@ from diagnostics.customer_cash_economics import (
 
 
 def render_customer_cash_economics_lab(baseline_state=None):
-    st.header("👥 Customer Cash & Economics Lab")
+    st.header("👥 Customer Profit & Cash Lab")
 
     st.caption(
         "Which customers create economic value — and which customers consume cash?"
@@ -60,7 +60,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
 
     if baseline_state is None:
         st.warning(
-            "⚠️ Lock your company baseline before running Customer Economics."
+            "⚠️ Lock your company baseline before running Customer Profit & Cash."
         )
         return
 
@@ -75,7 +75,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
         "These inputs are used only for this diagnostic."
     )
 
-    if "customer_economics_rows" not in st.session_state:
+    if "customer_profit_cash_rows" not in st.session_state:
         st.session_state.customer_economics_rows = [
             {
                 "Customer": "Customer 1",
@@ -233,11 +233,11 @@ def render_customer_cash_economics_lab(baseline_state=None):
     )
 
     # =========================================================
-    # PORTFOLIO ECONOMICS
+    # Portfolio Profit & Cash
     # =========================================================
 
     st.divider()
-    st.subheader("📊 Portfolio Economics")
+    st.subheader("📊 Portfolio Profit & Cash")
 
     m1, m2, m3, m4 = st.columns(4)
 
@@ -279,7 +279,7 @@ def render_customer_cash_economics_lab(baseline_state=None):
     # =========================================================
 
     st.divider()
-    st.subheader("👥 Customer Economics Breakdown")
+    st.subheader("👥 Customer Profit & Cash Breakdown")
 
     display_columns = [
         "Customer",
