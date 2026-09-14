@@ -847,7 +847,7 @@ def render_home():
             with b1:
                 navigation_button("Cash Break-Even", "💧 Cash Break-Even Lab", "home_cash_break_even")
             with b2:
-                navigation_button("Customer Cash Economics", "💼 Customer Profit & Cash", "home_customer_cash")
+                navigation_button("Customer Profit & Cash", "💼 Customer Profit & Cash", "home_customer_cash")
 
             b3, _ = st.columns(2)
             with b3:
