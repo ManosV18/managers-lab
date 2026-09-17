@@ -759,7 +759,7 @@ def _render_cash_fragility_diagnostic(
         )
     else:
         st.warning(
-            "🟡 "The decision increases "
+            "🟡 The decision increases "
             "short-term liquidity pressure versus baseline."
         )
 
