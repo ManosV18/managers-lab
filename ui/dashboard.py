@@ -259,34 +259,59 @@ def _render_executive_decision(
     )
 
     if status == "baseline":
-        st.info("🔵 BASELINE VIEW — No Decision Plan is currently selected. Projected financials equal the locked baseline.")
+        st.info(
+            "🔵 BASELINE VIEW — No Decision Plan is currently selected. "
+            "Projected financials equal the locked baseline."
+        )
+
     elif status == "capital_negative":
-        st.warning(f"🟠 CAPITAL COST INCREASE — '{decision_plan.name}' increases the company's cost of capital / valuation hurdle rate.")
+        st.warning(
+            f"🟠 CAPITAL COST INCREASE — '{decision_plan.name}' "
+            f"increases the company's cost of capital / valuation hurdle rate."
+        )
+
     elif status == "capital_positive":
-        st.success(f"🟢 CAPITAL COST IMPROVEMENT — '{decision_plan.name}' decreases the company's cost of capital / valuation hurdle rate.")
+        st.success(
+            f"🟢 CAPITAL COST IMPROVEMENT — '{decision_plan.name}' "
+            f"decreases the company's cost of capital / valuation hurdle rate."
+        )
+
     elif status == "positive":
-        st.success(f"🟢 POSITIVE FINANCIAL IMPACT — '{decision_plan.name}' improves the company's operating and/or cash-flow position.")
+        st.success(
+            f"🟢 POSITIVE FINANCIAL IMPACT — '{decision_plan.name}' "
+            f"improves the company's profitability and/or cash generation."
+        )
+
     elif status == "negative":
-        st.error(f"🔴 NEGATIVE FINANCIAL IMPACT — '{decision_plan.name}' deteriorates the company's operating and cash-flow position.")
+        st.error(
+            f"🔴 NEGATIVE FINANCIAL IMPACT — '{decision_plan.name}' "
+            f"deteriorates the company's profitability and cash generation."
+        )
+
     elif status == "mixed":
         if net_profit_delta > 1e-9 and fcfe_delta < -1e-9:
             st.warning(
                 f"🟡 PROFITABLE BUT CASH-HUNGRY — '{decision_plan.name}' "
                 f"improves profitability but reduces cash generation."
-        )
-    elif net_profit_delta < -1e-9 and fcfe_delta > 1e-9:
-        st.warning(
-            f"🟡 CASH IMPROVES BUT PROFITABILITY DECLINES — '{decision_plan.name}' "
-            f"improves cash generation while reducing profitability."
-        )
-    else:
-        st.warning(
-            f"🟡 MIXED FINANCIAL IMPACT — '{decision_plan.name}' "
-            f"improves some financial dimensions while others move in the opposite direction."
-        )
-    else:
-        st.info(f"⚪ NEUTRAL DECISION PLAN — '{decision_plan.name}' has no material incremental financial effect.")
+            )
 
+        elif net_profit_delta < -1e-9 and fcfe_delta > 1e-9:
+            st.warning(
+                f"🟡 CASH IMPROVES BUT PROFITABILITY DECLINES — '{decision_plan.name}' "
+                f"improves cash generation while reducing profitability."
+            )
+
+        else:
+            st.warning(
+                f"🟡 MIXED FINANCIAL IMPACT — '{decision_plan.name}' "
+                f"improves some financial dimensions while others move in the opposite direction."
+            )
+
+    else:
+        st.info(
+            f"⚪ NEUTRAL DECISION PLAN — '{decision_plan.name}' "
+            f"has no material incremental financial effect."
+        )
     if decision_plan is not None:
         st.markdown(
             f"### 🎯 Selected Business Decision Plan\n\n"
