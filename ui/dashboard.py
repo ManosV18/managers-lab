@@ -858,9 +858,7 @@ def _render_decision_diagnostics(
                 else "No"
             ),
             "Financial Effect": (
-                _fmt_signed_eur(
-                    financial_impact.nwc_cash_impact_delta
-                )
+                f"Cash Impact: {_fmt_signed_eur(financial_impact.nwc_cash_impact_delta)}"
                 if wc_present
                 else "€ 0"
             ),
