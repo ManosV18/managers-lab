@@ -158,21 +158,42 @@ def _classify_decision_plan(
     capital_cost_negative = wacc_present and wacc_delta > 1e-9
     capital_cost_positive = wacc_present and wacc_delta < -1e-9
 
-    operating_positive = (
-        revenue_delta > 1e-9
-        or ebitda_delta > 1e-9
+    profitability_positive = (
+        ebitda_delta > 1e-9
         or net_profit_delta > 1e-9
-        or fcfe_delta > 1e-9
-        or nwc_cash_impact > 1e-9
+    )
+
+    profitability_negative = (
+        ebitda_delta < -1e-9
+        and net_profit_delta < -1e-9
+    )
+
+    cash_positive = (
+        fcfe_delta > 1e-9
+    )
+
+    cash_negative = (
+        fcfe_delta < -1e-9
+    )
+
+    operating_positive = (
+        profitability_positive
+        or cash_positive
     )
 
     operating_negative = (
-        revenue_delta < -1e-9
-        and ebitda_delta < -1e-9
-        and net_profit_delta < -1e-9
-        and fcfe_delta < -1e-9
+        profitability_negative
+        and cash_negative
     )
 
+    # Profitability improves while cash generation deteriorates
+    if profitability_positive and cash_negative:
+        return "mixed"
+
+    # Profitability deteriorates while cash generation improves
+    if profitability_negative and cash_positive:
+        return "mixed"
+        
     if wacc_present and not operational_present and not wc_present:
         if capital_cost_negative:
             return "capital_negative"
@@ -248,7 +269,21 @@ def _render_executive_decision(
     elif status == "negative":
         st.error(f"🔴 NEGATIVE FINANCIAL IMPACT — '{decision_plan.name}' deteriorates the company's operating and cash-flow position.")
     elif status == "mixed":
-        st.warning(f"🟡 MIXED FINANCIAL IMPACT — '{decision_plan.name}' improves operating performance and/or cash flow, while another financial layer moves in the opposite direction.")
+        if net_profit_delta > 1e-9 and fcfe_delta < -1e-9:
+            st.warning(
+                f"🟡 PROFITABLE BUT CASH-HUNGRY — '{decision_plan.name}' "
+                f"improves profitability but reduces cash generation."
+        )
+    elif net_profit_delta < -1e-9 and fcfe_delta > 1e-9:
+        st.warning(
+            f"🟡 CASH IMPROVES BUT PROFITABILITY DECLINES — '{decision_plan.name}' "
+            f"improves cash generation while reducing profitability."
+        )
+    else:
+        st.warning(
+            f"🟡 MIXED FINANCIAL IMPACT — '{decision_plan.name}' "
+            f"improves some financial dimensions while others move in the opposite direction."
+        )
     else:
         st.info(f"⚪ NEUTRAL DECISION PLAN — '{decision_plan.name}' has no material incremental financial effect.")
 
