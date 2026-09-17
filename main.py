@@ -66,6 +66,7 @@ from ui.sales_cost_analyzer import render_sales_cost_analyzer
 from ui.decision_view import render_decision_view
 from ui.inventory_lab import show_inventory_lab
 from ui.pricing_lab import render_pricing_lab
+from ui.volume_lab import render_volume_lab
 from ui.receivables_lab import render_receivables_lab
 from ui.suppliers_lab import render_suppliers_lab
 from ui.wacc_lab import render_wacc_lab
@@ -1254,20 +1255,13 @@ if current_page == "📊 Control Tower":
 
 
 # =========================================================
-# OPTIONAL / LEGACY ROUTES
+# SALES VOLUME
 # =========================================================
 
 if current_page == "📈 Sales Volume":
 
-    st.info(
-        "Sales Volume decision interface "
-        "will be connected here."
+    render_volume_lab(
+        baseline_state=baseline
     )
-
-    if st.button("← Back"):
-
-        go_to_main()
-
-        st.rerun()
 
     st.stop()
