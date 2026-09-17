@@ -845,9 +845,7 @@ def _render_decision_diagnostics(
                 else "No"
             ),
             "Financial Effect": (
-                _fmt_signed_eur(
-                    financial_impact.ebitda_delta
-                )
+                f"EBITDA Impact: {_fmt_signed_eur(financial_impact.ebitda_delta)}"
                 if operational_present
                 else "€ 0"
             ),
