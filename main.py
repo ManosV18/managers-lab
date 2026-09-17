@@ -870,34 +870,6 @@ def render_home():
             with b4:
                 navigation_button("Customer Concentration", "🎯 Customer Concentration Diagnostic", "home_concentration")
 
-    # =====================================================
-    # COMPANY IMPACT
-    # =====================================================
-
-    st.divider()
-
-    st.markdown(
-        "## 📊 Company Impact"
-    )
-
-    st.caption(
-        "See the impact on the company as a whole."
-    )
-
-    if st.button(
-        "Open Control Tower →",
-        key="home_control_tower",
-        type="primary",
-        use_container_width=True,
-    ):
-
-        navigate_to(
-            "📊 Control Tower"
-        )
-
-        st.rerun()
-
-
 # =========================================================
 # ROUTING
 # =========================================================
