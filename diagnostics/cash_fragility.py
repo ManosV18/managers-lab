@@ -317,22 +317,24 @@ def calculate_cash_fragility(
     if wc_cash_impact > 0:
 
         wc_message = (
-            f"Working-capital changes release "
-            f"€{wc_cash_impact:,.0f} of cash."
+            f"Working capital releases "
+            f"€{wc_cash_impact:,.0f} of additional cash "
+            f"versus the locked baseline."
         )
 
     elif wc_cash_impact < 0:
 
         wc_message = (
-            f"Working-capital changes absorb "
-            f"€{abs(wc_cash_impact):,.0f} of cash."
+            f"Working capital absorbs "
+            f"€{abs(wc_cash_impact):,.0f} of additional cash "
+            f"versus the locked baseline."
         )
 
     else:
 
         wc_message = (
-            "Working-capital changes have no "
-            "net cash impact."
+            "No incremental working-capital cash impact "
+            "versus the locked baseline."
         )
 
     if status == "Healthy":
@@ -365,11 +367,10 @@ def calculate_cash_fragility(
     else:
 
         interpretation = (
-            "The company shows severe liquidity fragility. "
+            "The company is under significant liquidity pressure. "
             f"{wc_message} "
             "Cash runway and/or the working-capital cycle "
-            "indicate potentially significant short-term "
-            "funding risk."
+            "indicate a short-term funding requirement."
         )
 
     # =====================================================
