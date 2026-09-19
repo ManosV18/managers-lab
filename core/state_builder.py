@@ -1,28 +1,18 @@
+from datetime import datetime
 from typing import Dict, Any
 
-from core.models import CompanyState
+from core.models import (
+    CapitalStructure,
+    CompanyState,
+    OperationalDrivers,
+    WorkingCapitalPolicy,
+)
 from core.baseline_repository import BaselineRepository
 
 
 class StateBuilder:
     """
-    Builds projected CompanyState objects.
-
-    Architecture:
-
-        Locked Baseline
-              ↓
-          Decision
-              ↓
-        DecisionEngine
-              ↓
-        Projected CompanyState
-
-    Exactly ONE Decision is evaluated at a time.
-
-    No scenario stacking.
-    No scenario priority.
-    No active/inactive scenario logic.
+    Builds projected CompanyState objects and initial baselines.
     """
 
     def __init__(
@@ -32,109 +22,60 @@ class StateBuilder:
         self.baseline_repository = baseline_repository
 
     # =====================================================
+    # DEFAULT / DEMO BASELINE
+    # =====================================================
+
+    def build_default_baseline(self) -> CompanyState:
+        """
+        Build the default Managers Lab baseline.
+
+        This is a normal CompanyState, not a separate demo model.
+        It is used only when no baseline has been created yet.
+        """
+
+        drivers = OperationalDrivers(
+            price=150.0,
+            volume=12000.0,
+            variable_cost_per_unit=100.0,
+            fixed_opex=450000.0,
+            fixed_assets=800000.0,
+            depreciation=50000.0,
+            target_profit_goal=200000.0,
+            opening_cash=150000.0,
+        )
+
+        capital_structure = CapitalStructure(
+            wacc=0.08,
+            total_debt=500000.0,
+            equity=500000.0,
+            cost_of_debt=0.06,
+            annual_cash_interest_paid=25000.0,
+            annual_debt_service=70000.0,
+            principal_payments=45000.0,
+            tax_rate=0.22,
+        )
+
+        working_capital = WorkingCapitalPolicy(
+            ar_days=90.0,
+            inventory_days=75.0,
+            ap_days=45.0,
+        )
+
+        return CompanyState(
+            version=1,
+            created_at=datetime.utcnow().isoformat(timespec="seconds"),
+            label="Managers Lab Demo Company",
+            drivers=drivers,
+            capital_structure=capital_structure,
+            working_capital=working_capital,
+            profit_before_tax=150000.0,
+            tax=33000.0,
+            net_profit=117000.0,
+        )
+
+    # =====================================================
     # BASELINE
     # =====================================================
 
-    def build_baseline_only(
-        self,
-    ) -> CompanyState:
-
+    def build_baseline_only(self) -> CompanyState:
         return self.baseline_repository.get()
-
-
-    # =====================================================
-    # COMPARE STATES
-    # =====================================================
-
-    def compare_states(
-        self,
-        baseline: CompanyState,
-        projected: CompanyState,
-    ) -> Dict[str, Any]:
-
-        if not isinstance(
-            baseline,
-            CompanyState,
-        ):
-            raise TypeError(
-                "compare_states() expects baseline "
-                "to be a CompanyState."
-            )
-
-        if not isinstance(
-            projected,
-            CompanyState,
-        ):
-            raise TypeError(
-                "compare_states() expects projected "
-                "to be a CompanyState."
-            )
-
-        return {
-            "baseline_version": baseline.version,
-            "projected_version": projected.version,
-
-            "baseline_label": baseline.label,
-            "projected_label": projected.label,
-
-            "drivers_changed": {
-                "price": (
-                    baseline.drivers.price,
-                    projected.drivers.price,
-                ),
-                "volume": (
-                    baseline.drivers.volume,
-                    projected.drivers.volume,
-                ),
-                "variable_cost_per_unit": (
-                    baseline.drivers.variable_cost_per_unit,
-                    projected.drivers.variable_cost_per_unit,
-                ),
-                "fixed_opex": (
-                    baseline.drivers.fixed_opex,
-                    projected.drivers.fixed_opex,
-                ),
-                "depreciation": (
-                    baseline.drivers.depreciation,
-                    projected.drivers.depreciation,
-                ),
-            },
-
-            "working_capital_changed": {
-                "ar_days": (
-                    baseline.working_capital.ar_days,
-                    projected.working_capital.ar_days,
-                ),
-                "inventory_days": (
-                    baseline.working_capital.inventory_days,
-                    projected.working_capital.inventory_days,
-                ),
-                "ap_days": (
-                    baseline.working_capital.ap_days,
-                    projected.working_capital.ap_days,
-                ),
-            },
-
-            "capital_structure_changed": {
-                "wacc": (
-                    baseline.capital_structure.wacc,
-                    projected.capital_structure.wacc,
-                ),
-                "total_debt": (
-                    baseline.capital_structure.total_debt,
-                    projected.capital_structure.total_debt,
-                ),
-                "cost_of_debt": (
-                    baseline.capital_structure.cost_of_debt,
-                    projected.capital_structure.cost_of_debt,
-                ),
-                "tax_rate": (
-                    baseline.capital_structure.tax_rate,
-                    projected.capital_structure.tax_rate,
-                ),
-                "principal_payments": (
-                    baseline.capital_structure.principal_payments,
-                    projected.capital_structure.principal_payments,
-                ),
-            },
-        }
