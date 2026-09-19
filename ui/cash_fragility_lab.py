@@ -4,6 +4,7 @@ from diagnostics.cash_fragility import (
     calculate_cash_fragility,
 )
 
+
 def _render_status(result):
 
     status = str(
@@ -261,6 +262,7 @@ def render_cash_fragility_lab(
         diagnostic_name="cash_fragility",
         diagnostic_result=result,
     )
+
     # =====================================================
     # CHANGE VS BASELINE
     # =====================================================
@@ -357,19 +359,19 @@ def render_cash_fragility_lab(
                     baseline_state.working_capital.ar_days,
 
                 "Projected AR Days":
-                    projected_state.working_capital.ar_days,
+                    projected_state.working_capital.ar_days if projected_state else None,
 
                 "Baseline Inventory Days":
                     baseline_state.working_capital.inventory_days,
 
                 "Projected Inventory Days":
-                    projected_state.working_capital.inventory_days,
+                    projected_state.working_capital.inventory_days if projected_state else None,
 
                 "Baseline AP Days":
                     baseline_state.working_capital.ap_days,
 
                 "Projected AP Days":
-                    projected_state.working_capital.ap_days,
+                    projected_state.working_capital.ap_days if projected_state else None,
 
                 "Baseline Cash":
                     baseline_cash,
