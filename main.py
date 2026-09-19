@@ -135,12 +135,39 @@ def get_safe_baseline():
 
 def initialize_app() -> None:
 
+    # =====================================================
+    # DEFAULT BASELINE INITIALIZATION
+    # =====================================================
+
+    if not BaselineRepository.exists():
+
+        default_baseline = (
+            state_builder.build_default_baseline()
+        )
+
+        BaselineRepository.save(
+            default_baseline
+        )
+
+        st.session_state["baseline_locked"] = True
+        st.session_state["baseline_state"] = (
+            default_baseline
+        )
+
+    # =====================================================
+    # DECISION PLAN
+    # =====================================================
+
     if "decision_plan" not in st.session_state:
 
         st.session_state.decision_plan = DecisionPlan.create(
             plan_id="main_plan",
             name="Current Decision Plan",
         )
+
+    # =====================================================
+    # CURRENT PAGE
+    # =====================================================
 
     if "current_page" not in st.session_state:
 
