@@ -1,5 +1,5 @@
 import streamlit as st
-
+from ui.decision_routing import render_decision_routing
 from diagnostics.cash_fragility import (
     calculate_cash_fragility,
 )
@@ -254,6 +254,14 @@ def render_cash_fragility_lab(
             interpretation
         )
 
+    # =========================================================
+    # DECISION ROUTING
+    # =========================================================
+
+    render_decision_routing(
+        diagnostic_name="cash_fragility",
+        diagnostic_result=result,
+    )
     # =====================================================
     # CHANGE VS BASELINE
     # =====================================================
