@@ -4,7 +4,6 @@ from diagnostics.cash_fragility import (
     calculate_cash_fragility,
 )
 
-
 def _render_status(result):
 
     status = str(
