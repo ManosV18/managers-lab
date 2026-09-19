@@ -11,9 +11,6 @@ from core.baseline_repository import BaselineRepository
 
 
 class StateBuilder:
-    """
-    Builds projected CompanyState objects and initial baselines.
-    """
 
     def __init__(
         self,
@@ -26,12 +23,6 @@ class StateBuilder:
     # =====================================================
 
     def build_default_baseline(self) -> CompanyState:
-        """
-        Build the default Managers Lab baseline.
-
-        This is a normal CompanyState, not a separate demo model.
-        It is used only when no baseline has been created yet.
-        """
 
         drivers = OperationalDrivers(
             price=150.0,
@@ -63,7 +54,9 @@ class StateBuilder:
 
         return CompanyState(
             version=1,
-            created_at=datetime.utcnow().isoformat(timespec="seconds"),
+            created_at=datetime.utcnow().isoformat(
+                timespec="seconds"
+            ),
             label="Managers Lab Demo Company",
             drivers=drivers,
             capital_structure=capital_structure,
@@ -77,5 +70,8 @@ class StateBuilder:
     # BASELINE
     # =====================================================
 
-    def build_baseline_only(self) -> CompanyState:
+    def build_baseline_only(
+        self,
+    ) -> CompanyState:
+
         return self.baseline_repository.get()
