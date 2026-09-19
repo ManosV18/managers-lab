@@ -90,7 +90,7 @@ class DecisionRouter:
 """
 Maps diagnostic findings to relevant Decision Labs.
 
-```
+"""
 The router is deliberately lightweight.
 
 A diagnostic tells us:
