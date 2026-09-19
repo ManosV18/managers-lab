@@ -1,64 +1,35 @@
-# ui/decision_routing.py
-
 import streamlit as st
+import sys
+import os
+
+# Ασφάλεια για να βρίσκει πάντα τον φάκελο core
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.decision_router import DecisionRouter
 
 
-def render_decision_routing(
-    diagnostic_name: str,
-    diagnostic_result: dict,
-) -> None:
+def render_decision_routing(diagnostic_name: str, diagnostic_result: dict):
     """
-    Render relevant Decision Labs identified by a diagnostic.
-
-    This module only presents routing options.
-
-    It does NOT:
-        - create Decisions
-        - modify the DecisionPlan
-        - execute Decisions
-        - modify CompanyState
-        - calculate diagnostics
+    Renders routing buttons for relevant Decision Labs based on diagnostic output.
     """
-
-    if not isinstance(diagnostic_result, dict):
-        return
-
-    routes = []
-
     if diagnostic_name == "cash_fragility":
-        routes = DecisionRouter.routes_for_cash_fragility(
-            diagnostic_result
-        )
+        routes = DecisionRouter.routes_for_cash_fragility(diagnostic_result)
+    else:
+        routes = []
 
     if not routes:
         return
 
-    st.divider()
-
-    st.subheader("What can you test next?")
-
-    st.caption(
-        "This diagnostic identifies conditions that may be affected "
-        "by different management decisions. Choose a decision area "
-        "to test its possible impact."
-    )
-
-    for route in routes:
-
-        st.markdown(
-            f"### {route['label']}"
-        )
-
-        st.write(
-            route["description"]
-        )
-
-        if st.button(
-            f"Open {route['decision_area']} Lab",
-            key=f"decision_route_{diagnostic_name}_{route['driver']}",
-            use_container_width=True,
-        ):
-            st.session_state.current_page = route["page"]
-            st.rerun()
+    st.markdown("### 🎯 Recommended Decision Labs")
+    
+    cols = st.columns(len(routes))
+    
+    for idx, route in enumerate(routes):
+        with cols[idx]:
+            st.subheader(route["label"])
+            st.write(route["description"])
+            
+            # Όταν πατηθεί το κουμπί, αλλάζει η σελίδα στο session_state
+            if st.button(f"Go to {route['decision_area']}", key=f"route_{route['driver']}"):
+                st.session_state["current_page"] = route["page"]
+                st.rerun()
