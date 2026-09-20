@@ -1,6 +1,4 @@
 import streamlit as st
-from uuid import uuid4
-
 from core.decision import Decision
 from core.decision_plan import DecisionPlan
 
@@ -15,102 +13,38 @@ WC_AP_CANDIDATE = "wc_ap_candidate"
 
 
 # =========================================================
-# DECISION MANAGER
+# HELPERS
 # =========================================================
 
-def render_decision_view() -> None:
+def _get_current_plan() -> DecisionPlan:
     """
-    Decision Manager UI.
+    Return the current Decision Plan.
 
-    Responsibilities:
-    - Display saved Decisions.
-    - Display Working Capital candidates.
-    - Allow selection of ONE or MULTIPLE decisions.
-    - Create a DecisionPlan.
-    - Store the DecisionPlan in session state.
-
-    IMPORTANT
-    ---------
-    Working Capital candidates are temporary candidates.
-
-    They are NOT copied into:
-        st.session_state.decisions
-
-    Instead, the Decision Manager reads them directly from
-    their Working Capital candidate keys.
-
-    Execution is handled separately by:
-
-        DecisionPlan
-             ↓
-        DecisionRunner
-             ↓
-        Projected CompanyState
-             ↓
-        Control Tower
-
-    This UI does NOT:
-    - execute Decisions
-    - calculate financial impact
-    - modify CompanyState
-    - apply Decisions
-    - resolve conflicts
+    The Current Decision Plan is the central workspace
+    for business decisions.
     """
 
-    st.title("🎯 Decision Manager")
+    plan = st.session_state.get("decision_plan")
 
-    st.caption(
-        "Select one or multiple business decisions "
-        "for combined evaluation in the Control Tower."
+    if isinstance(plan, DecisionPlan):
+        return plan
+
+    plan = DecisionPlan.create(
+        plan_id="main_plan",
+        name="Current Decision Plan",
     )
 
-    # =====================================================
-    # SESSION STATE
-    # =====================================================
+    st.session_state.decision_plan = plan
 
-    if "decisions" not in st.session_state:
-        st.session_state.decisions = []
+    return plan
 
-    if "decision_plan" not in st.session_state:
-        st.session_state.decision_plan = None
 
-    # =====================================================
-    # COLLECT AVAILABLE DECISIONS
-    # =====================================================
-    #
-    # There are two sources:
-    #
-    # 1. Normal Decisions
-    #
-    #       st.session_state.decisions
-    #
-    # 2. Working Capital candidates
-    #
-    #       wc_ar_candidate
-    #       wc_inventory_candidate
-    #       wc_ap_candidate
-    #
-    # Working Capital candidates remain candidates.
-    # We only expose them here for selection.
-    #
-    # =====================================================
+def _get_wc_candidates():
+    """
+    Return temporary Working Capital Decision candidates.
+    """
 
-    saved_decisions = st.session_state.get(
-        "decisions",
-        [],
-    )
-
-    valid_saved_decisions = [
-        decision
-        for decision in saved_decisions
-        if isinstance(decision, Decision)
-    ]
-
-    # =====================================================
-    # WORKING CAPITAL CANDIDATES
-    # =====================================================
-
-    wc_candidates = []
+    candidates = []
 
     ar_candidate = st.session_state.get(
         WC_AR_CANDIDATE
@@ -125,266 +59,221 @@ def render_decision_view() -> None:
     )
 
     if isinstance(ar_candidate, Decision):
-        wc_candidates.append(ar_candidate)
+        candidates.append(
+            ("Working Capital — AR", ar_candidate)
+        )
 
     if isinstance(
         inventory_candidate,
         Decision,
     ):
-        wc_candidates.append(
-            inventory_candidate
+        candidates.append(
+            (
+                "Working Capital — Inventory",
+                inventory_candidate,
+            )
         )
 
     if isinstance(ap_candidate, Decision):
-        wc_candidates.append(ap_candidate)
-
-    # =====================================================
-    # COMBINED AVAILABLE DECISIONS
-    # =====================================================
-
-    available_decisions = []
-
-    # -----------------------------------------------------
-    # Add normal Decisions
-    # -----------------------------------------------------
-
-    for decision in valid_saved_decisions:
-
-        available_decisions.append(
-            decision
+        candidates.append(
+            (
+                "Working Capital — AP",
+                ap_candidate,
+            )
         )
 
+    return candidates
+
+
+def _get_available_decisions():
+    """
+    Collect Decisions that can still be added to the
+    Current Decision Plan.
+
+    Sources:
+    - legacy saved Decisions
+    - temporary Working Capital candidates
+    """
+
+    available = []
+
     # -----------------------------------------------------
-    # Add Working Capital candidates
+    # Legacy saved Decisions
     # -----------------------------------------------------
 
-    for decision in wc_candidates:
+    for decision in st.session_state.get(
+        "decisions",
+        [],
+    ):
 
-        # Prevent accidental duplication if a candidate
-        # was somehow already stored in decisions.
-        if not any(
-            existing.id == decision.id
-            for existing in available_decisions
-        ):
-
-            available_decisions.append(
-                decision
+        if isinstance(decision, Decision):
+            available.append(
+                ("Decision Lab", decision)
             )
 
+    # -----------------------------------------------------
+    # Working Capital candidates
+    # -----------------------------------------------------
+
+    for source, decision in _get_wc_candidates():
+
+        if not any(
+            existing.id == decision.id
+            for _, existing in available
+        ):
+
+            available.append(
+                (source, decision)
+            )
+
+    return available
+
+
+def _find_conflicting_driver(
+    plan: DecisionPlan,
+    decision: Decision,
+):
+    """
+    Return the name of an existing Decision if the new
+    Decision changes a driver already changed by the Plan.
+
+    Returns:
+        None
+        or
+        (driver_name, existing_decision_name)
+    """
+
+    existing_drivers = {}
+
+    for existing in plan.decisions:
+
+        for driver in existing.changes:
+
+            existing_drivers[driver] = (
+                existing.name
+            )
+
+    for driver in decision.changes:
+
+        if driver in existing_drivers:
+
+            return (
+                driver,
+                existing_drivers[driver],
+            )
+
+    return None
+
+
+def _source_for_decision(
+    decision: Decision,
+    wc_candidates,
+) -> str:
+
+    for source, candidate in wc_candidates:
+
+        if candidate.id == decision.id:
+            return source
+
+    return "Decision Lab"
+
+
+# =========================================================
+# DECISION MANAGER
+# =========================================================
+
+def render_decision_view() -> None:
+    """
+    Current Decision Plan manager.
+
+    Responsibilities:
+    - Display the current Decision Plan.
+    - Display Decisions that can be added.
+    - Allow Decisions to be added to the current Plan.
+    - Allow Decisions to be removed from the current Plan.
+    - Show combined driver changes.
+    - Direct the user to the Control Tower.
+
+    This UI does NOT:
+    - execute Decisions
+    - calculate financial impact
+    - modify CompanyState
+    - apply Decisions
+    - resolve conflicting Decisions silently
+    """
+
+    st.title("🎯 Decision Manager")
+
+    st.caption(
+        "Build and review the Current Decision Plan "
+        "before evaluating its combined impact in the Control Tower."
+    )
+
     # =====================================================
-    # NO DECISIONS
+    # SESSION STATE
     # =====================================================
 
-    if not available_decisions:
+    current_plan = _get_current_plan()
+
+    # =====================================================
+    # CURRENT DECISION PLAN
+    # =====================================================
+
+    st.subheader("🎯 Current Decision Plan")
+
+    if current_plan.is_empty:
 
         st.info(
-            "No business decisions are currently available."
+            "No decisions have been added to the current plan yet."
         )
 
         st.caption(
-            "Use one of the Decision Labs to create a "
-            "Decision or select a Working Capital policy."
+            "Go to a Decision Lab, create a decision, "
+            "and add it to the Current Decision Plan."
         )
 
-        return
+    else:
 
-    # =====================================================
-    # AVAILABLE DECISIONS
-    # =====================================================
-
-    st.subheader(
-        "Available Decisions"
-    )
-
-    rows = []
-
-    for decision in available_decisions:
-
-        # Identify source for transparency.
-        if decision in wc_candidates:
-
-            if decision is ar_candidate:
-                source = "Working Capital — AR"
-
-            elif decision is inventory_candidate:
-                source = "Working Capital — Inventory"
-
-            elif decision is ap_candidate:
-                source = "Working Capital — AP"
-
-            else:
-                source = "Working Capital"
-
-        else:
-
-            source = "Decision Lab"
-
-        rows.append(
-            {
-                "Decision": decision.name,
-                "Category": decision.category,
-                "Source": source,
-                "Description": decision.description,
-            }
+        st.success(
+            f"{current_plan.decision_count} decision(s) "
+            "currently in the plan."
         )
 
-    st.dataframe(
-        rows,
-        use_container_width=True,
-        hide_index=True,
-    )
+        wc_candidates = _get_wc_candidates()
 
-    st.divider()
+        plan_rows = []
 
-    # =====================================================
-    # MULTI-DECISION SELECTION
-    # =====================================================
+        for position, decision in enumerate(
+            current_plan.decisions,
+            start=1,
+        ):
 
-    st.subheader(
-        "🎯 Select Decisions"
-    )
-
-    st.caption(
-        "Select one or more decisions. "
-        "They will be evaluated together against "
-        "the same locked baseline."
-    )
-
-    # =====================================================
-    # CURRENT PLAN
-    # =====================================================
-
-    current_plan = (
-        st.session_state.get(
-            "decision_plan"
-        )
-    )
-
-    current_plan_ids = set()
-
-    if isinstance(
-        current_plan,
-        DecisionPlan,
-    ):
-
-        current_plan_ids = {
-            decision.id
-            for decision in current_plan.decisions
-            if isinstance(
-                decision,
-                Decision,
-            )
-        }
-
-    # =====================================================
-    # DECISION LABELS
-    # =====================================================
-
-    decision_labels = []
-
-    label_to_decision = {}
-
-    for decision in available_decisions:
-
-        label = (
-            f"{decision.name} "
-            f"[{decision.id}]"
-        )
-
-        decision_labels.append(
-            label
-        )
-
-        label_to_decision[label] = (
-            decision
-        )
-
-    # =====================================================
-    # DEFAULT SELECTION
-    # =====================================================
-
-    default_selections = [
-        label
-        for label, decision
-        in label_to_decision.items()
-        if decision.id in current_plan_ids
-    ]
-
-    selected_labels = st.multiselect(
-        "Business Decisions",
-        options=decision_labels,
-        default=default_selections,
-        help=(
-            "Select one or more decisions. "
-            "They will be combined into one "
-            "Decision Plan."
-        ),
-    )
-
-    selected_decisions = [
-        label_to_decision[label]
-        for label in selected_labels
-    ]
-
-    # =====================================================
-    # SELECTED DECISIONS PREVIEW
-    # =====================================================
-
-    if selected_decisions:
-
-        st.markdown(
-            "### Selected Decision Plan"
-        )
-
-        st.info(
-            f"{len(selected_decisions)} decision(s) "
-            "will be evaluated together."
-        )
-
-        preview_rows = []
-
-        for decision in selected_decisions:
-
-            if decision in wc_candidates:
-
-                if decision is ar_candidate:
-                    source = "Working Capital — AR"
-
-                elif decision is inventory_candidate:
-                    source = (
-                        "Working Capital — Inventory"
-                    )
-
-                elif decision is ap_candidate:
-                    source = (
-                        "Working Capital — AP"
-                    )
-
-                else:
-                    source = "Working Capital"
-
-            else:
-
-                source = "Decision Lab"
-
-            preview_rows.append(
+            plan_rows.append(
                 {
+                    "Order": position,
                     "Decision": decision.name,
                     "Category": decision.category,
-                    "Source": source,
+                    "Source": _source_for_decision(
+                        decision,
+                        wc_candidates,
+                    ),
                     "ID": decision.id,
                 }
             )
 
         st.dataframe(
-            preview_rows,
+            plan_rows,
             use_container_width=True,
             hide_index=True,
         )
 
-        # =================================================
+        st.caption(
+            current_plan.summary()
+        )
+
+        # -------------------------------------------------
         # COMBINED DRIVER CHANGES
-        # =================================================
+        # -------------------------------------------------
 
         st.markdown(
             "#### Combined Driver Changes"
@@ -392,7 +281,7 @@ def render_decision_view() -> None:
 
         change_rows = []
 
-        for decision in selected_decisions:
+        for decision in current_plan.decisions:
 
             for driver, value in (
                 decision.changes.items()
@@ -414,216 +303,280 @@ def render_decision_view() -> None:
                 hide_index=True,
             )
 
-    else:
+        # -------------------------------------------------
+        # REMOVE DECISION
+        # -------------------------------------------------
 
-        st.warning(
-            "No decisions selected."
+        st.markdown(
+            "#### Remove a Decision"
         )
 
+        remove_labels = {
+            f"{decision.name} [{decision.id}]":
+                decision.id
+            for decision in current_plan.decisions
+        }
+
+        selected_to_remove = st.selectbox(
+            "Decision",
+            options=list(
+                remove_labels.keys()
+            ),
+            index=None,
+            placeholder="Select a decision to remove",
+            key="decision_to_remove",
+        )
+
+        if st.button(
+            "Remove Selected Decision",
+            use_container_width=True,
+            disabled=selected_to_remove is None,
+            key="remove_selected_decision",
+        ):
+
+            decision_id = remove_labels[
+                selected_to_remove
+            ]
+
+            st.session_state.decision_plan = (
+                current_plan.remove(
+                    decision_id
+                )
+            )
+
+            st.rerun()
+
     # =====================================================
-    # CREATE DECISION PLAN
+    # ADD AVAILABLE DECISIONS
     # =====================================================
 
     st.divider()
 
-    if st.button(
-        "🚀 Use Selected Decisions in Control Tower",
-        type="primary",
-        use_container_width=True,
-        disabled=not selected_decisions,
-    ):
+    st.subheader(
+        "➕ Add Decisions to Current Plan"
+    )
 
-        # -------------------------------------------------
-        # DUPLICATE DRIVER CHECK
-        # -------------------------------------------------
-        #
-        # We do an early UI-level check so the user can see
-        # obvious conflicts before reaching DecisionRunner.
-        #
-        # DecisionRunner remains the canonical execution
-        # authority and performs its own validation.
-        #
-        # -------------------------------------------------
+    available_decisions = (
+        _get_available_decisions()
+    )
 
-        drivers = {}
+    current_plan_ids = {
+        decision.id
+        for decision in current_plan.decisions
+    }
 
-        conflict_found = False
+    addable_decisions = [
+        (source, decision)
+        for source, decision in available_decisions
+        if decision.id not in current_plan_ids
+    ]
 
-        for decision in selected_decisions:
+    if not addable_decisions:
 
-            for driver in decision.changes:
+        st.caption(
+            "No additional Decisions are currently available."
+        )
 
-                if driver in drivers:
+    else:
+
+        decision_labels = []
+
+        label_to_decision = {}
+
+        for source, decision in addable_decisions:
+
+            label = (
+                f"{decision.name} "
+                f"[{decision.id}]"
+            )
+
+            decision_labels.append(
+                label
+            )
+
+            label_to_decision[label] = (
+                decision
+            )
+
+        selected_labels = st.multiselect(
+            "Available Decisions",
+            options=decision_labels,
+            help=(
+                "Select one or more Decisions "
+                "to add to the Current Decision Plan."
+            ),
+            key="available_decisions_to_add",
+        )
+
+        selected_decisions = [
+            label_to_decision[label]
+            for label in selected_labels
+        ]
+
+        if selected_decisions:
+
+            st.markdown(
+                "#### Selected"
+            )
+
+            preview_rows = []
+
+            for decision in selected_decisions:
+
+                source = _source_for_decision(
+                    decision,
+                    _get_wc_candidates(),
+                )
+
+                preview_rows.append(
+                    {
+                        "Decision": decision.name,
+                        "Category": decision.category,
+                        "Source": source,
+                    }
+                )
+
+            st.dataframe(
+                preview_rows,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        if st.button(
+            "➕ Add Selected to Current Decision Plan",
+            type="primary",
+            use_container_width=True,
+            disabled=not selected_decisions,
+            key="add_selected_to_current_plan",
+        ):
+
+            updated_plan = current_plan
+
+            conflict_found = False
+
+            for decision in selected_decisions:
+
+                # -----------------------------------------
+                # DUPLICATE CHECK
+                # -----------------------------------------
+
+                if updated_plan.contains(
+                    decision.id
+                ):
+                    continue
+
+                # -----------------------------------------
+                # DRIVER CONFLICT CHECK
+                # -----------------------------------------
+
+                conflict = (
+                    _find_conflicting_driver(
+                        updated_plan,
+                        decision,
+                    )
+                )
+
+                if conflict is not None:
+
+                    driver, existing_name = (
+                        conflict
+                    )
 
                     st.error(
-                        "Conflicting Decisions detected: "
-                        f"driver '{driver}' is changed by "
-                        "more than one selected Decision."
+                        "Conflicting Decisions detected."
                     )
 
                     st.info(
-                        f"Conflict between "
-                        f"'{drivers[driver]}' and "
-                        f"'{decision.name}'. "
-                        "Please select only one Decision "
-                        f"for driver '{driver}'."
+                        f"'{existing_name}' and "
+                        f"'{decision.name}' both change "
+                        f"the driver '{driver}'. "
+                        "Select only one of these Decisions."
                     )
 
                     conflict_found = True
-
                     break
 
-                drivers[driver] = (
-                    decision.name
+                # -----------------------------------------
+                # ADD TO CURRENT PLAN
+                # -----------------------------------------
+
+                updated_plan = (
+                    updated_plan.add(
+                        decision
+                    )
                 )
 
-            if conflict_found:
-                break
+            if not conflict_found:
 
-        # -------------------------------------------------
-        # STOP IF CONFLICT EXISTS
-        # -------------------------------------------------
+                st.session_state.decision_plan = (
+                    updated_plan
+                )
 
-        if conflict_found:
+                st.success(
+                    "✓ Selected Decisions added "
+                    "to the Current Decision Plan."
+                )
 
-            st.warning(
-                "Decision Plan was not created. "
-                "Resolve the conflicting driver first."
-            )
-
-            return
-
-        # -------------------------------------------------
-        # CREATE PLAN
-        # -------------------------------------------------
-
-        decision_plan = DecisionPlan(
-            id=(
-                f"plan_"
-                f"{uuid4().hex}"
-            ),
-            name=" + ".join(
-                decision.name
-                for decision in selected_decisions
-            ),
-            decisions=tuple(
-                selected_decisions
-            ),
-        )
-
-        # -------------------------------------------------
-        # STORE PLAN
-        # -------------------------------------------------
-
-        st.session_state.decision_plan = (
-            decision_plan
-        )
-
-        # -------------------------------------------------
-        # CONFIRMATION
-        # -------------------------------------------------
-
-        st.success(
-            f"Decision Plan created with "
-            f"{len(selected_decisions)} decision(s)."
-        )
-
-        st.info(
-            "Go to Control Tower to evaluate the "
-            "combined financial impact."
-        )
+                st.rerun()
 
     # =====================================================
-    # CURRENT ACTIVE PLAN
+    # CONTROL TOWER
     # =====================================================
 
-    active_plan = (
-        st.session_state.get(
-            "decision_plan"
-        )
-    )
-
-    if isinstance(
-        active_plan,
-        DecisionPlan,
-    ):
+    if not current_plan.is_empty:
 
         st.divider()
 
-        st.success(
-            f"🎯 Current Control Tower Plan: "
-            f"{active_plan.name}"
+        st.subheader(
+            "📊 Evaluate the Decision Plan"
         )
 
         st.write(
-            f"**Decisions in Plan:** "
-            f"{active_plan.decision_count}"
+            "The Current Decision Plan will be evaluated "
+            "against the same locked baseline in the Control Tower."
         )
 
-        plan_rows = []
-
-        for decision in active_plan.decisions:
-
-            if decision in wc_candidates:
-
-                if decision is ar_candidate:
-                    source = "Working Capital — AR"
-
-                elif decision is inventory_candidate:
-                    source = (
-                        "Working Capital — Inventory"
-                    )
-
-                elif decision is ap_candidate:
-                    source = (
-                        "Working Capital — AP"
-                    )
-
-                else:
-                    source = "Working Capital"
-
-            else:
-
-                source = "Decision Lab"
-
-            plan_rows.append(
-                {
-                    "Decision": decision.name,
-                    "Category": decision.category,
-                    "Source": source,
-                    "ID": decision.id,
-                }
-            )
-
-        st.dataframe(
-            plan_rows,
-            use_container_width=True,
-            hide_index=True,
+        st.info(
+            "Decisions change the company. "
+            "The Control Tower shows the combined financial "
+            "and liquidity consequences."
         )
-
-        # -------------------------------------------------
-        # PLAN SUMMARY
-        # -------------------------------------------------
-
-        st.caption(
-            active_plan.summary()
-        )
-
-
-        # -------------------------------------------------
-        # CLEAR PLAN
-        # -------------------------------------------------
 
         if st.button(
-            "🗑️ Clear Decision Plan",
+            "📊 Go to Control Tower",
+            type="primary",
+            use_container_width=True,
+            key="go_to_control_tower",
+        ):
+
+            st.session_state.current_page = (
+                "dashboard"
+            )
+
+            st.rerun()
+
+    # =====================================================
+    # CLEAR CURRENT PLAN
+    # =====================================================
+
+    if not current_plan.is_empty:
+
+        st.divider()
+
+        if st.button(
+            "🗑️ Clear Current Decision Plan",
             use_container_width=True,
             key="clear_decision_plan",
         ):
 
-            st.session_state.decision_plan = None
+            st.session_state.decision_plan = (
+                DecisionPlan.create(
+                    plan_id="main_plan",
+                    name="Current Decision Plan",
+                )
+            )
 
             st.rerun()
-
 
     # =====================================================
     # RESET DECISION WORKSPACE
@@ -631,10 +584,12 @@ def render_decision_view() -> None:
 
     st.divider()
 
-    st.subheader("🧹 Reset Decision Workspace")
+    st.subheader(
+        "🧹 Reset Decision Workspace"
+    )
 
     st.caption(
-        "Remove all saved decisions and working-capital "
+        "Remove all saved Decisions and Working Capital "
         "candidates and start a new decision cycle. "
         "The locked Baseline is not affected."
     )
@@ -646,16 +601,21 @@ def render_decision_view() -> None:
     ):
 
         # -------------------------------------------------
-        # CLEAR SAVED DECISIONS
+        # CLEAR LEGACY SAVED DECISIONS
         # -------------------------------------------------
 
         st.session_state["decisions"] = []
 
         # -------------------------------------------------
-        # CLEAR CURRENT DECISION PLAN
+        # CLEAR CURRENT PLAN
         # -------------------------------------------------
 
-        st.session_state["decision_plan"] = None
+        st.session_state["decision_plan"] = (
+            DecisionPlan.create(
+                plan_id="main_plan",
+                name="Current Decision Plan",
+            )
+        )
 
         # -------------------------------------------------
         # CLEAR WORKING CAPITAL CANDIDATES
