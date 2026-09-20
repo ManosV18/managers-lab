@@ -1237,22 +1237,25 @@ if current_page == "🧩 Decision Manager":
 
     st.stop()
 
-
 if current_page == "📊 Control Tower":
+    st.write("DEBUG ROUTE:", repr(current_page))
 
-    b_state, p_state, fin_proj, trace = (
-        build_projection()
-    )
+    try:
+        b_state, p_state, fin_proj, trace = build_projection()
 
-    render_dashboard(
-        baseline_state=b_state,
-        projected_state=p_state,
-        financial_projection=fin_proj,
-        trace=trace,
-    )
+        st.write("DEBUG PROJECTION OK")
+
+        render_dashboard(
+            baseline_state=b_state,
+            projected_state=p_state,
+            financial_projection=fin_proj,
+            trace=trace,
+        )
+
+    except Exception as e:
+        st.exception(e)
 
     st.stop()
-
 
 # =========================================================
 # SALES VOLUME
