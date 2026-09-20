@@ -1029,6 +1029,8 @@ def render_dashboard(
 
     decision_plan = _get_decision_plan()
 
+    st.write("DEBUG 1 - BEFORE EXECUTIVE")
+
     _render_executive_decision(
         baseline_state=baseline_state,
         projected_state=projected_state,
@@ -1038,8 +1040,10 @@ def render_dashboard(
         decision_plan=decision_plan,
     )
 
-    st.divider()
+    st.write("DEBUG 2 - AFTER EXECUTIVE")
 
+    st.divider()
+    
     _render_capital_cost(
         baseline_state=baseline_state,
         projected_state=projected_state,
