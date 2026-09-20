@@ -251,8 +251,6 @@ def _render_executive_decision(
     fcfe_delta = float(financial_impact.fcfe_delta)
     wc_cash_impact = float(financial_impact.nwc_cash_impact_delta)
 
-        st.write("DEBUG EXECUTIVE 1")
-
     status = _classify_decision_plan(
         baseline_state=baseline_state,
         projected_state=projected_state,
@@ -260,8 +258,6 @@ def _render_executive_decision(
         decision_plan=decision_plan,
     )
 
-    st.write("DEBUG EXECUTIVE 2:", status)
-    
     if status == "baseline":
         st.info(
             "🔵 BASELINE VIEW — No Decision Plan is currently selected. "
@@ -316,6 +312,7 @@ def _render_executive_decision(
             f"⚪ NEUTRAL DECISION PLAN — '{decision_plan.name}' "
             f"has no material incremental financial effect."
         )
+
     if decision_plan is not None:
         st.markdown(
             f"### 🎯 Selected Business Decision Plan\n\n"
@@ -330,7 +327,10 @@ def _render_executive_decision(
                 "Category": plan_decision.category,
                 "ID": plan_decision.id,
             }
-            for position, plan_decision in enumerate(decision_plan.decisions, start=1)
+            for position, plan_decision in enumerate(
+                decision_plan.decisions,
+                start=1,
+            )
         ]
 
         st.dataframe(
@@ -362,16 +362,25 @@ def _render_executive_decision(
     c4.metric(
         "FCFE",
         _fmt_eur(projected_fin.fcfe),
-        _fmt_signed_eur(fcfe_delta if decision_plan is not None else 0.0),
+        _fmt_signed_eur(
+            fcfe_delta if decision_plan is not None else 0.0
+        ),
     )
 
     if wc_cash_impact < 0:
-        st.warning(f"💧 Working capital absorbs {_fmt_eur(abs(wc_cash_impact))} of additional cash.")
+        st.warning(
+            f"💧 Working capital absorbs "
+            f"{_fmt_eur(abs(wc_cash_impact))} of additional cash."
+        )
     elif wc_cash_impact > 0:
-        st.success(f"💧 Working capital releases {_fmt_eur(wc_cash_impact)} of cash.")
+        st.success(
+            f"💧 Working capital releases "
+            f"{_fmt_eur(wc_cash_impact)} of cash."
+        )
     else:
-        st.info("💧 Working capital has no incremental cash impact.")
-
+        st.info(
+            "💧 Working capital has no incremental cash impact."
+        )
 
 # =========================================================
 # CAPITAL COST / VALUATION
