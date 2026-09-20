@@ -251,6 +251,8 @@ def _render_executive_decision(
     fcfe_delta = float(financial_impact.fcfe_delta)
     wc_cash_impact = float(financial_impact.nwc_cash_impact_delta)
 
+        st.write("DEBUG EXECUTIVE 1")
+
     status = _classify_decision_plan(
         baseline_state=baseline_state,
         projected_state=projected_state,
@@ -258,6 +260,8 @@ def _render_executive_decision(
         decision_plan=decision_plan,
     )
 
+    st.write("DEBUG EXECUTIVE 2:", status)
+    
     if status == "baseline":
         st.info(
             "🔵 BASELINE VIEW — No Decision Plan is currently selected. "
