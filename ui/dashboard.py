@@ -381,7 +381,6 @@ def _render_executive_decision(
         st.info(
             "💧 Working capital has no incremental cash impact."
         )
-
 # =========================================================
 # CAPITAL COST / VALUATION
 # =========================================================
