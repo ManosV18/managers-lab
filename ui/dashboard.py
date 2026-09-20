@@ -243,103 +243,56 @@ def _render_executive_decision(
     financial_impact,
     decision_plan,
 ):
+    st.subheader("🎯 Executive Decision")
+
+    if decision_plan is None:
+        st.info(
+            "🔵 BASELINE VIEW — No Decision Plan is currently selected. "
+            "Projected financials equal the locked baseline."
+        )
+        return
+
+    st.success(
+        f"🟢 Decision Plan: **{decision_plan.name}** "
+        f"({decision_plan.decision_count} decisions)"
+    )
+
     p = projected_fin.income_statement
+    b = baseline_fin.income_statement
 
     revenue_delta = float(financial_impact.revenue_delta)
     ebitda_delta = float(financial_impact.ebitda_delta)
     net_profit_delta = float(financial_impact.net_profit_delta)
     fcfe_delta = float(financial_impact.fcfe_delta)
-    wc_cash_impact = float(financial_impact.nwc_cash_impact_delta)
-
-    status = _classify_decision_plan(
-        baseline_state=baseline_state,
-        projected_state=projected_state,
-        financial_impact=financial_impact,
-        decision_plan=decision_plan,
+    wc_cash_impact = float(
+        financial_impact.nwc_cash_impact_delta
     )
 
-    if status == "baseline":
-        st.info(
-            "🔵 BASELINE VIEW — No Decision Plan is currently selected. "
-            "Projected financials equal the locked baseline."
+    st.markdown(
+        "### Selected Business Decision Plan"
+    )
+
+    plan_rows = [
+        {
+            "Order": position,
+            "Decision": plan_decision.name,
+            "Category": plan_decision.category,
+            "ID": plan_decision.id,
+        }
+        for position, plan_decision in enumerate(
+            decision_plan.decisions,
+            start=1,
         )
+    ]
 
-    elif status == "capital_negative":
-        st.warning(
-            f"🟠 CAPITAL COST INCREASE — '{decision_plan.name}' "
-            f"increases the company's cost of capital / valuation hurdle rate."
-        )
-
-    elif status == "capital_positive":
-        st.success(
-            f"🟢 CAPITAL COST IMPROVEMENT — '{decision_plan.name}' "
-            f"decreases the company's cost of capital / valuation hurdle rate."
-        )
-
-    elif status == "positive":
-        st.success(
-            f"🟢 POSITIVE FINANCIAL IMPACT — '{decision_plan.name}' "
-            f"improves the company's profitability and/or cash generation."
-        )
-
-    elif status == "negative":
-        st.error(
-            f"🔴 NEGATIVE FINANCIAL IMPACT — '{decision_plan.name}' "
-            f"deteriorates the company's profitability and cash generation."
-        )
-
-    elif status == "mixed":
-        if net_profit_delta > 1e-9 and fcfe_delta < -1e-9:
-            st.warning(
-                f"🟡 PROFITABLE BUT CASH-HUNGRY — '{decision_plan.name}' "
-                f"improves profitability but reduces cash generation."
-            )
-
-        elif net_profit_delta < -1e-9 and fcfe_delta > 1e-9:
-            st.warning(
-                f"🟡 CASH IMPROVES BUT PROFITABILITY DECLINES — '{decision_plan.name}' "
-                f"improves cash generation while reducing profitability."
-            )
-
-        else:
-            st.warning(
-                f"🟡 MIXED FINANCIAL IMPACT — '{decision_plan.name}' "
-                f"improves some financial dimensions while others move in the opposite direction."
-            )
-
-    else:
-        st.info(
-            f"⚪ NEUTRAL DECISION PLAN — '{decision_plan.name}' "
-            f"has no material incremental financial effect."
-        )
-
-    if decision_plan is not None:
-        st.markdown(
-            f"### 🎯 Selected Business Decision Plan\n\n"
-            f"**{decision_plan.name}**\n\n"
-            f"**{decision_plan.decision_count} decisions** are being evaluated together against the locked baseline."
-        )
-
-        plan_rows = [
-            {
-                "Order": position,
-                "Decision": plan_decision.name,
-                "Category": plan_decision.category,
-                "ID": plan_decision.id,
-            }
-            for position, plan_decision in enumerate(
-                decision_plan.decisions,
-                start=1,
-            )
-        ]
-
-        st.dataframe(
-            plan_rows,
-            use_container_width=True,
-            hide_index=True,
-        )
+    st.dataframe(
+        plan_rows,
+        use_container_width=True,
+        hide_index=True,
+    )
 
     st.subheader("🧭 Management Summary")
+
     c1, c2, c3, c4 = st.columns(4)
 
     c1.metric(
@@ -347,24 +300,25 @@ def _render_executive_decision(
         _fmt_eur(p.revenue),
         _fmt_signed_eur(revenue_delta),
     )
+
     c2.metric(
         "EBIT",
         _fmt_eur(p.ebit),
         _fmt_signed_eur(
-            p.ebit - baseline_fin.income_statement.ebit
+            p.ebit - b.ebit
         ),
     )
+
     c3.metric(
         "Net Profit",
         _fmt_eur(p.net_profit),
         _fmt_signed_eur(net_profit_delta),
     )
+
     c4.metric(
         "FCFE",
         _fmt_eur(projected_fin.fcfe),
-        _fmt_signed_eur(
-            fcfe_delta if decision_plan is not None else 0.0
-        ),
+        _fmt_signed_eur(fcfe_delta),
     )
 
     if wc_cash_impact < 0:
