@@ -550,7 +550,7 @@ def render_decision_view() -> None:
         ):
 
             st.session_state.current_page = (
-                "dashboard"
+                "📊 Control Tower"
             )
 
             st.rerun()
