@@ -1013,6 +1013,7 @@ def render_dashboard(
     trace,
 ):
     st.write("DEBUG DASHBOARD ENTERED")
+
     baseline_fin = (
         financial_projection.baseline
     )
@@ -1027,13 +1028,9 @@ def render_dashboard(
 
     st.title("📊 Executive Dashboard")
 
-    st.write("DEBUG BEFORE GET PLAN")
-
     decision_plan = _get_decision_plan()
 
     st.write("DEBUG AFTER GET PLAN")
-
-    st.write("DEBUG BEFORE EXECUTIVE")
 
     _render_executive_decision(
         baseline_state=baseline_state,
@@ -1043,12 +1040,9 @@ def render_dashboard(
         financial_impact=financial_impact,
         decision_plan=decision_plan,
     )
-    
-    st.write("DEBUG AFTER EXECUTIVE")
 
     st.divider()
-    _render_executive_decision(
-            
+
     _render_capital_cost(
         baseline_state=baseline_state,
         projected_state=projected_state,
