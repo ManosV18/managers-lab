@@ -9,6 +9,7 @@ from uuid import uuid4
 import streamlit as st
 
 from core.decision import DecisionFactory
+from core.decision_plan import DecisionPlan
 
 
 # =========================================================
@@ -141,9 +142,6 @@ def calculate_discount_npv(
         # -----------------------------------------------------
         # PROFIT EFFECT
         # -----------------------------------------------------
-
-        if cs <= 0:
-            return None
 
         gross_margin_ratio = (
             Decimal("1") - (cg / cs)
@@ -338,6 +336,126 @@ def calculate_discount_npv(
 
 
 # =========================================================
+# CURRENT DECISION PLAN
+# =========================================================
+
+def _get_current_plan():
+    """
+    Return the active Current Decision Plan.
+
+    DecisionPlan is immutable, so every add operation returns
+    a new plan that must be stored back in session state.
+    """
+
+    plan = st.session_state.get("decision_plan")
+
+    if isinstance(plan, DecisionPlan):
+        return plan
+
+    plan = DecisionPlan.create(
+        plan_id="main_plan",
+        name="Current Decision Plan",
+    )
+
+    st.session_state.decision_plan = plan
+
+    return plan
+
+
+def _find_conflicting_driver(
+    plan,
+    decision,
+):
+    """
+    Detect whether another decision in the current plan
+    already changes the same CompanyState driver.
+
+    Receivables decisions change:
+        ar_days
+    """
+
+    decision_changes = getattr(
+        decision,
+        "changes",
+        {},
+    )
+
+    if "ar_days" not in decision_changes:
+        return None
+
+    for existing_decision in plan.decisions:
+
+        existing_changes = getattr(
+            existing_decision,
+            "changes",
+            {},
+        )
+
+        if "ar_days" in existing_changes:
+            return existing_decision
+
+    return None
+
+
+def _add_to_current_plan(decision):
+    """
+    Add a Receivables Decision directly to Current Decision Plan.
+
+    This is the direct path:
+
+        Receivables Lab
+            ↓
+        Current Decision Plan
+
+    The decision is NOT executed here.
+    Execution/evaluation remains centralized.
+    """
+
+    current_plan = _get_current_plan()
+
+    # -----------------------------------------------------
+    # DUPLICATE CHECK
+    # -----------------------------------------------------
+
+    if current_plan.contains(decision.id):
+        st.warning(
+            "This decision is already in the Current Decision Plan."
+        )
+        return False
+
+    # -----------------------------------------------------
+    # DRIVER CONFLICT CHECK
+    # -----------------------------------------------------
+
+    conflict = _find_conflicting_driver(
+        current_plan,
+        decision,
+    )
+
+    if conflict is not None:
+        st.error(
+            "The Current Decision Plan already contains "
+            "a decision that changes Collection Time. "
+            "Remove or replace that decision before adding this one."
+        )
+        return False
+
+    # -----------------------------------------------------
+    # IMMUTABLE PLAN UPDATE
+    # -----------------------------------------------------
+
+    updated_plan = current_plan.add(
+        decision
+    )
+
+    st.session_state.decision_plan = (
+        updated_plan
+    )
+
+    return True
+
+
+# =========================================================
 # CANDIDATE MANAGEMENT
 # =========================================================
 
@@ -367,65 +485,6 @@ def get_ar_candidate():
     return st.session_state.get(
         AR_CANDIDATE
     )
-
-
-def add_decision_to_plan(decision):
-    """
-    Send an AR decision to the existing Decision Plan.
-
-    This deliberately supports the existing plan interfaces
-    without changing the core architecture.
-    """
-
-    if (
-        "decision_plan" not in st.session_state
-        or st.session_state["decision_plan"] is None
-    ):
-        st.warning(
-            "No active Decision Plan found in session state."
-        )
-        return False
-
-    plan = st.session_state["decision_plan"]
-
-    if hasattr(plan, "add_decision"):
-        plan.add_decision(decision)
-        return True
-
-    if hasattr(plan, "add"):
-        plan.add(decision)
-        return True
-
-    if (
-        hasattr(plan, "decisions")
-        and isinstance(plan.decisions, list)
-    ):
-        existing_ids = [
-            d.id
-            for d in plan.decisions
-        ]
-
-        if decision.id not in existing_ids:
-            plan.decisions.append(decision)
-
-        return True
-
-    if isinstance(plan, list):
-        existing_ids = [
-            d.id
-            for d in plan
-        ]
-
-        if decision.id not in existing_ids:
-            plan.append(decision)
-
-        return True
-
-    st.warning(
-        "Decision Plan does not expose a supported add interface."
-    )
-
-    return False
 
 
 # =========================================================
@@ -495,8 +554,7 @@ def render_receivables_lab(
         "When should my customers pay me?"
 
     Produces an AR Decision candidate and sends it
-    through the existing DecisionFactory / DecisionPlan
-    architecture.
+    directly to the Current Decision Plan.
     """
 
     st.title("💶 Receivables Lab")
@@ -972,13 +1030,13 @@ def render_receivables_lab(
             use_container_width=True,
         ):
 
-            success = add_decision_to_plan(
+            success = _add_to_current_plan(
                 ar_candidate
             )
 
             if success:
                 st.success(
-                    "Receivables Decision added to Decision Plan."
+                    "Receivables Decision added directly to Current Decision Plan."
                 )
 
         if btn_col2.button(
