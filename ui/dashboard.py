@@ -1027,9 +1027,11 @@ def render_dashboard(
 
     st.title("📊 Executive Dashboard")
 
+        st.write("DEBUG BEFORE GET PLAN")
+
     decision_plan = _get_decision_plan()
 
-    st.write("DEBUG 1 - BEFORE EXECUTIVE")
+    st.write("DEBUG AFTER GET PLAN")
 
     _render_executive_decision(
         baseline_state=baseline_state,
