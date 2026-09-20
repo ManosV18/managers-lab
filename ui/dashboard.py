@@ -1012,6 +1012,7 @@ def render_dashboard(
     financial_projection,
     trace,
 ):
+    st.write("DEBUG DASHBOARD ENTERED")
     baseline_fin = (
         financial_projection.baseline
     )
