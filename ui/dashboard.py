@@ -978,7 +978,6 @@ def render_dashboard(
     financial_projection,
     trace,
 ):
-    st.write("DEBUG DASHBOARD ENTERED")
 
     baseline_fin = (
         financial_projection.baseline
@@ -995,8 +994,6 @@ def render_dashboard(
     st.title("📊 Executive Dashboard")
 
     decision_plan = _get_decision_plan()
-
-    st.write("DEBUG AFTER GET PLAN")
 
     _render_executive_decision(
         baseline_state=baseline_state,
