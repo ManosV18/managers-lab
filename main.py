@@ -1244,13 +1244,19 @@ if current_page == "📊 Control Tower":
         b_state, p_state, fin_proj, trace = build_projection()
 
         st.write("DEBUG PROJECTION OK")
+        st.write("DEBUG BEFORE DASHBOARD")
 
-        render_dashboard(
-            baseline_state=b_state,
-            projected_state=p_state,
-            financial_projection=fin_proj,
-            trace=trace,
-        )
+        try:
+            render_dashboard(
+                baseline_state=b_state,
+                projected_state=p_state,
+                financial_projection=fin_proj,
+                trace=trace,
+            )
+            st.write("DEBUG AFTER DASHBOARD")
+
+        except Exception as e:
+            st.exception(e)
 
     except Exception as e:
         st.exception(e)
