@@ -1033,7 +1033,7 @@ def render_dashboard(
 
     st.write("DEBUG AFTER GET PLAN")
 
-        st.write("DEBUG BEFORE EXECUTIVE")
+    st.write("DEBUG BEFORE EXECUTIVE")
 
     _render_executive_decision(
         baseline_state=baseline_state,
