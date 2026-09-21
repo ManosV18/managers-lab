@@ -26,7 +26,7 @@ def calculate_inventory_impact(
 ):
     """
     Pure calculation for inventory policy changes.
-    
+
     Returns:
         current_inv_val, target_inv_val, cash_released, inv_turnover, capital_drag
     """
@@ -60,6 +60,7 @@ def clear_inventory_candidate():
     st.session_state.pop(WC_INV_CANDIDATE, None)
     st.session_state.pop(WC_INV_META, None)
 
+
 def _get_current_plan() -> DecisionPlan:
     """
     Return the current Decision Plan.
@@ -80,6 +81,7 @@ def _get_current_plan() -> DecisionPlan:
     st.session_state.decision_plan = plan
 
     return plan
+
 
 # ==========================================
 # BASELINE HELPERS
@@ -291,24 +293,16 @@ def show_inventory_lab(baseline_state):
             key="inv_add_decision",
             use_container_width=True,
         ):
-            
             current_plan = _get_current_plan()
 
-            updated_plan = current_plan.add(
-                inv_candidate
-        )
+            updated_plan = current_plan.add(inv_candidate)
 
-        st.session_state.decision_plan = (
-            updated_plan
-        )
+            st.session_state.decision_plan = updated_plan
 
-        st.success(
-            f"Inventory Decision added: "
-            f"{inv_candidate.name}"
-        )
+            st.success(f"Inventory Decision added: {inv_candidate.name}")
 
-        clear_inventory_candidate()
-        st.rerun()
+            clear_inventory_candidate()
+            st.rerun()
 
         if btn_col2.button("Clear Candidate", key="inv_clear_candidate", use_container_width=True):
             clear_inventory_candidate()
