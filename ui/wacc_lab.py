@@ -1,8 +1,24 @@
-import streamlit as st
 from uuid import uuid4
+import streamlit as st
 
 from core.wacc_engine import WACCEngine
 from core.decision import DecisionFactory
+from core.decision_plan import DecisionPlan
+
+
+def _get_current_plan() -> DecisionPlan:
+    plan = st.session_state.get("decision_plan")
+
+    if isinstance(plan, DecisionPlan):
+        return plan
+
+    plan = DecisionPlan.create(
+        plan_id="main_plan",
+        name="Current Decision Plan",
+    )
+
+    st.session_state.decision_plan = plan
+    return plan
 
 
 def render_wacc_lab(baseline_state):
@@ -293,51 +309,49 @@ def render_wacc_lab(baseline_state):
     )
 
     # =========================================================
-    # CREATE WACC DECISION (FIXED)
+    # CREATE WACC DECISION
     # =========================================================
 
-    if st.button("Create WACC Decision", use_container_width=True, key="create_wacc_decision"):
-        # Βεβαιωνόμαστε ότι το target_wacc είναι σε δεκαδική μορφή (π.χ. 0.0896 αντί για 8.96)
+    if st.button(
+        "Create WACC Decision",
+        use_container_width=True,
+        key="create_wacc_decision",
+    ):
         raw_wacc = result["wacc"]
-        target_wacc_decimal = raw_wacc / 100.0 if raw_wacc > 1.0 else raw_wacc
+
+        target_wacc_decimal = (
+            raw_wacc / 100.0
+            if raw_wacc > 1.0
+            else raw_wacc
+        )
 
         decision = DecisionFactory.wacc_change(
             decision_id=f"wacc_{uuid4().hex[:8]}",
             target_wacc=target_wacc_decimal,
         )
 
-        # 1. Ενημέρωση λίστας decisions
-        if "decisions" not in st.session_state:
-            st.session_state.decisions = []
-        if isinstance(st.session_state.decisions, list):
-            st.session_state.decisions.append(decision)
+        current_plan = _get_current_plan()
 
-        # 2. Ενημέρωση του DecisionPlan
-        if "decision_plan" in st.session_state and st.session_state["decision_plan"] is not None:
-            plan = st.session_state["decision_plan"]
-            if hasattr(plan, "add_decision"):
-                plan.add_decision(decision)
-            elif hasattr(plan, "decisions") and isinstance(plan.decisions, list):
-                if decision.id not in [d.id for d in plan.decisions]:
-                    plan.decisions.append(decision)
-            elif isinstance(plan, list):
-                if decision.id not in [d.id for d in plan]:
-                    plan.append(decision)
+        updated_plan = current_plan.add(decision)
 
+        st.session_state.decision_plan = updated_plan
         st.session_state.selected_decision = decision
-        st.success(f"Created Decision: {decision.name} (WACC: {target_wacc_decimal * 100:.2f}%)")
+
+        st.success(
+            f"Created Decision: {decision.name} "
+            f"(WACC: {target_wacc_decimal * 100:.2f}%)"
+        )
+
         st.rerun()
-    
+
     # =========================================================
     # CURRENT WACC DECISIONS
     # =========================================================
 
+    current_plan = _get_current_plan()
     wacc_decisions = [
         decision
-        for decision in st.session_state.get(
-            "decisions",
-            [],
-        )
+        for decision in current_plan.decisions
         if decision.category == "capital_structure"
         and "wacc" in decision.changes
     ]
@@ -395,7 +409,6 @@ def render_wacc_lab(baseline_state):
                     )
 
                     st.rerun()
-
 
     # =========================================================
     # TRACE / DEBUG
