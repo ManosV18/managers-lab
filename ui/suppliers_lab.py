@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import streamlit as st
 from core.decision import DecisionFactory
+from core.decision_plan import DecisionPlan
 
 # ==========================================
 # CANDIDATE KEYS (SUPPLIERS / AP SPECIFIC)
@@ -68,28 +69,19 @@ def clear_ap_candidate():
     st.session_state.pop(WC_AP_CANDIDATE, None)
     st.session_state.pop(WC_AP_META, None)
 
+def _get_current_plan() -> DecisionPlan:
+    plan = st.session_state.get("decision_plan")
 
-def add_decision_to_plan(decision):
-    """Safely adds a decision candidate to the DecisionPlan instance in session state."""
-    if "decision_plan" not in st.session_state or st.session_state["decision_plan"] is None:
-        st.warning("No active Decision Plan found in session state.")
-        return
+    if isinstance(plan, DecisionPlan):
+        return plan
 
-    plan = st.session_state["decision_plan"]
+    plan = DecisionPlan.create(
+        plan_id="main_plan",
+        name="Current Decision Plan",
+    )
 
-    if hasattr(plan, "add_decision"):
-        plan.add_decision(decision)
-    elif hasattr(plan, "add"):
-        plan.add(decision)
-    elif hasattr(plan, "decisions") and isinstance(plan.decisions, list):
-        existing_ids = [d.id for d in plan.decisions]
-        if decision.id not in existing_ids:
-            plan.decisions.append(decision)
-    elif isinstance(plan, list):
-        existing_ids = [d.id for d in plan]
-        if decision.id not in existing_ids:
-            plan.append(decision)
-
+    st.session_state.decision_plan = plan
+    return plan
 
 # ==========================================
 # MAIN RENDER FUNCTION
