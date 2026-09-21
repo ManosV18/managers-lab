@@ -78,7 +78,7 @@ def render_volume_lab(baseline_state):
         value=0,
         step=1,
         format="%d%%",
-        key="volume_change_pct",
+        key="volume_change_pct_slider",
     )
 
     target_volume = (
