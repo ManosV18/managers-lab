@@ -69,6 +69,7 @@ def clear_ap_candidate():
     st.session_state.pop(WC_AP_CANDIDATE, None)
     st.session_state.pop(WC_AP_META, None)
 
+
 def _get_current_plan() -> DecisionPlan:
     plan = st.session_state.get("decision_plan")
 
@@ -82,6 +83,7 @@ def _get_current_plan() -> DecisionPlan:
 
     st.session_state.decision_plan = plan
     return plan
+
 
 # ==========================================
 # MAIN RENDER FUNCTION
@@ -292,9 +294,23 @@ def render_suppliers_lab(baseline_state):
             st.write(f"Projected Net Value Created: **€{ap_meta['net_gain']:,.0f}**")
 
         btn_col1, btn_col2 = st.columns(2)
-        if btn_col1.button("➕ Push Candidate to Decision Plan", key="supp_push_to_plan", use_container_width=True):
-            add_decision_to_plan(ap_candidate)
-            st.success("AP Decision added to Decision Plan!")
+        if btn_col1.button(
+            "➕ Push Candidate to Decision Plan",
+            key="supp_push_to_plan",
+            use_container_width=True,
+        ):
+            current_plan = _get_current_plan()
+
+            updated_plan = current_plan.add(ap_candidate)
+
+            st.session_state.decision_plan = updated_plan
+
+            st.success(
+                f"AP Decision added to Decision Plan: {ap_candidate.name}"
+            )
+
+            clear_ap_candidate()
+            st.rerun()
 
         if btn_col2.button("Clear Candidate", key="supp_clear_candidate", use_container_width=True):
             clear_ap_candidate()
