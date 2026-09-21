@@ -2,6 +2,29 @@ import streamlit as st
 from uuid import uuid4
 
 from core.decision import DecisionFactory
+from core.decision_plan import DecisionPlan
+
+
+def _get_current_plan() -> DecisionPlan:
+    """
+    Return the current Decision Plan.
+
+    If no valid plan exists in session state, create
+    the default Current Decision Plan.
+    """
+    plan = st.session_state.get("decision_plan")
+
+    if isinstance(plan, DecisionPlan):
+        return plan
+
+    plan = DecisionPlan.create(
+        plan_id="main_plan",
+        name="Current Decision Plan",
+    )
+
+    st.session_state.decision_plan = plan
+
+    return plan
 
 
 def render_volume_lab(baseline_state):
@@ -78,13 +101,19 @@ def render_volume_lab(baseline_state):
         key="add_volume_decision",
     ):
 
+        current_plan = _get_current_plan()
+
         decision = DecisionFactory.volume_change(
             decision_id=f"volume_{uuid4().hex}",
             target_volume=target_volume,
         )
 
-        st.session_state.decisions.append(
+        updated_plan = current_plan.add(
             decision
+        )
+
+        st.session_state.decision_plan = (
+            updated_plan
         )
 
         st.success(
@@ -103,12 +132,11 @@ def render_volume_lab(baseline_state):
         "Created Volume Decisions"
     )
 
+    current_plan = _get_current_plan()
+
     volume_decisions = [
         decision
-        for decision in st.session_state.get(
-            "decisions",
-            [],
-        )
+        for decision in current_plan.decisions
         if decision.category == "sales"
         and "volume" in decision.changes
     ]
