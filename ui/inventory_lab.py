@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from core.decision import DecisionFactory
+from core.decision_plan import DecisionPlan
 
 
 # ==========================================
@@ -59,37 +60,26 @@ def clear_inventory_candidate():
     st.session_state.pop(WC_INV_CANDIDATE, None)
     st.session_state.pop(WC_INV_META, None)
 
-
-def add_decision_to_collection(decision):
+def _get_current_plan() -> DecisionPlan:
     """
-    Add a Decision to the central Decision Manager collection.
+    Return the current Decision Plan.
 
-    Decision Manager reads st.session_state.decisions
-    and is responsible for building the DecisionPlan.
+    If no valid plan exists in session state, create
+    the default Current Decision Plan.
     """
+    plan = st.session_state.get("decision_plan")
 
-    if not hasattr(decision, "id"):
-        st.error("Invalid Decision object.")
-        return False
+    if isinstance(plan, DecisionPlan):
+        return plan
 
-    if not isinstance(
-        st.session_state.get("decisions"),
-        list,
-    ):
-        st.session_state.decisions = []
+    plan = DecisionPlan.create(
+        plan_id="main_plan",
+        name="Current Decision Plan",
+    )
 
-    existing_ids = {
-        getattr(d, "id", None)
-        for d in st.session_state.decisions
-    }
+    st.session_state.decision_plan = plan
 
-    if decision.id not in existing_ids:
-        st.session_state.decisions.append(
-            decision
-        )
-
-    return True
-
+    return plan
 
 # ==========================================
 # BASELINE HELPERS
@@ -301,21 +291,24 @@ def show_inventory_lab(baseline_state):
             key="inv_add_decision",
             use_container_width=True,
         ):
-            success = add_decision_to_collection(
-                inv_candidate
-            )
+            
+            current_plan = _get_current_plan()
 
-            if success:
-                st.success(
-                    f"Inventory Decision added: "
-                    f"{inv_candidate.name}"
-                )
-                clear_inventory_candidate()
-                st.rerun()
-            else:
-                st.error(
-                    "Failed to add Inventory Decision."
-                )
+            updated_plan = current_plan.add(
+                inv_candidate
+        )
+
+        st.session_state.decision_plan = (
+            updated_plan
+        )
+
+        st.success(
+            f"Inventory Decision added: "
+            f"{inv_candidate.name}"
+        )
+
+        clear_inventory_candidate()
+        st.rerun()
 
         if btn_col2.button("Clear Candidate", key="inv_clear_candidate", use_container_width=True):
             clear_inventory_candidate()
