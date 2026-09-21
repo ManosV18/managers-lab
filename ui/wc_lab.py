@@ -8,6 +8,28 @@ from uuid import uuid4
 
 import streamlit as st
 from core.decision import DecisionFactory
+from core.decision_plan import DecisionPlan
+
+
+# =========================================================
+# HELPER FUNCTIONS
+# =========================================================
+
+
+def _get_current_plan() -> DecisionPlan:
+    plan = st.session_state.get("decision_plan")
+
+    if isinstance(plan, DecisionPlan):
+        return plan
+
+    plan = DecisionPlan.create(
+        plan_id="main_plan",
+        name="Current Decision Plan",
+    )
+
+    st.session_state.decision_plan = plan
+    return plan
+
 
 # =========================================================
 # WORKING CAPITAL CANDIDATE KEYS
@@ -223,28 +245,6 @@ def get_wc_candidates():
         candidates["ap"] = ap
 
     return candidates
-
-
-def add_decision_to_plan(decision):
-    """Safely adds a decision candidate to the DecisionPlan instance in session state."""
-    if "decision_plan" not in st.session_state or st.session_state["decision_plan"] is None:
-        st.warning("No active Decision Plan found in session state.")
-        return
-
-    plan = st.session_state["decision_plan"]
-
-    if hasattr(plan, "add_decision"):
-        plan.add_decision(decision)
-    elif hasattr(plan, "add"):
-        plan.add(decision)
-    elif hasattr(plan, "decisions") and isinstance(plan.decisions, list):
-        existing_ids = [d.id for d in plan.decisions]
-        if decision.id not in existing_ids:
-            plan.decisions.append(decision)
-    elif isinstance(plan, list):
-        existing_ids = [d.id for d in plan]
-        if decision.id not in existing_ids:
-            plan.append(decision)
 
 
 # =========================================================
@@ -798,9 +798,23 @@ def render_wc_lab(baseline_state):
             st.write(f"Cash Released → **€{ar_meta['cash_released']:,.0f}**")
 
         btn_col1, btn_col2 = st.columns(2)
-        if btn_col1.button("➕ Add AR Candidate to Decision Plan", key="wc_add_ar_to_plan", use_container_width=True):
-            add_decision_to_plan(ar_candidate)
-            st.success("Added AR Decision to Decision Plan!")
+        if btn_col1.button(
+            "➕ Add AR Candidate to Decision Plan",
+            key="wc_add_ar_to_plan",
+            use_container_width=True,
+        ):
+            current_plan = _get_current_plan()
+
+            updated_plan = current_plan.add(ar_candidate)
+
+            st.session_state.decision_plan = updated_plan
+
+            st.success(
+                f"Added AR Decision to Decision Plan: {ar_candidate.name}"
+            )
+
+            clear_wc_candidate(WC_AR_CANDIDATE)
+            st.rerun()
 
         if btn_col2.button("Clear AR Candidate", key="wc_clear_ar_candidate", use_container_width=True):
             clear_wc_candidate(WC_AR_CANDIDATE)
@@ -818,9 +832,24 @@ def render_wc_lab(baseline_state):
             st.write(f"Target Inventory Days → **{float(inv_val):.1f}**")
 
         btn_col1, btn_col2 = st.columns(2)
-        if btn_col1.button("➕ Add Inventory Candidate to Decision Plan", key="wc_add_inv_to_plan", use_container_width=True):
-            add_decision_to_plan(inventory_candidate)
-            st.success("Added Inventory Decision to Decision Plan!")
+        if btn_col1.button(
+            "➕ Add Inventory Candidate to Decision Plan",
+            key="wc_add_inv_to_plan",
+            use_container_width=True,
+        ):
+            current_plan = _get_current_plan()
+
+            updated_plan = current_plan.add(inventory_candidate)
+
+            st.session_state.decision_plan = updated_plan
+
+            st.success(
+                f"Added Inventory Decision to Decision Plan: "
+                f"{inventory_candidate.name}"
+            )
+
+            clear_wc_candidate(WC_INVENTORY_CANDIDATE)
+            st.rerun()
 
         if btn_col2.button("Clear Inventory Candidate", key="wc_clear_inventory_candidate", use_container_width=True):
             clear_wc_candidate(WC_INVENTORY_CANDIDATE)
@@ -838,9 +867,24 @@ def render_wc_lab(baseline_state):
             st.write(f"Target AP Days → **{float(ap_val):.1f}**")
 
         btn_col1, btn_col2 = st.columns(2)
-        if btn_col1.button("➕ Add Payables Candidate to Decision Plan", key="wc_add_ap_to_plan", use_container_width=True):
-            add_decision_to_plan(ap_candidate)
-            st.success("Added Payables Decision to Decision Plan!")
+        if btn_col1.button(
+            "➕ Add Payables Candidate to Decision Plan",
+            key="wc_add_ap_to_plan",
+            use_container_width=True,
+        ):
+            current_plan = _get_current_plan()
+
+            updated_plan = current_plan.add(ap_candidate)
+
+            st.session_state.decision_plan = updated_plan
+
+            st.success(
+                f"Added Payables Decision to Decision Plan: "
+                f"{ap_candidate.name}"
+            )
+
+            clear_wc_candidate(WC_AP_CANDIDATE)
+            st.rerun()
 
         if btn_col2.button("Clear Payables Candidate", key="wc_clear_ap_candidate", use_container_width=True):
             clear_wc_candidate(WC_AP_CANDIDATE)
