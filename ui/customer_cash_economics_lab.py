@@ -57,7 +57,7 @@ def render_customer_cash_economics_lab(
 
     if baseline_state is None:
         st.warning(
-            "⚠️ Lock your company baseline before running Customer Cash Economics."
+            "⚠️ Lock your company baseline before running Customer Value."
         )
         return
 
@@ -558,16 +558,6 @@ def render_customer_cash_economics_lab(
                 high = mid
 
         max_discount = low
-
-    st.error("How much discount can this customer absorb?")
-    discount = st.slider(
-        "Customer discount (%)",
-        min_value=0.0,
-        max_value=float(gross_margin_pct),
-        value=0.0,
-        step=0.5,
-        key="clv_discount_sensitivity",
-    )
 
     discount_factor = discount / 100.0
     discounted_revenue = annual_revenue * (1 - discount_factor)
