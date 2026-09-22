@@ -508,11 +508,6 @@ def render_customer_cash_economics_lab(
         """
     )
 
-    st.caption(
-        "Break-even figures are analytical thresholds. "
-        "They do not change the company baseline or create a Decision Plan."
-    )
-
     # ============================================================
     # DISCOUNT SENSITIVITY
     # ============================================================
