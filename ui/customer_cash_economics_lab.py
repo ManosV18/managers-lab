@@ -248,7 +248,7 @@ def render_customer_cash_economics_lab(
     st.subheader("📈 Customer Value Over Time")
 
     st.caption(
-        "Now test whether the customer relationship creates value over its expected lifetime."
+        "See whether the customer creates enough value over the expected relationship lifetime."
     )
 
     c8, c9 = st.columns(2)
