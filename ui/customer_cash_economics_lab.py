@@ -49,10 +49,10 @@ def render_customer_cash_economics_lab(
     baseline_state=None,
 ):
 
-    st.header("👥 Customer Cash Economics")
+    st.header("👥 Customer Value")
 
     st.caption(
-        "Which customers create economic value — and under what conditions?"
+        "Which customers are really worth keeping — and under what conditions?"
     )
 
     if baseline_state is None:
@@ -79,17 +79,8 @@ def render_customer_cash_economics_lab(
     ):
         st.markdown(
             """
-            A customer can be profitable and still consume significant
-            economic resources.
-
-            This Lab looks at the customer from three angles:
-
-            - **Customer contribution** — what the relationship earns
-            - **Cash requirement** — how much working capital the customer ties up
-            - **Economic value** — whether the relationship creates enough
-              discounted cash value to justify CAC and the cash tied up
-
-            The analysis is diagnostic only. It does not change the company baseline.
+            See how much value a customer creates, how much cash they require,
+            and how that value changes when key conditions change.
             """
         )
 
@@ -220,7 +211,7 @@ def render_customer_cash_economics_lab(
     row = current_result.iloc[0]
 
     st.divider()
-    st.subheader("📊 Current Customer Economics")
+    st.subheader("📊 Current Customer Value")
 
     m1, m2, m3, m4 = st.columns(4)
 
@@ -254,7 +245,7 @@ def render_customer_cash_economics_lab(
     # =====================================================
 
     st.divider()
-    st.subheader("📈 Customer Economic Value")
+    st.subheader("📈 Customer Value Over Time")
 
     st.caption(
         "Now test whether the customer relationship creates value over its expected lifetime."
