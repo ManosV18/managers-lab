@@ -17,9 +17,7 @@ from diagnostics.customer_cash_economics import (
 
 def _get_baseline_wacc(baseline_state) -> float:
     try:
-        return float(
-            baseline_state.capital_structure.wacc
-        )
+        return float(baseline_state.capital_structure.wacc)
     except (AttributeError, TypeError, ValueError):
         try:
             return float(baseline_state.wacc)
@@ -61,13 +59,9 @@ def render_customer_cash_economics_lab(
         )
         return
 
-    wacc = _get_baseline_wacc(
-        baseline_state
-    )
+    wacc = _get_baseline_wacc(baseline_state)
 
-    baseline_wc = _get_baseline_wc(
-        baseline_state
-    )
+    baseline_wc = _get_baseline_wc(baseline_state)
 
     # =====================================================
     # EXPLANATION
@@ -91,7 +85,7 @@ def render_customer_cash_economics_lab(
     st.subheader("👤 Customer Economics")
 
     st.caption(
-        "Enter the economics of the customer you want to evaluate."
+        "Enter the key numbers for this customer."
     )
 
     c1, c2 = st.columns(2)
@@ -236,8 +230,8 @@ def render_customer_cash_economics_lab(
     )
 
     st.caption(
-        f"Funding gap: {row['Funding Gap Days']:.0f} days  |  "
-        f"Baseline WACC: {wacc:.2%}"
+        f"Cash funding gap: {row['Funding Gap Days']:.0f} days  |  "
+        f"Company funding cost: {wacc:.2%}"
     )
 
     # =====================================================
@@ -311,7 +305,7 @@ def render_customer_cash_economics_lab(
         )
 
     st.caption(
-        f"Discount rate / WACC: **{wacc:.2%}**"
+        f"Company funding cost: **{wacc:.2%}**"
     )
 
     # =====================================================
@@ -512,6 +506,7 @@ def render_customer_cash_economics_lab(
     # DISCOUNT SENSITIVITY
     # ============================================================
 
+    st.divider()
     st.subheader("How much discount can this customer absorb?")
 
     current_npv = npv_result["npv"]
@@ -544,7 +539,7 @@ def render_customer_cash_economics_lab(
                 annual_gross_profit=discounted_gross_profit,
                 customer_specific_annual_costs=customer_specific_costs,
                 cac=cac,
-                retention_rate_pct=retention_rate,
+                retention_rate_pct=float(retention_rate),
                 discount_rate_pct=wacc * 100.0,
                 payment_days=payment_days,
                 inventory_days=inventory_days,
@@ -559,6 +554,15 @@ def render_customer_cash_economics_lab(
 
         max_discount = low
 
+    discount = st.slider(
+        "Test Price Discount (%)",
+        min_value=0.0,
+        max_value=float(round(gross_margin_pct, 1)),
+        value=0.0,
+        step=0.5,
+        key="customer_cash_economics_discount_slider",
+    )
+
     discount_factor = discount / 100.0
     discounted_revenue = annual_revenue * (1 - discount_factor)
     discounted_gross_profit = max(
@@ -571,7 +575,7 @@ def render_customer_cash_economics_lab(
         annual_gross_profit=discounted_gross_profit,
         customer_specific_annual_costs=customer_specific_costs,
         cac=cac,
-        retention_rate_pct=retention_rate,
+        retention_rate_pct=float(retention_rate),
         discount_rate_pct=wacc * 100.0,
         payment_days=payment_days,
         inventory_days=inventory_days,
@@ -589,13 +593,13 @@ def render_customer_cash_economics_lab(
     with col2:
         st.metric(
             "Discount Value",
-            f"€{annual_revenue * discount_factor:,.0f}"
+            f"€ {annual_revenue * discount_factor:,.0f}",
         )
 
     with col3:
         st.metric(
             "Customer NPV",
-            f"€{discounted_npv:,.0f}"
+            f"€ {discounted_npv:,.0f}",
         )
 
     if max_discount > 0:
