@@ -2,7 +2,6 @@ import math
 
 import pandas as pd
 import streamlit as st
-import math
 
 from diagnostics.customer_cash_economics import (
     calculate_break_even_gross_profit,
@@ -555,10 +554,12 @@ def render_customer_cash_economics_lab(
 
         max_discount = low
 
+    max_discount_limit = float(max(0.0, round(gross_margin_pct, 1)))
+
     discount = st.slider(
         "Test Price Discount (%)",
         min_value=0.0,
-        max_value=float(round(gross_margin_pct, 1)),
+        max_value=max_discount_limit,
         value=0.0,
         step=0.5,
         key="customer_cash_economics_discount_slider",
