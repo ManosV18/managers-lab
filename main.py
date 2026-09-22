@@ -1104,12 +1104,11 @@ if current_page == "📈 Growth & Funding Lab":
 
 if current_page == "👥 Customer Value":
 
-    render_clv_lab(
+    render_customer_cash_economics_lab(
         baseline_state=baseline
     )
 
     st.stop()
-
 
 if current_page == "💼 Customer Profit & Cash":
 
