@@ -573,6 +573,7 @@ def render_customer_cash_economics_lab(
 
         max_discount = low
 
+    st.error("TEST — REACHED DISCOUNT SENSITIVITY")
     discount = st.slider(
         "Customer discount (%)",
         min_value=0.0,
