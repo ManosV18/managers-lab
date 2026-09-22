@@ -522,187 +522,120 @@ def render_customer_cash_economics_lab(
         "They do not change the company baseline or create a Decision Plan."
     )
 
-    # =====================================================
+    # ============================================================
     # DISCOUNT SENSITIVITY
-    # =====================================================
+    # ============================================================
 
-    st.divider()
-    st.subheader("🎯 Discount Sensitivity")
+    st.subheader("How much discount can this customer absorb?")
 
-    st.caption(
-        "Test how much discount the customer can absorb before the "
-        "relationship reaches economic break-even."
+    current_npv = npv_result["npv"]
+    gross_margin_pct = (
+        annual_gross_profit / annual_revenue * 100
+        if annual_revenue > 0
+        else 0.0
     )
 
-    # -----------------------------------------------------
-    # Maximum economically sustainable discount
-    # -----------------------------------------------------
+    max_discount = 0.0
 
-    def _calculate_discount_npv(discount_pct: float) -> float:
-        """
-        Recalculate customer NPV after applying a discount to revenue.
-
-        Assumption:
-        - Discount reduces customer revenue.
-        - Customer-specific costs remain unchanged.
-        - Gross profit falls by the euro value of the discount.
-        - Working-capital requirement also falls with revenue.
-        """
-
-        discount_factor = discount_pct / 100.0
-
-        discounted_revenue = (
-            annual_revenue * (1.0 - discount_factor)
-        )
-
-        discounted_gross_profit = (
-            annual_gross_profit
-            - annual_revenue * discount_factor
-        )
-
-        # Gross profit cannot become negative
-        discounted_gross_profit = max(
-            0.0,
-            discounted_gross_profit,
-        )
-
-        sensitivity_result = calculate_customer_npv(
-            annual_revenue=discounted_revenue,
-            annual_gross_profit=discounted_gross_profit,
-            customer_specific_annual_costs=customer_specific_costs,
-            cac=cac,
-            retention_rate_pct=float(retention_rate),
-            discount_rate_pct=wacc * 100.0,
-            payment_days=payment_days,
-            inventory_days=inventory_days,
-            supplier_credit_days=supplier_credit_days,
-            lifetime_years=lifetime_years,
-        )
-
-        return float(sensitivity_result["npv"])
-
-    # -----------------------------------------------------
-    # Find maximum discount before NPV <= 0
-    # -----------------------------------------------------
-
-    if annual_revenue > 0 and customer_npv > 0:
-
+    if current_npv > 0 and gross_margin_pct > 0:
         low = 0.0
-        high = min(
-            100.0,
-            annual_gross_profit / annual_revenue * 100.0,
-        )
+        high = gross_margin_pct
 
-        # Binary search for NPV = 0
-        for _ in range(50):
+        for _ in range(60):
+            mid = (low + high) / 2
 
-            mid = (low + high) / 2.0
+            discount_factor = mid / 100.0
 
-            test_npv = _calculate_discount_npv(mid)
+            discounted_revenue = annual_revenue * (1 - discount_factor)
+
+            discounted_gross_profit = max(
+                annual_gross_profit - annual_revenue * discount_factor,
+                0.0,
+            )
+
+            test_npv = calculate_customer_npv(
+                annual_revenue=discounted_revenue,
+                annual_gross_profit=discounted_gross_profit,
+                customer_specific_annual_costs=customer_specific_costs,
+                cac=cac,
+                retention_rate_pct=retention_rate,
+                discount_rate_pct=wacc * 100.0,
+                payment_days=payment_days,
+                inventory_days=inventory_days,
+                supplier_credit_days=supplier_credit_days,
+                lifetime_years=lifetime_years,
+            )["npv"]
 
             if test_npv >= 0:
                 low = mid
             else:
                 high = mid
 
-        max_discount_pct = low
+        max_discount = low
 
-    else:
-        max_discount_pct = 0.0
-
-    # -----------------------------------------------------
-    # Interactive discount slider
-    # -----------------------------------------------------
-
-    discount_pct = st.slider(
-        "Customer Discount",
+    discount = st.slider(
+        "Customer discount (%)",
         min_value=0.0,
-        max_value=float(
-            min(
-                50.0,
-                annual_gross_profit / annual_revenue * 100.0
-                if annual_revenue > 0
-                else 0.0,
-            )
-        ),
+        max_value=float(gross_margin_pct),
         value=0.0,
         step=0.5,
-        key="customer_cash_economics_discount_sensitivity",
+        key="clv_discount_sensitivity",
     )
 
-    sensitivity_npv = _calculate_discount_npv(
-        discount_pct
+    discount_factor = discount / 100.0
+    discounted_revenue = annual_revenue * (1 - discount_factor)
+    discounted_gross_profit = max(
+        annual_gross_profit - annual_revenue * discount_factor,
+        0.0,
     )
 
-    discount_amount = (
-        annual_revenue * discount_pct / 100.0
+    discounted_npv_result = calculate_customer_npv(
+        annual_revenue=discounted_revenue,
+        annual_gross_profit=discounted_gross_profit,
+        customer_specific_annual_costs=customer_specific_costs,
+        cac=cac,
+        retention_rate_pct=retention_rate,
+        discount_rate_pct=wacc * 100.0,
+        payment_days=payment_days,
+        inventory_days=inventory_days,
+        supplier_credit_days=supplier_credit_days,
+        lifetime_years=lifetime_years,
     )
 
-    s1, s2, s3 = st.columns(3)
+    discounted_npv = discounted_npv_result["npv"]
 
-    s1.metric(
-        "Discount",
-        f"{discount_pct:.1f}%",
-    )
+    col1, col2, col3 = st.columns(3)
 
-    s2.metric(
-        "Discount Value",
-        f"€ {discount_amount:,.0f}",
-    )
+    with col1:
+        st.metric("Discount", f"{discount:.1f}%")
 
-    s3.metric(
-        "Customer NPV",
-        f"€ {sensitivity_npv:,.0f}",
-    )
-
-    # -----------------------------------------------------
-    # Visual interpretation
-    # -----------------------------------------------------
-
-    if sensitivity_npv > 0:
-
-        remaining_discount = max(
-            0.0,
-            max_discount_pct - discount_pct,
+    with col2:
+        st.metric(
+            "Discount Value",
+            f"€{annual_revenue * discount_factor:,.0f}"
         )
 
+    with col3:
+        st.metric(
+            "Customer NPV",
+            f"€{discounted_npv:,.0f}"
+        )
+
+    if max_discount > 0:
         st.success(
-            f"🟢 The customer still creates positive economic value. "
-            f"You have approximately **{remaining_discount:.1f} percentage points** "
-            f"of discount headroom before NPV reaches break-even."
+            f"Maximum sustainable discount: **{max_discount:.1f}%** "
+            f"before customer NPV reaches zero."
         )
-
-    elif sensitivity_npv == 0:
-
+    elif current_npv <= 0:
         st.warning(
-            "🟠 This discount is approximately the economic break-even point."
+            "This customer is already at or below zero economic NPV. "
+            "There is no sustainable discount."
         )
-
     else:
-
-        st.error(
-            f"🔴 At a {discount_pct:.1f}% discount, the customer relationship "
-            f"falls below economic break-even."
+        st.warning(
+            "No additional discount is economically sustainable."
         )
 
-    # -----------------------------------------------------
-    # Maximum discount indicator
-    # -----------------------------------------------------
-
-    st.metric(
-        "Maximum Economically Sustainable Discount",
-        f"{max_discount_pct:.1f}%",
-        help=(
-            "Approximate discount at which Customer Economic NPV reaches €0 "
-            "under the current assumptions."
-        ),
-    )
-
-    st.caption(
-        "Sensitivity is analytical only. It does not change the company baseline "
-        "or create a Decision Plan."
-    )
-    
     # =====================================================
     # EXISTING CASH WHAT-IF
     # =====================================================
