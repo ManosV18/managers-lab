@@ -648,7 +648,3 @@ def render_customer_cash_economics_lab(
         "Estimated Cash Released",
         f"€ {released_capital:,.0f}",
     )
-
-    st.caption(
-        "Analytical estimate only. No company state or baseline assumption is changed."
-    )
