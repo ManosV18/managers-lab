@@ -104,6 +104,10 @@ from ui.working_capital_data_analyzer import (
     render_working_capital_data_analyzer
 )
 
+from ui.managing_current_assets_lab import (
+    render_managing_current_assets_lab
+)
+
 from ui.qspm_lab import render_qspm_lab
 from ui.concentration_lab import render_concentration_lab
 
@@ -676,11 +680,11 @@ def render_home():
             with b4:
 
                 navigation_button(
-                    "Customer Value",
-                    "👥 Customer Value",
-                    "home_customer_economics",
+                "Managing Current Assets",
+                "💧 Managing Current Assets",
+                "home_managing_current_assets",
                 )
-
+           
     # =====================================================
     # FREE UP CASH
     # =====================================================
@@ -965,13 +969,14 @@ if current_page == "📊 Sales & Cost Analyzer":
 # WORKING CAPITAL DATA
 # =========================================================
 
-if current_page == "📐 Working Capital Data Analyzer":
+    if current_page == "💧 Managing Current Assets":
 
-    render_working_capital_data_analyzer()
+    render_managing_current_assets_lab(
+        baseline_state=baseline
+    )
 
     st.stop()
-
-
+   
 # =========================================================
 # BASELINE GUARD
 # =========================================================
