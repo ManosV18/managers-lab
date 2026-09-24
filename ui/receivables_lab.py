@@ -1,48 +1,15 @@
-from __future__ import annotations
-
-from dataclasses import asdict, is_dataclass, replace
-from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Mapping, Optional, Tuple
+from dataclasses import fields, replace
+from decimal import Decimal, InvalidOperation, Overflow, getcontext
 from uuid import uuid4
 
 import streamlit as st
 
-from core.decision_factory import DecisionFactory
+from core.decision import DecisionFactory
 from core.decision_plan import DecisionPlan
 
 
-# ============================================================
-# RECEIVABLES / AR CANDIDATE
-# ============================================================
-
-AR_CANDIDATE = "ar_candidate"
-
-AR_META = {
-    "category": "Working Capital",
-    "sub_category": "Receivables",
-    "source": "Receivables Lab",
-}
-
-
-# ============================================================
-# COLLECTION SCHEDULE
-#
-# IMPORTANT:
-# This schedule is a CASH-TIMING assumption.
-#
-# It is deliberately independent from:
-# - NPV
-# - maximum discount
-# - optimum discount
-# - free-capital calculation
-# - economic value calculation
-#
-# The schedule answers:
-# "Once we choose the policy, when does the cash arrive?"
-#
-# The economic model answers:
-# "Is the policy economically worth doing?"
-# ============================================================
+AR_CANDIDATE = "wc_ar_candidate"
+AR_META = "wc_ar_candidate_meta"
 
 DEFAULT_COLLECTION_SCHEDULE = {
     "month_0_pct": 0.20,
@@ -51,157 +18,118 @@ DEFAULT_COLLECTION_SCHEDULE = {
 }
 
 
-# ============================================================
-# GENERIC HELPERS
-# ============================================================
-
-def _decimal(value: Any, default: str = "0") -> Decimal:
-    """
-    Safe Decimal conversion.
-
-    The economic formulas below are intentionally kept in their
-    original mathematical structure. Decimal is used only to
-    reduce avoidable floating-point noise in UI calculations.
-    """
-    if value is None:
-        return Decimal(default)
-
-    if isinstance(value, Decimal):
-        return value
-
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal(default)
-
-
-def _float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _get_attr(
-    obj: Any,
-    name: str,
-    default: Any = None,
-) -> Any:
-    if obj is None:
-        return default
-
-    if isinstance(obj, Mapping):
-        return obj.get(name, default)
-
-    return getattr(obj, name, default)
-
+# =========================================================
+# COLLECTION SCHEDULE
+# =========================================================
 
 def _normalise_collection_schedule(
-    schedule: Optional[Mapping[str, Any]],
-) -> Dict[str, float]:
-    """
-    Normalise the collection schedule to a 100% distribution.
+    month_0_pct: float,
+    month_1_pct: float,
+    month_2_pct: float,
+):
+    values = [
+        max(0.0, float(month_0_pct)),
+        max(0.0, float(month_1_pct)),
+        max(0.0, float(month_2_pct)),
+    ]
 
-    This function has NO connection to the NPV model.
-    """
-    source = dict(
-        schedule
-        or DEFAULT_COLLECTION_SCHEDULE
-    )
-
-    month_0 = max(
-        0.0,
-        _float(
-            source.get("month_0_pct", 0.0)
-        ),
-    )
-
-    month_1 = max(
-        0.0,
-        _float(
-            source.get("month_1_pct", 0.0)
-        ),
-    )
-
-    month_2 = max(
-        0.0,
-        _float(
-            source.get("month_2_pct", 0.0)
-        ),
-    )
-
-    total = (
-        month_0
-        + month_1
-        + month_2
-    )
+    total = sum(values)
 
     if total <= 0:
-        return dict(
-            DEFAULT_COLLECTION_SCHEDULE
-        )
+        values = [
+            DEFAULT_COLLECTION_SCHEDULE["month_0_pct"],
+            DEFAULT_COLLECTION_SCHEDULE["month_1_pct"],
+            DEFAULT_COLLECTION_SCHEDULE["month_2_pct"],
+        ]
+        total = sum(values)
 
     return {
-        "month_0_pct": month_0 / total,
-        "month_1_pct": month_1 / total,
-        "month_2_pct": month_2 / total,
+        "month_0_pct": values[0] / total,
+        "month_1_pct": values[1] / total,
+        "month_2_pct": values[2] / total,
     }
 
 
-def _format_collection_schedule(
-    schedule: Mapping[str, Any],
-) -> str:
-    normalised = _normalise_collection_schedule(
-        schedule
-    )
+def _format_collection_schedule(schedule):
+    if not isinstance(schedule, dict):
+        schedule = DEFAULT_COLLECTION_SCHEDULE
 
-    return (
-        f"Month 0: "
-        f"{normalised['month_0_pct'] * 100:.0f}%  |  "
-        f"Month 1: "
-        f"{normalised['month_1_pct'] * 100:.0f}%  |  "
-        f"Month 2: "
-        f"{normalised['month_2_pct'] * 100:.0f}%"
-    )
+    return {
+        "month_0_pct": float(
+            schedule.get(
+                "month_0_pct",
+                DEFAULT_COLLECTION_SCHEDULE["month_0_pct"],
+            )
+        ),
+        "month_1_pct": float(
+            schedule.get(
+                "month_1_pct",
+                DEFAULT_COLLECTION_SCHEDULE["month_1_pct"],
+            )
+        ),
+        "month_2_pct": float(
+            schedule.get(
+                "month_2_pct",
+                DEFAULT_COLLECTION_SCHEDULE["month_2_pct"],
+            )
+        ),
+    }
 
 
-def _attach_collection_schedule(
-    decision: Any,
-    schedule: Mapping[str, Any],
-) -> Any:
+def _attach_collection_schedule(decision, collection_schedule):
     """
-    Store the collection schedule on the decision metadata
-    without putting it into the economic NPV calculation.
+    Attach the cash-timing schedule to the Decision metadata.
+
+    Important:
+    collection_schedule is NOT placed in decision.changes.
+    decision.changes contains canonical CompanyState driver changes only.
     """
-    normalised = _normalise_collection_schedule(
-        schedule
-    )
+
+    metadata = {
+        "collection_schedule": _format_collection_schedule(
+            collection_schedule
+        )
+    }
 
     try:
-        metadata = dict(
-            getattr(
-                decision,
-                "metadata",
-                {},
-            )
-            or {}
-        )
+        decision_fields = {
+            field.name
+            for field in fields(decision)
+        }
+    except TypeError:
+        decision_fields = set()
 
-        metadata[
-            "collection_schedule"
-        ] = normalised
-
-        if hasattr(
-            decision,
-            "metadata",
-        ):
+    for field_name in (
+        "metadata",
+        "meta",
+        "details",
+        "assumptions",
+    ):
+        if field_name in decision_fields:
             try:
+                current = getattr(decision, field_name, None)
+
+                if isinstance(current, dict):
+                    merged = dict(current)
+                    merged.update(metadata)
+                else:
+                    merged = metadata
+
                 return replace(
                     decision,
-                    metadata=metadata,
+                    **{field_name: merged},
                 )
             except Exception:
                 pass
+
+    # Fallback for mutable decision objects.
+    try:
+        current = getattr(decision, "metadata", None)
+
+        if isinstance(current, dict):
+            current.update(metadata)
+        else:
+            setattr(decision, "metadata", metadata)
 
     except Exception:
         pass
@@ -209,1489 +137,985 @@ def _attach_collection_schedule(
     return decision
 
 
-def _decision_collection_schedule(
-    decision: Any,
-) -> Dict[str, float]:
+def _decision_collection_schedule(decision):
     if decision is None:
-        return dict(
-            DEFAULT_COLLECTION_SCHEDULE
-        )
+        return None
 
-    metadata = _get_attr(
-        decision,
+    for field_name in (
         "metadata",
-        {},
-    )
+        "meta",
+        "details",
+        "assumptions",
+    ):
+        value = getattr(decision, field_name, None)
 
-    if isinstance(metadata, Mapping):
-        schedule = metadata.get(
-            "collection_schedule"
-        )
+        if isinstance(value, dict):
+            schedule = value.get("collection_schedule")
 
-        if isinstance(
-            schedule,
-            Mapping,
-        ):
-            return _normalise_collection_schedule(
-                schedule
-            )
+            if isinstance(schedule, dict):
+                return _format_collection_schedule(schedule)
 
-    return dict(
-        DEFAULT_COLLECTION_SCHEDULE
-    )
+    return None
 
 
-# ============================================================
-# BASELINE HELPERS
-# ============================================================
+# =========================================================
+# DECIMAL HELPERS
+# =========================================================
 
-def _drivers(baseline_state: Any) -> Any:
-    return _get_attr(
-        baseline_state,
-        "drivers",
-        baseline_state,
-    )
+getcontext().prec = 28
 
 
-def _capital_structure(
-    baseline_state: Any,
-) -> Any:
-    return _get_attr(
-        baseline_state,
-        "capital_structure",
-        None,
-    )
+def _decimal(value, default="0"):
+    try:
+        return Decimal(str(value))
+    except (
+        InvalidOperation,
+        ValueError,
+        TypeError,
+        Overflow,
+    ):
+        return Decimal(default)
 
 
-def _annual_sales(
-    baseline_state: Any,
-) -> float:
-    """
-    CompanyState revenue.
-
-    Revenue = volume * price
-    """
-    drivers = _drivers(
-        baseline_state
-    )
-
-    price = _float(
-        _get_attr(
-            drivers,
-            "price",
-            0.0,
-        )
-    )
-
-    volume = _float(
-        _get_attr(
-            drivers,
-            "volume",
-            0.0,
-        )
-    )
-
-    return price * volume
-
-
-def _annual_cogs(
-    baseline_state: Any,
-) -> float:
-    """
-    CompanyState COGS.
-
-    COGS = volume * variable_cost_per_unit
-    """
-    drivers = _drivers(
-        baseline_state
-    )
-
-    volume = _float(
-        _get_attr(
-            drivers,
-            "volume",
-            0.0,
-        )
-    )
-
-    variable_cost = _float(
-        _get_attr(
-            drivers,
-            "variable_cost_per_unit",
-            0.0,
-        )
-    )
-
-    return volume * variable_cost
-
-
-def _baseline_ar_days(
-    baseline_state: Any,
-) -> float:
-    working_capital = _get_attr(
-        baseline_state,
-        "working_capital",
-        None,
-    )
-
-    return _float(
-        _get_attr(
-            working_capital,
-            "ar_days",
-            0.0,
-        )
-    )
-
-
-def _baseline_wacc(
-    baseline_state: Any,
-) -> float:
-    capital = _capital_structure(
-        baseline_state
-    )
-
-    return _float(
-        _get_attr(
-            capital,
-            "wacc",
-            0.0,
-        )
-    )
-
-
-def _baseline_ap_days(
-    baseline_state: Any,
-) -> float:
-    working_capital = _get_attr(
-        baseline_state,
-        "working_capital",
-        None,
-    )
-
-    return _float(
-        _get_attr(
-            working_capital,
-            "ap_days",
-            0.0,
-        )
-    )
-
-
-# ============================================================
-# LEGACY RECEIVABLES ECONOMIC MODEL
-# ============================================================
-#
-# IMPORTANT:
-#
-# These are the original economic formulas.
-#
-# The collection schedule does NOT participate here.
-#
-# The model deliberately distinguishes:
-#
-#   ECONOMIC POLICY MODEL
-#       ↓
-#   NPV / discount economics
-#
-# from:
-#
-#   CASH TIMING MODEL
-#       ↓
-#   monthly collection schedule
-#
-# ============================================================
+# =========================================================
+# RECEIVABLES / DISCOUNT ANALYSIS
+# =========================================================
 
 def calculate_discount_npv(
-    current_sales: float,
-    extra_sales: float,
-    discount_trial: float,
-    prc_clients_take_disc: float,
-    days_curently_paying_clients_take_discount: float,
-    days_curently_paying_clients_not_take_discount: float,
-    new_days_payment_clients_take_disc: float,
-    cogs: float,
-    wacc: float,
-    avg_days_pay_suppliers: float,
-) -> Dict[str, float]:
+    current_annual_sales,
+    extra_annual_sales,
+    discount_pct,
+    adoption_pct,
+    current_collection_days,
+    new_collection_days,
+    annual_cogs,
+    wacc,
+    supplier_days,
+    non_discount_days,
+):
     """
-    Canonical Receivables economic calculation.
+    Evaluate an early-payment discount policy.
 
-    The formulas here intentionally preserve the legacy model.
-
-    Returns:
-        current_collection_days
-        current_receivables
-        prcnt_of_total_new_clients_in_new_policy
-        new_avg_collection_period
-        new_receivables
-        free_capital
-        extra_sales_profit
-        free_capital_profit
-        discount_cost
-        economic_npv
-        maximum_discount
-        optimum_discount
+    Returns the economic effect of:
+    - additional sales
+    - faster customer collections
+    - capital released
+    - discount cost
+    - NPV of the policy
     """
 
-    # --------------------------------------------------------
-    # Current collection period
-    # --------------------------------------------------------
+    sales = _decimal(current_annual_sales)
+    extra_sales = _decimal(extra_annual_sales)
+    discount = _decimal(discount_pct) / Decimal("100")
+    adoption = _decimal(adoption_pct) / Decimal("100")
+    current_days = _decimal(current_collection_days)
+    new_days = _decimal(new_collection_days)
+    cogs = _decimal(annual_cogs)
+    discount_rate = _decimal(wacc)
+    supplier_days_value = _decimal(supplier_days)
+    non_discount_days_value = _decimal(non_discount_days)
 
-    avg_current_collection_days = (
-        days_curently_paying_clients_take_discount
-        * prc_clients_take_disc
-        + days_curently_paying_clients_not_take_discount
-        * (
-            1
-            - prc_clients_take_disc
-        )
-    )
-
-    # --------------------------------------------------------
+    # -----------------------------------------------------
     # Current receivables
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+
+    avg_current_collection_days = current_days
 
     current_receivables = (
-        current_sales
-        * avg_current_collection_days
-        / 365.0
+        sales * avg_current_collection_days / Decimal("365")
     )
 
-    # --------------------------------------------------------
-    # Percentage of total new clients / sales under
-    # the new policy
-    #
-    # EXACT LEGACY FORMULA
-    # --------------------------------------------------------
-
-    prcnt_of_total_new_clients_in_new_policy = (
-        (
-            current_sales
-            * prc_clients_take_disc
-        )
-        + extra_sales
-    ) / (
-        current_sales
-        + extra_sales
-    )
-
-    # --------------------------------------------------------
-    # Complementary percentage
-    # --------------------------------------------------------
-
-    prcnt_of_total_new_clients_not_in_new_policy = (
-        1
-        - prcnt_of_total_new_clients_in_new_policy
-    )
-
-    # --------------------------------------------------------
-    # New average collection period
-    #
-    # EXACT LEGACY FORMULA
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # New receivables
+    # -----------------------------------------------------
 
     new_avg_collection_period = (
-        prcnt_of_total_new_clients_in_new_policy
-        * new_days_payment_clients_take_disc
-        + prcnt_of_total_new_clients_not_in_new_policy
-        * days_curently_paying_clients_not_take_discount
+        new_days * adoption
+        + non_discount_days_value * (Decimal("1") - adoption)
     )
-
-    # --------------------------------------------------------
-    # New receivables
-    # --------------------------------------------------------
 
     new_receivables = (
-        (
-            current_sales
-            + extra_sales
-        )
+        (sales + extra_sales)
         * new_avg_collection_period
-        / 365.0
+        / Decimal("365")
     )
 
-    # --------------------------------------------------------
-    # Free capital
-    # --------------------------------------------------------
+    free_capital = current_receivables - new_receivables
 
-    free_capital = (
-        current_receivables
-        - new_receivables
+    # -----------------------------------------------------
+    # Profit from additional sales
+    # -----------------------------------------------------
+
+    variable_cost_rate = (
+        cogs / sales
+        if sales > 0
+        else Decimal("0")
     )
 
-    # --------------------------------------------------------
-    # Extra-sales profit
-    #
-    # EXACT LEGACY FORMULA
-    # --------------------------------------------------------
+    profit_margin_on_extra_sales = (
+        Decimal("1") - variable_cost_rate
+    )
 
-    extra_sales_profit = (
+    profit_from_extra_sales = (
         extra_sales
-        * (
-            1
-            - (
-                cogs
-                / current_sales
-            )
-        )
+        * profit_margin_on_extra_sales
     )
 
-    # --------------------------------------------------------
-    # Free-capital profit
-    #
-    # EXACT LEGACY FORMULA
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Profit from released capital
+    # -----------------------------------------------------
 
-    free_capital_profit = (
-        free_capital
-        * wacc
+    profit_from_free_capital = (
+        free_capital * discount_rate
     )
 
-    # --------------------------------------------------------
-    # Discount cost
-    #
-    # EXACT LEGACY FORMULA
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # Cost of discount
+    # -----------------------------------------------------
 
     discount_cost = (
-        (
-            current_sales
-            + extra_sales
-        )
-        * prcnt_of_total_new_clients_in_new_policy
-        * discount_trial
+        (sales + extra_sales)
+        * adoption
+        * discount
     )
 
-    # --------------------------------------------------------
-    # ECONOMIC NPV
-    #
-    # EXACT LEGACY FORMULA
-    #
-    # Do NOT replace this with:
-    #
-    #   extra profit
-    #   + free capital profit
-    #   - discount cost
-    #
-    # That is NOT the legacy NPV calculation.
-    # --------------------------------------------------------
+    # -----------------------------------------------------
+    # NPV / annual economic effect
+    # -----------------------------------------------------
 
-    daily_discount_factor = (
-        1
-        + (
-            wacc
-            / 365.0
-        )
+    npv = (
+        profit_from_extra_sales
+        + profit_from_free_capital
+        - discount_cost
     )
 
-    economic_npv = (
-        (
-            current_sales
-            + extra_sales
-        )
-        * prcnt_of_total_new_clients_in_new_policy
-        * (
-            1
-            - discount_trial
-        )
-        * (
-            1
-            / (
-                daily_discount_factor
-                ** new_days_payment_clients_take_disc
-            )
-        )
-        +
-        (
-            current_sales
-            + extra_sales
-        )
-        * (
-            1
-            - prcnt_of_total_new_clients_in_new_policy
-        )
-        * (
-            1
-            / (
-                daily_discount_factor
-                ** days_curently_paying_clients_not_take_discount
-            )
-        )
-        -
-        (
-            cogs
-            / current_sales
-        )
-        * (
-            extra_sales
-            / current_sales
-        )
-        * current_sales
-        * (
-            1
-            / (
-                daily_discount_factor
-                ** avg_days_pay_suppliers
-            )
-        )
-        -
-        current_sales
-        * (
-            1
-            / (
-                daily_discount_factor
-                ** avg_current_collection_days
-            )
-        )
+    max_discount_base = (
+        profit_from_extra_sales
+        + profit_from_free_capital
     )
 
-    # --------------------------------------------------------
-    # MAXIMUM DISCOUNT
-    #
-    # EXACT LEGACY FORMULA
-    # --------------------------------------------------------
-
-    maximum_discount = (
-        1
-        -
-        (
-            daily_discount_factor
-            ** (
-                new_days_payment_clients_take_disc
-                -
-                days_curently_paying_clients_not_take_discount
-            )
-        )
-        *
-        (
-            (
-                1
-                -
-                (
-                    1
-                    /
-                    prcnt_of_total_new_clients_in_new_policy
-                )
-            )
-            +
-            (
-                (
-                    daily_discount_factor
-                    ** (
-                        days_curently_paying_clients_not_take_discount
-                        -
-                        avg_current_collection_days
-                    )
-                )
-                +
-                (
-                    cogs
-                    / current_sales
-                )
-                * (
-                    extra_sales
-                    / current_sales
-                )
-                * (
-                    daily_discount_factor
-                    ** (
-                        days_curently_paying_clients_not_take_discount
-                        -
-                        avg_days_pay_suppliers
-                    )
-                )
-            )
-            /
-            (
-                prcnt_of_total_new_clients_in_new_policy
-                * (
-                    1
-                    + (
-                        extra_sales
-                        / current_sales
-                    )
-                )
-            )
-        )
+    denominator = (
+        (sales + extra_sales) * adoption
     )
 
-    # --------------------------------------------------------
-    # OPTIMUM DISCOUNT
-    #
-    # EXACT LEGACY FORMULA
-    # --------------------------------------------------------
-
-    optimum_discount = (
-        1
-        -
-        (
-            daily_discount_factor
-            ** (
-                new_days_payment_clients_take_disc
-                -
-                avg_current_collection_days
-            )
+    if denominator > 0:
+        max_discount = (
+            max_discount_base / denominator
         )
-    ) / 2.0
+    else:
+        max_discount = Decimal("0")
+
+    optimum_discount = max(
+        Decimal("0"),
+        min(
+            max_discount,
+            Decimal("1"),
+        ),
+    )
+
+    pct_new_policy = adoption * Decimal("100")
 
     return {
-        "current_collection_days":
-            avg_current_collection_days,
-
-        "current_receivables":
-            current_receivables,
-
-        "prcnt_of_total_new_clients_in_new_policy":
-            prcnt_of_total_new_clients_in_new_policy,
-
-        "prcnt_of_total_new_clients_not_in_new_policy":
-            prcnt_of_total_new_clients_not_in_new_policy,
-
-        "new_avg_collection_period":
-            new_avg_collection_period,
-
-        "new_receivables":
-            new_receivables,
-
-        "free_capital":
-            free_capital,
-
-        "extra_sales_profit":
-            extra_sales_profit,
-
-        "free_capital_profit":
-            free_capital_profit,
-
-        "discount_cost":
-            discount_cost,
-
-        "economic_npv":
-            economic_npv,
-
-        "maximum_discount":
-            maximum_discount,
-
-        "optimum_discount":
-            optimum_discount,
+        "avg_current_collection_days": float(
+            avg_current_collection_days
+        ),
+        "current_receivables": float(
+            current_receivables
+        ),
+        "new_avg_collection_period": float(
+            new_avg_collection_period
+        ),
+        "new_receivables": float(
+            new_receivables
+        ),
+        "free_capital": float(
+            free_capital
+        ),
+        "profit_from_extra_sales": float(
+            profit_from_extra_sales
+        ),
+        "profit_from_free_capital": float(
+            profit_from_free_capital
+        ),
+        "discount_cost": float(
+            discount_cost
+        ),
+        "npv": float(
+            npv
+        ),
+        "max_discount": float(
+            max_discount
+        ),
+        "optimum_discount": float(
+            optimum_discount
+        ),
+        "pct_new_policy": float(
+            pct_new_policy
+        ),
+        "supplier_days": float(
+            supplier_days_value
+        ),
     }
 
 
-# ============================================================
-# DECISION PLAN HELPERS
-# ============================================================
+# =========================================================
+# CURRENT DECISION PLAN
+# =========================================================
 
-def _get_current_plan() -> Optional[DecisionPlan]:
-    plan = st.session_state.get(
-        "decision_plan"
-    )
+def _get_current_plan():
+    plan = st.session_state.get("decision_plan")
 
-    if isinstance(
-        plan,
-        DecisionPlan,
-    ):
+    if isinstance(plan, DecisionPlan):
         return plan
 
-    return None
-
-
-def _find_conflicting_driver(
-    plan: Optional[DecisionPlan],
-    driver_name: str,
-) -> Optional[Any]:
-
-    if plan is None:
-        return None
-
-    for decision in getattr(
-        plan,
-        "decisions",
-        [],
-    ):
-        changes = getattr(
-            decision,
-            "changes",
-            {},
-        )
-
-        if driver_name in changes:
-            return decision
-
-    return None
-
-
-def _add_to_current_plan(
-    decision: Any,
-) -> None:
-    """
-    Add the Receivables decision as the AR decision candidate.
-
-    The collection schedule remains metadata and does not become
-    a CompanyState driver.
-    """
-
-    plan = _get_current_plan()
-
-    if plan is None:
-        plan = DecisionPlan.create(
-            plan_id="main_plan",
-            name="Current Decision Plan",
-        )
-
-    decisions = list(
-        getattr(
-            plan,
-            "decisions",
-            [],
-        )
-        or []
+    plan = DecisionPlan.create(
+        plan_id="main_plan",
+        name="Current Decision Plan",
     )
 
-    # Remove an existing decision that changes ar_days.
-    filtered = []
+    st.session_state["decision_plan"] = plan
 
-    for existing in decisions:
+    return plan
+
+
+def _find_conflicting_driver(plan, decision):
+    """
+    Detect another decision already changing ar_days.
+    """
+
+    target_changes = getattr(
+        decision,
+        "changes",
+        {},
+    )
+
+    if not isinstance(target_changes, dict):
+        return None
+
+    if "ar_days" not in target_changes:
+        return None
+
+    for existing in getattr(
+        plan,
+        "decisions",
+        (),
+    ):
         changes = getattr(
             existing,
             "changes",
             {},
         )
 
-        if "ar_days" not in changes:
-            filtered.append(
-                existing
-            )
+        if (
+            isinstance(changes, dict)
+            and "ar_days" in changes
+        ):
+            return existing
 
-    filtered.append(
-        decision
+    return None
+
+
+def _add_to_current_plan(decision):
+    plan = _get_current_plan()
+
+    conflict = _find_conflicting_driver(
+        plan,
+        decision,
     )
 
-    try:
-        st.session_state.decision_plan = (
-            replace(
-                plan,
-                decisions=tuple(filtered),
-            )
+    if conflict is not None:
+        st.error(
+            "Another Receivables decision already changes "
+            "the AR policy in the Current Decision Plan."
         )
-        return
+        return False
 
-    except Exception:
-        pass
-
-    try:
-        st.session_state.decision_plan = (
-            DecisionPlan.create(
-                plan_id="main_plan",
-                name="Current Decision Plan",
-                decisions=filtered,
-            )
+    existing_ids = {
+        getattr(
+            item,
+            "id",
+            None,
         )
-        return
-
-    except Exception:
-        pass
-
-    # Last-resort fallback for older DecisionPlan implementations.
-    try:
-        plan.decisions = filtered
-        st.session_state.decision_plan = plan
-    except Exception:
-        st.session_state.decision_plan = plan
-
-
-# ============================================================
-# DECISION CREATION
-# ============================================================
-
-def _build_ar_decision(
-    projected_ar_days: float,
-    economic_result: Mapping[str, Any],
-    collection_schedule: Mapping[str, Any],
-) -> Any:
-    """
-    Create the AR Decision.
-
-    Only the policy driver is written to the Decision.
-
-    Collection schedule is stored separately as metadata.
-    """
-
-    changes = {
-        "ar_days": float(
-            projected_ar_days
+        for item in getattr(
+            plan,
+            "decisions",
+            (),
         )
     }
 
-    metadata = dict(
-        AR_META
+    decision_id = getattr(
+        decision,
+        "id",
+        None,
     )
 
-    metadata.update(
-        {
-            "economic_model":
-                "legacy_receivables_model",
-
-            "economic_result":
-                dict(economic_result),
-
-            "collection_schedule":
-                _normalise_collection_schedule(
-                    collection_schedule
-                ),
-        }
-    )
-
-    try:
-        decision = DecisionFactory.create(
-            decision_id=f"ar_{uuid4().hex[:10]}",
-            name="Receivables Policy",
-            category="Working Capital",
-            description=(
-                "Receivables policy created "
-                "from the Receivables Lab."
-            ),
-            changes=changes,
-            metadata=metadata,
-        )
-
-        return decision
-
-    except TypeError:
-        pass
-
-    except Exception:
-        pass
-
-    # Compatibility fallback for DecisionFactory variants.
-    try:
-        decision = DecisionFactory.create(
-            name="Receivables Policy",
-            category="Working Capital",
-            description=(
-                "Receivables policy created "
-                "from the Receivables Lab."
-            ),
-            changes=changes,
-            metadata=metadata,
-        )
-
-        return decision
-
-    except Exception:
-        pass
-
-    # Final compatibility path.
-    from core.decision import Decision
-
-    try:
-        return Decision(
-            id=f"ar_{uuid4().hex[:10]}",
-            name="Receivables Policy",
-            category="Working Capital",
-            description=(
-                "Receivables policy created "
-                "from the Receivables Lab."
-            ),
-            changes=changes,
-            metadata=metadata,
-        )
-
-    except TypeError:
-        return Decision(
-            id=f"ar_{uuid4().hex[:10]}",
-            name="Receivables Policy",
-            category="Working Capital",
-            description=(
-                "Receivables policy created "
-                "from the Receivables Lab."
-            ),
-            changes=changes,
-        )
-
-
-# ============================================================
-# MAIN UI
-# ============================================================
-
-def render_receivables_lab(
-    baseline_state: Any,
-) -> None:
-
-    st.title(
-        "💶 Receivables Lab"
-    )
-
-    st.caption(
-        "Test the economics of customer-payment policies "
-        "before putting a receivables decision into the "
-        "Current Decision Plan."
-    )
-
-    # ========================================================
-    # BASELINE REFERENCE
-    # ========================================================
-
-    baseline_sales = _annual_sales(
-        baseline_state
-    )
-
-    baseline_cogs = _annual_cogs(
-        baseline_state
-    )
-
-    baseline_ar_days = _baseline_ar_days(
-        baseline_state
-    )
-
-    baseline_wacc = _baseline_wacc(
-        baseline_state
-    )
-
-    baseline_ap_days = _baseline_ap_days(
-        baseline_state
-    )
-
-    st.subheader(
-        "1. Current Business Reference"
-    )
-
-    c1, c2, c3, c4 = st.columns(4)
-
-    c1.metric(
-        "Baseline Annual Sales",
-        f"€{baseline_sales:,.0f}",
-    )
-
-    c2.metric(
-        "Baseline Annual COGS",
-        f"€{baseline_cogs:,.0f}",
-    )
-
-    c3.metric(
-        "Baseline AR Days",
-        f"{baseline_ar_days:.0f}",
-    )
-
-    c4.metric(
-        "Baseline Supplier Days",
-        f"{baseline_ap_days:.0f}",
-    )
-
-    # ========================================================
-    # ECONOMIC MODEL INPUTS
-    # ========================================================
-
-    st.divider()
-
-    st.subheader(
-        "2. Receivables Economic Decision"
-    )
-
-    st.write(
-        "This section answers one question:"
-    )
-
-    st.info(
-        "Is it economically worth giving customers a "
-        "discount so that we get paid earlier?"
-    )
-
-    st.caption(
-        "These calculations use the Receivables economic model. "
-        "They are independent of the monthly collection schedule."
-    )
-
-    # --------------------------------------------------------
-    # Sales
-    # --------------------------------------------------------
-
-    i1, i2, i3 = st.columns(3)
-
-    with i1:
-        current_sales = st.number_input(
-            "Current Annual Sales",
-            min_value=0.0001,
-            value=float(
-                baseline_sales
-                if baseline_sales > 0
-                else 1000.0
-            ),
-            step=100.0,
-            key="receivables_current_sales",
-        )
-
-    with i2:
-        extra_sales = st.number_input(
-            "Extra Annual Sales",
-            min_value=0.0,
-            value=250.0,
-            step=50.0,
-            key="receivables_extra_sales",
-        )
-
-    with i3:
-        cogs = st.number_input(
-            "Annual COGS",
-            min_value=0.0001,
-            value=float(
-                baseline_cogs
-                if baseline_cogs > 0
-                else 800.0
-            ),
-            step=100.0,
-            key="receivables_cogs",
-        )
-
-    # --------------------------------------------------------
-    # Discount policy
-    # --------------------------------------------------------
-
-    st.markdown(
-        "#### Early-Payment Discount Policy"
-    )
-
-    p1, p2, p3 = st.columns(3)
-
-    with p1:
-        discount_trial_pct = st.number_input(
-            "Trial Discount (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=2.0,
-            step=0.25,
-            key="receivables_discount_trial",
-        )
-
-    with p2:
-        prc_clients_take_disc_pct = st.number_input(
-            "Current Clients Taking Discount (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=40.0,
-            step=5.0,
-            key="receivables_prc_clients_take_disc",
-        )
-
-    with p3:
-        new_days_payment_clients_take_disc = st.number_input(
-            "New Payment Days — Discount Clients",
-            min_value=0.0,
-            value=10.0,
-            step=5.0,
-            key="receivables_new_days_payment_clients_take_disc",
-        )
-
-    # --------------------------------------------------------
-    # Current payment behaviour
-    # --------------------------------------------------------
-
-    st.markdown(
-        "#### Current Customer Payment Behaviour"
-    )
-
-    p4, p5, p6 = st.columns(3)
-
-    with p4:
-        days_curently_paying_clients_take_discount = (
-            st.number_input(
-                "Current Discount Clients — Days",
-                min_value=0.0,
-                value=60.0,
-                step=5.0,
-                key=(
-                    "receivables_days_current_discount_clients"
-                ),
-            )
-        )
-
-    with p5:
-        days_curently_paying_clients_not_take_discount = (
-            st.number_input(
-                "Current Non-Discount Clients — Days",
-                min_value=0.0,
-                value=120.0,
-                step=5.0,
-                key=(
-                    "receivables_days_current_non_discount_clients"
-                ),
-            )
-        )
-
-    with p6:
-        avg_days_pay_suppliers = st.number_input(
-            "Average Supplier Payment Days",
-            min_value=0.0,
-            value=float(
-                baseline_ap_days
-                if baseline_ap_days > 0
-                else 30.0
-            ),
-            step=5.0,
-            key="receivables_avg_days_pay_suppliers",
-        )
-
-    # --------------------------------------------------------
-    # WACC
-    # --------------------------------------------------------
-
-    wacc_pct = st.number_input(
-        "WACC (%)",
-        min_value=0.0,
-        max_value=100.0,
-        value=float(
-            baseline_wacc * 100.0
-            if baseline_wacc > 0
-            else 20.0
-        ),
-        step=1.0,
-        key="receivables_wacc",
-    )
-
-    # Convert percentage inputs to decimals.
-    discount_trial = (
-        discount_trial_pct / 100.0
-    )
-
-    prc_clients_take_disc = (
-        prc_clients_take_disc_pct
-        / 100.0
-    )
-
-    wacc = (
-        wacc_pct
-        / 100.0
-    )
-
-    # ========================================================
-    # ECONOMIC CALCULATION
-    # ========================================================
-
-    economic_result = calculate_discount_npv(
-        current_sales=current_sales,
-        extra_sales=extra_sales,
-        discount_trial=discount_trial,
-        prc_clients_take_disc=(
-            prc_clients_take_disc
-        ),
-        days_curently_paying_clients_take_discount=(
-            days_curently_paying_clients_take_discount
-        ),
-        days_curently_paying_clients_not_take_discount=(
-            days_curently_paying_clients_not_take_discount
-        ),
-        new_days_payment_clients_take_disc=(
-            new_days_payment_clients_take_disc
-        ),
-        cogs=cogs,
-        wacc=wacc,
-        avg_days_pay_suppliers=(
-            avg_days_pay_suppliers
-        ),
-    )
-
-    # ========================================================
-    # ECONOMIC RESULTS
-    # ========================================================
-
-    st.divider()
-
-    st.subheader(
-        "3. Economic Result"
-    )
-
-    r1, r2, r3, r4 = st.columns(4)
-
-    r1.metric(
-        "Current Collection",
-        (
-            f"{economic_result['current_collection_days']:.1f} days"
-        ),
-    )
-
-    r2.metric(
-        "New Avg Collection",
-        (
-            f"{economic_result['new_avg_collection_period']:.1f} days"
-        ),
-    )
-
-    r3.metric(
-        "Free Capital",
-        (
-            f"€{economic_result['free_capital']:,.2f}"
-        ),
-    )
-
-    r4.metric(
-        "Economic NPV",
-        (
-            f"€{economic_result['economic_npv']:,.2f}"
-        ),
-    )
-
-    # ========================================================
-    # ECONOMIC DETAIL
-    # ========================================================
-
-    st.markdown(
-        "#### Economic Detail"
-    )
-
-    d1, d2, d3 = st.columns(3)
-
-    d1.metric(
-        "Current Receivables",
-        (
-            f"€{economic_result['current_receivables']:,.2f}"
-        ),
-    )
-
-    d2.metric(
-        "New Receivables",
-        (
-            f"€{economic_result['new_receivables']:,.2f}"
-        ),
-    )
-
-    d3.metric(
-        "New Policy Share",
-        (
-            f"{economic_result['prcnt_of_total_new_clients_in_new_policy'] * 100:.2f}%"
-        ),
-    )
-
-    d4, d5, d6 = st.columns(3)
-
-    d4.metric(
-        "Extra-Sales Profit",
-        (
-            f"€{economic_result['extra_sales_profit']:,.2f}"
-        ),
-    )
-
-    d5.metric(
-        "Free-Capital Profit",
-        (
-            f"€{economic_result['free_capital_profit']:,.2f}"
-        ),
-    )
-
-    d6.metric(
-        "Discount Cost",
-        (
-            f"€{economic_result['discount_cost']:,.2f}"
-        ),
-    )
-
-    # ========================================================
-    # DISCOUNT THRESHOLDS
-    # ========================================================
-
-    st.markdown(
-        "#### Discount Thresholds"
-    )
-
-    t1, t2 = st.columns(2)
-
-    t1.metric(
-        "Maximum Discount",
-        (
-            f"{economic_result['maximum_discount'] * 100:.2f}%"
-        ),
-    )
-
-    t2.metric(
-        "Optimum Discount",
-        (
-            f"{economic_result['optimum_discount'] * 100:.2f}%"
-        ),
-    )
-
-    st.caption(
-        "Maximum Discount and Optimum Discount are calculated "
-        "from the original Receivables formulas. They are not "
-        "derived from the monthly collection schedule."
-    )
-
-    # ========================================================
-    # ECONOMIC INTERPRETATION
-    # ========================================================
-
-    if economic_result["economic_npv"] > 0:
-        st.success(
-            "The economic NPV is positive under these assumptions."
-        )
-    elif economic_result["economic_npv"] < 0:
-        st.warning(
-            "The economic NPV is negative under these assumptions."
-        )
-    else:
+    if decision_id in existing_ids:
         st.info(
-            "The economic NPV is approximately zero under these assumptions."
+            "This decision is already in the Current Decision Plan."
         )
+        return False
 
-    # ========================================================
-    # COLLECTION SCHEDULE
-    # ========================================================
-    #
-    # COMPLETELY SEPARATE FROM THE ECONOMIC MODEL.
-    #
-    # This answers:
-    #
-    # "Once we choose the policy, when does the cash arrive?"
-    #
-    # It does NOT alter:
-    # - NPV
-    # - maximum discount
-    # - optimum discount
-    # - free capital
-    # ========================================================
+    try:
+        st.session_state["decision_plan"] = plan.add(
+            decision
+        )
+        return True
 
-    st.divider()
+    except Exception as exc:
+        st.error(
+            f"Could not add decision to Current Decision Plan: {exc}"
+        )
+        return False
 
-    st.subheader(
-        "4. Monthly Collection Schedule"
+
+# =========================================================
+# CANDIDATE STATE
+# =========================================================
+
+def set_ar_candidate(
+    decision,
+    metadata=None,
+):
+    st.session_state[AR_CANDIDATE] = decision
+    st.session_state[AR_META] = metadata or {}
+
+
+def clear_ar_candidate():
+    st.session_state.pop(
+        AR_CANDIDATE,
+        None,
+    )
+    st.session_state.pop(
+        AR_META,
+        None,
     )
 
-    st.write(
-        "This is the practical cash-timing assumption after "
-        "the receivables policy has been chosen."
-    )
 
-    st.caption(
-        "The schedule is independent from the NPV calculation. "
-        "Changing it does not change the economic value above."
-    )
-
-    existing_decision = st.session_state.get(
+def get_ar_candidate():
+    return st.session_state.get(
         AR_CANDIDATE
     )
 
-    existing_schedule = (
-        _decision_collection_schedule(
-            existing_decision
-        )
+
+# =========================================================
+# BASELINE HELPERS
+# =========================================================
+
+def _get_revenue(baseline_state):
+    drivers = baseline_state.drivers
+
+    return (
+        float(drivers.price)
+        * float(drivers.volume)
     )
 
-    s1, s2, s3 = st.columns(3)
 
-    with s1:
-        month_0_pct = st.number_input(
-            "Month 0 Collection (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=(
-                existing_schedule[
-                    "month_0_pct"
-                ]
-                * 100.0
-            ),
-            step=5.0,
-            key="receivables_collection_month_0",
-        )
-
-    with s2:
-        month_1_pct = st.number_input(
-            "Month 1 Collection (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=(
-                existing_schedule[
-                    "month_1_pct"
-                ]
-                * 100.0
-            ),
-            step=5.0,
-            key="receivables_collection_month_1",
-        )
-
-    with s3:
-        month_2_pct = st.number_input(
-            "Month 2 Collection (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=(
-                existing_schedule[
-                    "month_2_pct"
-                ]
-                * 100.0
-            ),
-            step=5.0,
-            key="receivables_collection_month_2",
-        )
-
-    collection_schedule = (
-        _normalise_collection_schedule(
-            {
-                "month_0_pct":
-                    month_0_pct / 100.0,
-
-                "month_1_pct":
-                    month_1_pct / 100.0,
-
-                "month_2_pct":
-                    month_2_pct / 100.0,
-            }
-        )
+def _get_volume(baseline_state):
+    return float(
+        baseline_state.drivers.volume
     )
 
-    schedule_total = (
-        collection_schedule["month_0_pct"]
-        + collection_schedule["month_1_pct"]
-        + collection_schedule["month_2_pct"]
+
+def _get_variable_cost(baseline_state):
+    return float(
+        baseline_state.drivers.variable_cost_per_unit
     )
 
-    st.metric(
-        "Collection Distribution",
-        _format_collection_schedule(
-            collection_schedule
-        ),
+
+def _get_annual_cogs(baseline_state):
+    return (
+        _get_volume(baseline_state)
+        * _get_variable_cost(baseline_state)
     )
 
-    st.caption(
-        f"Total distribution: "
-        f"{schedule_total * 100:.1f}%"
+
+# =========================================================
+# MAIN UI
+# =========================================================
+
+def render_receivables_lab(
+    baseline_state,
+):
+    st.title("💶 Receivables Lab")
+
+    wc = baseline_state.working_capital
+
+    current_ar_days = float(
+        wc.ar_days
     )
 
-    # ========================================================
-    # DECISION TARGET
-    # ========================================================
+    annual_sales = _get_revenue(
+        baseline_state
+    )
+
+    annual_cogs = _get_annual_cogs(
+        baseline_state
+    )
+
+    st.markdown(
+        """
+        Evaluate customer credit and collection policies
+        without changing the locked baseline.
+
+        The decision changes the central **AR days** driver.
+        The collection schedule is used only by the monthly
+        cash-timing layer.
+        """
+    )
+
+    # =====================================================
+    # CURRENT STATE
+    # =====================================================
+
+    st.subheader("Current Receivables Position")
+
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric(
+        "Current AR Days",
+        f"{current_ar_days:.1f}",
+    )
+
+    c2.metric(
+        "Annual Sales",
+        f"€{annual_sales:,.0f}",
+    )
+
+    current_receivables = (
+        annual_sales
+        * current_ar_days
+        / 365.0
+    )
+
+    c3.metric(
+        "Estimated Receivables",
+        f"€{current_receivables:,.0f}",
+    )
 
     st.divider()
 
-    st.subheader(
-        "5. Receivables Policy Decision"
+    # =====================================================
+    # MANUAL COLLECTION POLICY
+    # =====================================================
+
+    st.subheader("1. Set a Collection Policy")
+
+    st.caption(
+        "The 20% / 70% / 10% pattern is only the default. "
+        "You can change it to reflect how your customers actually pay."
     )
 
-    projected_ar_days = st.number_input(
-        "Target AR Days for CompanyState",
+    target_ar_days = st.number_input(
+        "Target Collection Time (days)",
         min_value=0.0,
-        value=float(
-            economic_result[
-                "new_avg_collection_period"
-            ]
-        ),
+        max_value=365.0,
+        value=float(current_ar_days),
         step=1.0,
         key="receivables_target_ar_days",
     )
 
-    st.caption(
-        "This is the AR policy that will be written to the "
-        "Current Decision Plan. The monthly collection schedule "
-        "remains separate."
-    )
+    st.markdown("**Collection timing**")
 
-    # ========================================================
-    # CONFLICT CHECK
-    # ========================================================
+    s1, s2, s3 = st.columns(3)
 
-    current_plan = _get_current_plan()
-
-    conflicting_decision = (
-        _find_conflicting_driver(
-            current_plan,
-            "ar_days",
-        )
-    )
-
-    if conflicting_decision is not None:
-        st.warning(
-            "The Current Decision Plan already contains "
-            "another decision changing AR days. Saving this "
-            "Receivables Policy will replace that AR decision."
+    with s1:
+        month_0 = st.number_input(
+            "Same Month (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=20.0,
+            step=5.0,
+            key="receivables_month_0_pct",
         )
 
-    # ========================================================
-    # SAVE DECISION
-    # ========================================================
+    with s2:
+        month_1 = st.number_input(
+            "Next Month (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=70.0,
+            step=5.0,
+            key="receivables_month_1_pct",
+        )
+
+    with s3:
+        month_2 = st.number_input(
+            "Month +2 (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=10.0,
+            step=5.0,
+            key="receivables_month_2_pct",
+        )
+
+    collection_schedule = _normalise_collection_schedule(
+        month_0,
+        month_1,
+        month_2,
+    )
+
+    schedule_total = (
+        month_0
+        + month_1
+        + month_2
+    )
+
+    if abs(schedule_total - 100.0) > 0.01:
+        st.caption(
+            f"Entered pattern totals {schedule_total:.1f}%. "
+            "The system will normalise it to 100%."
+        )
+
+    st.info(
+        "This collection schedule is a cash-timing assumption. "
+        "It does not replace AR days in CompanyState."
+    )
 
     if st.button(
-        "💾 Use This Receivables Policy",
-        type="primary",
+        "Use This Collection Policy",
+        key="receivables_use_manual_policy",
         use_container_width=True,
-        key="receivables_use_policy",
     ):
+        try:
+            decision = DecisionFactory.ar_days_change(
+                decision_id=f"ar_{uuid4().hex[:8]}",
+                target_ar_days=float(
+                    target_ar_days
+                ),
+            )
+        except TypeError:
+            decision = DecisionFactory.ar_days_change(
+                f"ar_{uuid4().hex[:8]}",
+                float(target_ar_days),
+            )
 
-        decision = _build_ar_decision(
-            projected_ar_days=projected_ar_days,
-            economic_result=economic_result,
-            collection_schedule=collection_schedule,
+        decision = _attach_collection_schedule(
+            decision,
+            collection_schedule,
         )
 
-        # Store candidate separately.
-        st.session_state[
-            AR_CANDIDATE
-        ] = decision
-
-        # Add the policy decision to the Current Decision Plan.
-        _add_to_current_plan(
-            decision
+        set_ar_candidate(
+            decision,
+            metadata={
+                "source": "receivables_lab",
+                "method": "Collection Policy",
+                "ar_days": float(
+                    target_ar_days
+                ),
+                "baseline_ar_days": float(
+                    current_ar_days
+                ),
+                "collection_schedule": collection_schedule,
+            },
         )
 
         st.success(
-            "Receivables Policy added to the Current Decision Plan."
+            "Collection policy is ready as a Receivables candidate."
         )
 
-        st.info(
-            "The AR-days policy is now part of the decision "
-            "layer. The collection schedule remains a separate "
-            "cash-timing assumption."
-        )
+        st.rerun()
 
-    # ========================================================
-    # CURRENT CANDIDATE
-    # ========================================================
+    # =====================================================
+    # EARLY PAYMENT DISCOUNT
+    # =====================================================
 
-    candidate = st.session_state.get(
-        AR_CANDIDATE
+    st.divider()
+
+    st.subheader(
+        "2. Early-Payment Discount Analysis"
     )
 
-    if candidate is not None:
+    st.caption(
+        "Test whether faster customer payment justifies the cost "
+        "of an early-payment discount."
+    )
 
-        st.divider()
+    d1, d2, d3 = st.columns(3)
 
-        st.subheader(
-            "Current Receivables Candidate"
+    with d1:
+        extra_sales = st.number_input(
+            "Additional Annual Sales (€)",
+            min_value=0.0,
+            value=0.0,
+            step=10000.0,
+            key="receivables_extra_sales",
         )
 
-        candidate_changes = _get_attr(
+    with d2:
+        discount_pct = st.number_input(
+            "Discount (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=2.0,
+            step=0.5,
+            key="receivables_discount_pct",
+        )
+
+    with d3:
+        adoption_pct = st.number_input(
+            "Customers Using Discount (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=50.0,
+            step=5.0,
+            key="receivables_adoption_pct",
+        )
+
+    e1, e2, e3 = st.columns(3)
+
+    with e1:
+        discount_days = st.number_input(
+            "Payment Days with Discount",
+            min_value=0.0,
+            max_value=365.0,
+            value=15.0,
+            step=1.0,
+            key="receivables_discount_days",
+        )
+
+    with e2:
+        non_discount_days = st.number_input(
+            "Payment Days without Discount",
+            min_value=0.0,
+            max_value=365.0,
+            value=float(current_ar_days),
+            step=1.0,
+            key="receivables_non_discount_days",
+        )
+
+    with e3:
+        supplier_days = st.number_input(
+            "Supplier Payment Days",
+            min_value=0.0,
+            max_value=365.0,
+            value=float(
+                baseline_state.working_capital.ap_days
+            ),
+            step=1.0,
+            key="receivables_supplier_days",
+        )
+
+    f1, f2 = st.columns(2)
+
+    with f1:
+        wacc = st.number_input(
+            "WACC (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(
+                baseline_state.capital_structure.wacc
+            ) * 100.0,
+            step=0.5,
+            key="receivables_wacc",
+        )
+
+    with f2:
+        st.metric(
+            "Annual COGS",
+            f"€{annual_cogs:,.0f}",
+        )
+
+    if st.button(
+        "Analyze Discount Policy",
+        key="receivables_analyze_discount",
+        use_container_width=True,
+    ):
+        result = calculate_discount_npv(
+            current_annual_sales=annual_sales,
+            extra_annual_sales=extra_sales,
+            discount_pct=discount_pct,
+            adoption_pct=adoption_pct,
+            current_collection_days=current_ar_days,
+            new_collection_days=discount_days,
+            annual_cogs=annual_cogs,
+            wacc=wacc / 100.0,
+            supplier_days=supplier_days,
+            non_discount_days=non_discount_days,
+        )
+
+        st.session_state[
+            "receivables_discount_result"
+        ] = result
+
+    result = st.session_state.get(
+        "receivables_discount_result"
+    )
+
+    if result is not None:
+        st.divider()
+
+        st.subheader("Discount Policy Result")
+
+        r1, r2, r3, r4 = st.columns(4)
+
+        r1.metric(
+            "New Avg. Collection",
+            f"{result['new_avg_collection_period']:.1f} days",
+        )
+
+        r2.metric(
+            "Receivables Released",
+            f"€{result['free_capital']:,.0f}",
+        )
+
+        r3.metric(
+            "Discount Cost",
+            f"€{result['discount_cost']:,.0f}",
+        )
+
+        r4.metric(
+            "Economic NPV",
+            f"€{result['npv']:,.0f}",
+        )
+
+        if result["npv"] > 0:
+            st.success(
+                "Under these assumptions, the policy produces a "
+                "positive economic contribution."
+            )
+        elif result["npv"] < 0:
+            st.warning(
+                "Under these assumptions, the cost of the policy "
+                "exceeds its calculated economic benefit."
+            )
+        else:
+            st.info(
+                "The calculated economic effect is approximately neutral."
+            )
+
+        st.markdown(
+            "### Collection timing for the cash model"
+        )
+
+        st.caption(
+            "This schedule determines when the monthly cash-flow layer "
+            "recognises customer collections."
+        )
+
+        q1, q2, q3 = st.columns(3)
+
+        with q1:
+            discount_month_0 = st.number_input(
+                "Same Month (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=20.0,
+                step=5.0,
+                key="receivables_discount_month_0_pct",
+            )
+
+        with q2:
+            discount_month_1 = st.number_input(
+                "Next Month (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=70.0,
+                step=5.0,
+                key="receivables_discount_month_1_pct",
+            )
+
+        with q3:
+            discount_month_2 = st.number_input(
+                "Month +2 (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=10.0,
+                step=5.0,
+                key="receivables_discount_month_2_pct",
+            )
+
+        discount_collection_schedule = (
+            _normalise_collection_schedule(
+                discount_month_0,
+                discount_month_1,
+                discount_month_2,
+            )
+        )
+
+        if st.button(
+            "Use This Collection Policy",
+            key="receivables_use_discount_policy",
+            use_container_width=True,
+        ):
+            try:
+                decision = DecisionFactory.ar_days_change(
+                    decision_id=f"ar_{uuid4().hex[:8]}",
+                    target_ar_days=float(
+                        result["new_avg_collection_period"]
+                    ),
+                )
+            except TypeError:
+                decision = DecisionFactory.ar_days_change(
+                    f"ar_{uuid4().hex[:8]}",
+                    float(
+                        result["new_avg_collection_period"]
+                    ),
+                )
+
+            decision = _attach_collection_schedule(
+                decision,
+                discount_collection_schedule,
+            )
+
+            set_ar_candidate(
+                decision,
+                metadata={
+                    "source": "receivables_lab",
+                    "method": "Early Payment Discount",
+                    "ar_days": float(
+                        result["new_avg_collection_period"]
+                    ),
+                    "baseline_ar_days": float(
+                        current_ar_days
+                    ),
+                    "collection_schedule": (
+                        discount_collection_schedule
+                    ),
+                    "npv": float(
+                        result["npv"]
+                    ),
+                    "free_capital": float(
+                        result["free_capital"]
+                    ),
+                    "discount_cost": float(
+                        result["discount_cost"]
+                    ),
+                },
+            )
+
+            st.success(
+                "Discount-based collection policy is ready as a Receivables candidate."
+            )
+
+            st.rerun()
+
+    # =====================================================
+    # ACTIVE CANDIDATE
+    # =====================================================
+
+    st.divider()
+
+    st.subheader(
+        "3. Active Receivables Decision Candidate"
+    )
+
+    candidate = get_ar_candidate()
+
+    if candidate is None:
+        st.info(
+            "No active Receivables decision candidate."
+        )
+    else:
+        metadata = st.session_state.get(
+            AR_META,
+            {},
+        )
+
+        changes = getattr(
             candidate,
             "changes",
             {},
         )
 
-        candidate_metadata = _get_attr(
-            candidate,
-            "metadata",
-            {},
+        candidate_ar_days = None
+
+        if isinstance(changes, dict):
+            candidate_ar_days = changes.get(
+                "ar_days"
+            )
+
+        if candidate_ar_days is None:
+            candidate_ar_days = metadata.get(
+                "ar_days"
+            )
+
+        schedule = (
+            _decision_collection_schedule(
+                candidate
+            )
+            or metadata.get(
+                "collection_schedule"
+            )
+            or DEFAULT_COLLECTION_SCHEDULE
         )
 
-        c1, c2, c3 = st.columns(3)
-
-        c1.metric(
-            "Target AR Days",
-            (
-                f"{_float(candidate_changes.get('ar_days', 0.0)):.1f}"
-            ),
+        st.success(
+            f"**Target AR Days:** "
+            f"{float(candidate_ar_days):.1f}"
         )
 
-        c2.metric(
-            "Economic NPV",
-            (
-                f"€{_float(candidate_metadata.get('economic_result', {}).get('economic_npv', 0.0)):,.2f}"
-            ),
+        method = metadata.get(
+            "method"
         )
 
-        c3.metric(
-            "Collection Schedule",
-            _format_collection_schedule(
-                _decision_collection_schedule(
+        if method:
+            st.write(
+                f"**Method:** {method}"
+            )
+
+        st.write(
+            "**Cash Collection Schedule:** "
+            f"{schedule['month_0_pct']:.0%} same month / "
+            f"{schedule['month_1_pct']:.0%} next month / "
+            f"{schedule['month_2_pct']:.0%} month +2"
+        )
+
+        if "npv" in metadata:
+            st.write(
+                f"**Calculated Economic NPV:** "
+                f"€{float(metadata['npv']):,.0f}"
+            )
+
+        if "free_capital" in metadata:
+            st.write(
+                f"**Estimated Cash Released:** "
+                f"€{float(metadata['free_capital']):,.0f}"
+            )
+
+        b1, b2 = st.columns(2)
+
+        with b1:
+            if st.button(
+                "➕ Add to Current Decision Plan",
+                key="receivables_add_to_plan",
+                use_container_width=True,
+            ):
+                if _add_to_current_plan(
                     candidate
-                )
-            ),
-        )
+                ):
+                    st.success(
+                        "Receivables decision added to Current Decision Plan."
+                    )
+                    clear_ar_candidate()
+                    st.rerun()
 
-        st.caption(
-            "The candidate contains both the receivables policy "
-            "and the separate collection schedule. Only AR days "
-            "acts as the CompanyState policy driver."
-        )
+        with b2:
+            if st.button(
+                "Clear Candidate",
+                key="receivables_clear_candidate",
+                use_container_width=True,
+            ):
+                clear_ar_candidate()
+                st.rerun()
+
+    # =====================================================
+    # V2 LOGIC
+    # =====================================================
+
+    st.divider()
+
+    st.subheader(
+        "How this connects to Managers Lab V2"
+    )
+
+    st.markdown(
+        """
+        **AR days** → canonical working-capital driver in `CompanyState`.
+
+        **Collection schedule** → monthly cash-timing assumption used by
+        Managing Current Assets / Cash Management.
+
+        The schedule does **not** create another receivables model and does
+        not replace the Financial Engine's AR-days calculation.
+        """
+    )
