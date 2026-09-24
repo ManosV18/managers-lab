@@ -104,10 +104,7 @@ from ui.working_capital_data_analyzer import (
     render_working_capital_data_analyzer
 )
 
-from ui.managing_current_assets_lab import (
-    render_managing_current_assets_lab
-)
-
+from ui.cash_management_lab import render_cash_management_lab
 from ui.qspm_lab import render_qspm_lab
 from ui.concentration_lab import render_concentration_lab
 
@@ -680,8 +677,8 @@ def render_home():
             with b4:
 
                 navigation_button(
-                    "Managing Current Assets",
-                    "💧 Managing Current Assets",
+                    "Cash Management",
+                    "💧 Cash Management",
                     "home_managing_current_assets",
                 )
 
@@ -999,14 +996,11 @@ if baseline is None:
 # DECISION LABS
 # =========================================================
 
-if current_page == "💧 Managing Current Assets":
-
-    render_managing_current_assets_lab(
+if current_page == "💧 Cash Management":
+    render_cash_management_lab(
         baseline_state=baseline
     )
-
     st.stop()
-
 
 if current_page == "💰 Pricing Lab":
 
