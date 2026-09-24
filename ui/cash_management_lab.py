@@ -1,5 +1,5 @@
 """
-Managers Lab V2 — Managing Current Assets
+Managers Lab V2 — Cash Management
 
 Purpose
 -------
@@ -10,7 +10,7 @@ Canonical V2 flow:
         -> Current Decision Plan
         -> DecisionEvaluator / Runner
         -> Projected CompanyState
-        -> Managing Current Assets (cash timing)
+        -> Cash Management (cash timing)
         -> Financial Engine / Diagnostics / Control Tower
 
 This module does NOT create a second company model and does NOT replace
@@ -18,7 +18,7 @@ the Financial Engine.
 
 Important design rule:
     Decision Labs own the decisions.
-    Managing Current Assets translates those decisions into near-term cash
+    Cash Management translates those decisions into near-term cash
     timing.
 
 Current integration strategy
@@ -712,7 +712,7 @@ def _render_event_input() -> List[CashEvent]:
 
     enabled = st.checkbox(
         "Add an exceptional event",
-        key="mca_exceptional_event_enabled",
+        key="cash_management_exceptional_event_enabled",
     )
 
     if not enabled:
@@ -725,7 +725,7 @@ def _render_event_input() -> List[CashEvent]:
             "Month",
             options=list(range(1, 7)),
             format_func=lambda x: MONTHS[x - 1],
-            key="mca_exceptional_month",
+            key="cash_management_exceptional_month",
         )
 
     with c2:
@@ -734,20 +734,20 @@ def _render_event_input() -> List[CashEvent]:
             value=0.0,
             step=1000.0,
             format="%.0f",
-            key="mca_exceptional_amount",
+            key="cash_management_exceptional_amount",
         )
 
     with c3:
         direction = st.selectbox(
             "Cash direction",
             options=["Outflow", "Inflow"],
-            key="mca_exceptional_direction",
+            key="cash_management_exceptional_direction",
         )
 
     label = st.text_input(
         "What is it?",
         value="Exceptional event",
-        key="mca_exceptional_label",
+        key="cash_management_exceptional_label",
     )
 
     signed_amount = (
@@ -769,12 +769,12 @@ def _render_event_input() -> List[CashEvent]:
     return events
 
 
-def render_managing_current_assets_lab(
+def render_cash_management_lab(
     baseline_state: Any = None,
 ) -> None:
-    st.title("💧 Managing Current Assets")
+    st.title("💧 Cash Management")
     st.caption(
-        "Translate the decisions already made into their near-term cash consequences."
+        "See when cash comes in, when it goes out, and where pressure appears."
     )
 
     baseline = _get_baseline_state(baseline_state)
@@ -948,7 +948,3 @@ def render_managing_current_assets_lab(
         "This layer maps the cash timing of the current decision plan; it does not "
         "create a second independent company model."
     )
-
-
-# Backward-compatible alias for the launcher if it uses the older naming.
-render_monthly_cash_coverage = render_managing_current_assets_lab
