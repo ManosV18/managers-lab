@@ -1101,25 +1101,7 @@ def render_receivables_lab(
                 ),
             )
 
-        st.info(
-            f"""
-            **Current collection time:**
-            {result['avg_current_collection_days']:.1f} days
-
-            **New collection time:**
-            {result['new_avg_collection_period']:.1f} days
-
-            **Cash released:**
-            €{result['free_capital']:,.0f}
-
-            **Discount cost:**
-            €{result['discount_cost']:,.0f}
-
-            **Additional profit from sales:**
-            €{result['profit_from_extra_sales']:,.0f}
-            """
-        )
-
+        
         # =================================================
         # CREATE AR DECISION CANDIDATE
         # =================================================
