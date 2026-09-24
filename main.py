@@ -104,7 +104,9 @@ from ui.working_capital_data_analyzer import (
     render_working_capital_data_analyzer
 )
 
-import ui.managing_current_assets_lab as managing_current_assets_module
+from ui.managing_current_assets_lab import (
+    render_managing_current_assets_lab
+)
 
 from ui.qspm_lab import render_qspm_lab
 from ui.concentration_lab import render_concentration_lab
@@ -678,11 +680,11 @@ def render_home():
             with b4:
 
                 navigation_button(
-                "Managing Current Assets",
-                "💧 Managing Current Assets",
-                "home_managing_current_assets",
+                    "Managing Current Assets",
+                    "💧 Managing Current Assets",
+                    "home_managing_current_assets",
                 )
-           
+
     # =====================================================
     # FREE UP CASH
     # =====================================================
@@ -962,19 +964,7 @@ if current_page == "📊 Sales & Cost Analyzer":
     render_sales_cost_analyzer()
 
     st.stop()
-    
-# =========================================================
-# WORKING CAPITAL DATA
-# =========================================================
 
-if current_page == "💧 Managing Current Assets":
-
-    st.title("💧 Managing Current Assets")
-    st.write("TEST: route works")
-
-    managing_current_assets_module.render_managing_current_assets_lab(
-        baseline_state=baseline
-    )
 
 # =========================================================
 # BASELINE GUARD
@@ -1008,6 +998,15 @@ if baseline is None:
 # =========================================================
 # DECISION LABS
 # =========================================================
+
+if current_page == "💧 Managing Current Assets":
+
+    render_managing_current_assets_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
 
 if current_page == "💰 Pricing Lab":
 
