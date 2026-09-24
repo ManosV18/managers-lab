@@ -94,7 +94,10 @@ def _all_decisions() -> Sequence[Any]:
         return ()
 
 
-def _find_plan_decision_by_change(change_key: str) -> Optional[Any]:
+def _find_plan_decision_by_change(
+    change_key: str,
+) -> Optional[Any]:
+
     decisions = _all_decisions()
 
     for decision in reversed(tuple(decisions)):
@@ -106,20 +109,39 @@ def _find_plan_decision_by_change(change_key: str) -> Optional[Any]:
     return None
 
 
-def _find_decision(keys: Iterable[str]) -> Optional[Any]:
+def _find_decision(
+    keys: Iterable[str],
+) -> Optional[Any]:
+
     key_set = set(keys)
 
     for decision in reversed(tuple(_all_decisions())):
+
         decision_id = str(
-            getattr(decision, "decision_id", "") or ""
+            getattr(
+                decision,
+                "decision_id",
+                "",
+            )
+            or ""
         )
 
         category = str(
-            getattr(decision, "category", "") or ""
+            getattr(
+                decision,
+                "category",
+                "",
+            )
+            or ""
         )
 
         name = str(
-            getattr(decision, "name", "") or ""
+            getattr(
+                decision,
+                "name",
+                "",
+            )
+            or ""
         )
 
         values = {
@@ -135,13 +157,17 @@ def _find_decision(keys: Iterable[str]) -> Optional[Any]:
 
         if (
             "ar_days" in changes
-            and key_set.intersection(AR_CANDIDATE_KEYS)
+            and key_set.intersection(
+                AR_CANDIDATE_KEYS
+            )
         ):
             return decision
 
         if (
             "ap_days" in changes
-            and key_set.intersection(AP_CANDIDATE_KEYS)
+            and key_set.intersection(
+                AP_CANDIDATE_KEYS
+            )
         ):
             return decision
 
@@ -154,15 +180,19 @@ def _find_decision(keys: Iterable[str]) -> Optional[Any]:
                     "inventory_change",
                 )
             )
-            and key_set.intersection(INVENTORY_CANDIDATE_KEYS)
+            and key_set.intersection(
+                INVENTORY_CANDIDATE_KEYS
+            )
         ):
             return decision
 
-    # Important:
     # Session-state candidates are fallback only.
     # They must NOT override a selected Current Decision Plan decision.
     for key in keys:
-        candidate = st.session_state.get(key)
+
+        candidate = st.session_state.get(
+            key
+        )
 
         if candidate is not None:
             return candidate
@@ -175,31 +205,49 @@ def _find_decision(keys: Iterable[str]) -> Optional[Any]:
 # ---------------------------------------------------------------------
 
 def _get_baseline_state() -> Any:
+
     try:
-        from core.baseline_repository import BaselineRepository
-        from core.state_builder import StateBuilder
+        from core.baseline_repository import (
+            BaselineRepository,
+        )
+
+        from core.state_builder import (
+            StateBuilder,
+        )
 
         repository = BaselineRepository()
+
         baseline = repository.get_baseline()
 
         builder = StateBuilder()
-        return builder.build(baseline)
+
+        return builder.build(
+            baseline
+        )
 
     except Exception:
         pass
 
     try:
-        from core.state_builder import StateBuilder
+        from core.state_builder import (
+            StateBuilder,
+        )
 
         builder = StateBuilder()
+
         return builder.build()
 
     except Exception:
         return None
 
 
-def _get_projected_state(baseline_state: Any) -> Any:
-    plan = st.session_state.get("decision_plan")
+def _get_projected_state(
+    baseline_state: Any,
+) -> Any:
+
+    plan = st.session_state.get(
+        "decision_plan"
+    )
 
     if baseline_state is None:
         return None
@@ -208,7 +256,9 @@ def _get_projected_state(baseline_state: Any) -> Any:
         return baseline_state
 
     try:
-        from core.decision_evaluator import DecisionEvaluator
+        from core.decision_evaluator import (
+            DecisionEvaluator,
+        )
 
         evaluator = DecisionEvaluator()
 
@@ -217,7 +267,10 @@ def _get_projected_state(baseline_state: Any) -> Any:
             plan,
         )
 
-        if hasattr(result, "projected_state"):
+        if hasattr(
+            result,
+            "projected_state",
+        ):
             return result.projected_state
 
         return result
@@ -237,15 +290,37 @@ def _working_capital_terms(
     if state is None:
         return 0.0, 0.0, 0.0
 
-    wc = getattr(state, "working_capital", None)
+    wc = getattr(
+        state,
+        "working_capital",
+        None,
+    )
 
     if wc is None:
         return 0.0, 0.0, 0.0
 
     return (
-        _as_float(getattr(wc, "ar_days", 0.0)),
-        _as_float(getattr(wc, "inventory_days", 0.0)),
-        _as_float(getattr(wc, "ap_days", 0.0)),
+        _as_float(
+            getattr(
+                wc,
+                "ar_days",
+                0.0,
+            )
+        ),
+        _as_float(
+            getattr(
+                wc,
+                "inventory_days",
+                0.0,
+            )
+        ),
+        _as_float(
+            getattr(
+                wc,
+                "ap_days",
+                0.0,
+            )
+        ),
     )
 
 
@@ -256,17 +331,29 @@ def _annual_operating_values(
     if state is None:
         return 0.0, 0.0, 0.0
 
-    drivers = getattr(state, "drivers", None)
+    drivers = getattr(
+        state,
+        "drivers",
+        None,
+    )
 
     if drivers is None:
         return 0.0, 0.0, 0.0
 
     price = _as_float(
-        getattr(drivers, "price", 0.0)
+        getattr(
+            drivers,
+            "price",
+            0.0,
+        )
     )
 
     volume = _as_float(
-        getattr(drivers, "volume", 0.0)
+        getattr(
+            drivers,
+            "volume",
+            0.0,
+        )
     )
 
     variable_cost = _as_float(
@@ -286,16 +373,28 @@ def _annual_operating_values(
     )
 
     revenue = price * volume
+
     cogs = variable_cost * volume
 
-    return revenue, cogs, fixed_opex
+    return (
+        revenue,
+        cogs,
+        fixed_opex,
+    )
 
 
-def _opening_cash(state: Any) -> float:
+def _opening_cash(
+    state: Any,
+) -> float:
+
     if state is None:
         return 0.0
 
-    drivers = getattr(state, "drivers", None)
+    drivers = getattr(
+        state,
+        "drivers",
+        None,
+    )
 
     if drivers is None:
         return 0.0
@@ -309,7 +408,10 @@ def _opening_cash(state: Any) -> float:
     )
 
 
-def _annual_debt_service(state: Any) -> float:
+def _annual_debt_service(
+    state: Any,
+) -> float:
+
     if state is None:
         return 0.0
 
@@ -332,7 +434,7 @@ def _annual_debt_service(state: Any) -> float:
 
 
 # ---------------------------------------------------------------------
-# Schedule helpers
+# Generic schedule helpers
 # ---------------------------------------------------------------------
 
 def _normalise_schedule(
@@ -342,10 +444,15 @@ def _normalise_schedule(
     if value is None:
         return None
 
-    if isinstance(value, Mapping):
+    if isinstance(
+        value,
+        Mapping,
+    ):
+
         result = []
 
         for month in MONTHS:
+
             result.append(
                 _as_float(
                     value.get(
@@ -360,7 +467,14 @@ def _normalise_schedule(
 
         return result
 
-    if isinstance(value, (list, tuple)):
+    if isinstance(
+        value,
+        (
+            list,
+            tuple,
+        ),
+    ):
+
         result = [
             _as_float(x)
             for x in value
@@ -386,8 +500,13 @@ def _extract_schedule_from_decision(
     if decision is None:
         return None
 
-    changes = _decision_changes(decision)
-    metadata = _decision_metadata(decision)
+    changes = _decision_changes(
+        decision
+    )
+
+    metadata = _decision_metadata(
+        decision
+    )
 
     containers = (
         changes,
@@ -395,17 +514,25 @@ def _extract_schedule_from_decision(
     )
 
     for container in containers:
-        for key in schedule_keys:
-            if key in container:
-                schedule = _normalise_schedule(
-                    container[key]
-                )
 
-                if schedule is not None:
-                    return schedule
+        for key in schedule_keys:
+
+            if key not in container:
+                continue
+
+            schedule = _normalise_schedule(
+                container[key]
+            )
+
+            if schedule is not None:
+                return schedule
 
     return None
 
+
+# ---------------------------------------------------------------------
+# Legacy payment-days schedule
+# ---------------------------------------------------------------------
 
 def _schedule_from_payment_days(
     annual_amount: float,
@@ -413,60 +540,47 @@ def _schedule_from_payment_days(
     opening_balance: float = 0.0,
 ) -> List[float]:
     """
-    Convert payment terms into a six-month cash timing schedule.
+    Legacy fallback used when no collection profile exists.
 
-    There are two different things to model:
+    This is intentionally NOT the preferred AR mechanism.
 
-    1. Opening balance
-       The opening AR/AP is already accumulated from previous periods.
-       It is therefore released over the first months rather than being
-       treated as a new Month-1 transaction.
-
-    2. Future monthly activity
-       Each month's sales/purchases form a cohort. The cohort is paid
-       after the selected payment period.
-
-    Examples:
-
-        30 days:
-            Month 1 sales -> Month 2 cash
-
-        45 days:
-            Month 1 sales -> roughly 50% Month 2
-                              50% Month 3
-
-        60 days:
-            Month 1 sales -> Month 3 cash
-
-        90 days:
-            Month 1 sales -> Month 4 cash
-
-    The calculation deliberately remains an approximation suitable for
-    management cash timing. It does not create a second AR/AP model.
+    New Receivables decisions should provide a collection_profile,
+    allowing Cash Management to use the explicit management policy
+    rather than infer timing from average AR days alone.
     """
 
     annual_amount = max(
         0.0,
-        _as_float(annual_amount),
+        _as_float(
+            annual_amount
+        ),
     )
 
     payment_days = max(
         0.0,
-        _as_float(payment_days),
+        _as_float(
+            payment_days
+        ),
     )
 
     opening_balance = max(
         0.0,
-        _as_float(opening_balance),
+        _as_float(
+            opening_balance
+        ),
     )
 
-    monthly_amount = annual_amount / 12.0
+    monthly_amount = (
+        annual_amount / 12.0
+    )
 
-    # Use the actual monthly equivalent of a 365-day year.
-    days_per_month = 365.0 / 12.0
+    days_per_month = (
+        365.0 / 12.0
+    )
 
     lag_months = (
-        payment_days / days_per_month
+        payment_days
+        / days_per_month
     )
 
     schedule = [
@@ -474,102 +588,68 @@ def _schedule_from_payment_days(
         for _ in MONTHS
     ]
 
-    # -------------------------------------------------------------
-    # 1. Opening balance
-    # -------------------------------------------------------------
-    #
-    # Opening AR/AP is an accumulated balance. We distribute it over
-    # the first ceil(lag) months using monthly cohorts.
-    #
-    # Example:
-    #
-    #   60 days ≈ 1.97 months
-    #
-    #   opening balance ≈ 1.97 monthly cohorts
-    #
-    #   Month 1 -> one monthly cohort
-    #   Month 2 -> remaining ~0.97 cohort
-    #
-    # This avoids the artificial single-month spike.
-    # -------------------------------------------------------------
-
-    if opening_balance > 0.0 and lag_months > 0.0:
+    if (
+        opening_balance > 0.0
+        and lag_months > 0.0
+    ):
 
         full_months = int(
             lag_months
         )
 
-        fraction = (
-            lag_months
-            - full_months
+        remaining = (
+            opening_balance
         )
 
-        remaining = opening_balance
-
-        # Full monthly cohorts.
         for month_index in range(
             min(
                 full_months,
                 len(MONTHS),
             )
         ):
+
+            if monthly_amount <= 0.0:
+                break
+
             amount = min(
                 monthly_amount,
                 remaining,
             )
 
-            schedule[month_index] += amount
+            schedule[
+                month_index
+            ] += amount
+
             remaining -= amount
 
             if remaining <= 0.01:
                 break
 
-        # Fractional remaining cohort.
         if (
             remaining > 0.01
             and full_months < len(MONTHS)
         ):
-            schedule[full_months] += remaining
-            remaining = 0.0
-
-        # Safety fallback if monthly_amount is zero.
-        if (
-            monthly_amount <= 0.0
-            and opening_balance > 0.0
-        ):
-            schedule[0] += opening_balance
+            schedule[
+                full_months
+            ] += remaining
 
     elif opening_balance > 0.0:
-        # Immediate payment terms.
-        schedule[0] += opening_balance
 
-    # -------------------------------------------------------------
-    # 2. Future monthly activity
-    # -------------------------------------------------------------
-    #
-    # Each month creates a new cohort.
-    #
-    # A fractional lag is split between the two surrounding months.
-    #
-    # Example:
-    #
-    #   45 days ≈ 1.48 months
-    #
-    #   Month 1 cohort:
-    #       ~52% Month 2
-    #       ~48% Month 3
-    #
-    # The exact proportions are an approximation; the key point is
-    # that the cash timing changes smoothly instead of jumping from
-    # one whole month to another.
-    # -------------------------------------------------------------
+        schedule[0] += (
+            opening_balance
+        )
 
     if monthly_amount <= 0.0:
         return schedule
 
     if lag_months <= 0.0:
-        for source_index in range(len(MONTHS)):
-            schedule[source_index] += monthly_amount
+
+        for index in range(
+            len(MONTHS)
+        ):
+            schedule[index] += (
+                monthly_amount
+            )
 
         return schedule
 
@@ -582,7 +662,9 @@ def _schedule_from_payment_days(
         - lower_lag
     )
 
-    for source_index in range(len(MONTHS)):
+    for source_index in range(
+        len(MONTHS)
+    ):
 
         lower_target = (
             source_index
@@ -594,19 +676,18 @@ def _schedule_from_payment_days(
             + 1
         )
 
-        # Exact whole-month lag.
         if fraction <= 0.000001:
 
-            if lower_target < len(MONTHS):
+            if (
+                lower_target
+                < len(MONTHS)
+            ):
                 schedule[
                     lower_target
                 ] += monthly_amount
 
             continue
 
-        # Fractional lag:
-        # (1 - fraction) at lower month
-        # fraction at upper month.
         lower_amount = (
             monthly_amount
             * (1.0 - fraction)
@@ -617,15 +698,383 @@ def _schedule_from_payment_days(
             * fraction
         )
 
-        if lower_target < len(MONTHS):
+        if (
+            lower_target
+            < len(MONTHS)
+        ):
             schedule[
                 lower_target
             ] += lower_amount
 
-        if upper_target < len(MONTHS):
+        if (
+            upper_target
+            < len(MONTHS)
+        ):
             schedule[
                 upper_target
             ] += upper_amount
+
+    return schedule
+
+
+# ---------------------------------------------------------------------
+# Collection profile
+# ---------------------------------------------------------------------
+
+def _normalise_collection_profile(
+    value: Any,
+) -> Optional[Dict[str, float]]:
+    """
+    Normalise the management-level two-policy collection profile.
+
+    Expected structure:
+
+        {
+            "new_policy_pct": 0.40,
+            "new_policy_days": 10,
+            "old_policy_pct": 0.60,
+            "old_policy_days": 90,
+        }
+
+    The profile is deliberately simple.
+
+    It is NOT customer-level aging.
+    It is NOT an invoice forecast.
+    It is a management assumption describing how future sales
+    are expected to convert into cash.
+    """
+
+    if not isinstance(
+        value,
+        Mapping,
+    ):
+        return None
+
+    new_pct = _as_float(
+        value.get(
+            "new_policy_pct",
+            value.get(
+                "new_pct",
+                value.get(
+                    "adoption",
+                    0.0,
+                ),
+            ),
+        )
+    )
+
+    new_days = _as_float(
+        value.get(
+            "new_policy_days",
+            value.get(
+                "new_days",
+                0.0,
+            ),
+        )
+    )
+
+    old_pct = _as_float(
+        value.get(
+            "old_policy_pct",
+            value.get(
+                "old_pct",
+                1.0 - new_pct,
+            ),
+        )
+    )
+
+    old_days = _as_float(
+        value.get(
+            "old_policy_days",
+            value.get(
+                "old_days",
+                0.0,
+            ),
+        )
+    )
+
+    # Accept percentages entered as 40 instead of 0.40.
+    if new_pct > 1.0:
+        new_pct /= 100.0
+
+    if old_pct > 1.0:
+        old_pct /= 100.0
+
+    new_pct = max(
+        0.0,
+        min(
+            1.0,
+            new_pct,
+        ),
+    )
+
+    old_pct = max(
+        0.0,
+        min(
+            1.0,
+            old_pct,
+        ),
+    )
+
+    total_pct = (
+        new_pct + old_pct
+    )
+
+    if total_pct <= 0.0:
+        return None
+
+    # Normalise only the weights.
+    # This prevents rounding in the source decision from
+    # distorting the collection schedule.
+    new_pct /= total_pct
+    old_pct /= total_pct
+
+    new_days = max(
+        0.0,
+        new_days,
+    )
+
+    old_days = max(
+        0.0,
+        old_days,
+    )
+
+    return {
+        "new_policy_pct": new_pct,
+        "new_policy_days": new_days,
+        "old_policy_pct": old_pct,
+        "old_policy_days": old_days,
+    }
+
+
+def _extract_collection_profile(
+    decision: Any,
+) -> Optional[Dict[str, float]]:
+    """
+    Read collection_profile from the selected AR decision.
+
+    It can live either in decision.changes or in decision.metadata.
+    """
+
+    if decision is None:
+        return None
+
+    changes = _decision_changes(
+        decision
+    )
+
+    metadata = _decision_metadata(
+        decision
+    )
+
+    for container in (
+        changes,
+        metadata,
+    ):
+
+        for key in (
+            "collection_profile",
+            "collection_policy",
+        ):
+
+            if key not in container:
+                continue
+
+            profile = _normalise_collection_profile(
+                container[key]
+            )
+
+            if profile is not None:
+                return profile
+
+    return None
+
+
+def _collection_schedule_from_profile(
+    annual_revenue: float,
+    collection_profile: Mapping[str, float],
+) -> List[float]:
+    """
+    Build a six-month management-level collection schedule from
+    the two-bucket collection policy.
+
+    Example:
+
+        40% of sales -> 10 days
+        60% of sales -> 90 days
+
+    The monthly sales cohort is split into the two policy groups,
+    and each group is shifted according to its payment period.
+
+    This is intentionally a planning estimate.
+
+    It does not attempt to reconstruct invoice-level aging.
+    """
+
+    annual_revenue = max(
+        0.0,
+        _as_float(
+            annual_revenue
+        ),
+    )
+
+    monthly_revenue = (
+        annual_revenue / 12.0
+    )
+
+    if monthly_revenue <= 0.0:
+        return [
+            0.0
+            for _ in MONTHS
+        ]
+
+    new_pct = _as_float(
+        collection_profile.get(
+            "new_policy_pct",
+            0.0,
+        )
+    )
+
+    old_pct = _as_float(
+        collection_profile.get(
+            "old_policy_pct",
+            0.0,
+        )
+    )
+
+    new_days = _as_float(
+        collection_profile.get(
+            "new_policy_days",
+            0.0,
+        )
+    )
+
+    old_days = _as_float(
+        collection_profile.get(
+            "old_policy_days",
+            0.0,
+        )
+    )
+
+    schedule = [
+        0.0
+        for _ in MONTHS
+    ]
+
+    def add_cohort(
+        source_index: int,
+        cohort_amount: float,
+        payment_days: float,
+    ) -> None:
+
+        if cohort_amount <= 0.0:
+            return
+
+        days_per_month = (
+            365.0 / 12.0
+        )
+
+        lag_months = (
+            max(
+                0.0,
+                payment_days,
+            )
+            / days_per_month
+        )
+
+        lower_lag = int(
+            lag_months
+        )
+
+        fraction = (
+            lag_months
+            - lower_lag
+        )
+
+        lower_target = (
+            source_index
+            + lower_lag
+        )
+
+        upper_target = (
+            lower_target
+            + 1
+        )
+
+        # Immediate collection.
+        if lag_months <= 0.0:
+
+            if source_index < len(
+                schedule
+            ):
+                schedule[
+                    source_index
+                ] += cohort_amount
+
+            return
+
+        # Whole-month timing.
+        if fraction <= 0.000001:
+
+            if lower_target < len(
+                schedule
+            ):
+                schedule[
+                    lower_target
+                ] += cohort_amount
+
+            return
+
+        # Fractional timing between two months.
+        lower_amount = (
+            cohort_amount
+            * (1.0 - fraction)
+        )
+
+        upper_amount = (
+            cohort_amount
+            * fraction
+        )
+
+        if lower_target < len(
+            schedule
+        ):
+            schedule[
+                lower_target
+            ] += lower_amount
+
+        if upper_target < len(
+            schedule
+        ):
+            schedule[
+                upper_target
+            ] += upper_amount
+
+    for source_index in range(
+        len(MONTHS)
+    ):
+
+        monthly_new = (
+            monthly_revenue
+            * new_pct
+        )
+
+        monthly_old = (
+            monthly_revenue
+            * old_pct
+        )
+
+        add_cohort(
+            source_index,
+            monthly_new,
+            new_days,
+        )
+
+        add_cohort(
+            source_index,
+            monthly_old,
+            old_days,
+        )
 
     return schedule
 
@@ -663,6 +1112,7 @@ def _selected_inventory_decision() -> Optional[Any]:
         "inventory_event",
         "inventory_change",
     ):
+
         decision = _find_plan_decision_by_change(
             key
         )
@@ -730,22 +1180,28 @@ def build_cash_plan(
             baseline_state
         )
 
-    baseline_ar_days, baseline_inventory_days, baseline_ap_days = (
-        _working_capital_terms(
-            baseline_state
-        )
+    (
+        baseline_ar_days,
+        baseline_inventory_days,
+        baseline_ap_days,
+    ) = _working_capital_terms(
+        baseline_state
     )
 
-    projected_ar_days, projected_inventory_days, projected_ap_days = (
-        _working_capital_terms(
-            projected_state
-        )
+    (
+        projected_ar_days,
+        projected_inventory_days,
+        projected_ap_days,
+    ) = _working_capital_terms(
+        projected_state
     )
 
-    annual_revenue, annual_cogs, annual_fixed_opex = (
-        _annual_operating_values(
-            projected_state
-        )
+    (
+        annual_revenue,
+        annual_cogs,
+        annual_fixed_opex,
+    ) = _annual_operating_values(
+        projected_state
     )
 
     opening_cash = _opening_cash(
@@ -760,16 +1216,26 @@ def build_cash_plan(
     # RECEIVABLES
     # =============================================================
 
-    selected_ar_decision = _selected_ar_decision()
+    selected_ar_decision = (
+        _selected_ar_decision()
+    )
 
-    explicit_ar_schedule = _extract_schedule_from_decision(
-        selected_ar_decision,
-        (
-            "collection_schedule",
-            "ar_collection_schedule",
-            "receivables_schedule",
-            "cash_collection_schedule",
-        ),
+    explicit_ar_schedule = (
+        _extract_schedule_from_decision(
+            selected_ar_decision,
+            (
+                "collection_schedule",
+                "ar_collection_schedule",
+                "receivables_schedule",
+                "cash_collection_schedule",
+            ),
+        )
+    )
+
+    collection_profile = (
+        _extract_collection_profile(
+            selected_ar_decision
+        )
     )
 
     selected_ar_days = _decision_ar_days(
@@ -784,19 +1250,77 @@ def build_cash_plan(
 
     if explicit_ar_schedule is not None:
 
-        ar_schedule = explicit_ar_schedule
+        ar_schedule = (
+            explicit_ar_schedule
+        )
 
         ar_source = (
             "Current Decision Plan — "
             "explicit collection schedule"
         )
 
+        ar_timing_method = (
+            "Explicit collection schedule"
+        )
+
+    elif collection_profile is not None:
+
+        ar_schedule = (
+            _collection_schedule_from_profile(
+                annual_revenue,
+                collection_profile,
+            )
+        )
+
+        new_pct = (
+            collection_profile[
+                "new_policy_pct"
+            ]
+            * 100.0
+        )
+
+        old_pct = (
+            collection_profile[
+                "old_policy_pct"
+            ]
+            * 100.0
+        )
+
+        new_days = (
+            collection_profile[
+                "new_policy_days"
+            ]
+        )
+
+        old_days = (
+            collection_profile[
+                "old_policy_days"
+            ]
+        )
+
+        ar_source = (
+            "Current Decision Plan — "
+            "selected collection policy "
+            f"({new_pct:.0f}% at "
+            f"{new_days:.0f} days / "
+            f"{old_pct:.0f}% at "
+            f"{old_days:.0f} days)"
+        )
+
+        ar_timing_method = (
+            "Collection policy"
+        )
+
     elif selected_ar_days is not None:
 
-        ar_schedule = _schedule_from_payment_days(
-            annual_revenue,
-            selected_ar_days,
-            opening_balance=opening_ar_balance,
+        # Compatibility fallback for decisions created before
+        # collection_profile was introduced.
+        ar_schedule = (
+            _schedule_from_payment_days(
+                annual_revenue,
+                selected_ar_days,
+                opening_balance=opening_ar_balance,
+            )
         )
 
         ar_source = (
@@ -805,12 +1329,18 @@ def build_cash_plan(
             f"({selected_ar_days:.0f} days)"
         )
 
+        ar_timing_method = (
+            "Legacy AR-days fallback"
+        )
+
     else:
 
-        ar_schedule = _schedule_from_payment_days(
-            annual_revenue,
-            projected_ar_days,
-            opening_balance=opening_ar_balance,
+        ar_schedule = (
+            _schedule_from_payment_days(
+                annual_revenue,
+                projected_ar_days,
+                opening_balance=opening_ar_balance,
+            )
         )
 
         ar_source = (
@@ -818,20 +1348,28 @@ def build_cash_plan(
             f"({projected_ar_days:.0f} days)"
         )
 
+        ar_timing_method = (
+            "Projected AR-days fallback"
+        )
+
     # =============================================================
     # PAYABLES
     # =============================================================
 
-    selected_ap_decision = _selected_ap_decision()
+    selected_ap_decision = (
+        _selected_ap_decision()
+    )
 
-    explicit_ap_schedule = _extract_schedule_from_decision(
-        selected_ap_decision,
-        (
-            "payment_schedule",
-            "ap_payment_schedule",
-            "payables_schedule",
-            "cash_payment_schedule",
-        ),
+    explicit_ap_schedule = (
+        _extract_schedule_from_decision(
+            selected_ap_decision,
+            (
+                "payment_schedule",
+                "ap_payment_schedule",
+                "payables_schedule",
+                "cash_payment_schedule",
+            ),
+        )
     )
 
     selected_ap_days = _decision_ap_days(
@@ -846,7 +1384,9 @@ def build_cash_plan(
 
     if explicit_ap_schedule is not None:
 
-        ap_schedule = explicit_ap_schedule
+        ap_schedule = (
+            explicit_ap_schedule
+        )
 
         ap_source = (
             "Current Decision Plan — "
@@ -855,10 +1395,12 @@ def build_cash_plan(
 
     elif selected_ap_days is not None:
 
-        ap_schedule = _schedule_from_payment_days(
-            annual_cogs,
-            selected_ap_days,
-            opening_balance=opening_ap_balance,
+        ap_schedule = (
+            _schedule_from_payment_days(
+                annual_cogs,
+                selected_ap_days,
+                opening_balance=opening_ap_balance,
+            )
         )
 
         ap_source = (
@@ -869,10 +1411,12 @@ def build_cash_plan(
 
     else:
 
-        ap_schedule = _schedule_from_payment_days(
-            annual_cogs,
-            projected_ap_days,
-            opening_balance=opening_ap_balance,
+        ap_schedule = (
+            _schedule_from_payment_days(
+                annual_cogs,
+                projected_ap_days,
+                opening_balance=opening_ap_balance,
+            )
         )
 
         ap_source = (
@@ -914,6 +1458,7 @@ def build_cash_plan(
     )
 
     if inventory_schedule is None:
+
         inventory_schedule = [
             0.0
         ] * 6
@@ -923,32 +1468,46 @@ def build_cash_plan(
     # =============================================================
 
     rows: List[Dict[str, Any]] = []
+
     events: List[CashEvent] = []
 
     cash = opening_cash
 
-    for index, month in enumerate(MONTHS):
+    for index, month in enumerate(
+        MONTHS
+    ):
 
         collections = _as_float(
             ar_schedule[index]
-            if index < len(ar_schedule)
+            if index < len(
+                ar_schedule
+            )
             else 0.0
         )
 
         supplier_payments = _as_float(
             ap_schedule[index]
-            if index < len(ap_schedule)
+            if index < len(
+                ap_schedule
+            )
             else 0.0
         )
 
         inventory_cash = _as_float(
             inventory_schedule[index]
-            if index < len(inventory_schedule)
+            if index < len(
+                inventory_schedule
+            )
             else 0.0
         )
 
-        fixed_opex = monthly_fixed_opex
-        debt_service = monthly_debt_service
+        fixed_opex = (
+            monthly_fixed_opex
+        )
+
+        debt_service = (
+            monthly_debt_service
+        )
 
         net_cash_change = (
             collections
@@ -1028,8 +1587,21 @@ def build_cash_plan(
         rows
     )
 
-    dataframe.attrs["ar_source"] = ar_source
-    dataframe.attrs["ap_source"] = ap_source
+    dataframe.attrs["ar_source"] = (
+        ar_source
+    )
+
+    dataframe.attrs["ar_timing_method"] = (
+        ar_timing_method
+    )
+
+    dataframe.attrs["ap_source"] = (
+        ap_source
+    )
+
+    dataframe.attrs["collection_profile"] = (
+        collection_profile
+    )
 
     dataframe.attrs["selected_ar_days"] = (
         selected_ar_days
@@ -1071,16 +1643,23 @@ def render_cash_management_lab(
     )
 
     if baseline_state is None:
-        baseline_state = _get_baseline_state()
+
+        baseline_state = (
+            _get_baseline_state()
+        )
 
     if baseline_state is None:
+
         st.warning(
             "Please set and confirm the Locked Baseline first."
         )
+
         return
 
-    projected_state = _get_projected_state(
-        baseline_state
+    projected_state = (
+        _get_projected_state(
+            baseline_state
+        )
     )
 
     result = build_cash_plan(
@@ -1094,8 +1673,16 @@ def render_cash_management_lab(
         _selected_ar_decision()
     )
 
-    selected_ar_days = _decision_ar_days(
-        selected_ar_decision
+    selected_ar_days = (
+        _decision_ar_days(
+            selected_ar_decision
+        )
+    )
+
+    collection_profile = (
+        _extract_collection_profile(
+            selected_ar_decision
+        )
     )
 
     baseline_ar_days = _as_float(
@@ -1113,18 +1700,71 @@ def render_cash_management_lab(
     )
 
     # -------------------------------------------------------------
+    # Planning nature of the model
+    # -------------------------------------------------------------
+
+    st.info(
+        "Cash Management is a management planning estimate. "
+        "It uses the selected collection policy to estimate "
+        "when sales turn into cash. It is not an invoice-level "
+        "collection forecast or customer aging analysis."
+    )
+
+    # -------------------------------------------------------------
     # Receivables source message
     # -------------------------------------------------------------
 
     if (
         selected_ar_decision is not None
+        and collection_profile is not None
+    ):
+
+        new_pct = (
+            collection_profile[
+                "new_policy_pct"
+            ]
+            * 100.0
+        )
+
+        old_pct = (
+            collection_profile[
+                "old_policy_pct"
+            ]
+            * 100.0
+        )
+
+        new_days = (
+            collection_profile[
+                "new_policy_days"
+            ]
+        )
+
+        old_days = (
+            collection_profile[
+                "old_policy_days"
+            ]
+        )
+
+        st.success(
+            "Receivables timing is driven by the selected "
+            "collection policy in the Current Decision Plan: "
+            f"{new_pct:.0f}% of sales at approximately "
+            f"{new_days:.0f} days and "
+            f"{old_pct:.0f}% at approximately "
+            f"{old_days:.0f} days."
+        )
+
+    elif (
+        selected_ar_decision is not None
         and selected_ar_days is not None
     ):
 
-        st.info(
-            "Receivables timing is driven by the selected "
-            "Current Decision Plan decision: "
-            f"{selected_ar_days:.0f} days."
+        st.warning(
+            "The selected AR decision does not contain a "
+            "collection profile. Cash Management is using "
+            f"the legacy {selected_ar_days:.0f}-day fallback. "
+            "Recreate or update the Receivables decision to "
+            "include its collection policy."
         )
 
     else:
@@ -1141,35 +1781,46 @@ def render_cash_management_lab(
     # -------------------------------------------------------------
 
     min_cash = float(
-        df["Closing Cash"].min()
+        df[
+            "Closing Cash"
+        ].min()
     )
 
     min_cash_month = str(
         df.loc[
-            df["Closing Cash"].idxmin(),
+            df[
+                "Closing Cash"
+            ].idxmin(),
             "Month",
         ]
     )
 
     final_cash = float(
-        df["Closing Cash"].iloc[-1]
+        df[
+            "Closing Cash"
+        ].iloc[-1]
     )
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = (
+        st.columns(3)
+    )
 
     with col1:
+
         st.metric(
             "Opening Cash",
             f"€{float(df['Opening Cash'].iloc[0]):,.0f}",
         )
 
     with col2:
+
         st.metric(
             "Minimum Cash",
             f"€{min_cash:,.0f}",
         )
 
     with col3:
+
         st.metric(
             "Month 6 Cash",
             f"€{final_cash:,.0f}",
@@ -1200,7 +1851,9 @@ def render_cash_management_lab(
 
         if column in display_df.columns:
 
-            display_df[column] = display_df[
+            display_df[
+                column
+            ] = display_df[
                 column
             ].map(
                 lambda x: f"€{x:,.0f}"
@@ -1230,6 +1883,14 @@ def render_cash_management_lab(
         )
 
         st.write(
+            "AR timing method:",
+            df.attrs.get(
+                "ar_timing_method",
+                "",
+            ),
+        )
+
+        st.write(
             "Payables:",
             df.attrs.get(
                 "ap_source",
@@ -1252,6 +1913,24 @@ def render_cash_management_lab(
             st.write(
                 "Selected AR decision:",
                 f"{selected_ar_days:.0f} days",
+            )
+
+        if collection_profile is not None:
+
+            st.write(
+                "New collection policy:",
+                (
+                    f"{collection_profile['new_policy_pct'] * 100:.0f}% "
+                    f"at {collection_profile['new_policy_days']:.0f} days"
+                ),
+            )
+
+            st.write(
+                "Existing collection policy:",
+                (
+                    f"{collection_profile['old_policy_pct'] * 100:.0f}% "
+                    f"at {collection_profile['old_policy_days']:.0f} days"
+                ),
             )
 
     # -------------------------------------------------------------
