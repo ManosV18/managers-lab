@@ -712,14 +712,18 @@ def _render_event_input() -> List[CashEvent]:
     return events
 
 
+
 def render_managing_current_assets_lab(
     baseline_state: Any = None,
 ) -> None:
+
     st.title("💧 Managing Current Assets")
+
+    st.write("DEBUG: Managing Current Assets loaded")
+
     st.caption(
         "Translate the decisions already made into their near-term cash consequences."
     )
-
     baseline = _get_baseline_state(baseline_state)
 
     if baseline is None:
