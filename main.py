@@ -104,9 +104,7 @@ from ui.working_capital_data_analyzer import (
     render_working_capital_data_analyzer
 )
 
-from ui.managing_current_assets_lab import (
-    render_managing_current_assets_lab
-)
+import ui.managing_current_assets_lab as managing_current_assets_module
 
 from ui.qspm_lab import render_qspm_lab
 from ui.concentration_lab import render_concentration_lab
@@ -969,14 +967,15 @@ if current_page == "📊 Sales & Cost Analyzer":
 # WORKING CAPITAL DATA
 # =========================================================
 
-    if current_page == "💧 Managing Current Assets":
+if current_page == "💧 Managing Current Assets":
 
-        render_managing_current_assets_lab(
-            baseline_state=baseline
-        )
+    st.title("💧 Managing Current Assets")
+    st.write("TEST: route works")
 
-        st.stop()
-   
+    managing_current_assets_module.render_managing_current_assets_lab(
+        baseline_state=baseline
+    )
+
 # =========================================================
 # BASELINE GUARD
 # =========================================================
