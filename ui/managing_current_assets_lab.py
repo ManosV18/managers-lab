@@ -376,77 +376,31 @@ def _extract_schedule_from_decision(
     return [0.0] * 6, []
 
 
-def _opening_current_asset_balances(
-    state: Any,
-    annual_sales: float,
-    annual_cogs: float,
-) -> Tuple[float, float, float]:
-    """
-    Derive the opening working-capital balances from the locked CompanyState.
-
-    CompanyState stores the policy in days rather than separate opening AR /
-    inventory / AP balances. For the cash-timing layer, the standard 365-day
-    relationship is therefore used to establish the opening position.
-    """
-    ar_days, inventory_days, ap_days = _working_capital_terms(state)
-
-    opening_ar = annual_sales * ar_days / 365.0
-    opening_inventory = annual_cogs * inventory_days / 365.0
-    opening_ap = annual_cogs * ap_days / 365.0
-
-    return opening_ar, opening_inventory, opening_ap
-
-
 def _schedule_from_payment_days(
     annual_amount: float,
     payment_days: float,
-    opening_balance: float = 0.0,
     horizon: int = 6,
 ) -> List[float]:
     """
-    Build a simple steady-state cash-timing schedule.
+    Conservative fallback only.
 
-    The important difference from the previous fallback is that Month 1 does
-    not start with a blank working-capital position. Existing receivables /
-    payables are already outstanding at the start of the window and therefore
-    have to be collected / paid before the new monthly activity reaches cash.
-
-    Example:
-        60-day customer terms -> opening AR is collected over Months 1-2;
-        new Months 1-2 sales are collected from Month 3 onward.
-
-        30-day supplier terms -> opening AP is paid in Month 1; new monthly
-        purchases begin hitting cash from Month 2 onward.
-
-    This remains a fallback. A Decision Lab schedule always takes precedence.
+    This is used when a dedicated Lab has not yet exposed its detailed
+    monthly schedule. It is not a substitute for a Lab-generated schedule.
     """
+    if annual_amount <= 0:
+        return [0.0] * horizon
+
+    # Monthly run-rate is deliberately simple. The detailed schedule should
+    # eventually come from the decision Lab itself.
+    monthly_amount = annual_amount / 12.0
+
+    lag_months = max(0, int(round(payment_days / 30.0)))
     values = [0.0] * horizon
 
-    if annual_amount <= 0:
-        return values
-
-    monthly_amount = annual_amount / 12.0
-    lag_days = max(0.0, payment_days)
-
-    if lag_days <= 0:
-        for month in range(horizon):
-            values[month] += monthly_amount
-        return values
-
-    lag_months = max(1, int(round(lag_days / 30.0)))
-
-    # Existing balance is already owed at the start of Month 1. Spread it
-    # over the same approximate payment window instead of pretending it does
-    # not exist.
-    opening_slice = opening_balance / lag_months
-    for month in range(min(lag_months, horizon)):
-        values[month] += opening_slice
-
-    # New monthly activity reaches cash after the payment lag.
-    for source_month in range(horizon):
-        target_month = source_month + lag_months
-        if target_month < horizon:
-            values[target_month] += monthly_amount
+    for source_month in range(12):
+        target = source_month + lag_months
+        if target < horizon:
+            values[target] += monthly_amount
 
     return values
 
@@ -522,16 +476,7 @@ def build_cash_plan(
     annual_sales, annual_cogs = _annual_operating_values(projected_state)
     opening_cash = _opening_cash(baseline_state)
 
-    # CompanyState stores working-capital policy as days. For the six-month
-    # cash window we first establish the opening AR / inventory / AP position
-    # and then roll the new monthly activity forward from that position.
-    opening_ar, _opening_inventory, opening_ap = _opening_current_asset_balances(
-        baseline_state,
-        annual_sales,
-        annual_cogs,
-    )
-
-    ar_days, inventory_days, ap_days = _working_capital_terms(projected_state)
+    ar_days, _, ap_days = _working_capital_terms(projected_state)
 
     # Customer collections:
     # Prefer a decision-specific collection schedule.
@@ -553,7 +498,6 @@ def build_cash_plan(
         collections = _schedule_from_payment_days(
             annual_sales,
             ar_days,
-            opening_balance=opening_ar,
             horizon=horizon,
         )
         collection_source = "Baseline terms fallback"
@@ -576,7 +520,6 @@ def build_cash_plan(
         supplier_payments = _schedule_from_payment_days(
             annual_cogs,
             ap_days,
-            opening_balance=opening_ap,
             horizon=horizon,
         )
         payment_source = "Baseline terms fallback"
@@ -822,12 +765,10 @@ def render_managing_current_assets_lab(
         "Funding Gap",
         _money(result.funding_gap),
     )
-    recovery_display = (
-        result.recovery_month
-        if result.recovery_month is not None
-        else ("Beyond 6 months" if result.funding_gap > 0 else "Not required")
+    k4.metric(
+        "Recovery",
+        result.recovery_month or "Within / not required",
     )
-    k4.metric("Recovery", recovery_display)
 
     if result.funding_gap > 0:
         st.error(
@@ -893,7 +834,7 @@ def render_managing_current_assets_lab(
             "Status": (
                 "Decision schedule"
                 if any(row["Inventory Purchases"] != 0 for row in result.rows)
-                else "Included in supplier-payment timing unless an event schedule exists"
+                else "Awaiting order/payment event schedule"
             ),
         },
         {
