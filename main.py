@@ -1,950 +1,1264 @@
-"""
-Managers Lab V2 — Cash Management
+import sys
+from pathlib import Path
 
-Purpose
--------
-Monthly cash-timing layer for decisions already made elsewhere.
+# =========================================================
+# APPLICATION ROOT
+# =========================================================
 
-Canonical V2 flow:
-    Locked Baseline
-        -> Current Decision Plan
-        -> DecisionEvaluator / Runner
-        -> Projected CompanyState
-        -> Cash Management (cash timing)
-        -> Financial Engine / Diagnostics / Control Tower
+root_dir = Path(__file__).resolve().parent
 
-This module does NOT create a second company model and does NOT replace
-the Financial Engine.
+if str(root_dir) not in sys.path:
+    sys.path.insert(0, str(root_dir))
 
-Important design rule:
-    Decision Labs own the decisions.
-    Cash Management translates those decisions into near-term cash
-    timing.
 
-Current integration strategy
-----------------------------
-1. Read the current Decision Plan from session state.
-2. Read the projected CompanyState through DecisionEvaluator when available.
-3. Pull timing schedules from decision metadata when a Lab already exposes them.
-4. Use baseline payment terms only as a fallback until the relevant Lab exposes
-   its detailed schedule.
-5. Ask the owner only for exceptional cash events the system cannot know.
-6. Show a rolling six-month cash consequence window.
+# =========================================================
+# STREAMLIT CONFIGURATION
+# =========================================================
 
-The six-month window is deliberately not a six-month detailed budget:
-    - Months 1–3: near-term, concrete cash consequences.
-    - Months 4–6: consequences of decisions already made.
-    - Known commitments beyond month 6 are shown separately rather than forced
-      into month 6.
-
-No historical-ratio forecasting is used for receivables or payables when a
-decision-specific schedule is available.
-"""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from datetime import date
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
-
-import pandas as pd
 import streamlit as st
 
-
-MONTHS = [
-    "Month 1",
-    "Month 2",
-    "Month 3",
-    "Month 4",
-    "Month 5",
-    "Month 6",
-]
-
-# Existing V2 candidate keys seen in the current application.
-AR_CANDIDATE_KEYS = (
-    "wc_ar_candidate",
-    "receivables_candidate",
+st.set_page_config(
+    page_title="Managers Lab",
+    page_icon="🧠",
+    layout="wide",
 )
 
-AP_CANDIDATE_KEYS = (
-    "wc_ap_candidate",
-    "payables_candidate",
+# =========================================================
+# MICROSOFT CLARITY TRACKING
+# =========================================================
+
+import streamlit.components.v1 as components
+
+clarity_code = """
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "yfnj17qehr");
+</script>
+"""
+components.html(clarity_code, height=0, width=0)
+
+# =========================================================
+# CORE IMPORTS
+# =========================================================
+
+from core.baseline_repository import BaselineRepository
+from core.decision_evaluator import DecisionEvaluator
+from core.decision_plan import DecisionPlan
+from core.state_builder import StateBuilder
+
+
+# =========================================================
+# UI / TOOL IMPORTS
+# =========================================================
+
+from tools.loan_vs_leasing import render_loan_vs_leasing_lab
+
+from ui.baseline import render_baseline_setup
+from ui.cash_break_even_lab import render_cash_break_even_lab
+from ui.cash_fragility_lab import render_cash_fragility_lab
+from ui.clv_lab import render_clv_lab
+from ui.dashboard import render_dashboard
+from ui.data_import import render_data_import
+from ui.sales_cost_analyzer import render_sales_cost_analyzer
+from ui.decision_view import render_decision_view
+from ui.inventory_lab import show_inventory_lab
+from ui.pricing_lab import render_pricing_lab
+from ui.volume_lab import render_volume_lab
+from ui.receivables_lab import render_receivables_lab
+from ui.suppliers_lab import render_suppliers_lab
+from ui.wacc_lab import render_wacc_lab
+from ui.pricing_threshold_lab import render_pricing_threshold
+from ui.monthly_survival_lab import render_monthly_survival_lab
+
+from ui.complementary_products_lab import (
+    render_complementary_products_lab
 )
 
-INVENTORY_CANDIDATE_KEYS = (
-    "wc_inv_candidate",
-    "wc_inventory_candidate",
-    "inventory_candidate",
+from ui.substitute_products_lab import (
+    render_substitute_products_lab
+)
+
+from ui.deal_auditor_lab import render_deal_auditor_lab
+from ui.stress_test_lab import render_stress_test_lab
+
+from ui.customer_cash_economics_lab import (
+    render_customer_cash_economics_lab
+)
+
+from ui.inventory_ordering_lab import (
+    render_inventory_ordering_lab
+)
+
+from ui.salesperson_value_lab import (
+    render_salesperson_value_lab
+)
+
+from ui.growth_funding_lab import (
+    render_growth_funding_lab
+)
+
+from ui.working_capital_data_analyzer import (
+    render_working_capital_data_analyzer
+)
+
+from ui.cash_management_lab import (
+    render_cash_management_lab
+)
+
+from ui.qspm_lab import render_qspm_lab
+from ui.concentration_lab import render_concentration_lab
+
+
+# =========================================================
+# APPLICATION SERVICES
+# =========================================================
+
+baseline_repository = BaselineRepository
+
+state_builder = StateBuilder(
+    baseline_repository=baseline_repository,
 )
 
 
-@dataclass(frozen=True)
-class CashEvent:
-    month_index: int
-    amount: float
-    label: str
-    category: str
+# =========================================================
+# SAFE BASELINE LOADER & BASELINE CHECKS
+# =========================================================
 
-
-@dataclass(frozen=True)
-class CashPlanResult:
-    opening_cash: float
-    rows: Tuple[Dict[str, Any], ...]
-    minimum_cash: float
-    minimum_cash_month: str
-    funding_gap: float
-    funding_gap_month: Optional[str]
-    recovery_month: Optional[str]
-    beyond_horizon_events: Tuple[CashEvent, ...]
-
-
-# ---------------------------------------------------------------------
-# Formatting / safe extraction
-# ---------------------------------------------------------------------
-
-def _money(value: float) -> str:
-    return f"€{float(value):,.0f}"
-
-
-def _safe_float(value: Any, default: float = 0.0) -> float:
-    try:
-        if value is None:
-            return default
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _get_attr(obj: Any, *names: str, default: Any = None) -> Any:
-    for name in names:
-        if obj is not None and hasattr(obj, name):
-            return getattr(obj, name)
-    return default
-
-
-def _decision_changes(decision: Any) -> Mapping[str, Any]:
-    changes = getattr(decision, "changes", {})
-    return changes if isinstance(changes, Mapping) else {}
-
-
-def _decision_metadata(decision: Any) -> Mapping[str, Any]:
+def get_safe_baseline():
     """
-    Accept metadata stored under common V2 names.
-
-    Different Labs may expose metadata under slightly different keys while
-    the integration is being completed. This helper keeps this module
-    read-only and tolerant without creating a new architecture.
+    Return the real locked baseline when available.
+    Otherwise return the Demo Company as a temporary
+    starting point without saving it as the user's baseline.
     """
-    for attr in ("metadata", "meta", "details", "assumptions"):
-        value = getattr(decision, attr, None)
-        if isinstance(value, Mapping):
-            return value
-
-    return {}
-
-
-def _all_decisions() -> List[Any]:
-    plan = st.session_state.get("decision_plan")
-    decisions = getattr(plan, "decisions", ()) if plan is not None else ()
-
-    if decisions:
-        return list(decisions)
-
-    return []
-
-
-def _find_decision(keys: Sequence[str]) -> Optional[Any]:
-    wanted = {key.lower() for key in keys}
-
-    for decision in _all_decisions():
-        decision_id = str(getattr(decision, "id", "")).lower()
-        category = str(getattr(decision, "category", "")).lower()
-        name = str(getattr(decision, "name", "")).lower()
-
-        if decision_id in wanted:
-            return decision
-
-        if any(key.lower() in category or key.lower() in name for key in wanted):
-            return decision
-
-    # Candidate objects may exist before they are placed in the plan.
-    for session_key in keys:
-        candidate = st.session_state.get(session_key)
-        if candidate is not None:
-            return candidate
-
-    return None
-
-
-# ---------------------------------------------------------------------
-# Company / projection
-# ---------------------------------------------------------------------
-
-def _get_baseline_state(explicit_baseline: Any = None) -> Any:
-    if explicit_baseline is not None:
-        return explicit_baseline
-
-    # Keep imports local so the module remains importable in isolation.
     try:
-        from core.state_builder import StateBuilder
-        from core.baseline_repository import BaselineRepository
-
-        builder = StateBuilder(baseline_repository=BaselineRepository)
-        return builder.build_baseline_only()
+        return state_builder.build_baseline_only()
     except Exception:
-        return None
+        return state_builder.build_default_baseline()
 
 
-def _get_projected_state(baseline_state: Any) -> Any:
+def has_locked_baseline() -> bool:
     """
-    Use the canonical V2 evaluator when it is available.
-
-    Failure here does not fabricate a projection. The module simply falls
-    back to the baseline state and clearly labels the result.
+    True only when the user has actually locked
+    a baseline in BaselineRepository.
     """
+    return BaselineRepository.exists()
+
+
+# =========================================================
+# APPLICATION STATE
+# =========================================================
+
+def initialize_app() -> None:
+
+    if "decision_plan" not in st.session_state:
+
+        st.session_state.decision_plan = DecisionPlan.create(
+            plan_id="main_plan",
+            name="Current Decision Plan",
+        )
+
+    if "current_page" not in st.session_state:
+
+        st.session_state.current_page = "main"
+
+
+initialize_app()
+
+
+# =========================================================
+# NAVIGATION
+# =========================================================
+
+def navigate_to(page_name: str) -> None:
+    st.session_state.current_page = page_name
+
+
+def go_to_main() -> None:
+    st.session_state.current_page = "main"
+
+
+# =========================================================
+# PROJECTION PIPELINE
+# =========================================================
+
+def build_projection():
+
+    baseline_state = get_safe_baseline()
+
     if baseline_state is None:
-        return None
 
-    try:
-        from core.decision_evaluator import DecisionEvaluator
-        from core.decision_plan import DecisionPlan
-
-        plan = st.session_state.get("decision_plan")
-        if plan is None:
-            plan = DecisionPlan.create(
-                plan_id="empty_plan",
-                name="Empty Decision Plan",
-            )
-
-        evaluation = DecisionEvaluator.evaluate(
-            baseline_state=baseline_state,
-            plan=plan,
+        st.error(
+            "Please set and confirm a Baseline first."
         )
-        return evaluation.projected_state
-    except Exception:
-        return baseline_state
 
+        st.stop()
 
-def _annual_operating_values(state: Any) -> Tuple[float, float]:
-    if state is None:
-        return 0.0, 0.0
-
-    drivers = getattr(state, "drivers", state)
-
-    price = _safe_float(
-        _get_attr(drivers, "price", default=0.0)
+    decision_plan = st.session_state.get(
+        "decision_plan"
     )
-    volume = _safe_float(
-        _get_attr(drivers, "volume", default=0.0)
-    )
-    variable_cost = _safe_float(
-        _get_attr(
-            drivers,
-            "variable_cost_per_unit",
-            "variable_cost",
-            default=0.0,
+
+    if not isinstance(
+        decision_plan,
+        DecisionPlan,
+    ):
+
+        decision_plan = DecisionPlan.create(
+            plan_id="empty_plan",
+            name="Empty Decision Plan",
         )
+
+    evaluation = DecisionEvaluator.evaluate(
+        baseline_state=baseline_state,
+        plan=decision_plan,
     )
 
-    return price * volume, variable_cost * volume
-
-
-def _opening_cash(state: Any) -> float:
-    if state is None:
-        return 0.0
-
-    drivers = getattr(state, "drivers", state)
-    return _safe_float(
-        _get_attr(drivers, "opening_cash", default=0.0)
+    trace = dict(
+        evaluation.execution_report
     )
 
+    trace.update(
+        {
+            "projection_mode":
+                "baseline"
+                if decision_plan.is_empty
+                else "decision_plan",
 
-def _working_capital_terms(state: Any) -> Tuple[float, float, float]:
-    wc = getattr(state, "working_capital", None)
+            "plan":
+                {
+                    "id":
+                        decision_plan.id,
+
+                    "name":
+                        decision_plan.name,
+
+                    "decision_count":
+                        decision_plan.decision_count,
+                },
+
+            "message":
+                "Projection generated from "
+                "the current Decision Plan.",
+        }
+    )
 
     return (
-        _safe_float(_get_attr(wc, "ar_days", default=0.0)),
-        _safe_float(_get_attr(wc, "inventory_days", default=0.0)),
-        _safe_float(_get_attr(wc, "ap_days", default=0.0)),
+        evaluation.baseline_state,
+        evaluation.projected_state,
+        evaluation.financial_projection,
+        trace,
     )
 
 
-# ---------------------------------------------------------------------
-# Timing schedule extraction
-# ---------------------------------------------------------------------
+# =========================================================
+# SMALL UI HELPERS
+# =========================================================
 
-def _normalise_schedule(
-    schedule: Any,
-    horizon: int = 6,
-) -> Tuple[List[float], List[CashEvent]]:
-    """
-    Convert common schedule shapes into six monthly amounts.
+def navigation_button(
+    label: str,
+    page: str,
+    key: str,
+):
 
-    Accepted examples:
-        [100, 200, ...]
-        {"month_1": 100, "month_2": 200}
-        [{"month": 1, "amount": 100}, ...]
-        {"events": [{"month": 4, "amount": 1000}]}
+    if st.button(
+        label,
+        key=key,
+        use_container_width=True,
+    ):
 
-    Values beyond month 6 are retained as explicit future commitments.
-    """
-    values = [0.0] * horizon
-    beyond: List[CashEvent] = []
-
-    if schedule is None:
-        return values, beyond
-
-    if isinstance(schedule, Mapping):
-        if "events" in schedule:
-            return _normalise_schedule(schedule["events"], horizon)
-
-        month_values = []
-        for key, value in schedule.items():
-            key_text = str(key).lower().replace("-", "_").replace(" ", "_")
-
-            month_no = None
-            for token in key_text.replace("month", "").split("_"):
-                if token.isdigit():
-                    month_no = int(token)
-                    break
-
-            if month_no is not None:
-                month_values.append((month_no, _safe_float(value)))
-
-        if month_values:
-            for month_no, amount in month_values:
-                if 1 <= month_no <= horizon:
-                    values[month_no - 1] += amount
-                elif month_no > horizon:
-                    beyond.append(
-                        CashEvent(
-                            month_index=month_no - 1,
-                            amount=amount,
-                            label="Known future commitment",
-                            category="future",
-                        )
-                    )
-            return values, beyond
-
-    if isinstance(schedule, Sequence) and not isinstance(schedule, (str, bytes)):
-        for item in schedule:
-            if isinstance(item, Mapping):
-                month = item.get("month", item.get("month_index"))
-                amount = item.get("amount", item.get("value", item.get("cash")))
-                if month is None or amount is None:
-                    continue
-
-                month_no = _safe_float(month)
-                amount_value = _safe_float(amount)
-
-                if 1 <= month_no <= horizon:
-                    values[int(month_no) - 1] += amount_value
-                elif month_no > horizon:
-                    beyond.append(
-                        CashEvent(
-                            month_index=int(month_no) - 1,
-                            amount=amount_value,
-                            label=str(item.get("label", "Known future commitment")),
-                            category=str(item.get("category", "future")),
-                        )
-                    )
-            else:
-                # Plain six-element numeric sequence.
-                if len(schedule) <= horizon:
-                    for i, value in enumerate(schedule):
-                        values[i] += _safe_float(value)
-                    break
-
-    return values, beyond
+        navigate_to(page)
+        st.rerun()
 
 
-def _extract_schedule_from_decision(
-    decision: Any,
-    schedule_keys: Sequence[str],
-) -> Tuple[List[float], List[CashEvent]]:
-    if decision is None:
-        return [0.0] * 6, []
+# =========================================================
+# COMPANY SETUP
+# =========================================================
 
-    changes = _decision_changes(decision)
-    metadata = _decision_metadata(decision)
+def render_company_setup():
 
-    for source in (metadata, changes):
-        for key in schedule_keys:
-            if key in source:
-                return _normalise_schedule(source[key])
-
-    return [0.0] * 6, []
-
-
-def _opening_current_asset_balances(
-    state: Any,
-    annual_sales: float,
-    annual_cogs: float,
-) -> Tuple[float, float, float]:
-    """
-    Derive the opening working-capital balances from the locked CompanyState.
-
-    CompanyState stores the policy in days rather than separate opening AR /
-    inventory / AP balances. For the cash-timing layer, the standard 365-day
-    relationship is therefore used to establish the opening position.
-    """
-    ar_days, inventory_days, ap_days = _working_capital_terms(state)
-
-    opening_ar = annual_sales * ar_days / 365.0
-    opening_inventory = annual_cogs * inventory_days / 365.0
-    opening_ap = annual_cogs * ap_days / 365.0
-
-    return opening_ar, opening_inventory, opening_ap
-
-
-def _schedule_from_payment_days(
-    annual_amount: float,
-    payment_days: float,
-    opening_balance: float = 0.0,
-    horizon: int = 6,
-) -> List[float]:
-    """
-    Build a simple steady-state cash-timing schedule.
-
-    The important difference from the previous fallback is that Month 1 does
-    not start with a blank working-capital position. Existing receivables /
-    payables are already outstanding at the start of the window and therefore
-    have to be collected / paid before the new monthly activity reaches cash.
-
-    Example:
-        60-day customer terms -> opening AR is collected over Months 1-2;
-        new Months 1-2 sales are collected from Month 3 onward.
-
-        30-day supplier terms -> opening AP is paid in Month 1; new monthly
-        purchases begin hitting cash from Month 2 onward.
-
-    This remains a fallback. A Decision Lab schedule always takes precedence.
-    """
-    values = [0.0] * horizon
-
-    if annual_amount <= 0:
-        return values
-
-    monthly_amount = annual_amount / 12.0
-    lag_days = max(0.0, payment_days)
-
-    if lag_days <= 0:
-        for month in range(horizon):
-            values[month] += monthly_amount
-        return values
-
-    lag_months = max(1, int(round(lag_days / 30.0)))
-
-    # Existing balance is already owed at the start of Month 1. Spread it
-    # over the same approximate payment window instead of pretending it does
-    # not exist.
-    opening_slice = opening_balance / lag_months
-    for month in range(min(lag_months, horizon)):
-        values[month] += opening_slice
-
-    # New monthly activity reaches cash after the payment lag.
-    for source_month in range(horizon):
-        target_month = source_month + lag_months
-        if target_month < horizon:
-            values[target_month] += monthly_amount
-
-    return values
-
-
-# ---------------------------------------------------------------------
-# Inventory events
-# ---------------------------------------------------------------------
-
-def _inventory_event_schedule(
-    annual_cogs: float,
-    inventory_decision: Any,
-    horizon: int = 6,
-) -> Tuple[List[float], List[CashEvent], str]:
-    """
-    Prefer explicit inventory order events.
-
-    If the Inventory Lab has only supplied an inventory-days policy, do not
-    pretend that the policy itself tells us when a large order is paid.
-    Instead, return zero scheduled purchase events and tell the UI that the
-    detailed event schedule is still pending integration.
-    """
-    if inventory_decision is None:
-        return [0.0] * horizon, [], "No inventory decision selected."
-
-    schedule, beyond = _extract_schedule_from_decision(
-        inventory_decision,
-        (
-            "purchase_schedule",
-            "order_schedule",
-            "inventory_purchase_schedule",
-            "cash_purchase_schedule",
-            "payment_schedule",
-            "inventory_events",
-            "order_events",
-        ),
+    st.title(
+        "🏢 Set Up Your Company"
     )
 
-    if any(schedule) or beyond:
-        return schedule, beyond, "Inventory Lab schedule"
-
-    metadata = _decision_metadata(inventory_decision)
-    changes = _decision_changes(inventory_decision)
-
-    target_days = None
-    for source in (metadata, changes):
-        for key in ("inventory_days", "target_inventory_days"):
-            if key in source:
-                target_days = _safe_float(source[key], default=0.0)
-                break
-        if target_days is not None:
-            break
-
-    if target_days is not None:
-        return (
-            [0.0] * horizon,
-            [],
-            "Inventory policy selected; purchase timing requires the Inventory Lab event schedule.",
-        )
-
-    return [0.0] * horizon, [], "No inventory cash event available."
-
-
-# ---------------------------------------------------------------------
-# Main cash-plan calculation
-# ---------------------------------------------------------------------
-
-def build_cash_plan(
-    baseline_state: Any,
-    projected_state: Any,
-    horizon: int = 6,
-    exceptional_events: Optional[Sequence[CashEvent]] = None,
-) -> CashPlanResult:
-    annual_sales, annual_cogs = _annual_operating_values(projected_state)
-    opening_cash = _opening_cash(baseline_state)
-
-    # CompanyState stores working-capital policy as days. For the six-month
-    # cash window we first establish the opening AR / inventory / AP position
-    # and then roll the new monthly activity forward from that position.
-    opening_ar, _opening_inventory, opening_ap = _opening_current_asset_balances(
-        baseline_state,
-        annual_sales,
-        annual_cogs,
+    st.markdown(
+        "Before making decisions, we need a clear "
+        "starting point for your business."
     )
 
-    ar_days, inventory_days, ap_days = _working_capital_terms(projected_state)
-
-    # Customer collections:
-    # Prefer a decision-specific collection schedule.
-    ar_decision = _find_decision(AR_CANDIDATE_KEYS)
-
-    collections, collection_beyond = _extract_schedule_from_decision(
-        ar_decision,
-        (
-            "collection_schedule",
-            "collections_schedule",
-            "cash_collection_schedule",
-            "customer_collection_schedule",
-            "receivables_schedule",
-        ),
-    )
-
-    collection_source = "Receivables / Credit Policy Lab"
-    if not any(collections) and not collection_beyond:
-        collections = _schedule_from_payment_days(
-            annual_sales,
-            ar_days,
-            opening_balance=opening_ar,
-            horizon=horizon,
-        )
-        collection_source = "Baseline terms fallback"
-
-    # Supplier payments:
-    ap_decision = _find_decision(AP_CANDIDATE_KEYS)
-
-    supplier_payments, supplier_beyond = _extract_schedule_from_decision(
-        ap_decision,
-        (
-            "payment_schedule",
-            "supplier_payment_schedule",
-            "payables_schedule",
-            "cash_payment_schedule",
-        ),
-    )
-
-    payment_source = "Suppliers & Payables Lab"
-    if not any(supplier_payments) and not supplier_beyond:
-        supplier_payments = _schedule_from_payment_days(
-            annual_cogs,
-            ap_days,
-            opening_balance=opening_ap,
-            horizon=horizon,
-        )
-        payment_source = "Baseline terms fallback"
-
-    # Inventory:
-    inventory_decision = _find_decision(INVENTORY_CANDIDATE_KEYS)
-    inventory_payments, inventory_beyond, inventory_source = (
-        _inventory_event_schedule(
-            annual_cogs,
-            inventory_decision,
-            horizon=horizon,
-        )
-    )
-
-    # Operating expenses are derived from the projected annual operating model,
-    # not entered twelve times.
-    fixed_opex = _safe_float(
-        _get_attr(
-            getattr(projected_state, "drivers", projected_state),
-            "fixed_opex",
-            default=0.0,
-        )
-    )
-    monthly_opex = fixed_opex / 12.0
-
-    # Known debt service is a baseline/projected obligation, spread only as a
-    # regular monthly run-rate. One-off debt events can later be supplied as
-    # explicit events.
-    capital = getattr(projected_state, "capital_structure", None)
-    annual_debt_service = _safe_float(
-        _get_attr(capital, "annual_debt_service", default=0.0)
-    )
-    monthly_debt_service = annual_debt_service / 12.0
-
-    exceptional = list(exceptional_events or [])
-
-    rows: List[Dict[str, Any]] = []
-    cash = opening_cash
-
-    for i in range(horizon):
-        exceptional_in = sum(
-            event.amount
-            for event in exceptional
-            if event.month_index == i and event.amount >= 0
-        )
-        exceptional_out = sum(
-            abs(event.amount)
-            for event in exceptional
-            if event.month_index == i and event.amount < 0
-        )
-
-        net_cash_flow = (
-            collections[i]
-            - supplier_payments[i]
-            - inventory_payments[i]
-            - monthly_opex
-            - monthly_debt_service
-            + exceptional_in
-            - exceptional_out
-        )
-
-        opening = cash
-        cash += net_cash_flow
-
-        rows.append(
-            {
-                "Month": MONTHS[i],
-                "Opening Cash": opening,
-                "Customer Collections": collections[i],
-                "Supplier Payments": supplier_payments[i],
-                "Inventory Purchases": inventory_payments[i],
-                "Operating Expenses": monthly_opex,
-                "Debt Service": monthly_debt_service,
-                "Exceptional Inflows": exceptional_in,
-                "Exceptional Outflows": exceptional_out,
-                "Net Cash Flow": net_cash_flow,
-                "Closing Cash": cash,
-            }
-        )
-
-    closing_values = [row["Closing Cash"] for row in rows]
-    minimum_cash = min(closing_values) if closing_values else opening_cash
-    minimum_index = (
-        closing_values.index(minimum_cash)
-        if closing_values
-        else 0
-    )
-
-    funding_gap = max(0.0, -minimum_cash)
-    funding_gap_month = (
-        MONTHS[minimum_index]
-        if funding_gap > 0
-        else None
-    )
-
-    recovery_month = None
-    if funding_gap > 0:
-        for i, value in enumerate(closing_values):
-            if i > minimum_index and value >= 0:
-                recovery_month = MONTHS[i]
-                break
-
-    beyond_horizon = (
-        collection_beyond
-        + supplier_beyond
-        + inventory_beyond
-    )
-
-    return CashPlanResult(
-        opening_cash=opening_cash,
-        rows=tuple(rows),
-        minimum_cash=minimum_cash,
-        minimum_cash_month=MONTHS[minimum_index] if rows else MONTHS[0],
-        funding_gap=funding_gap,
-        funding_gap_month=funding_gap_month,
-        recovery_month=recovery_month,
-        beyond_horizon_events=tuple(beyond_horizon),
-    )
-
-
-# ---------------------------------------------------------------------
-# UI
-# ---------------------------------------------------------------------
-
-def _render_event_input() -> List[CashEvent]:
-    st.subheader("Anything the system cannot know?")
     st.caption(
-        "Add only exceptional cash events that are not already produced by "
-        "another Decision Lab."
+        "You can enter the numbers yourself or import "
+        "your existing company data."
     )
 
-    events: List[CashEvent] = []
+    st.divider()
 
-    enabled = st.checkbox(
-        "Add an exceptional event",
-        key="cash_management_exceptional_event_enabled",
-    )
+    # =====================================================
+    # EXISTING USER BASELINE
+    # =====================================================
 
-    if not enabled:
-        return events
+    if has_locked_baseline():
 
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        month = st.selectbox(
-            "Month",
-            options=list(range(1, 7)),
-            format_func=lambda x: MONTHS[x - 1],
-            key="cash_management_exceptional_month",
+        st.success(
+            "🔒 Your company baseline is locked."
         )
 
-    with c2:
-        amount = st.number_input(
-            "Amount (€)",
-            value=0.0,
-            step=1000.0,
-            format="%.0f",
-            key="cash_management_exceptional_amount",
+        st.markdown(
+            "### Review your company"
         )
 
-    with c3:
-        direction = st.selectbox(
-            "Cash direction",
-            options=["Outflow", "Inflow"],
-            key="cash_management_exceptional_direction",
+        st.caption(
+            "Review the current values and replace the "
+            "baseline if you want to work with updated company data."
         )
 
-    label = st.text_input(
-        "What is it?",
-        value="Exceptional event",
-        key="cash_management_exceptional_label",
+        st.divider()
+
+        render_baseline_setup()
+
+        return
+
+    # =====================================================
+    # DEMO COMPANY
+    # =====================================================
+
+    st.info(
+        "🧪 You are currently exploring the Managers Lab Demo Company."
     )
 
-    signed_amount = (
-        abs(amount)
-        if direction == "Inflow"
-        else -abs(amount)
+    st.caption(
+        "You can use the demo company to explore the tools "
+        "without entering any data. When you are ready, "
+        "replace it with your own company data."
     )
 
-    if amount != 0:
-        events.append(
-            CashEvent(
-                month_index=month - 1,
-                amount=signed_amount,
-                label=label or "Exceptional event",
-                category="exceptional",
+    st.divider()
+
+    # =====================================================
+    # TWO WAYS TO SET UP
+    # =====================================================
+
+    col1, col2 = st.columns(
+        2,
+        gap="large",
+    )
+
+    # -----------------------------------------------------
+    # MANUAL ENTRY
+    # -----------------------------------------------------
+
+    with col1:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## ✍️ Enter Manually"
+            )
+
+            st.caption(
+                "Enter your key business numbers "
+                "directly."
+            )
+
+            st.markdown(
+                """
+                Revenue  
+                Price & Sales Volume  
+                Costs  
+                Cash & Debt  
+                Receivables, Inventory & Suppliers
+                """
+            )
+
+            if st.button(
+                "Enter Company Data →",
+                key="setup_manual_entry",
+                type="primary",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "🏢 Baseline Snapshot"
+                )
+
+                st.rerun()
+
+    # -----------------------------------------------------
+    # IMPORT
+    # -----------------------------------------------------
+
+    with col2:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## 📥 Import Data"
+            )
+
+            st.caption(
+                "Use your existing company data "
+                "instead of entering everything manually."
+            )
+
+            st.markdown(
+                """
+                Upload your data  
+                Map the available fields  
+                Review the imported values  
+                Lock your baseline
+                """
+            )
+
+            if st.button(
+                "Import Company Data →",
+                key="setup_import_data",
+                type="primary",
+                use_container_width=True,
+            ):
+
+                navigate_to(
+                    "📥 Import Data"
+                )
+
+                st.rerun()
+
+    st.divider()
+
+    st.caption(
+        "Your baseline will not be locked until "
+        "you review and confirm the company data."
+    )
+
+
+# =========================================================
+# SIDEBAR
+# =========================================================
+
+with st.sidebar:
+
+    st.markdown(
+        "## 🧠 Managers Lab"
+    )
+
+    st.caption(
+        "Decision Intelligence for Owner-Managers"
+    )
+
+    st.divider()
+
+    # -----------------------------------------------------
+    # HOME & IMPACT
+    # -----------------------------------------------------
+
+    if st.button(
+        "🏠 Home",
+        key="sidebar_home",
+        use_container_width=True,
+    ):
+
+        go_to_main()
+        st.rerun()
+
+    if st.button(
+        "📊 Company Impact",
+        key="sidebar_control_tower",
+        use_container_width=True,
+    ):
+
+        navigate_to(
+            "📊 Control Tower"
+        )
+
+        st.rerun()
+
+    st.divider()
+
+    # -----------------------------------------------------
+    # COMPANY
+    # -----------------------------------------------------
+
+    st.markdown(
+        "### 🏢 Your Company"
+    )
+
+    if has_locked_baseline():
+
+        st.success(
+            "🔒 Baseline locked"
+        )
+
+        baseline = get_safe_baseline()
+
+        st.caption(
+            f"Version {getattr(baseline, 'version', 1)}"
+        )
+
+        if st.button(
+            "View Company →",
+            key="sidebar_company",
+            use_container_width=True,
+        ):
+
+            navigate_to(
+                "🏢 Baseline Snapshot"
+            )
+
+            st.rerun()
+
+    else:
+
+        st.info(
+            "🧪 Demo Company active"
+        )
+
+        if st.button(
+            "Set Up Your Company →",
+            key="sidebar_setup_company",
+            use_container_width=True,
+        ):
+
+            navigate_to(
+                "🏢 Company Setup"
+            )
+
+            st.rerun()
+
+    # -----------------------------------------------------
+    # PLAN
+    # -----------------------------------------------------
+
+    decision_plan = st.session_state.get(
+        "decision_plan"
+    )
+
+    if isinstance(
+        decision_plan,
+        DecisionPlan,
+    ):
+
+        count = decision_plan.decision_count
+
+        st.markdown(
+            "### 🎯 Current Plan"
+        )
+
+        if count == 0:
+
+            st.caption(
+                "No decisions selected"
+            )
+
+        else:
+
+            st.info(
+                f"{count} decision"
+                f"{'s' if count != 1 else ''}"
+            )
+
+        if st.button(
+            "View Current Plan →",
+            key="sidebar_current_plan",
+            use_container_width=True,
+        ):
+
+            navigate_to(
+                "🧩 Decision Manager"
+            )
+
+            st.rerun()
+
+    st.divider()
+
+    # -----------------------------------------------------
+    # SETTINGS (VISIBLE DIRECTLY)
+    # -----------------------------------------------------
+
+    st.markdown(
+        "### ⚙️ Settings"
+    )
+
+    if st.button(
+        "🗑️ Clear Decision Plan",
+        key="sidebar_clear_plan",
+        use_container_width=True,
+    ):
+
+        st.session_state.decision_plan = (
+            DecisionPlan.create(
+                plan_id="main_plan",
+                name="Current Decision Plan",
             )
         )
 
-    return events
+        st.rerun()
+
+    if st.button(
+        "💥 Reset Application",
+        key="sidebar_reset",
+        use_container_width=True,
+    ):
+
+        st.session_state.clear()
+
+        st.session_state.decision_plan = (
+            DecisionPlan.create(
+                plan_id="main_plan",
+                name="Current Decision Plan",
+            )
+        )
+
+        st.session_state.current_page = "main"
+
+        st.rerun()
 
 
-def render_cash_management_lab(
-    baseline_state: Any = None,
-) -> None:
-    st.title("💧 Cash Management")
-    st.caption(
-        "See when cash comes in, when it goes out, and where pressure appears."
+# =========================================================
+# HOME
+# =========================================================
+
+def render_home():
+
+    st.title(
+        "🧠 Managers Lab"
     )
 
-    baseline = _get_baseline_state(baseline_state)
+    st.markdown(
+        "## What do you want to improve?"
+    )
 
-    if baseline is None:
-        st.warning("Please set and confirm the Locked Baseline first.")
-        return
+    col1, col2 = st.columns(
+        2,
+        gap="large"
+    )
 
-    projected = _get_projected_state(baseline)
+    # =====================================================
+    # MAKE MORE MONEY
+    # =====================================================
 
-    plan = st.session_state.get("decision_plan")
-    decisions = getattr(plan, "decisions", ()) if plan is not None else ()
+    with col1:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## 💰 Make More Money"
+            )
+
+            st.caption(
+                "Improve price, margin, sales or "
+                "customer economics."
+            )
+
+            b1, b2 = st.columns(2)
+
+            with b1:
+
+                navigation_button(
+                    "Pricing",
+                    "💰 Pricing Lab",
+                    "home_price",
+                )
+
+            with b2:
+
+                navigation_button(
+                    "Sales Volume",
+                    "📈 Sales Volume",
+                    "home_volume",
+                )
+
+            b3, b4 = st.columns(2)
+
+            with b3:
+
+                navigation_button(
+                    "Pricing Threshold",
+                    "🎯 Pricing Threshold",
+                    "home_pricing_threshold_money",
+                )
+
+            with b4:
+
+                navigation_button(
+                    "Cash Management",
+                    "💧 Cash Management",
+                    "home_cash_management",
+                )
+
+    # =====================================================
+    # FREE UP CASH
+    # =====================================================
+
+    with col2:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## 💧 Free Up Cash"
+            )
+
+            st.caption(
+                "Reduce cash tied up in customers, "
+                "inventory and suppliers."
+            )
+
+            b1, b2 = st.columns(2)
+
+            with b1:
+
+                navigation_button(
+                    "Receivables",
+                    "💶 Receivables Lab",
+                    "home_receivables",
+                )
+
+            with b2:
+
+                navigation_button(
+                    "Inventory",
+                    "📦 Inventory Lab",
+                    "home_inventory",
+                )
+
+            b3, b4 = st.columns(2)
+
+            with b3:
+
+                navigation_button(
+                    "Supplier Terms",
+                    "🚚 Suppliers & Payables Lab",
+                    "home_suppliers",
+                )
+
+            with b4:
+
+                navigation_button(
+                    "Working Capital",
+                    "📐 Working Capital Data Analyzer",
+                    "home_working_capital",
+                )
+
+    # =====================================================
+    # FUND GROWTH & PROTECT BUSINESS
+    # =====================================================
+
+    col1, col2 = st.columns(
+        2,
+        gap="large"
+    )
+
+    # -----------------------------------------------------
+    # FUND GROWTH
+    # -----------------------------------------------------
+
+    with col1:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## 🚀 Fund Growth"
+            )
+
+            st.caption(
+                "Understand growth funding needs "
+                "and financing choices."
+            )
+
+            b1, b2 = st.columns(2)
+
+            with b1:
+
+                navigation_button(
+                    "Growth Funding",
+                    "📈 Growth & Funding Lab",
+                    "home_growth",
+                )
+
+            with b2:
+
+                navigation_button(
+                    "Debt & WACC",
+                    "🏦 WACC Lab",
+                    "home_wacc",
+                )
+
+            b3, b4 = st.columns(2)
+
+            with b3:
+
+                navigation_button(
+                    "Loan vs Leasing",
+                    "🏦 Loan vs Leasing",
+                    "home_loan_lease",
+                )
+
+            with b4:
+
+                navigation_button(
+                    "Strategic Options",
+                    "🧠 QSPM Strategic Evaluation",
+                    "home_strategy",
+                )
+
+    # -----------------------------------------------------
+    # PROTECT BUSINESS
+    # -----------------------------------------------------
+
+    with col2:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## 🛡️ Protect the Business"
+            )
+
+            st.caption(
+                "Test liquidity, survival and "
+                "business fragility."
+            )
+
+            b1, b2 = st.columns(2)
+
+            with b1:
+
+                navigation_button(
+                    "Cash Fragility",
+                    "🩺 Cash Fragility Diagnostic",
+                    "home_fragility",
+                )
+
+            with b2:
+
+                navigation_button(
+                    "Stress Test",
+                    "🛡️ Stress Test Simulator",
+                    "home_stress",
+                )
+
+            b3, b4 = st.columns(2)
+
+            with b3:
+
+                navigation_button(
+                    "Monthly Survival",
+                    "📅 Monthly Cash Coverage",
+                    "home_survival",
+                )
+
+            with b4:
+
+                navigation_button(
+                    "Deal Auditor",
+                    "🔎 Deal Auditor",
+                    "home_deal_auditor",
+                )
+
+    # =====================================================
+    # EXPLORE & TEST (CLEANED UP - NO DUPLICATES)
+    # =====================================================
+
+    st.divider()
+
+    st.markdown(
+        "## 🔬 Explore & Test"
+    )
+
+    st.caption(
+        "Analyze specific business questions."
+    )
+
+    col1, col2 = st.columns(
+        2,
+        gap="large",
+    )
+
+    with col1:
+        with st.container(border=True):
+            st.markdown("### 💧 Cash & Commercial Analysis")
+
+            b1, b2 = st.columns(2)
+            with b1:
+                navigation_button("Cash Break-Even", "💧 Cash Break-Even Lab", "home_cash_break_even")
+            with b2:
+                navigation_button("Customer Profit & Cash", "💼 Customer Profit & Cash", "home_customer_cash")
+
+            b3, _ = st.columns(2)
+            with b3:
+                navigation_button("Salesperson Value", "👤 Salesperson Value Lab", "home_salesperson_value")
+
+    with col2:
+        with st.container(border=True):
+            st.markdown("### 📦 Operations & Strategic Analysis")
+
+            b1, b2 = st.columns(2)
+            with b1:
+                navigation_button("Inventory Ordering", "📦 Inventory Ordering Lab", "home_inventory_ordering")
+            with b2:
+                navigation_button("Complementary Products", "🧩 Complementary Products Diagnostic", "home_complementary")
+
+            b3, b4 = st.columns(2)
+            with b3:
+                navigation_button("Substitute Products", "🔄 Substitute Products Diagnostic", "home_substitute")
+            with b4:
+                navigation_button("Customer Concentration", "🎯 Customer Concentration Diagnostic", "home_concentration")
+
+# =========================================================
+# ROUTING
+# =========================================================
+
+current_page = st.session_state.get(
+    "current_page",
+    "main",
+)
+
+
+# =========================================================
+# HOME ROUTE
+# =========================================================
+
+if current_page == "main":
+
+    render_home()
+
+    st.stop()
+
+
+# =========================================================
+# COMPANY SETUP
+# =========================================================
+
+if current_page == "🏢 Company Setup":
+
+    render_company_setup()
+
+    st.stop()
+
+
+# =========================================================
+# BASELINE / DATA
+# =========================================================
+
+if current_page == "🏢 Baseline Snapshot":
+
+    render_baseline_setup()
+
+    st.stop()
+
+
+# =========================================================
+# IMPORT DATA
+# =========================================================
+
+if current_page == "📥 Import Data":
+
+    render_data_import()
+
+    st.stop()
+
+# =========================================================
+# SALES & COST ANALYZER
+# =========================================================
+
+if current_page == "📊 Sales & Cost Analyzer":
+
+    render_sales_cost_analyzer()
+
+    st.stop()
+
+
+# =========================================================
+# BASELINE GUARD
+# =========================================================
+
+baseline = get_safe_baseline()
+
+if baseline is None:
+
+    st.warning(
+        "🔒 No company baseline found."
+    )
 
     st.info(
-        "This is a cash-timing layer — not another company forecast. "
-        "Customer collections, supplier payments and inventory events should "
-        "come from the relevant Decision Labs."
+        "Please set up your company baseline first."
     )
 
-    if decisions:
-        st.caption(
-            f"Current Decision Plan: **{getattr(plan, 'name', 'Current Decision Plan')}** "
-            f"({len(decisions)} decision(s))"
+    if st.button(
+        "🏢 Set Up Company"
+    ):
+
+        navigate_to(
+            "🏢 Company Setup"
         )
-    else:
-        st.caption("No decisions are currently selected. Showing baseline cash timing.")
 
-    exceptional_events = _render_event_input()
+        st.rerun()
 
-    result = build_cash_plan(
+    st.stop()
+
+
+# =========================================================
+# DECISION LABS
+# =========================================================
+
+if current_page == "💧 Cash Management":
+
+    render_cash_management_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "💰 Pricing Lab":
+
+    render_pricing_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "🎯 Pricing Threshold":
+
+    render_pricing_threshold(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "💶 Receivables Lab":
+
+    render_receivables_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "📦 Inventory Lab":
+
+    show_inventory_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "📦 Inventory Ordering Lab":
+
+    render_inventory_ordering_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "🚚 Suppliers & Payables Lab":
+
+    render_suppliers_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "💧 Cash Break-Even Lab":
+
+    render_cash_break_even_lab(
         baseline_state=baseline,
-        projected_state=projected,
-        horizon=6,
-        exceptional_events=exceptional_events,
+        projected_state=None,
     )
 
-    st.divider()
-    st.subheader("Cash Consequences — Next 6 Months")
+    st.stop()
 
-    k1, k2, k3, k4 = st.columns(4)
 
-    k1.metric("Opening Cash", _money(result.opening_cash))
-    k2.metric("Minimum Cash", _money(result.minimum_cash))
-    k3.metric(
-        "Funding Gap",
-        _money(result.funding_gap),
+if current_page == "🏦 WACC Lab":
+
+    render_wacc_lab(
+        baseline_state=baseline
     )
-    recovery_display = (
-        result.recovery_month
-        if result.recovery_month is not None
-        else ("Beyond 6 months" if result.funding_gap > 0 else "Not required")
-    )
-    k4.metric("Recovery", recovery_display)
 
-    if result.funding_gap > 0:
-        st.error(
-            f"Cash falls below zero in **{result.funding_gap_month}**. "
-            f"Maximum projected gap: **{_money(result.funding_gap)}**."
+    st.stop()
+
+
+if current_page == "🏦 Loan vs Leasing":
+
+    render_loan_vs_leasing_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "📈 Growth & Funding Lab":
+
+    b_state, p_state, fin_proj, trace = (
+        build_projection()
+    )
+
+    render_growth_funding_lab(
+        baseline_state=b_state,
+        projected_state=p_state,
+        financial_projection=fin_proj,
+    )
+
+    st.stop()
+
+
+if current_page == "👥 Customer Value":
+
+    render_customer_cash_economics_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+if current_page == "💼 Customer Profit & Cash":
+
+    render_customer_cash_economics_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "🧩 Complementary Products Diagnostic":
+
+    render_complementary_products_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "🔄 Substitute Products Diagnostic":
+
+    render_substitute_products_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "🔎 Deal Auditor":
+
+    render_deal_auditor_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "🎯 Customer Concentration Diagnostic":
+
+    render_concentration_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "👤 Salesperson Value Lab":
+
+    render_salesperson_value_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "🛡️ Stress Test Simulator":
+
+    render_stress_test_lab(
+        baseline_state=baseline
+    )
+
+    st.stop()
+
+
+if current_page == "🩺 Cash Fragility Diagnostic":
+
+    b_state, p_state, fin_proj, trace = (
+        build_projection()
+    )
+
+    render_cash_fragility_lab(
+        baseline_state=b_state,
+        projected_state=p_state,
+        financial_projection=fin_proj,
+    )
+
+    st.stop()
+
+
+if current_page == "📅 Monthly Cash Coverage":
+
+    b_state, p_state, fin_proj, trace = (
+        build_projection()
+    )
+
+    render_monthly_survival_lab(
+        baseline_state=b_state,
+        projected_state=p_state,
+    )
+
+    st.stop()
+
+
+if current_page == "🧠 QSPM Strategic Evaluation":
+
+    decision_plan = st.session_state.get(
+        "decision_plan"
+    )
+
+    if not isinstance(
+        decision_plan,
+        DecisionPlan,
+    ):
+
+        decision_plan = DecisionPlan.create(
+            plan_id="empty_plan",
+            name="Empty Decision Plan",
         )
-    else:
-        st.success(
-            f"Projected minimum cash is **{_money(result.minimum_cash)}** "
-            f"in **{result.minimum_cash_month}**."
-        )
 
-    df = pd.DataFrame(list(result.rows))
-
-    display = df.copy()
-    money_columns = [
-        "Opening Cash",
-        "Customer Collections",
-        "Supplier Payments",
-        "Inventory Purchases",
-        "Operating Expenses",
-        "Debt Service",
-        "Exceptional Inflows",
-        "Exceptional Outflows",
-        "Net Cash Flow",
-        "Closing Cash",
-    ]
-
-    for column in money_columns:
-        display[column] = display[column].map(_money)
-
-    st.dataframe(
-        display,
-        use_container_width=True,
-        hide_index=True,
+    render_qspm_lab(
+        baseline_state=baseline,
+        decision_plan=decision_plan,
     )
 
-    st.divider()
-    st.subheader("Where the timing comes from")
+    st.stop()
 
-    source_rows = [
-        {
-            "Cash item": "Customer collections",
-            "Source": "Receivables / Credit Policy Lab",
-            "Status": (
-                "Decision schedule"
-                if _find_decision(AR_CANDIDATE_KEYS) is not None
-                else "Baseline terms fallback"
-            ),
-        },
-        {
-            "Cash item": "Supplier payments",
-            "Source": "Suppliers & Payables Lab",
-            "Status": (
-                "Decision schedule"
-                if _find_decision(AP_CANDIDATE_KEYS) is not None
-                else "Baseline terms fallback"
-            ),
-        },
-        {
-            "Cash item": "Inventory purchases",
-            "Source": "Inventory Lab",
-            "Status": (
-                "Decision schedule"
-                if any(row["Inventory Purchases"] != 0 for row in result.rows)
-                else "Included in supplier-payment timing unless an event schedule exists"
-            ),
-        },
-        {
-            "Cash item": "Operating expenses",
-            "Source": "Projected CompanyState",
-            "Status": "Monthly run-rate",
-        },
-        {
-            "Cash item": "Debt service",
-            "Source": "Projected CompanyState",
-            "Status": "Monthly run-rate",
-        },
-        {
-            "Cash item": "Exceptional events",
-            "Source": "Owner input",
-            "Status": "Only when system cannot know",
-        },
-    ]
 
-    st.dataframe(
-        source_rows,
-        use_container_width=True,
-        hide_index=True,
+# =========================================================
+# MANAGEMENT
+# =========================================================
+
+if current_page == "🧩 Decision Manager":
+
+    render_decision_view()
+
+    st.stop()
+
+if current_page == "📊 Control Tower":
+    b_state, p_state, fin_proj, trace = build_projection()
+
+    render_dashboard(
+        baseline_state=b_state,
+        projected_state=p_state,
+        financial_projection=fin_proj,
+        trace=trace,
     )
 
-    if result.beyond_horizon_events:
-        st.divider()
-        st.subheader("Known commitments beyond Month 6")
-        st.caption(
-            "These are not forced into Month 6. They remain visible as future commitments."
-        )
+    st.stop()
 
-        future_rows = [
-            {
-                "Timing": f"Month {event.month_index + 1}",
-                "Amount": _money(event.amount),
-                "Category": event.category,
-                "Description": event.label,
-            }
-            for event in result.beyond_horizon_events
-        ]
+# =========================================================
+# SALES VOLUME
+# =========================================================
 
-        st.dataframe(
-            future_rows,
-            use_container_width=True,
-            hide_index=True,
-        )
+if current_page == "📈 Sales Volume":
 
-    st.divider()
-    st.caption(
-        "V2 principle: Decisions change the company. Diagnostics explain the company. "
-        "This layer maps the cash timing of the current decision plan; it does not "
-        "create a second independent company model."
+    render_volume_lab(
+        baseline_state=baseline
     )
+
+    st.stop()
