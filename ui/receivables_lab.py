@@ -1,1074 +1,1771 @@
-from decimal import (
-    Decimal,
-    InvalidOperation,
-    Overflow,
-    getcontext,
-)
-from uuid import uuid4
+"""
+Managers Lab V2 — Cash Management
 
+Purpose
+-------
+Monthly cash-timing layer for decisions already made elsewhere.
+
+Canonical V2 flow:
+    Locked Baseline
+        -> Current Decision Plan
+        -> DecisionEvaluator / Runner
+        -> Projected CompanyState
+        -> Cash Management (cash timing)
+        -> Financial Engine / Diagnostics / Control Tower
+
+This module does NOT create a second company model and does NOT replace
+the Financial Engine.
+
+Important design rule:
+    Decision Labs own the decisions.
+    Cash Management translates those decisions into near-term cash
+    timing.
+
+Current integration strategy
+----------------------------
+1. Read the current Decision Plan from session state.
+2. Read the projected CompanyState through DecisionEvaluator when available.
+3. Pull timing schedules from decision metadata when a Lab already exposes them.
+4. If a decision directly changes a timing driver such as ar_days or ap_days,
+   use that decision as the cash-timing input.
+5. Use projected CompanyState payment terms only as a fallback.
+6. Ask the owner only for exceptional cash events the system cannot know.
+7. Show a rolling six-month cash consequence window.
+
+The six-month window is deliberately not a six-month detailed budget:
+    - Months 1–3: near-term, concrete cash consequences.
+    - Months 4–6: consequences of decisions already made.
+    - Known commitments beyond month 6 are shown separately rather than forced
+      into month 6.
+
+No historical-ratio forecasting is used for receivables or payables when a
+decision-specific schedule or decision-specific payment term is available.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+
+import pandas as pd
 import streamlit as st
 
-from core.decision import DecisionFactory
-from core.decision_plan import DecisionPlan
+
+MONTHS = [
+    "Month 1",
+    "Month 2",
+    "Month 3",
+    "Month 4",
+    "Month 5",
+    "Month 6",
+]
+
+# Existing V2 candidate keys seen in the current application.
+AR_CANDIDATE_KEYS = (
+    "wc_ar_candidate",
+    "receivables_candidate",
+)
+
+AP_CANDIDATE_KEYS = (
+    "wc_ap_candidate",
+    "payables_candidate",
+)
+
+INVENTORY_CANDIDATE_KEYS = (
+    "wc_inv_candidate",
+    "wc_inventory_candidate",
+    "inventory_candidate",
+)
 
 
-# =========================================================
-# RECEIVABLES CANDIDATE
-# =========================================================
+@dataclass(frozen=True)
+class CashEvent:
+    month_index: int
+    amount: float
+    label: str
+    category: str
 
-AR_CANDIDATE = "wc_ar_candidate"
-AR_META = "wc_ar_candidate_meta"
+
+@dataclass(frozen=True)
+class CashPlanResult:
+    opening_cash: float
+    rows: Tuple[Dict[str, Any], ...]
+    minimum_cash: float
+    minimum_cash_month: str
+    funding_gap: float
+    funding_gap_month: Optional[str]
+    recovery_month: Optional[str]
+    beyond_horizon_events: Tuple[CashEvent, ...]
 
 
-# =========================================================
-# EARLY PAYMENT DISCOUNT CALCULATOR
-# =========================================================
+# ---------------------------------------------------------------------
+# Formatting / safe extraction
+# ---------------------------------------------------------------------
 
-def calculate_discount_npv(
-    current_sales,
-    extra_sales,
-    discount_trial,
-    prc_clients_take_disc,
-    days_currently_paying_clients_take_discount,
-    days_currently_paying_clients_not_take_discount,
-    new_days_payment_clients_take_disc,
-    cogs,
-    wacc,
-    avg_days_pay_suppliers,
-):
-    """
-    Evaluate whether an early-payment discount creates economic value.
+def _money(value: float) -> str:
+    return f"€{float(value):,.0f}"
 
-    All percentage inputs are supplied as decimals (0-1).
 
-    Returns a dictionary containing:
-        - current weighted collection days
-        - new weighted collection days
-        - current receivables
-        - new receivables
-        - cash released
-        - profit from extra sales
-        - profit from released cash
-        - discount cost
-        - NPV
-        - maximum discount
-        - optimum discount
-        - percentage of customers under new policy
-    """
-
-    getcontext().prec = 50
-
+def _safe_float(value: Any, default: float = 0.0) -> float:
     try:
-        cs = Decimal(str(current_sales))
-        es = Decimal(str(extra_sales))
-        dt = Decimal(str(discount_trial))
-        pct_take = Decimal(str(prc_clients_take_disc))
-
-        d_take_old = Decimal(
-            str(days_currently_paying_clients_take_discount)
-        )
-        d_no_take_old = Decimal(
-            str(days_currently_paying_clients_not_take_discount)
-        )
-        d_new_policy = Decimal(
-            str(new_days_payment_clients_take_disc)
-        )
-
-        cg = Decimal(str(cogs))
-        wc = Decimal(str(wacc))
-        d_supp = Decimal(str(avg_days_pay_suppliers))
-
-        # -----------------------------------------------------
-        # VALIDATION
-        # -----------------------------------------------------
-
-        if (
-            cs <= 0
-            or pct_take <= 0
-            or pct_take > 1
-            or wc < 0
-        ):
-            return None
-
-        if dt < 0 or dt > 1:
-            return None
-
-        pct_no_take = Decimal("1") - pct_take
-
-        # -----------------------------------------------------
-        # CURRENT POLICY
-        # -----------------------------------------------------
-
-        avg_curr_days = (
-            pct_take * d_take_old
-            + pct_no_take * d_no_take_old
-        )
-
-        curr_rec = (
-            cs * avg_curr_days
-        ) / Decimal("365")
-
-        # -----------------------------------------------------
-        # NEW POLICY
-        # -----------------------------------------------------
-
-        total_sales = cs + es
-
-        if total_sales <= 0:
-            return None
-
-        prcnt_new_policy = (
-            (cs * pct_take) + es
-        ) / total_sales
-
-        prcnt_old_policy = (
-            Decimal("1") - prcnt_new_policy
-        )
-
-        if prcnt_new_policy <= 0:
-            return None
-
-        new_avg_period = (
-            prcnt_new_policy * d_new_policy
-            + prcnt_old_policy * d_no_take_old
-        )
-
-        new_rec = (
-            total_sales * new_avg_period
-        ) / Decimal("365")
-
-        free_cap = curr_rec - new_rec
-
-        # -----------------------------------------------------
-        # PROFIT EFFECT
-        # -----------------------------------------------------
-
-        gross_margin_ratio = (
-            Decimal("1") - (cg / cs)
-        )
-
-        prof_extra = (
-            es * gross_margin_ratio
-        )
-
-        prof_free_cap = (
-            free_cap * wc
-        )
-
-        dist_cost = (
-            total_sales
-            * prcnt_new_policy
-            * dt
-        )
-
-        # -----------------------------------------------------
-        # DISCOUNTED CASH FLOW
-        # -----------------------------------------------------
-
-        i_float = float(wc / Decimal("365"))
-
-        MAX_EXP = 500.0
-
-        exp_new = min(
-            float(d_new_policy),
-            MAX_EXP,
-        )
-
-        exp_no_take = min(
-            float(d_no_take_old),
-            MAX_EXP,
-        )
-
-        exp_curr = min(
-            float(avg_curr_days),
-            MAX_EXP,
-        )
-
-        exp_supp = min(
-            float(d_supp),
-            MAX_EXP,
-        )
-
-        base = 1.0 + i_float
-
-        t1_denom = Decimal(
-            str(base ** exp_new)
-        )
-
-        t2_denom = Decimal(
-            str(base ** exp_no_take)
-        )
-
-        t3_denom = Decimal(
-            str(base ** exp_supp)
-        )
-
-        t4_denom = Decimal(
-            str(base ** exp_curr)
-        )
-
-        term1 = (
-            total_sales
-            * prcnt_new_policy
-            * (Decimal("1") - dt)
-        ) / t1_denom
-
-        term2 = (
-            total_sales
-            * prcnt_old_policy
-        ) / t2_denom
-
-        term3 = (
-            (cg / cs)
-            * (es / cs)
-            * cs
-        ) / t3_denom
-
-        term4 = (
-            cs / t4_denom
-        )
-
-        inflow = term1 + term2
-        outflow = term3 + term4
-
-        npv = inflow - outflow
-
-        # -----------------------------------------------------
-        # MAXIMUM DISCOUNT
-        # -----------------------------------------------------
-
-        pow_1 = Decimal(
-            str(base ** (exp_new - exp_no_take))
-        )
-
-        pow_2 = Decimal(
-            str(base ** (exp_no_take - exp_curr))
-        )
-
-        pow_3 = Decimal(
-            str(base ** (exp_no_take - exp_supp))
-        )
-
-        term_inner = (
-            Decimal("1")
-            - (
-                Decimal("1")
-                / prcnt_new_policy
-            )
-            + (
-                pow_2
-                + (cg / cs)
-                * (es / cs)
-                * pow_3
-            )
-            / (
-                prcnt_new_policy
-                * (
-                    Decimal("1")
-                    + (es / cs)
-                )
-            )
-        )
-
-        max_d = (
-            Decimal("1")
-            - pow_1 * term_inner
-        )
-
-        # -----------------------------------------------------
-        # OPTIMUM DISCOUNT
-        # -----------------------------------------------------
-
-        pow_opt = Decimal(
-            str(base ** (exp_new - exp_curr))
-        )
-
-        opt_d = (
-            Decimal("1") - pow_opt
-        ) / Decimal("2")
-
-        return {
-            "avg_current_collection_days": float(
-                avg_curr_days
-            ),
-            "current_receivables": float(
-                curr_rec
-            ),
-            "new_avg_collection_period": float(
-                new_avg_period
-            ),
-            "new_receivables": float(
-                new_rec
-            ),
-            "free_capital": float(
-                free_cap
-            ),
-            "profit_from_extra_sales": float(
-                prof_extra
-            ),
-            "profit_from_free_capital": float(
-                prof_free_cap
-            ),
-            "discount_cost": float(
-                dist_cost
-            ),
-            "npv": float(
-                npv
-            ),
-            "max_discount": float(
-                max_d * 100
-            ),
-            "optimum_discount": float(
-                opt_d * 100
-            ),
-            "pct_new_policy": float(
-                prcnt_new_policy * 100
-            ),
-        }
-
-    except (
-        InvalidOperation,
-        Overflow,
-        ZeroDivisionError,
-        ValueError,
-    ):
-        return None
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
-# =========================================================
-# CURRENT DECISION PLAN
-# =========================================================
+def _get_attr(obj: Any, *names: str, default: Any = None) -> Any:
+    for name in names:
+        if obj is not None and hasattr(obj, name):
+            return getattr(obj, name)
+    return default
 
-def _get_current_plan():
+
+def _decision_changes(decision: Any) -> Mapping[str, Any]:
+    changes = getattr(decision, "changes", {})
+    return changes if isinstance(changes, Mapping) else {}
+
+
+def _decision_metadata(decision: Any) -> Mapping[str, Any]:
     """
-    Return the active Current Decision Plan.
-
-    DecisionPlan is immutable, so every add operation returns
-    a new plan that must be stored back in session state.
+    Accept metadata stored under common V2 names.
     """
+    for attr in ("metadata", "meta", "details", "assumptions"):
+        value = getattr(decision, attr, None)
+        if isinstance(value, Mapping):
+            return value
 
+    return {}
+
+
+def _all_decisions() -> List[Any]:
     plan = st.session_state.get("decision_plan")
+    decisions = getattr(plan, "decisions", ()) if plan is not None else ()
 
-    if isinstance(plan, DecisionPlan):
-        return plan
+    if decisions:
+        return list(decisions)
 
-    plan = DecisionPlan.create(
-        plan_id="main_plan",
-        name="Current Decision Plan",
-    )
-
-    st.session_state.decision_plan = plan
-
-    return plan
+    return []
 
 
-def _find_conflicting_driver(
-    plan,
-    decision,
-):
+def _find_decision(keys: Sequence[str]) -> Optional[Any]:
     """
-    Detect whether another decision in the current plan
-    already changes the same CompanyState driver.
+    Find a decision from the Current Decision Plan or the candidate layer.
 
-    Receivables decisions change:
-        ar_days
+    In addition to id/category/name matching, inspect the decision's
+    CompanyState changes. This is important for V2 because a Lab may create
+    a decision whose identifying name does not contain the candidate key,
+    while the actual driver is explicit, e.g.:
+
+        changes = {"ar_days": 90}
+
+    That is the canonical information Cash Management needs.
     """
+    wanted = {key.lower() for key in keys}
 
-    decision_changes = getattr(
-        decision,
-        "changes",
-        {},
-    )
+    for decision in _all_decisions():
+        decision_id = str(getattr(decision, "id", "")).lower()
+        category = str(getattr(decision, "category", "")).lower()
+        name = str(getattr(decision, "name", "")).lower()
+        changes = _decision_changes(decision)
 
-    if "ar_days" not in decision_changes:
-        return None
+        if decision_id in wanted:
+            return decision
 
-    for existing_decision in plan.decisions:
+        if any(
+            key.lower() in category or key.lower() in name
+            for key in wanted
+        ):
+            return decision
 
-        existing_changes = getattr(
-            existing_decision,
-            "changes",
-            {},
-        )
+        # -------------------------------------------------------------
+        # Canonical driver detection
+        # -------------------------------------------------------------
 
-        if "ar_days" in existing_changes:
-            return existing_decision
+        if any(
+            key in changes
+            for key in (
+                "ar_days",
+                "collection_days",
+                "customer_payment_days",
+            )
+        ):
+            if any(
+                candidate_key in wanted
+                for candidate_key in (
+                    "wc_ar_candidate",
+                    "receivables_candidate",
+                )
+            ):
+                return decision
+
+        if any(
+            key in changes
+            for key in (
+                "ap_days",
+                "supplier_payment_days",
+                "supplier_days",
+            )
+        ):
+            if any(
+                candidate_key in wanted
+                for candidate_key in (
+                    "wc_ap_candidate",
+                    "payables_candidate",
+                )
+            ):
+                return decision
+
+        if any(
+            key in changes
+            for key in (
+                "inventory_days",
+                "target_inventory_days",
+            )
+        ):
+            if any(
+                candidate_key in wanted
+                for candidate_key in (
+                    "wc_inv_candidate",
+                    "wc_inventory_candidate",
+                    "inventory_candidate",
+                )
+            ):
+                return decision
+
+    # Candidate objects may exist before they are placed in the plan.
+    for session_key in keys:
+        candidate = st.session_state.get(session_key)
+        if candidate is not None:
+            return candidate
 
     return None
 
 
-def _add_to_current_plan(decision):
-    """
-    Add a Receivables Decision directly to Current Decision Plan.
+# ---------------------------------------------------------------------
+# Company / projection
+# ---------------------------------------------------------------------
 
-    This is the direct path:
+def _get_baseline_state(explicit_baseline: Any = None) -> Any:
+    if explicit_baseline is not None:
+        return explicit_baseline
 
-        Receivables Lab
-            ↓
-        Current Decision Plan
+    try:
+        from core.state_builder import StateBuilder
+        from core.baseline_repository import BaselineRepository
 
-    The decision is NOT executed here.
-    Execution/evaluation remains centralized.
-    """
-
-    current_plan = _get_current_plan()
-
-    # -----------------------------------------------------
-    # DUPLICATE CHECK
-    # -----------------------------------------------------
-
-    if current_plan.contains(decision.id):
-        st.warning(
-            "This decision is already in the Current Decision Plan."
+        builder = StateBuilder(
+            baseline_repository=BaselineRepository
         )
-        return False
 
-    # -----------------------------------------------------
-    # DRIVER CONFLICT CHECK
-    # -----------------------------------------------------
+        return builder.build_baseline_only()
 
-    conflict = _find_conflicting_driver(
-        current_plan,
-        decision,
-    )
+    except Exception:
+        return None
 
-    if conflict is not None:
-        st.error(
-            "The Current Decision Plan already contains "
-            "a decision that changes Collection Time. "
-            "Remove or replace that decision before adding this one."
+
+def _get_projected_state(baseline_state: Any) -> Any:
+    """
+    Use the canonical V2 evaluator when available.
+
+    Failure here does not fabricate a projection. The module simply falls
+    back to the baseline state and clearly labels the result.
+    """
+    if baseline_state is None:
+        return None
+
+    try:
+        from core.decision_evaluator import DecisionEvaluator
+        from core.decision_plan import DecisionPlan
+
+        plan = st.session_state.get("decision_plan")
+
+        if plan is None:
+            plan = DecisionPlan.create(
+                plan_id="empty_plan",
+                name="Empty Decision Plan",
+            )
+
+        evaluation = DecisionEvaluator.evaluate(
+            baseline_state=baseline_state,
+            plan=plan,
         )
-        return False
 
-    # -----------------------------------------------------
-    # IMMUTABLE PLAN UPDATE
-    # -----------------------------------------------------
+        return evaluation.projected_state
 
-    updated_plan = current_plan.add(
-        decision
+    except Exception:
+        return baseline_state
+
+
+def _annual_operating_values(
+    state: Any,
+) -> Tuple[float, float]:
+
+    if state is None:
+        return 0.0, 0.0
+
+    drivers = getattr(state, "drivers", state)
+
+    price = _safe_float(
+        _get_attr(
+            drivers,
+            "price",
+            default=0.0,
+        )
     )
 
-    st.session_state.decision_plan = (
-        updated_plan
+    volume = _safe_float(
+        _get_attr(
+            drivers,
+            "volume",
+            default=0.0,
+        )
     )
 
-    return True
+    variable_cost = _safe_float(
+        _get_attr(
+            drivers,
+            "variable_cost_per_unit",
+            "variable_cost",
+            default=0.0,
+        )
+    )
+
+    return (
+        price * volume,
+        variable_cost * volume,
+    )
 
 
-# =========================================================
-# CANDIDATE MANAGEMENT
-# =========================================================
+def _opening_cash(state: Any) -> float:
+    if state is None:
+        return 0.0
 
-def set_ar_candidate(
-    decision,
-    metadata=None,
-):
-    st.session_state[AR_CANDIDATE] = decision
+    drivers = getattr(state, "drivers", state)
 
-    if metadata is not None:
-        st.session_state[AR_META] = metadata
+    return _safe_float(
+        _get_attr(
+            drivers,
+            "opening_cash",
+            default=0.0,
+        )
+    )
 
 
-def clear_ar_candidate():
-    st.session_state.pop(
-        AR_CANDIDATE,
+def _working_capital_terms(
+    state: Any,
+) -> Tuple[float, float, float]:
+
+    wc = getattr(
+        state,
+        "working_capital",
         None,
     )
 
-    st.session_state.pop(
-        AR_META,
-        None,
+    return (
+        _safe_float(
+            _get_attr(
+                wc,
+                "ar_days",
+                default=0.0,
+            )
+        ),
+        _safe_float(
+            _get_attr(
+                wc,
+                "inventory_days",
+                default=0.0,
+            )
+        ),
+        _safe_float(
+            _get_attr(
+                wc,
+                "ap_days",
+                default=0.0,
+            )
+        ),
     )
 
 
-def get_ar_candidate():
-    return st.session_state.get(
-        AR_CANDIDATE
-    )
+# ---------------------------------------------------------------------
+# Decision-specific payment terms
+# ---------------------------------------------------------------------
 
-
-# =========================================================
-# BASELINE HELPERS
-# =========================================================
-
-def _get_revenue(baseline_state):
-    try:
-        return float(
-            baseline_state.income_statement.revenue
-        )
-    except AttributeError:
-        price = float(
-            getattr(
-                baseline_state,
-                "price",
-                150.0,
-            )
-        )
-
-        volume = float(
-            getattr(
-                baseline_state,
-                "volume",
-                12000.0,
-            )
-        )
-
-        return price * volume
-
-
-def _get_variable_cost(baseline_state):
-    try:
-        return float(
-            baseline_state.unit_economics.variable_cost
-        )
-    except AttributeError:
-        return float(
-            getattr(
-                baseline_state,
-                "variable_cost",
-                100.0,
-            )
-        )
-
-
-def _get_volume(baseline_state):
-    try:
-        return float(
-            baseline_state.volume
-        )
-    except AttributeError:
-        return 12000.0
-
-
-# =========================================================
-# RECEIVABLES LAB
-# =========================================================
-
-def render_receivables_lab(
-    baseline_state,
-):
+def _decision_ar_days(
+    decision: Any,
+) -> Optional[float]:
     """
-    Receivables Decision Lab.
+    Extract the AR payment-term decision directly from the Decision.
 
-    Business question:
-        "When should my customers pay me?"
+    Receivables Lab currently creates:
 
-    Produces an AR Decision candidate and sends it
-    directly to the Current Decision Plan.
+        DecisionFactory.ar_days_change(
+            target_ar_days=...
+        )
+
+    which results in:
+
+        decision.changes["ar_days"]
+
+    This is intentionally read directly by Cash Management because the Lab
+    owns the decision and this module owns the translation of that decision
+    into cash timing.
     """
 
-    st.title("💶 Receivables Lab")
+    if decision is None:
+        return None
 
-    st.markdown(
-        """
-        Decide how quickly customers should pay you.
+    changes = _decision_changes(decision)
 
-        The lab compares your current collection policy with
-        alternative payment policies and can create an **AR Decision**
-        for the central Decision Plan.
-        """
-    )
-
-    # =====================================================
-    # CURRENT POLICY
-    # =====================================================
-
-    wc = baseline_state.working_capital
-
-    current_ar_days = float(
-        wc.ar_days
-    )
-
-    st.subheader(
-        "When do you currently collect?"
-    )
-
-    st.metric(
-        "Current Collection Time",
-        f"{current_ar_days:.1f} days",
-    )
-
-    revenue = _get_revenue(
-        baseline_state
-    )
-
-    variable_cost = _get_variable_cost(
-        baseline_state
-    )
-
-    volume = _get_volume(
-        baseline_state
-    )
-
-    cogs_default = (
-        variable_cost * volume
-    )
-
-    # =====================================================
-    # SIMPLE MANUAL POLICY
-    # =====================================================
-
-    st.divider()
-
-    st.subheader(
-        "1. Set a Collection Target"
-    )
-
-    st.caption(
-        "If you already know the collection target, "
-        "you can set it directly."
-    )
-
-    ar_target = st.number_input(
-        "Target Collection Time (days)",
-        min_value=0.0,
-        value=current_ar_days,
-        step=1.0,
-        key="receivables_ar_target",
-    )
-
-    if st.button(
-        "Use This Collection Policy",
-        key="receivables_use_manual",
-        use_container_width=True,
+    for key in (
+        "ar_days",
+        "collection_days",
+        "customer_payment_days",
     ):
-        decision = DecisionFactory.ar_days_change(
-            decision_id=(
-                f"receivables_manual_"
-                f"{uuid4().hex[:8]}"
-            ),
-            target_ar_days=ar_target,
-        )
+        if key in changes:
+            value = _safe_float(
+                changes[key],
+                default=-1.0,
+            )
 
-        set_ar_candidate(
-            decision=decision,
-            metadata={
-                "source": "manual",
-                "method": (
-                    "Manual Collection Policy"
-                ),
-                "ar_days": float(
-                    ar_target
-                ),
-            },
-        )
+            if value >= 0:
+                return value
 
-        st.success(
-            "Collection policy is ready as an AR candidate."
-        )
+    metadata = _decision_metadata(decision)
 
-        st.rerun()
-
-    # =====================================================
-    # EARLY PAYMENT DISCOUNT
-    # =====================================================
-
-    st.divider()
-
-    st.subheader(
-        "2. Offer Customers a Discount for Paying Earlier"
-    )
-
-    st.caption(
-        "Use this when the question is: "
-        "\"Is it worth giving customers a discount to get the cash sooner?\""
-    )
-
-    with st.expander(
-        "💡 What is this decision about?",
-        expanded=False,
+    for key in (
+        "ar_days",
+        "collection_days",
+        "customer_payment_days",
     ):
-        st.markdown(
-            """
-            You are trading **margin** for **faster cash collection**.
-
-            The lab estimates whether the faster cash collection
-            compensates for the discount you give customers.
-
-            It also considers possible additional sales.
-            """
-        )
-
-    col_a, col_b = st.columns(2)
-
-    # -----------------------------------------------------
-    # LEFT
-    # -----------------------------------------------------
-
-    with col_a:
-
-        current_sales = st.number_input(
-            "Current Annual Sales (€)",
-            min_value=0.0,
-            value=float(revenue),
-            step=1000.0,
-            key="receivables_current_sales",
-        )
-
-        extra_sales = st.number_input(
-            "Expected Additional Sales (€)",
-            min_value=0.0,
-            value=float(
-                revenue * 0.10
-            ),
-            step=1000.0,
-            key="receivables_extra_sales",
-        )
-
-        discount_trial = (
-            st.number_input(
-                "Discount Offered (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=2.0,
-                step=0.1,
-                key="receivables_discount_rate",
+        if key in metadata:
+            value = _safe_float(
+                metadata[key],
+                default=-1.0,
             )
-            / 100.0
-        )
 
-        adoption = (
-            st.number_input(
-                "Expected Customer Adoption (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=40.0,
-                step=1.0,
-                key="receivables_adoption",
+            if value >= 0:
+                return value
+
+    return None
+
+
+def _decision_ap_days(
+    decision: Any,
+) -> Optional[float]:
+    """
+    Extract supplier payment terms directly from the AP decision when
+    available.
+    """
+
+    if decision is None:
+        return None
+
+    changes = _decision_changes(decision)
+
+    for key in (
+        "ap_days",
+        "supplier_payment_days",
+        "supplier_days",
+    ):
+        if key in changes:
+            value = _safe_float(
+                changes[key],
+                default=-1.0,
             )
-            / 100.0
-        )
 
-        current_discount_days = st.number_input(
-            "Current Payment Days — Customers Taking Discount",
-            min_value=1,
-            max_value=365,
-            value=max(
-                1,
-                int(current_ar_days),
-            ),
-            key="receivables_current_discount_days",
-        )
+            if value >= 0:
+                return value
 
-    # -----------------------------------------------------
-    # RIGHT
-    # -----------------------------------------------------
+    metadata = _decision_metadata(decision)
 
-    with col_b:
-
-        new_payment_days = st.number_input(
-            "New Payment Days for Customers Taking Discount",
-            min_value=1,
-            max_value=365,
-            value=10,
-            step=1,
-            key="receivables_new_payment_days",
-        )
-
-        cogs_value = st.number_input(
-            "Annual COGS (€)",
-            min_value=0.0,
-            value=float(
-                cogs_default
-            ),
-            step=1000.0,
-            key="receivables_cogs",
-        )
-
-        wacc_value = (
-            st.number_input(
-                "Cost of Capital (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=15.0,
-                step=0.1,
-                key="receivables_wacc",
+    for key in (
+        "ap_days",
+        "supplier_payment_days",
+        "supplier_days",
+    ):
+        if key in metadata:
+            value = _safe_float(
+                metadata[key],
+                default=-1.0,
             )
-            / 100.0
-        )
 
-        supplier_days = st.number_input(
-            "Supplier Payment Days",
-            min_value=1,
-            max_value=365,
-            value=max(
-                1,
-                int(wc.ap_days),
-            ),
-            key="receivables_supplier_days",
-        )
+            if value >= 0:
+                return value
 
-        non_discount_days = st.number_input(
-            "Payment Days — Customers Not Taking Discount",
-            min_value=1,
-            max_value=365,
-            value=max(
-                1,
-                int(
-                    current_ar_days * 1.5
-                ),
-            ),
-            key="receivables_non_discount_days",
-        )
+    return None
 
-    # =====================================================
-    # ANALYZE
-    # =====================================================
 
-    if st.button(
-        "Analyze Early Payment Policy",
-        key="receivables_analyze_discount",
-        use_container_width=True,
+# ---------------------------------------------------------------------
+# Timing schedule extraction
+# ---------------------------------------------------------------------
+
+def _normalise_schedule(
+    schedule: Any,
+    horizon: int = 6,
+) -> Tuple[List[float], List[CashEvent]]:
+
+    values = [0.0] * horizon
+    beyond: List[CashEvent] = []
+
+    if schedule is None:
+        return values, beyond
+
+    if isinstance(schedule, Mapping):
+
+        if "events" in schedule:
+            return _normalise_schedule(
+                schedule["events"],
+                horizon,
+            )
+
+        month_values = []
+
+        for key, value in schedule.items():
+
+            key_text = (
+                str(key)
+                .lower()
+                .replace("-", "_")
+                .replace(" ", "_")
+            )
+
+            month_no = None
+
+            for token in (
+                key_text
+                .replace("month", "")
+                .split("_")
+            ):
+                if token.isdigit():
+                    month_no = int(token)
+                    break
+
+            if month_no is not None:
+                month_values.append(
+                    (
+                        month_no,
+                        _safe_float(value),
+                    )
+                )
+
+        if month_values:
+
+            for month_no, amount in month_values:
+
+                if 1 <= month_no <= horizon:
+
+                    values[month_no - 1] += amount
+
+                elif month_no > horizon:
+
+                    beyond.append(
+                        CashEvent(
+                            month_index=month_no - 1,
+                            amount=amount,
+                            label="Known future commitment",
+                            category="future",
+                        )
+                    )
+
+            return values, beyond
+
+    if isinstance(
+        schedule,
+        Sequence,
+    ) and not isinstance(
+        schedule,
+        (str, bytes),
     ):
 
-        result = calculate_discount_npv(
-            current_sales=current_sales,
-            extra_sales=extra_sales,
-            discount_trial=discount_trial,
-            prc_clients_take_disc=adoption,
-            days_currently_paying_clients_take_discount=(
-                current_discount_days
-            ),
-            days_currently_paying_clients_not_take_discount=(
-                non_discount_days
-            ),
-            new_days_payment_clients_take_disc=(
-                new_payment_days
-            ),
-            cogs=cogs_value,
-            wacc=wacc_value,
-            avg_days_pay_suppliers=supplier_days,
+        # -------------------------------------------------------------
+        # Event-list format
+        # -------------------------------------------------------------
+
+        has_event_objects = any(
+            isinstance(item, Mapping)
+            for item in schedule
         )
 
-        if result is None:
-            st.error(
-                "The calculation could not be completed. "
-                "Please check the assumptions."
-            )
-        else:
-            st.session_state[
-                "receivables_discount_result"
-            ] = result
+        if has_event_objects:
 
-    # =====================================================
-    # RESULT
-    # =====================================================
+            for item in schedule:
 
-    result = st.session_state.get(
-        "receivables_discount_result"
+                if not isinstance(item, Mapping):
+                    continue
+
+                month = item.get(
+                    "month",
+                    item.get("month_index"),
+                )
+
+                amount = item.get(
+                    "amount",
+                    item.get(
+                        "value",
+                        item.get(
+                            "cash"
+                        ),
+                    ),
+                )
+
+                if month is None or amount is None:
+                    continue
+
+                month_no = _safe_float(
+                    month
+                )
+
+                amount_value = _safe_float(
+                    amount
+                )
+
+                if 1 <= month_no <= horizon:
+
+                    values[
+                        int(month_no) - 1
+                    ] += amount_value
+
+                elif month_no > horizon:
+
+                    beyond.append(
+                        CashEvent(
+                            month_index=int(month_no) - 1,
+                            amount=amount_value,
+                            label=str(
+                                item.get(
+                                    "label",
+                                    "Known future commitment",
+                                )
+                            ),
+                            category=str(
+                                item.get(
+                                    "category",
+                                    "future",
+                                )
+                            ),
+                        )
+                    )
+
+            return values, beyond
+
+        # -------------------------------------------------------------
+        # Plain numeric sequence
+        # -------------------------------------------------------------
+
+        if len(schedule) <= horizon:
+
+            for i, value in enumerate(schedule):
+                values[i] += _safe_float(value)
+
+            return values, beyond
+
+    return values, beyond
+
+
+def _extract_schedule_from_decision(
+    decision: Any,
+    schedule_keys: Sequence[str],
+) -> Tuple[List[float], List[CashEvent]]:
+
+    if decision is None:
+        return [0.0] * 6, []
+
+    changes = _decision_changes(decision)
+    metadata = _decision_metadata(decision)
+
+    for source in (
+        metadata,
+        changes,
+    ):
+
+        for key in schedule_keys:
+
+            if key in source:
+
+                return _normalise_schedule(
+                    source[key]
+                )
+
+    return [0.0] * 6, []
+
+
+def _opening_current_asset_balances(
+    state: Any,
+    annual_sales: float,
+    annual_cogs: float,
+) -> Tuple[float, float, float]:
+
+    """
+    Derive the opening working-capital balances from the locked CompanyState.
+
+    CompanyState stores the policy in days rather than separate opening AR /
+    inventory / AP balances. For the cash-timing layer, the standard 365-day
+    relationship is therefore used to establish the opening position.
+    """
+
+    ar_days, inventory_days, ap_days = (
+        _working_capital_terms(state)
     )
 
-    if result is not None:
+    opening_ar = (
+        annual_sales
+        * ar_days
+        / 365.0
+    )
 
-        st.divider()
+    opening_inventory = (
+        annual_cogs
+        * inventory_days
+        / 365.0
+    )
 
-        st.subheader(
-            "🏁 Collection Policy Result"
+    opening_ap = (
+        annual_cogs
+        * ap_days
+        / 365.0
+    )
+
+    return (
+        opening_ar,
+        opening_inventory,
+        opening_ap,
+    )
+
+
+def _schedule_from_payment_days(
+    annual_amount: float,
+    payment_days: float,
+    opening_balance: float = 0.0,
+    horizon: int = 6,
+) -> List[float]:
+
+    """
+    Build a simple steady-state cash-timing schedule.
+
+    The important difference from the previous fallback is that Month 1 does
+    not start with a blank working-capital position. Existing receivables /
+    payables are already outstanding at the start of the window and therefore
+    have to be collected / paid before the new monthly activity reaches cash.
+
+    Example:
+        60-day customer terms -> opening AR is collected over Months 1-2;
+        new Months 1-2 sales are collected from Month 3 onward.
+
+        30-day supplier terms -> opening AP is paid in Month 1; new monthly
+        purchases begin hitting cash from Month 2 onward.
+
+    This remains a fallback. A Decision Lab schedule always takes precedence.
+    """
+
+    values = [0.0] * horizon
+
+    if annual_amount <= 0:
+        return values
+
+    monthly_amount = (
+        annual_amount / 12.0
+    )
+
+    lag_days = max(
+        0.0,
+        payment_days,
+    )
+
+    if lag_days <= 0:
+
+        for month in range(horizon):
+            values[month] += monthly_amount
+
+        return values
+
+    lag_months = max(
+        1,
+        int(
+            round(
+                lag_days / 30.0
+            )
+        ),
+    )
+
+    # Existing balance is already owed at the start of Month 1.
+    opening_slice = (
+        opening_balance / lag_months
+    )
+
+    for month in range(
+        min(
+            lag_months,
+            horizon,
+        )
+    ):
+
+        values[month] += opening_slice
+
+    # New monthly activity reaches cash after the payment lag.
+    for source_month in range(horizon):
+
+        target_month = (
+            source_month
+            + lag_months
         )
 
-        c1, c2, c3 = st.columns(3)
+        if target_month < horizon:
 
-        npv = result["npv"]
+            values[target_month] += (
+                monthly_amount
+            )
 
-        c1.metric(
-            "Economic Value",
-            f"€ {npv:,.0f}",
-            delta=(
-                "Creates Value"
-                if npv > 0
-                else "Destroys Value"
-            ),
+    return values
+
+
+# ---------------------------------------------------------------------
+# Inventory events
+# ---------------------------------------------------------------------
+
+def _inventory_event_schedule(
+    annual_cogs: float,
+    inventory_decision: Any,
+    horizon: int = 6,
+) -> Tuple[List[float], List[CashEvent], str]:
+
+    """
+    Prefer explicit inventory order events.
+
+    If the Inventory Lab has only supplied an inventory-days policy, do not
+    pretend that the policy itself tells us when a large order is paid.
+    Instead, return zero scheduled purchase events and tell the UI that the
+    detailed event schedule is still pending integration.
+    """
+
+    if inventory_decision is None:
+        return (
+            [0.0] * horizon,
+            [],
+            "No inventory decision selected.",
         )
 
-        c2.metric(
-            "New Collection Time",
-            f"{result['new_avg_collection_period']:.1f} days",
+    schedule, beyond = _extract_schedule_from_decision(
+        inventory_decision,
+        (
+            "purchase_schedule",
+            "order_schedule",
+            "inventory_purchase_schedule",
+            "cash_purchase_schedule",
+            "payment_schedule",
+            "inventory_events",
+            "order_events",
+        ),
+    )
+
+    if any(schedule) or beyond:
+
+        return (
+            schedule,
+            beyond,
+            "Inventory Lab schedule",
         )
 
-        c3.metric(
-            "Cash Released",
-            f"€ {result['free_capital']:,.0f}",
-        )
+    metadata = _decision_metadata(
+        inventory_decision
+    )
 
-        st.info(
-            f"""
-            **Current collection time:** 
-            {result['avg_current_collection_days']:.1f} days
+    changes = _decision_changes(
+        inventory_decision
+    )
 
-            **New collection time:** 
-            {result['new_avg_collection_period']:.1f} days
+    target_days = None
 
-            **Cash released:** 
-            €{result['free_capital']:,.0f}
+    for source in (
+        metadata,
+        changes,
+    ):
 
-            **Discount cost:** 
-            €{result['discount_cost']:,.0f}
-
-            **Additional profit from sales:** 
-            €{result['profit_from_extra_sales']:,.0f}
-            """
-        )
-
-        # -------------------------------------------------
-        # CREATE CANDIDATE
-        # -------------------------------------------------
-
-        if st.button(
-            "Use This Collection Policy",
-            key="receivables_use_discount",
-            use_container_width=True,
+        for key in (
+            "inventory_days",
+            "target_inventory_days",
         ):
 
-            effective_ar_days = float(
-                result[
-                    "new_avg_collection_period"
-                ]
-            )
+            if key in source:
 
-            decision = DecisionFactory.ar_days_change(
-                decision_id=(
-                    f"receivables_discount_"
-                    f"{uuid4().hex[:8]}"
-                ),
-                target_ar_days=effective_ar_days,
-            )
+                target_days = _safe_float(
+                    source[key],
+                    default=0.0,
+                )
 
-            set_ar_candidate(
-                decision=decision,
-                metadata={
-                    "source": "tool",
-                    "method": (
-                        "Early Payment Discount"
-                    ),
-                    "ar_days": effective_ar_days,
-                    "npv": npv,
-                    "cash_released": result[
-                        "free_capital"
-                    ],
-                    "discount": (
-                        discount_trial * 100
-                    ),
-                    "adoption": (
-                        adoption * 100
-                    ),
-                },
-            )
+                break
 
-            st.success(
-                "Collection policy is ready as an AR candidate."
-            )
+        if target_days is not None:
+            break
 
-            st.rerun()
+    if target_days is not None:
 
-    # =====================================================
-    # ACTIVE CANDIDATE
-    # =====================================================
+        return (
+            [0.0] * horizon,
+            [],
+            "Inventory policy selected; purchase timing requires the Inventory Lab event schedule.",
+        )
 
-    st.divider()
-
-    st.subheader(
-        "🧩 Receivables Decision"
+    return (
+        [0.0] * horizon,
+        [],
+        "No inventory cash event available.",
     )
 
-    ar_candidate = get_ar_candidate()
 
-    if ar_candidate is None:
+# ---------------------------------------------------------------------
+# Main cash-plan calculation
+# ---------------------------------------------------------------------
 
-        st.info(
-            "No collection policy has been selected yet."
+def build_cash_plan(
+    baseline_state: Any,
+    projected_state: Any,
+    horizon: int = 6,
+    exceptional_events: Optional[
+        Sequence[CashEvent]
+    ] = None,
+) -> CashPlanResult:
+
+    annual_sales, annual_cogs = (
+        _annual_operating_values(
+            projected_state
+        )
+    )
+
+    opening_cash = _opening_cash(
+        baseline_state
+    )
+
+    # -------------------------------------------------------------
+    # Opening working-capital balances
+    # -------------------------------------------------------------
+
+    (
+        opening_ar,
+        _opening_inventory,
+        opening_ap,
+    ) = _opening_current_asset_balances(
+        baseline_state,
+        annual_sales,
+        annual_cogs,
+    )
+
+    projected_ar_days, _, projected_ap_days = (
+        _working_capital_terms(
+            projected_state
+        )
+    )
+
+    # =============================================================
+    # CUSTOMER COLLECTIONS
+    # =============================================================
+
+    ar_decision = _find_decision(
+        AR_CANDIDATE_KEYS
+    )
+
+    # -------------------------------------------------------------
+    # 1. Explicit collection schedule wins.
+    # -------------------------------------------------------------
+
+    collections, collection_beyond = (
+        _extract_schedule_from_decision(
+            ar_decision,
+            (
+                "collection_schedule",
+                "collections_schedule",
+                "cash_collection_schedule",
+                "customer_collection_schedule",
+                "receivables_schedule",
+            ),
+        )
+    )
+
+    collection_source = (
+        "Receivables / Credit Policy Lab"
+    )
+
+    # -------------------------------------------------------------
+    # 2. If there is no explicit schedule, use the AR decision itself.
+    #
+    #    This is the important V2 integration fix.
+    #
+    #    Receivables Lab creates:
+    #
+    #        changes["ar_days"] = target_ar_days
+    #
+    #    That decision is authoritative for the cash-timing layer.
+    # -------------------------------------------------------------
+
+    decision_ar_days = _decision_ar_days(
+        ar_decision
+    )
+
+    if (
+        not any(collections)
+        and not collection_beyond
+        and decision_ar_days is not None
+    ):
+
+        collections = _schedule_from_payment_days(
+            annual_sales,
+            decision_ar_days,
+            opening_balance=opening_ar,
+            horizon=horizon,
+        )
+
+        collection_source = (
+            "Receivables Decision — target collection terms"
+        )
+
+    # -------------------------------------------------------------
+    # 3. Final fallback: projected CompanyState.
+    # -------------------------------------------------------------
+
+    elif (
+        not any(collections)
+        and not collection_beyond
+    ):
+
+        collections = _schedule_from_payment_days(
+            annual_sales,
+            projected_ar_days,
+            opening_balance=opening_ar,
+            horizon=horizon,
+        )
+
+        collection_source = (
+            "Projected CompanyState fallback"
+        )
+
+    # =============================================================
+    # SUPPLIER PAYMENTS
+    # =============================================================
+
+    ap_decision = _find_decision(
+        AP_CANDIDATE_KEYS
+    )
+
+    supplier_payments, supplier_beyond = (
+        _extract_schedule_from_decision(
+            ap_decision,
+            (
+                "payment_schedule",
+                "supplier_payment_schedule",
+                "payables_schedule",
+                "cash_payment_schedule",
+            ),
+        )
+    )
+
+    payment_source = (
+        "Suppliers & Payables Lab"
+    )
+
+    decision_ap_days = _decision_ap_days(
+        ap_decision
+    )
+
+    if (
+        not any(supplier_payments)
+        and not supplier_beyond
+        and decision_ap_days is not None
+    ):
+
+        supplier_payments = (
+            _schedule_from_payment_days(
+                annual_cogs,
+                decision_ap_days,
+                opening_balance=opening_ap,
+                horizon=horizon,
+            )
+        )
+
+        payment_source = (
+            "Payables Decision — supplier payment terms"
+        )
+
+    elif (
+        not any(supplier_payments)
+        and not supplier_beyond
+    ):
+
+        supplier_payments = (
+            _schedule_from_payment_days(
+                annual_cogs,
+                projected_ap_days,
+                opening_balance=opening_ap,
+                horizon=horizon,
+            )
+        )
+
+        payment_source = (
+            "Projected CompanyState fallback"
+        )
+
+    # =============================================================
+    # INVENTORY
+    # =============================================================
+
+    inventory_decision = _find_decision(
+        INVENTORY_CANDIDATE_KEYS
+    )
+
+    (
+        inventory_payments,
+        inventory_beyond,
+        inventory_source,
+    ) = _inventory_event_schedule(
+        annual_cogs,
+        inventory_decision,
+        horizon=horizon,
+    )
+
+    # =============================================================
+    # OPERATING EXPENSES
+    # =============================================================
+
+    fixed_opex = _safe_float(
+        _get_attr(
+            getattr(
+                projected_state,
+                "drivers",
+                projected_state,
+            ),
+            "fixed_opex",
+            default=0.0,
+        )
+    )
+
+    monthly_opex = (
+        fixed_opex / 12.0
+    )
+
+    # =============================================================
+    # DEBT SERVICE
+    # =============================================================
+
+    capital = getattr(
+        projected_state,
+        "capital_structure",
+        None,
+    )
+
+    annual_debt_service = _safe_float(
+        _get_attr(
+            capital,
+            "annual_debt_service",
+            default=0.0,
+        )
+    )
+
+    monthly_debt_service = (
+        annual_debt_service / 12.0
+    )
+
+    # =============================================================
+    # EXCEPTIONAL EVENTS
+    # =============================================================
+
+    exceptional = list(
+        exceptional_events or []
+    )
+
+    # =============================================================
+    # MONTHLY ROLL-FORWARD
+    # =============================================================
+
+    rows: List[
+        Dict[str, Any]
+    ] = []
+
+    cash = opening_cash
+
+    for i in range(horizon):
+
+        exceptional_in = sum(
+            event.amount
+            for event in exceptional
+            if (
+                event.month_index == i
+                and event.amount >= 0
+            )
+        )
+
+        exceptional_out = sum(
+            abs(event.amount)
+            for event in exceptional
+            if (
+                event.month_index == i
+                and event.amount < 0
+            )
+        )
+
+        net_cash_flow = (
+            collections[i]
+            - supplier_payments[i]
+            - inventory_payments[i]
+            - monthly_opex
+            - monthly_debt_service
+            + exceptional_in
+            - exceptional_out
+        )
+
+        opening = cash
+
+        cash += net_cash_flow
+
+        rows.append(
+            {
+                "Month": MONTHS[i],
+                "Opening Cash": opening,
+                "Customer Collections": collections[i],
+                "Supplier Payments": supplier_payments[i],
+                "Inventory Purchases": inventory_payments[i],
+                "Operating Expenses": monthly_opex,
+                "Debt Service": monthly_debt_service,
+                "Exceptional Inflows": exceptional_in,
+                "Exceptional Outflows": exceptional_out,
+                "Net Cash Flow": net_cash_flow,
+                "Closing Cash": cash,
+            }
+        )
+
+    # =============================================================
+    # RESULTS
+    # =============================================================
+
+    closing_values = [
+        row["Closing Cash"]
+        for row in rows
+    ]
+
+    minimum_cash = (
+        min(closing_values)
+        if closing_values
+        else opening_cash
+    )
+
+    minimum_index = (
+        closing_values.index(
+            minimum_cash
+        )
+        if closing_values
+        else 0
+    )
+
+    funding_gap = max(
+        0.0,
+        -minimum_cash,
+    )
+
+    funding_gap_month = (
+        MONTHS[minimum_index]
+        if funding_gap > 0
+        else None
+    )
+
+    recovery_month = None
+
+    if funding_gap > 0:
+
+        for i, value in enumerate(
+            closing_values
+        ):
+
+            if (
+                i > minimum_index
+                and value >= 0
+            ):
+
+                recovery_month = MONTHS[i]
+                break
+
+    beyond_horizon = (
+        collection_beyond
+        + supplier_beyond
+        + inventory_beyond
+    )
+
+    return CashPlanResult(
+        opening_cash=opening_cash,
+        rows=tuple(rows),
+        minimum_cash=minimum_cash,
+        minimum_cash_month=(
+            MONTHS[minimum_index]
+            if rows
+            else MONTHS[0]
+        ),
+        funding_gap=funding_gap,
+        funding_gap_month=funding_gap_month,
+        recovery_month=recovery_month,
+        beyond_horizon_events=tuple(
+            beyond_horizon
+        ),
+    )
+
+
+# ---------------------------------------------------------------------
+# UI
+# ---------------------------------------------------------------------
+
+def _render_event_input() -> List[CashEvent]:
+
+    st.subheader(
+        "Anything the system cannot know?"
+    )
+
+    st.caption(
+        "Add only exceptional cash events that are not already produced by "
+        "another Decision Lab."
+    )
+
+    events: List[CashEvent] = []
+
+    enabled = st.checkbox(
+        "Add an exceptional event",
+        key=(
+            "cash_management_exceptional_"
+            "event_enabled"
+        ),
+    )
+
+    if not enabled:
+        return events
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        month = st.selectbox(
+            "Month",
+            options=list(
+                range(1, 7)
+            ),
+            format_func=lambda x: (
+                MONTHS[x - 1]
+            ),
+            key=(
+                "cash_management_"
+                "exceptional_month"
+            ),
+        )
+
+    with c2:
+
+        amount = st.number_input(
+            "Amount (€)",
+            value=0.0,
+            step=1000.0,
+            format="%.0f",
+            key=(
+                "cash_management_"
+                "exceptional_amount"
+            ),
+        )
+
+    with c3:
+
+        direction = st.selectbox(
+            "Cash direction",
+            options=[
+                "Outflow",
+                "Inflow",
+            ],
+            key=(
+                "cash_management_"
+                "exceptional_direction"
+            ),
+        )
+
+    label = st.text_input(
+        "What is it?",
+        value="Exceptional event",
+        key=(
+            "cash_management_"
+            "exceptional_label"
+        ),
+    )
+
+    signed_amount = (
+        abs(amount)
+        if direction == "Inflow"
+        else -abs(amount)
+    )
+
+    if amount != 0:
+
+        events.append(
+            CashEvent(
+                month_index=month - 1,
+                amount=signed_amount,
+                label=(
+                    label
+                    or "Exceptional event"
+                ),
+                category="exceptional",
+            )
+        )
+
+    return events
+
+
+def render_cash_management_lab(
+    baseline_state: Any = None,
+) -> None:
+
+    st.title(
+        "💧 Cash Management"
+    )
+
+    st.caption(
+        "See when cash comes in, when it goes out, and where pressure appears."
+    )
+
+    baseline = _get_baseline_state(
+        baseline_state
+    )
+
+    if baseline is None:
+
+        st.warning(
+            "Please set and confirm the Locked Baseline first."
+        )
+
+        return
+
+    projected = _get_projected_state(
+        baseline
+    )
+
+    plan = st.session_state.get(
+        "decision_plan"
+    )
+
+    decisions = (
+        getattr(
+            plan,
+            "decisions",
+            (),
+        )
+        if plan is not None
+        else ()
+    )
+
+    st.info(
+        "This is a cash-timing layer — not another company forecast. "
+        "Customer collections, supplier payments and inventory events should "
+        "come from the relevant Decision Labs."
+    )
+
+    if decisions:
+
+        st.caption(
+            f"Current Decision Plan: **"
+            f"{getattr(plan, 'name', 'Current Decision Plan')}"
+            f"** ({len(decisions)} decision(s))"
         )
 
     else:
 
-        ar_meta = st.session_state.get(
-            AR_META,
-            {},
+        st.caption(
+            "No decisions are currently selected. Showing baseline cash timing."
         )
 
-        method = ar_meta.get(
-            "method",
-            getattr(
-                ar_candidate,
-                "name",
-                "Collection Policy",
-            ),
-        )
+    exceptional_events = (
+        _render_event_input()
+    )
 
-        ar_value = (
-            ar_candidate.changes.get(
-                "ar_days"
-            )
-        )
+    # =========================================================
+    # CASH PLAN
+    # =========================================================
 
-        st.success(
-            f"**{method}**"
-        )
-
-        if ar_value is not None:
-            st.write(
-                "Target Collection Time → "
-                f"**{float(ar_value):.1f} days**"
-            )
-
-        if "npv" in ar_meta:
-            st.write(
-                "Economic Value → "
-                f"**€{ar_meta['npv']:,.0f}**"
-            )
-
-        if "cash_released" in ar_meta:
-            st.write(
-                "Cash Released → "
-                f"**€{ar_meta['cash_released']:,.0f}**"
-            )
-
-        btn_col1, btn_col2 = st.columns(2)
-
-        if btn_col1.button(
-            "➕ Add to Decision Plan",
-            key="receivables_add_to_plan",
-            use_container_width=True,
-        ):
-
-            success = _add_to_current_plan(
-                ar_candidate
-            )
-
-            if success:
-                st.success(
-                    "Receivables Decision added directly to Current Decision Plan."
-                )
-
-        if btn_col2.button(
-            "Clear Decision",
-            key="receivables_clear_candidate",
-            use_container_width=True,
-        ):
-
-            clear_ar_candidate()
-
-            st.rerun()
-
-    # =====================================================
-    # BUSINESS LOGIC
-    # =====================================================
+    result = build_cash_plan(
+        baseline_state=baseline,
+        projected_state=projected,
+        horizon=6,
+        exceptional_events=exceptional_events,
+    )
 
     st.divider()
 
     st.subheader(
-        "What changes in the company?"
+        "Cash Consequences — Next 6 Months"
     )
 
-    st.info(
-        """
-        **Customers pay sooner**
-        → Receivables fall
-        → Cash is released
-        → Liquidity improves
+    k1, k2, k3, k4 = st.columns(4)
 
-        The selected policy becomes an **AR Decision**.
+    k1.metric(
+        "Opening Cash",
+        _money(
+            result.opening_cash
+        ),
+    )
 
-        The central system then determines its effect on the
-        company's overall financial state.
-        """
+    k2.metric(
+        "Minimum Cash",
+        _money(
+            result.minimum_cash
+        ),
+    )
+
+    k3.metric(
+        "Funding Gap",
+        _money(
+            result.funding_gap
+        ),
+    )
+
+    recovery_display = (
+        result.recovery_month
+        if result.recovery_month is not None
+        else (
+            "Beyond 6 months"
+            if result.funding_gap > 0
+            else "Not required"
+        )
+    )
+
+    k4.metric(
+        "Recovery",
+        recovery_display,
+    )
+
+    if result.funding_gap > 0:
+
+        st.error(
+            f"Cash falls below zero in **"
+            f"{result.funding_gap_month}**. "
+            f"Maximum projected gap: **"
+            f"{_money(result.funding_gap)}**."
+        )
+
+    else:
+
+        st.success(
+            f"Projected minimum cash is **"
+            f"{_money(result.minimum_cash)}** "
+            f"in **"
+            f"{result.minimum_cash_month}"
+            f"**."
+        )
+
+    df = pd.DataFrame(
+        list(result.rows)
+    )
+
+    display = df.copy()
+
+    money_columns = [
+        "Opening Cash",
+        "Customer Collections",
+        "Supplier Payments",
+        "Inventory Purchases",
+        "Operating Expenses",
+        "Debt Service",
+        "Exceptional Inflows",
+        "Exceptional Outflows",
+        "Net Cash Flow",
+        "Closing Cash",
+    ]
+
+    for column in money_columns:
+
+        display[column] = (
+            display[column].map(
+                _money
+            )
+        )
+
+    st.dataframe(
+        display,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # =========================================================
+    # SOURCES
+    # =========================================================
+
+    st.divider()
+
+    st.subheader(
+        "Where the timing comes from"
+    )
+
+    ar_decision = _find_decision(
+        AR_CANDIDATE_KEYS
+    )
+
+    ap_decision = _find_decision(
+        AP_CANDIDATE_KEYS
+    )
+
+    ar_schedule, ar_beyond = (
+        _extract_schedule_from_decision(
+            ar_decision,
+            (
+                "collection_schedule",
+                "collections_schedule",
+                "cash_collection_schedule",
+                "customer_collection_schedule",
+                "receivables_schedule",
+            ),
+        )
+    )
+
+    ar_decision_days = _decision_ar_days(
+        ar_decision
+    )
+
+    if ar_beyond or any(ar_schedule):
+
+        ar_status = (
+            "Decision-specific collection schedule"
+        )
+
+    elif ar_decision_days is not None:
+
+        ar_status = (
+            f"Decision-specific terms: "
+            f"{ar_decision_days:.1f} days"
+        )
+
+    else:
+
+        ar_status = (
+            "Projected CompanyState fallback"
+        )
+
+    ap_schedule, ap_beyond = (
+        _extract_schedule_from_decision(
+            ap_decision,
+            (
+                "payment_schedule",
+                "supplier_payment_schedule",
+                "payables_schedule",
+                "cash_payment_schedule",
+            ),
+        )
+    )
+
+    ap_decision_days = _decision_ap_days(
+        ap_decision
+    )
+
+    if ap_beyond or any(ap_schedule):
+
+        ap_status = (
+            "Decision-specific supplier payment schedule"
+        )
+
+    elif ap_decision_days is not None:
+
+        ap_status = (
+            f"Decision-specific terms: "
+            f"{ap_decision_days:.1f} days"
+        )
+
+    else:
+
+        ap_status = (
+            "Projected CompanyState fallback"
+        )
+
+    source_rows = [
+        {
+            "Cash item": "Customer collections",
+            "Source": (
+                "Receivables / Credit Policy Lab"
+            ),
+            "Status": ar_status,
+        },
+        {
+            "Cash item": "Supplier payments",
+            "Source": (
+                "Suppliers & Payables Lab"
+            ),
+            "Status": ap_status,
+        },
+        {
+            "Cash item": "Inventory purchases",
+            "Source": "Inventory Lab",
+            "Status": (
+                "Included in supplier-payment timing "
+                "unless an event schedule exists"
+            ),
+        },
+        {
+            "Cash item": "Operating expenses",
+            "Source": "Projected CompanyState",
+            "Status": "Monthly run-rate",
+        },
+        {
+            "Cash item": "Debt service",
+            "Source": "Projected CompanyState",
+            "Status": "Monthly run-rate",
+        },
+        {
+            "Cash item": "Exceptional events",
+            "Source": "Owner input",
+            "Status": (
+                "Only when system cannot know"
+            ),
+        },
+    ]
+
+    st.dataframe(
+        source_rows,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # =========================================================
+    # FUTURE COMMITMENTS
+    # =========================================================
+
+    if result.beyond_horizon_events:
+
+        st.divider()
+
+        st.subheader(
+            "Known commitments beyond Month 6"
+        )
+
+        st.caption(
+            "These are not forced into Month 6. They remain visible as future commitments."
+        )
+
+        future_rows = [
+            {
+                "Timing": (
+                    f"Month "
+                    f"{event.month_index + 1}"
+                ),
+                "Amount": _money(
+                    event.amount
+                ),
+                "Category": event.category,
+                "Description": event.label,
+            }
+            for event in result.beyond_horizon_events
+        ]
+
+        st.dataframe(
+            future_rows,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    # =========================================================
+    # V2 PRINCIPLE
+    # =========================================================
+
+    st.divider()
+
+    st.caption(
+        "V2 principle: Decisions change the company. Diagnostics explain the company. "
+        "This layer maps the cash timing of the current decision plan; it does not "
+        "create a second independent company model."
     )
