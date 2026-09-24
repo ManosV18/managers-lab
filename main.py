@@ -971,11 +971,11 @@ if current_page == "📊 Sales & Cost Analyzer":
 
     if current_page == "💧 Managing Current Assets":
 
-    render_managing_current_assets_lab(
-        baseline_state=baseline
-    )
+        render_managing_current_assets_lab(
+            baseline_state=baseline
+        )
 
-    st.stop()
+        st.stop()
    
 # =========================================================
 # BASELINE GUARD
