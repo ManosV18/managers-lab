@@ -37,23 +37,25 @@ def calculate_discount_npv(
     avg_days_pay_suppliers,
 ):
     """
-    Evaluate whether an early-payment discount creates economic value.
+    Receivables economic calculation.
 
-    All percentage inputs are supplied as decimals (0-1).
+    The calculation logic is based on the original V1 model.
 
-    Returns a dictionary containing:
+    Percentage inputs are supplied as decimals (0-1).
+
+    Returns:
         - current weighted collection days
-        - new weighted collection days
         - current receivables
+        - new weighted collection days
         - new receivables
-        - cash released
+        - free capital
         - profit from extra sales
-        - profit from released cash
+        - profit from released capital
         - discount cost
         - NPV
         - maximum discount
         - optimum discount
-        - percentage of customers under new policy
+        - percentage under new policy
     """
 
     getcontext().prec = 50
@@ -67,9 +69,11 @@ def calculate_discount_npv(
         d_take_old = Decimal(
             str(days_currently_paying_clients_take_discount)
         )
+
         d_no_take_old = Decimal(
             str(days_currently_paying_clients_not_take_discount)
         )
+
         d_new_policy = Decimal(
             str(new_days_payment_clients_take_disc)
         )
@@ -90,14 +94,30 @@ def calculate_discount_npv(
         ):
             return None
 
+        if es < 0:
+            return None
+
         if dt < 0 or dt > 1:
             return None
 
-        pct_no_take = Decimal("1") - pct_take
+        if cg < 0:
+            return None
 
-        # -----------------------------------------------------
+        if (
+            d_take_old < 0
+            or d_no_take_old < 0
+            or d_new_policy < 0
+            or d_supp < 0
+        ):
+            return None
+
+        pct_no_take = (
+            Decimal("1") - pct_take
+        )
+
+        # =====================================================
         # CURRENT POLICY
-        # -----------------------------------------------------
+        # =====================================================
 
         avg_curr_days = (
             pct_take * d_take_old
@@ -108,11 +128,13 @@ def calculate_discount_npv(
             cs * avg_curr_days
         ) / Decimal("365")
 
-        # -----------------------------------------------------
+        # =====================================================
         # NEW POLICY
-        # -----------------------------------------------------
+        # =====================================================
 
-        total_sales = cs + es
+        total_sales = (
+            cs + es
+        )
 
         if total_sales <= 0:
             return None
@@ -122,7 +144,8 @@ def calculate_discount_npv(
         ) / total_sales
 
         prcnt_old_policy = (
-            Decimal("1") - prcnt_new_policy
+            Decimal("1")
+            - prcnt_new_policy
         )
 
         if prcnt_new_policy <= 0:
@@ -137,14 +160,17 @@ def calculate_discount_npv(
             total_sales * new_avg_period
         ) / Decimal("365")
 
-        free_cap = curr_rec - new_rec
+        free_cap = (
+            curr_rec - new_rec
+        )
 
-        # -----------------------------------------------------
+        # =====================================================
         # PROFIT EFFECT
-        # -----------------------------------------------------
+        # =====================================================
 
         gross_margin_ratio = (
-            Decimal("1") - (cg / cs)
+            Decimal("1")
+            - (cg / cs)
         )
 
         prof_extra = (
@@ -161,11 +187,13 @@ def calculate_discount_npv(
             * dt
         )
 
-        # -----------------------------------------------------
+        # =====================================================
         # DISCOUNTED CASH FLOW
-        # -----------------------------------------------------
+        # =====================================================
 
-        i_float = float(wc / Decimal("365"))
+        i_float = float(
+            wc / Decimal("365")
+        )
 
         MAX_EXP = 500.0
 
@@ -189,22 +217,32 @@ def calculate_discount_npv(
             MAX_EXP,
         )
 
-        base = 1.0 + i_float
+        base = (
+            1.0 + i_float
+        )
 
         t1_denom = Decimal(
-            str(base ** exp_new)
+            str(
+                base ** exp_new
+            )
         )
 
         t2_denom = Decimal(
-            str(base ** exp_no_take)
+            str(
+                base ** exp_no_take
+            )
         )
 
         t3_denom = Decimal(
-            str(base ** exp_supp)
+            str(
+                base ** exp_supp
+            )
         )
 
         t4_denom = Decimal(
-            str(base ** exp_curr)
+            str(
+                base ** exp_curr
+            )
         )
 
         term1 = (
@@ -228,25 +266,50 @@ def calculate_discount_npv(
             cs / t4_denom
         )
 
-        inflow = term1 + term2
-        outflow = term3 + term4
+        inflow = (
+            term1 + term2
+        )
 
-        npv = inflow - outflow
+        outflow = (
+            term3 + term4
+        )
 
-        # -----------------------------------------------------
+        npv = (
+            inflow - outflow
+        )
+
+        # =====================================================
         # MAXIMUM DISCOUNT
-        # -----------------------------------------------------
+        # =====================================================
 
         pow_1 = Decimal(
-            str(base ** (exp_new - exp_no_take))
+            str(
+                base
+                ** (
+                    exp_new
+                    - exp_no_take
+                )
+            )
         )
 
         pow_2 = Decimal(
-            str(base ** (exp_no_take - exp_curr))
+            str(
+                base
+                ** (
+                    exp_no_take
+                    - exp_curr
+                )
+            )
         )
 
         pow_3 = Decimal(
-            str(base ** (exp_no_take - exp_supp))
+            str(
+                base
+                ** (
+                    exp_no_take
+                    - exp_supp
+                )
+            )
         )
 
         term_inner = (
@@ -257,9 +320,11 @@ def calculate_discount_npv(
             )
             + (
                 pow_2
-                + (cg / cs)
-                * (es / cs)
-                * pow_3
+                + (
+                    (cg / cs)
+                    * (es / cs)
+                    * pow_3
+                )
             )
             / (
                 prcnt_new_policy
@@ -275,16 +340,23 @@ def calculate_discount_npv(
             - pow_1 * term_inner
         )
 
-        # -----------------------------------------------------
+        # =====================================================
         # OPTIMUM DISCOUNT
-        # -----------------------------------------------------
+        # =====================================================
 
         pow_opt = Decimal(
-            str(base ** (exp_new - exp_curr))
+            str(
+                base
+                ** (
+                    exp_new
+                    - exp_curr
+                )
+            )
         )
 
         opt_d = (
-            Decimal("1") - pow_opt
+            Decimal("1")
+            - pow_opt
         ) / Decimal("2")
 
         return {
@@ -343,11 +415,13 @@ def _get_current_plan():
     """
     Return the active Current Decision Plan.
 
-    DecisionPlan is immutable, so every add operation returns
-    a new plan that must be stored back in session state.
+    DecisionPlan is immutable, therefore every add operation
+    returns a new plan which must be stored back in session state.
     """
 
-    plan = st.session_state.get("decision_plan")
+    plan = st.session_state.get(
+        "decision_plan"
+    )
 
     if isinstance(plan, DecisionPlan):
         return plan
@@ -367,11 +441,7 @@ def _find_conflicting_driver(
     decision,
 ):
     """
-    Detect whether another decision in the current plan
-    already changes the same CompanyState driver.
-
-    Receivables decisions change:
-        ar_days
+    Check whether another decision already changes ar_days.
     """
 
     decision_changes = getattr(
@@ -399,16 +469,11 @@ def _find_conflicting_driver(
 
 def _add_to_current_plan(decision):
     """
-    Add a Receivables Decision directly to Current Decision Plan.
+    Add the decision to Current Decision Plan.
 
-    This is the direct path:
+    The decision is not executed here.
 
-        Receivables Lab
-            ↓
-        Current Decision Plan
-
-    The decision is NOT executed here.
-    Execution/evaluation remains centralized.
+    Execution/evaluation remains centralized in the V2 architecture.
     """
 
     current_plan = _get_current_plan()
@@ -417,7 +482,9 @@ def _add_to_current_plan(decision):
     # DUPLICATE CHECK
     # -----------------------------------------------------
 
-    if current_plan.contains(decision.id):
+    if current_plan.contains(
+        decision.id
+    ):
         st.warning(
             "This decision is already in the Current Decision Plan."
         )
@@ -463,10 +530,14 @@ def set_ar_candidate(
     decision,
     metadata=None,
 ):
-    st.session_state[AR_CANDIDATE] = decision
+    st.session_state[
+        AR_CANDIDATE
+    ] = decision
 
     if metadata is not None:
-        st.session_state[AR_META] = metadata
+        st.session_state[
+            AR_META
+        ] = metadata
 
 
 def clear_ar_candidate():
@@ -488,56 +559,89 @@ def get_ar_candidate():
 
 
 # =========================================================
-# BASELINE HELPERS
+# V2 BASELINE HELPERS
 # =========================================================
 
-def _get_revenue(baseline_state):
-    try:
-        return float(
-            baseline_state.income_statement.revenue
-        )
-    except AttributeError:
-        price = float(
-            getattr(
-                baseline_state,
-                "price",
-                150.0,
-            )
-        )
+def _get_revenue(
+    baseline_state,
+):
+    """
+    Annual company sales from central CompanyState.
 
-        volume = float(
-            getattr(
-                baseline_state,
-                "volume",
-                12000.0,
-            )
-        )
+    V2:
+        revenue = price * volume
+    """
 
-        return price * volume
+    drivers = baseline_state.drivers
+
+    return (
+        float(drivers.price)
+        * float(drivers.volume)
+    )
 
 
-def _get_variable_cost(baseline_state):
-    try:
-        return float(
-            baseline_state.unit_economics.variable_cost
+def _get_cogs(
+    baseline_state,
+):
+    """
+    Annual company COGS from central CompanyState.
+
+    V2:
+        COGS = variable_cost_per_unit * volume
+    """
+
+    drivers = baseline_state.drivers
+
+    return (
+        float(
+            drivers.variable_cost_per_unit
         )
-    except AttributeError:
-        return float(
-            getattr(
-                baseline_state,
-                "variable_cost",
-                100.0,
-            )
+        * float(
+            drivers.volume
         )
+    )
 
 
-def _get_volume(baseline_state):
-    try:
-        return float(
-            baseline_state.volume
-        )
-    except AttributeError:
-        return 12000.0
+def _get_wacc(
+    baseline_state,
+):
+    """
+    WACC from central CompanyState.
+    """
+
+    return float(
+        baseline_state
+        .capital_structure
+        .wacc
+    )
+
+
+def _get_ar_days(
+    baseline_state,
+):
+    """
+    Current AR days from central CompanyState.
+    """
+
+    return float(
+        baseline_state
+        .working_capital
+        .ar_days
+    )
+
+
+def _get_ap_days(
+    baseline_state,
+):
+    """
+    Current AP days from central CompanyState.
+    """
+
+    return float(
+        baseline_state
+        .working_capital
+        .ap_days
+    )
 
 
 # =========================================================
@@ -548,60 +652,102 @@ def render_receivables_lab(
     baseline_state,
 ):
     """
-    Receivables Decision Lab.
+    Receivables Decision Lab — Managers Lab V2.
 
-    Business question:
-        "When should my customers pay me?"
+    Company financial data comes from the central CompanyState.
 
-    Produces an AR Decision candidate and sends it
-    directly to the Current Decision Plan.
+    The original V1 economic calculation is preserved.
+
+    Decision inputs remain editable because they describe the
+    proposed commercial policy rather than the company's locked
+    baseline.
+
+    Flow:
+
+        Locked Baseline
+              ↓
+        Receivables Lab
+              ↓
+        AR Decision
+              ↓
+        Current Decision Plan
+              ↓
+        Central evaluation / projected CompanyState
     """
 
-    st.title("💶 Receivables Lab")
+    st.title(
+        "💶 Receivables Lab"
+    )
 
     st.markdown(
         """
         Decide how quickly customers should pay you.
 
-        The lab compares your current collection policy with
-        alternative payment policies and can create an **AR Decision**
-        for the central Decision Plan.
+        The company financial data is taken automatically from
+        the current **Baseline**. You only change the commercial
+        policy you are testing.
         """
     )
 
     # =====================================================
-    # CURRENT POLICY
+    # COMPANY BASELINE
     # =====================================================
-
-    wc = baseline_state.working_capital
-
-    current_ar_days = float(
-        wc.ar_days
-    )
-
-    st.subheader(
-        "When do you currently collect?"
-    )
-
-    st.metric(
-        "Current Collection Time",
-        f"{current_ar_days:.1f} days",
-    )
 
     revenue = _get_revenue(
         baseline_state
     )
 
-    variable_cost = _get_variable_cost(
+    cogs_default = _get_cogs(
         baseline_state
     )
 
-    volume = _get_volume(
+    wacc_default = _get_wacc(
         baseline_state
     )
 
-    cogs_default = (
-        variable_cost * volume
+    current_ar_days = _get_ar_days(
+        baseline_state
+    )
+
+    supplier_days_default = _get_ap_days(
+        baseline_state
+    )
+
+    st.subheader(
+        "Company Baseline"
+    )
+
+    b1, b2, b3, b4, b5 = st.columns(5)
+
+    b1.metric(
+        "Annual Sales",
+        f"€{revenue:,.0f}",
+    )
+
+    b2.metric(
+        "Annual COGS",
+        f"€{cogs_default:,.0f}",
+    )
+
+    b3.metric(
+        "Current AR Days",
+        f"{current_ar_days:.1f}",
+    )
+
+    b4.metric(
+        "Supplier Days",
+        f"{supplier_days_default:.1f}",
+    )
+
+    b5.metric(
+        "WACC",
+        f"{wacc_default * 100:.2f}%",
+    )
+
+    st.caption(
+        "These are company baseline values. "
+        "They are read from the central CompanyState and "
+        "cannot be changed inside this Lab."
     )
 
     # =====================================================
@@ -615,8 +761,8 @@ def render_receivables_lab(
     )
 
     st.caption(
-        "If you already know the collection target, "
-        "you can set it directly."
+        "Use this when you already know the collection target "
+        "you want the company to adopt."
     )
 
     ar_target = st.number_input(
@@ -632,12 +778,15 @@ def render_receivables_lab(
         key="receivables_use_manual",
         use_container_width=True,
     ):
-        decision = DecisionFactory.ar_days_change(
-            decision_id=(
-                f"receivables_manual_"
-                f"{uuid4().hex[:8]}"
-            ),
-            target_ar_days=ar_target,
+
+        decision = (
+            DecisionFactory.ar_days_change(
+                decision_id=(
+                    "receivables_manual_"
+                    f"{uuid4().hex[:8]}"
+                ),
+                target_ar_days=ar_target,
+            )
         )
 
         set_ar_candidate(
@@ -670,8 +819,8 @@ def render_receivables_lab(
     )
 
     st.caption(
-        "Use this when the question is: "
-        "\"Is it worth giving customers a discount to get the cash sooner?\""
+        "Test whether faster collection creates enough economic "
+        "value to justify the discount."
     )
 
     with st.expander(
@@ -682,35 +831,32 @@ def render_receivables_lab(
             """
             You are trading **margin** for **faster cash collection**.
 
-            The lab estimates whether the faster cash collection
-            compensates for the discount you give customers.
+            The model compares the current collection pattern with
+            the proposed policy and calculates:
 
-            It also considers possible additional sales.
+            - receivables before and after the change,
+            - cash released,
+            - profit from additional sales,
+            - profit from released capital,
+            - discount cost,
+            - NPV,
+            - maximum discount,
+            - optimum discount.
             """
         )
 
     col_a, col_b = st.columns(2)
 
-    # -----------------------------------------------------
-    # LEFT
-    # -----------------------------------------------------
+    # =====================================================
+    # POLICY INPUTS — LEFT
+    # =====================================================
 
     with col_a:
-
-        current_sales = st.number_input(
-            "Current Annual Sales (€)",
-            min_value=0.0,
-            value=float(revenue),
-            step=1000.0,
-            key="receivables_current_sales",
-        )
 
         extra_sales = st.number_input(
             "Expected Additional Sales (€)",
             min_value=0.0,
-            value=float(
-                revenue * 0.10
-            ),
+            value=0.0,
             step=1000.0,
             key="receivables_extra_sales",
         )
@@ -729,7 +875,7 @@ def render_receivables_lab(
 
         adoption = (
             st.number_input(
-                "Expected Customer Adoption (%)",
+                "Customers Taking Discount (%)",
                 min_value=0.0,
                 max_value=100.0,
                 value=40.0,
@@ -741,75 +887,57 @@ def render_receivables_lab(
 
         current_discount_days = st.number_input(
             "Current Payment Days — Customers Taking Discount",
-            min_value=1,
+            min_value=0,
             max_value=365,
             value=max(
-                1,
-                int(current_ar_days),
+                0,
+                int(
+                    round(
+                        current_ar_days
+                    )
+                ),
             ),
+            step=1,
             key="receivables_current_discount_days",
         )
 
-    # -----------------------------------------------------
-    # RIGHT
-    # -----------------------------------------------------
+    # =====================================================
+    # POLICY INPUTS — RIGHT
+    # =====================================================
 
     with col_b:
 
+        non_discount_days = st.number_input(
+            "Current Payment Days — Customers Not Taking Discount",
+            min_value=0,
+            max_value=365,
+            value=max(
+                0,
+                int(
+                    round(
+                        current_ar_days
+                    )
+                ),
+            ),
+            step=1,
+            key="receivables_non_discount_days",
+        )
+
         new_payment_days = st.number_input(
             "New Payment Days for Customers Taking Discount",
-            min_value=1,
+            min_value=0,
             max_value=365,
             value=10,
             step=1,
             key="receivables_new_payment_days",
         )
 
-        cogs_value = st.number_input(
-            "Annual COGS (€)",
-            min_value=0.0,
-            value=float(
-                cogs_default
-            ),
-            step=1000.0,
-            key="receivables_cogs",
-        )
-
-        wacc_value = (
-            st.number_input(
-                "Cost of Capital (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=15.0,
-                step=0.1,
-                key="receivables_wacc",
-            )
-            / 100.0
-        )
-
-        supplier_days = st.number_input(
-            "Supplier Payment Days",
-            min_value=1,
-            max_value=365,
-            value=max(
-                1,
-                int(wc.ap_days),
-            ),
-            key="receivables_supplier_days",
-        )
-
-        non_discount_days = st.number_input(
-            "Payment Days — Customers Not Taking Discount",
-            min_value=1,
-            max_value=365,
-            value=max(
-                1,
-                int(
-                    current_ar_days * 1.5
-                ),
-            ),
-            key="receivables_non_discount_days",
-        )
+    st.caption(
+        f"Baseline AR days: {current_ar_days:.1f} days  |  "
+        f"Baseline supplier payment days: "
+        f"{supplier_days_default:.1f} days  |  "
+        f"Baseline WACC: {wacc_default * 100:.2f}%"
+    )
 
     # =====================================================
     # ANALYZE
@@ -822,7 +950,7 @@ def render_receivables_lab(
     ):
 
         result = calculate_discount_npv(
-            current_sales=current_sales,
+            current_sales=revenue,
             extra_sales=extra_sales,
             discount_trial=discount_trial,
             prc_clients_take_disc=adoption,
@@ -835,17 +963,22 @@ def render_receivables_lab(
             new_days_payment_clients_take_disc=(
                 new_payment_days
             ),
-            cogs=cogs_value,
-            wacc=wacc_value,
-            avg_days_pay_suppliers=supplier_days,
+            cogs=cogs_default,
+            wacc=wacc_default,
+            avg_days_pay_suppliers=(
+                supplier_days_default
+            ),
         )
 
         if result is None:
+
             st.error(
                 "The calculation could not be completed. "
-                "Please check the assumptions."
+                "Please check the policy assumptions."
             )
+
         else:
+
             st.session_state[
                 "receivables_discount_result"
             ] = result
@@ -868,11 +1001,13 @@ def render_receivables_lab(
 
         c1, c2, c3 = st.columns(3)
 
-        npv = result["npv"]
+        npv = result[
+            "npv"
+        ]
 
         c1.metric(
             "Economic Value",
-            f"€ {npv:,.0f}",
+            f"€{npv:,.0f}",
             delta=(
                 "Creates Value"
                 if npv > 0
@@ -882,36 +1017,112 @@ def render_receivables_lab(
 
         c2.metric(
             "New Collection Time",
-            f"{result['new_avg_collection_period']:.1f} days",
+            (
+                f"{result['new_avg_collection_period']:.1f}"
+                " days"
+            ),
         )
 
         c3.metric(
             "Cash Released",
-            f"€ {result['free_capital']:,.0f}",
+            (
+                f"€{result['free_capital']:,.0f}"
+            ),
         )
+
+        # -------------------------------------------------
+        # DETAILED RESULT
+        # -------------------------------------------------
+
+        r1, r2 = st.columns(2)
+
+        with r1:
+
+            st.metric(
+                "Current Receivables",
+                (
+                    f"€"
+                    f"{result['current_receivables']:,.0f}"
+                ),
+            )
+
+            st.metric(
+                "New Receivables",
+                (
+                    f"€"
+                    f"{result['new_receivables']:,.0f}"
+                ),
+            )
+
+            st.metric(
+                "Discount Cost",
+                (
+                    f"€"
+                    f"{result['discount_cost']:,.0f}"
+                ),
+            )
+
+            st.metric(
+                "Additional Profit",
+                (
+                    f"€"
+                    f"{result['profit_from_extra_sales']:,.0f}"
+                ),
+            )
+
+        with r2:
+
+            st.metric(
+                "Profit from Released Capital",
+                (
+                    f"€"
+                    f"{result['profit_from_free_capital']:,.0f}"
+                ),
+            )
+
+            st.metric(
+                "Maximum Discount",
+                (
+                    f"{result['max_discount']:.2f}%"
+                ),
+            )
+
+            st.metric(
+                "Optimum Discount",
+                (
+                    f"{result['optimum_discount']:.2f}%"
+                ),
+            )
+
+            st.metric(
+                "Customers Under New Policy",
+                (
+                    f"{result['pct_new_policy']:.2f}%"
+                ),
+            )
 
         st.info(
             f"""
-            **Current collection time:** 
+            **Current collection time:**
             {result['avg_current_collection_days']:.1f} days
 
-            **New collection time:** 
+            **New collection time:**
             {result['new_avg_collection_period']:.1f} days
 
-            **Cash released:** 
+            **Cash released:**
             €{result['free_capital']:,.0f}
 
-            **Discount cost:** 
+            **Discount cost:**
             €{result['discount_cost']:,.0f}
 
-            **Additional profit from sales:** 
+            **Additional profit from sales:**
             €{result['profit_from_extra_sales']:,.0f}
             """
         )
 
-        # -------------------------------------------------
-        # CREATE CANDIDATE
-        # -------------------------------------------------
+        # =================================================
+        # CREATE AR DECISION CANDIDATE
+        # =================================================
 
         if st.button(
             "Use This Collection Policy",
@@ -925,12 +1136,16 @@ def render_receivables_lab(
                 ]
             )
 
-            decision = DecisionFactory.ar_days_change(
-                decision_id=(
-                    f"receivables_discount_"
-                    f"{uuid4().hex[:8]}"
-                ),
-                target_ar_days=effective_ar_days,
+            decision = (
+                DecisionFactory.ar_days_change(
+                    decision_id=(
+                        "receivables_discount_"
+                        f"{uuid4().hex[:8]}"
+                    ),
+                    target_ar_days=(
+                        effective_ar_days
+                    ),
+                )
             )
 
             set_ar_candidate(
@@ -940,16 +1155,33 @@ def render_receivables_lab(
                     "method": (
                         "Early Payment Discount"
                     ),
-                    "ar_days": effective_ar_days,
+                    "ar_days": (
+                        effective_ar_days
+                    ),
                     "npv": npv,
-                    "cash_released": result[
-                        "free_capital"
-                    ],
+                    "cash_released": (
+                        result[
+                            "free_capital"
+                        ]
+                    ),
                     "discount": (
                         discount_trial * 100
                     ),
                     "adoption": (
                         adoption * 100
+                    ),
+                    "baseline_sales": revenue,
+                    "baseline_cogs": (
+                        cogs_default
+                    ),
+                    "baseline_wacc": (
+                        wacc_default
+                    ),
+                    "baseline_ar_days": (
+                        current_ar_days
+                    ),
+                    "baseline_ap_days": (
+                        supplier_days_default
                     ),
                 },
             )
@@ -995,9 +1227,9 @@ def render_receivables_lab(
         )
 
         ar_value = (
-            ar_candidate.changes.get(
-                "ar_days"
-            )
+            ar_candidate
+            .changes
+            .get("ar_days")
         )
 
         st.success(
@@ -1005,24 +1237,31 @@ def render_receivables_lab(
         )
 
         if ar_value is not None:
+
             st.write(
                 "Target Collection Time → "
                 f"**{float(ar_value):.1f} days**"
             )
 
         if "npv" in ar_meta:
+
             st.write(
                 "Economic Value → "
                 f"**€{ar_meta['npv']:,.0f}**"
             )
 
         if "cash_released" in ar_meta:
+
             st.write(
                 "Cash Released → "
                 f"**€{ar_meta['cash_released']:,.0f}**"
             )
 
         btn_col1, btn_col2 = st.columns(2)
+
+        # -------------------------------------------------
+        # ADD TO CURRENT DECISION PLAN
+        # -------------------------------------------------
 
         if btn_col1.button(
             "➕ Add to Decision Plan",
@@ -1035,9 +1274,15 @@ def render_receivables_lab(
             )
 
             if success:
+
                 st.success(
-                    "Receivables Decision added directly to Current Decision Plan."
+                    "Receivables Decision added directly "
+                    "to Current Decision Plan."
                 )
+
+        # -------------------------------------------------
+        # CLEAR
+        # -------------------------------------------------
 
         if btn_col2.button(
             "Clear Decision",
@@ -1068,7 +1313,7 @@ def render_receivables_lab(
 
         The selected policy becomes an **AR Decision**.
 
-        The central system then determines its effect on the
-        company's overall financial state.
+        The central V2 system then determines its effect on
+        the company's projected financial state.
         """
     )
