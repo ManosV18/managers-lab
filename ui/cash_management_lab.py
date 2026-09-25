@@ -100,7 +100,7 @@ def _get_current_plan() -> Any:
     """
     Current Decision Plan — V2 architecture.
     """
-    plan = st.session_state.get("current_decision_plan")
+    plan = st.session_state.get("decision_plan")
 
     if plan is not None:
         return plan
@@ -120,7 +120,7 @@ def _get_current_plan() -> Any:
             plan = None
 
     if plan is not None:
-        st.session_state["current_decision_plan"] = plan
+        st.session_state["decision_plan"] = plan
 
     return plan
 
