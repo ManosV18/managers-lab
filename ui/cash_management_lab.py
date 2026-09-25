@@ -1545,7 +1545,6 @@ def _build_cash_plan(
         "monthly_purchases": monthly_purchases,
     }
 
-
 # =========================================================
 # UI
 # =========================================================
@@ -1553,6 +1552,8 @@ def _build_cash_plan(
 def render_cash_management_lab(
     baseline_state: Any = None,
 ) -> None:
+
+    st.error("NEW CASH MANAGEMENT CODE IS RUNNING")
 
     if baseline_state is None:
 
