@@ -17,6 +17,20 @@ MONTHS = [f"Month {i}" for i in range(1, 7)]
 WC_AR_CANDIDATE = "wc_ar_candidate"
 WC_AP_CANDIDATE = "wc_ap_candidate"
 
+# Simple owner-manager assumptions for EXISTING balances.
+# These are deliberately editable in the UI.
+DEFAULT_EXISTING_AR_PROFILE = {
+    0: 0.40,  # This month
+    1: 0.40,  # Next month
+    2: 0.20,  # Month 3 onward
+}
+
+DEFAULT_EXISTING_AP_PROFILE = {
+    0: 0.40,  # This month
+    1: 0.40,  # Next month
+    2: 0.20,  # Month 3 onward
+}
+
 
 # =========================================================
 # GENERIC HELPERS
@@ -670,7 +684,7 @@ def _extract_collection_profile(
                 candidates.append(container)
 
     # -----------------------------------------------------
-    # FIRST: look for the explicit collection schedule
+    # FIRST: explicit collection schedule
     # -----------------------------------------------------
 
     for obj in candidates:
@@ -835,6 +849,183 @@ def _get_collection_profile(
 
 
 # =========================================================
+# EXISTING BALANCE TIMING
+# =========================================================
+
+def _normalise_existing_profile(
+    profile: Mapping[int, float],
+) -> Dict[int, float]:
+
+    values = {
+        0: max(
+            0.0,
+            _normalise_pct(
+                profile.get(0, 0.0)
+            ),
+        ),
+        1: max(
+            0.0,
+            _normalise_pct(
+                profile.get(1, 0.0)
+            ),
+        ),
+        2: max(
+            0.0,
+            _normalise_pct(
+                profile.get(2, 0.0)
+            ),
+        ),
+    }
+
+    total = sum(
+        values.values()
+    )
+
+    if total <= 0:
+        return dict(
+            DEFAULT_EXISTING_AR_PROFILE
+        )
+
+    return {
+        key: value / total
+        for key, value in values.items()
+    }
+
+
+def _existing_profile_from_session(
+    session_key: str,
+    default_profile: Mapping[int, float],
+) -> Dict[int, float]:
+
+    stored = st.session_state.get(
+        session_key
+    )
+
+    if isinstance(stored, Mapping):
+
+        return _normalise_existing_profile(
+            stored
+        )
+
+    return _normalise_existing_profile(
+        default_profile
+    )
+
+
+def _render_existing_timing_inputs(
+    title: str,
+    session_key: str,
+    default_profile: Mapping[int, float],
+) -> Dict[int, float]:
+
+    st.markdown(
+        f"#### {title}"
+    )
+
+    st.caption(
+        "Simple assumption for the existing balance. "
+        "This is not invoice-level ageing."
+    )
+
+    profile = _existing_profile_from_session(
+        session_key=session_key,
+        default_profile=default_profile,
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        month_1 = st.number_input(
+            "This month %",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(
+                profile[0] * 100.0
+            ),
+            step=5.0,
+            format="%.0f",
+            key=f"{session_key}_month_1",
+        )
+
+    with col2:
+
+        month_2 = st.number_input(
+            "Next month %",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(
+                profile[1] * 100.0
+            ),
+            step=5.0,
+            format="%.0f",
+            key=f"{session_key}_month_2",
+        )
+
+    with col3:
+
+        month_3 = st.number_input(
+            "Month 3 onward %",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(
+                profile[2] * 100.0
+            ),
+            step=5.0,
+            format="%.0f",
+            key=f"{session_key}_month_3",
+        )
+
+    raw_profile = {
+        0: month_1 / 100.0,
+        1: month_2 / 100.0,
+        2: month_3 / 100.0,
+    }
+
+    total_pct = sum(
+        raw_profile.values()
+    )
+
+    if abs(total_pct - 1.0) > 0.0001:
+
+        st.warning(
+            f"These assumptions currently total "
+            f"{total_pct:.0%}. They must total 100%."
+        )
+
+    else:
+
+        st.success(
+            "Timing assumption totals 100%."
+        )
+
+    # Keep the exact user-entered values in session state.
+    st.session_state[session_key] = raw_profile
+
+    return raw_profile
+
+
+def _existing_profile_is_valid(
+    profile: Mapping[int, float],
+) -> bool:
+
+    total = sum(
+        max(
+            0.0,
+            _to_float(
+                profile.get(
+                    key,
+                    0.0,
+                )
+            ),
+        )
+        for key in (0, 1, 2)
+    )
+
+    return abs(total - 1.0) <= 0.0001
+
+
+# =========================================================
 # MONTHLY TIMING
 # =========================================================
 
@@ -877,8 +1068,8 @@ def _build_new_sales_receipts(
     """
     Each month's sales form an independent cohort.
 
-    The selected collection profile is applied exactly once
-    to each cohort.
+    The selected Receivables Decision collection profile
+    is applied exactly once to each cohort.
 
     Example:
 
@@ -894,8 +1085,6 @@ def _build_new_sales_receipts(
         M2 €30,000
         M3 €105,000
         M4 €15,000
-
-    etc.
 
     No cohort is reused or reallocated.
     """
@@ -940,6 +1129,45 @@ def _build_new_sales_receipts(
 
 
 # =========================================================
+# EXISTING AR
+# =========================================================
+
+def _build_existing_ar_receipts(
+    opening_ar: float,
+    existing_ar_profile: Mapping[int, float],
+    horizon: int,
+) -> List[float]:
+
+    receipts = [
+        0.0
+        for _ in range(horizon)
+    ]
+
+    if not _existing_profile_is_valid(
+        existing_ar_profile
+    ):
+
+        return receipts
+
+    for delay, percentage in (
+        existing_ar_profile.items()
+    ):
+
+        target_month = int(
+            delay
+        )
+
+        if 0 <= target_month < horizon:
+
+            receipts[target_month] += (
+                opening_ar
+                * _to_float(percentage)
+            )
+
+    return receipts
+
+
+# =========================================================
 # RECEIPTS
 # =========================================================
 
@@ -947,6 +1175,7 @@ def _build_receipts(
     baseline_state: Any,
     ar_decision: Any,
     monthly_sales: Sequence[float],
+    existing_ar_profile: Mapping[int, float],
 ) -> List[float]:
 
     horizon = len(
@@ -959,47 +1188,33 @@ def _build_receipts(
     ]
 
     # =====================================================
-    # 1. OPENING AR
+    # 1. EXISTING AR
     # =====================================================
     #
-    # This is an existing balance.
+    # Existing receivables are now treated separately
+    # from future sales.
     #
-    # It follows the BASELINE AR policy.
-    #
-    # It is NOT part of the new collection profile.
+    # This avoids forcing the entire opening AR balance
+    # into one month based on baseline AR days.
     # =====================================================
 
     opening_ar = _opening_ar(
         baseline_state
     )
 
-    baseline_ar_days = _baseline_ar_days(
-        baseline_state
-    )
-
-    opening_ar_allocation = (
-        _monthly_delay_allocation(
-            baseline_ar_days
+    existing_ar_receipts = (
+        _build_existing_ar_receipts(
+            opening_ar=opening_ar,
+            existing_ar_profile=existing_ar_profile,
+            horizon=horizon,
         )
     )
-
-    for delay, percentage in (
-        opening_ar_allocation.items()
-    ):
-
-        target_month = int(
-            delay
-        )
-
-        if 0 <= target_month < horizon:
-
-            receipts[target_month] += (
-                opening_ar
-                * percentage
-            )
 
     # =====================================================
     # 2. NEW SALES
+    # =====================================================
+    #
+    # New sales continue to use the Receivables Decision.
     # =====================================================
 
     collection_profile = (
@@ -1019,8 +1234,8 @@ def _build_receipts(
 
     else:
 
-        # If there is no explicit collection profile,
-        # fall back to the selected AR days.
+        # If no explicit collection profile exists,
+        # use the selected AR days for future sales.
         ar_days = _decision_ar_days(
             baseline_state,
             ar_decision,
@@ -1070,8 +1285,11 @@ def _build_receipts(
         horizon
     ):
 
-        receipts[month_index] += (
-            new_sales_receipts[
+        receipts[month_index] = (
+            existing_ar_receipts[
+                month_index
+            ]
+            + new_sales_receipts[
                 month_index
             ]
         )
@@ -1080,66 +1298,57 @@ def _build_receipts(
 
 
 # =========================================================
-# SUPPLIER PAYMENTS
+# EXISTING AP
 # =========================================================
 
-def _build_supplier_payments(
-    baseline_state: Any,
-    ap_decision: Any,
-    monthly_purchases: Sequence[float],
+def _build_existing_ap_payments(
+    opening_ap: float,
+    existing_ap_profile: Mapping[int, float],
+    horizon: int,
 ) -> List[float]:
 
     payments = [
         0.0
-        for _ in monthly_purchases
+        for _ in range(horizon)
     ]
 
-    # =====================================================
-    # OPENING AP
-    # =====================================================
-    #
-    # Existing AP follows the BASELINE AP policy.
-    # =====================================================
+    if not _existing_profile_is_valid(
+        existing_ap_profile
+    ):
 
-    opening_ap = _opening_ap(
-        baseline_state
-    )
-
-    baseline_ap_days = _baseline_ap_days(
-        baseline_state
-    )
-
-    opening_ap_allocation = (
-        _monthly_delay_allocation(
-            baseline_ap_days
-        )
-    )
+        return payments
 
     for delay, percentage in (
-        opening_ap_allocation.items()
+        existing_ap_profile.items()
     ):
 
         target_month = int(
             delay
         )
 
-        if 0 <= target_month < len(
-            payments
-        ):
+        if 0 <= target_month < horizon:
 
             payments[target_month] += (
                 opening_ap
-                * percentage
+                * _to_float(percentage)
             )
 
-    # =====================================================
-    # NEW PURCHASE COHORTS
-    # =====================================================
+    return payments
 
-    ap_days = _decision_ap_days(
-        baseline_state,
-        ap_decision,
-    )
+
+# =========================================================
+# NEW PURCHASE PAYMENTS
+# =========================================================
+
+def _build_new_purchase_payments(
+    monthly_purchases: Sequence[float],
+    ap_days: float,
+) -> List[float]:
+
+    payments = [
+        0.0
+        for _ in monthly_purchases
+    ]
 
     allocation = (
         _monthly_delay_allocation(
@@ -1169,8 +1378,70 @@ def _build_supplier_payments(
 
             payments[target_month] += (
                 purchases
-                * percentage
+                * _to_float(percentage)
             )
+
+    return payments
+
+
+# =========================================================
+# SUPPLIER PAYMENTS
+# =========================================================
+
+def _build_supplier_payments(
+    baseline_state: Any,
+    ap_decision: Any,
+    monthly_purchases: Sequence[float],
+    existing_ap_profile: Mapping[int, float],
+) -> List[float]:
+
+    # =====================================================
+    # 1. EXISTING AP
+    # =====================================================
+
+    opening_ap = _opening_ap(
+        baseline_state
+    )
+
+    existing_ap_payments = (
+        _build_existing_ap_payments(
+            opening_ap=opening_ap,
+            existing_ap_profile=existing_ap_profile,
+            horizon=len(monthly_purchases),
+        )
+    )
+
+    # =====================================================
+    # 2. NEW PURCHASE COHORTS
+    # =====================================================
+    #
+    # Future purchases continue to use the Supplier
+    # Decision / selected AP days.
+    # =====================================================
+
+    ap_days = _decision_ap_days(
+        baseline_state,
+        ap_decision,
+    )
+
+    new_purchase_payments = (
+        _build_new_purchase_payments(
+            monthly_purchases=monthly_purchases,
+            ap_days=ap_days,
+        )
+    )
+
+    # =====================================================
+    # 3. COMBINE
+    # =====================================================
+
+    payments = [
+        existing_ap_payments[i]
+        + new_purchase_payments[i]
+        for i in range(
+            len(monthly_purchases)
+        )
+    ]
 
     return payments
 
@@ -1185,6 +1456,8 @@ def _build_cash_plan(
     ap_decision: Any,
     monthly_opex: float,
     monthly_debt: float,
+    existing_ar_profile: Mapping[int, float],
+    existing_ap_profile: Mapping[int, float],
 ) -> Dict[str, List[float]]:
 
     annual_revenue = _annual_revenue(
@@ -1211,6 +1484,7 @@ def _build_cash_plan(
         baseline_state=baseline_state,
         ar_decision=ar_decision,
         monthly_sales=monthly_sales,
+        existing_ar_profile=existing_ar_profile,
     )
 
     supplier_payments = (
@@ -1218,6 +1492,7 @@ def _build_cash_plan(
             baseline_state=baseline_state,
             ap_decision=ap_decision,
             monthly_purchases=monthly_purchases,
+            existing_ap_profile=existing_ap_profile,
         )
     )
 
@@ -1407,8 +1682,55 @@ def render_cash_management_lab(
     )
 
     # =====================================================
-    # RECEIVABLES TIMING
+    # EXISTING BALANCES
     # =====================================================
+
+    st.markdown(
+        "### Existing balances"
+    )
+
+    st.caption(
+        "We use a simple timing assumption for balances "
+        "already outstanding. You do not need to enter "
+        "invoice-by-invoice ageing."
+    )
+
+    existing_ar_profile = (
+        _render_existing_timing_inputs(
+            title="Existing Receivables",
+            session_key="cash_existing_ar_profile",
+            default_profile=DEFAULT_EXISTING_AR_PROFILE,
+        )
+    )
+
+    existing_ap_profile = (
+        _render_existing_timing_inputs(
+            title="Existing Payables",
+            session_key="cash_existing_ap_profile",
+            default_profile=DEFAULT_EXISTING_AP_PROFILE,
+        )
+    )
+
+    existing_profiles_valid = (
+        _existing_profile_is_valid(
+            existing_ar_profile
+        )
+        and _existing_profile_is_valid(
+            existing_ap_profile
+        )
+    )
+
+    # =====================================================
+    # FUTURE TRANSACTIONS
+    # =====================================================
+
+    st.markdown(
+        "### Future transactions"
+    )
+
+    # -----------------------------------------------------
+    # RECEIVABLES
+    # -----------------------------------------------------
 
     if collection_profile:
 
@@ -1422,25 +1744,25 @@ def render_cash_management_lab(
         )
 
         st.success(
-            "Collection timing from Receivables Decision: "
-            f"{profile_text}"
+            "New sales collection timing from "
+            f"Receivables Decision: {profile_text}"
         )
 
     else:
 
         st.caption(
-            "Collection timing: "
+            "New sales collection timing: "
             f"approximately "
             f"{current_ar_days:.0f} days"
         )
 
-    # =====================================================
-    # SUPPLIER TIMING
-    # =====================================================
+    # -----------------------------------------------------
+    # SUPPLIERS
+    # -----------------------------------------------------
 
     st.caption(
-        "Supplier payment timing: "
-        f"approximately "
+        "New purchase payment timing from Supplier "
+        f"Decision: approximately "
         f"{current_ap_days:.0f} days"
     )
 
@@ -1448,12 +1770,24 @@ def render_cash_management_lab(
     # BUILD CASH PLAN
     # =====================================================
 
+    if not existing_profiles_valid:
+
+        st.warning(
+            "Please make sure both existing receivables "
+            "and existing payables timing assumptions "
+            "total 100%."
+        )
+
+        return
+
     cash_plan = _build_cash_plan(
         baseline_state=baseline_state,
         ar_decision=ar_decision,
         ap_decision=ap_decision,
         monthly_opex=monthly_opex,
         monthly_debt=monthly_debt,
+        existing_ar_profile=existing_ar_profile,
+        existing_ap_profile=existing_ap_profile,
     )
 
     # =====================================================
