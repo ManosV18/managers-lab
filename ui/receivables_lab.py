@@ -858,7 +858,7 @@ def render_receivables_lab(
         extra_sales = st.number_input(
             "Expected Additional Sales (€)",
             min_value=0.0,
-            value=0.0,
+            value=180000.0,
             step=1000.0,
             key="receivables_extra_sales",
         )
