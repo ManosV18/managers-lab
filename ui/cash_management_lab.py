@@ -1443,7 +1443,7 @@ def render_cash_management_lab(
     if collection_profile:
 
         profile_text = " / ".join(
-            f"{int(delay)}m: {percentage:.0%}"
+            f"Month {int(delay) + 1}: {percentage:.0%}"
             for delay, percentage
             in sorted(
                 collection_profile.items()
