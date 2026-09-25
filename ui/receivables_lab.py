@@ -779,14 +779,11 @@ def render_receivables_lab(
         use_container_width=True,
     ):
 
-        decision = (
-            DecisionFactory.ar_days_change(
-                decision_id=(
-                    "receivables_manual_"
-                    f"{uuid4().hex[:8]}"
-                ),
-                target_ar_days=ar_target,
-            )
+        collection_schedule={
+            "month_0_pct": collection_month_0 / 100.0,
+            "month_1_pct": collection_month_1 / 100.0,
+            "month_2_pct": collection_month_2 / 100.0,
+        }
         )
 
         set_ar_candidate(
