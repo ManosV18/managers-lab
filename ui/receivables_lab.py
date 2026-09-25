@@ -995,8 +995,6 @@ def render_receivables_lab(
 
         st.divider()
 
-        st.success("TEST — CASH TIMING SECTION REACHED")
-
         st.subheader(
             "🏁 Collection Policy Result"
         )
