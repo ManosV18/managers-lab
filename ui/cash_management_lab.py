@@ -334,7 +334,9 @@ def _annual_operating_values(
         )
     )
 
-    revenue = price * volume
+    revenue = (
+        price * volume
+    )
 
     cogs = (
         variable_cost * volume
@@ -494,23 +496,6 @@ def _extract_schedule_from_decision(
 
 # =====================================================================
 # RECEIVABLES COLLECTION PROFILE
-#
-# This is an AVERAGE COLLECTION PROFILE.
-#
-# Example:
-#
-#   20% Month 0
-#   70% Month 1
-#   10% Month 2
-#
-# It is NOT an invoice-level ageing model.
-#
-# The same average profile is applied to:
-#
-#   1. Opening AR
-#   2. New monthly revenue cohorts
-#
-# This is intentional V2 behaviour.
 # =====================================================================
 
 
@@ -571,14 +556,6 @@ def _normalise_collection_schedule(
         if total <= 0.0:
             return None
 
-        # Accept either:
-        #
-        # 0.20 / 0.70 / 0.10
-        #
-        # or:
-        #
-        # 20 / 70 / 10
-        #
         if total > 1.000001:
 
             result = [
@@ -591,8 +568,6 @@ def _normalise_collection_schedule(
         if total <= 0.0:
             return None
 
-        # Normalise so the three buckets always
-        # represent 100% of the collection profile.
         return [
             item / total
             for item in result
@@ -688,16 +663,20 @@ def _build_collection_cash_schedule(
     collection_schedule: Sequence[float],
 ) -> List[float]:
     """
-    Convert the average collection profile into
-    six-month customer cash collections.
+    Build six-month customer collections.
 
-    The same average profile is deliberately applied to:
+    Two components are modelled separately:
 
-        1. opening AR
-        2. each new monthly revenue cohort
+    1. Opening AR
+       Existing receivables are collected using the selected
+       management collection profile.
 
-    This is a management estimate, not invoice-level
-    collection forecasting.
+    2. New sales cohorts
+       Each month's projected revenue is collected according to
+       the same average profile.
+
+    This is an average management timing model.
+    It is not invoice-level ageing.
     """
 
     annual_revenue = max(
@@ -730,6 +709,7 @@ def _build_collection_cash_schedule(
     total = sum(schedule)
 
     if total <= 0.0:
+
         return [
             0.0
             for _ in MONTHS
@@ -751,9 +731,6 @@ def _build_collection_cash_schedule(
 
     # -------------------------------------------------------------
     # OPENING AR
-    #
-    # We intentionally use the same average collection profile.
-    # We do not build invoice-level ageing.
     # -------------------------------------------------------------
 
     for lag in range(3):
@@ -771,7 +748,7 @@ def _build_collection_cash_schedule(
         )
 
     # -------------------------------------------------------------
-    # NEW MONTHLY REVENUE COHORTS
+    # NEW SALES COHORTS
     # -------------------------------------------------------------
 
     for source_month in range(
@@ -798,7 +775,7 @@ def _build_collection_cash_schedule(
 
 
 # =====================================================================
-# PAYMENT-DAYS FALLBACK
+# PAYMENT DAYS
 # =====================================================================
 
 
@@ -808,13 +785,12 @@ def _schedule_from_payment_days(
     opening_balance: float = 0.0,
 ) -> List[float]:
     """
-    Compatibility fallback.
+    Convert payment terms into a six-month cash payment schedule.
 
-    This is used only when no explicit management
-    timing schedule exists.
+    The schedule represents actual cash payment timing.
 
-    The explicit Receivables collection profile
-    always has priority.
+    It is used as a fallback when no explicit payment timing
+    decision exists.
     """
 
     annual_amount = max(
@@ -856,6 +832,10 @@ def _schedule_from_payment_days(
         for _ in MONTHS
     ]
 
+    # -------------------------------------------------------------
+    # OPENING PAYABLES
+    # -------------------------------------------------------------
+
     if opening_balance > 0.0:
 
         if lag_months <= 0.0:
@@ -877,6 +857,10 @@ def _schedule_from_payment_days(
                 schedule[
                     full_months
                 ] += opening_balance
+
+    # -------------------------------------------------------------
+    # NEW MONTHLY PURCHASES / COGS
+    # -------------------------------------------------------------
 
     if monthly_amount <= 0.0:
         return schedule
@@ -962,10 +946,6 @@ def _schedule_from_payment_days(
 
 
 def _selected_ar_decision() -> Optional[Any]:
-    """
-    The AR decision in the Current Decision Plan
-    is authoritative.
-    """
 
     return _find_plan_decision_by_change(
         "ar_days"
@@ -1040,6 +1020,45 @@ def _decision_ap_days(
 
 
 # =====================================================================
+# FUTURE PURCHASING DECISION HOOK
+# =====================================================================
+
+
+def _selected_purchasing_decision() -> Optional[Any]:
+    """
+    Future integration point.
+
+    When the Inventory / Purchasing Lab becomes active,
+    its purchasing decision can be connected here.
+
+    The Cash Management layer should receive the purchasing
+    decision and convert it into supplier cash timing.
+
+    It must NOT independently calculate an economic order
+    quantity or create a second inventory model.
+    """
+
+    for key in (
+        "purchase_amount",
+        "purchases",
+        "purchase_schedule",
+        "purchasing_decision",
+        "inventory_purchase",
+    ):
+
+        decision = (
+            _find_plan_decision_by_change(
+                key
+            )
+        )
+
+        if decision is not None:
+            return decision
+
+    return None
+
+
+# =====================================================================
 # MAIN CASH PLAN BUILDER
 # =====================================================================
 
@@ -1063,6 +1082,10 @@ def build_cash_plan(
             )
         )
 
+    # =============================================================
+    # BASELINE TERMS
+    # =============================================================
+
     (
         baseline_ar_days,
         baseline_inventory_days,
@@ -1070,6 +1093,10 @@ def build_cash_plan(
     ) = _working_capital_terms(
         baseline_state
     )
+
+    # =============================================================
+    # PROJECTED TERMS
+    # =============================================================
 
     (
         projected_ar_days,
@@ -1079,10 +1106,26 @@ def build_cash_plan(
         projected_state
     )
 
+    # =============================================================
+    # BASELINE OPERATING VALUES
+    # =============================================================
+
     (
-        annual_revenue,
-        annual_cogs,
-        annual_fixed_opex,
+        baseline_annual_revenue,
+        baseline_annual_cogs,
+        baseline_annual_fixed_opex,
+    ) = _annual_operating_values(
+        baseline_state
+    )
+
+    # =============================================================
+    # PROJECTED OPERATING VALUES
+    # =============================================================
+
+    (
+        projected_annual_revenue,
+        projected_annual_cogs,
+        projected_annual_fixed_opex,
     ) = _annual_operating_values(
         projected_state
     )
@@ -1117,13 +1160,13 @@ def build_cash_plan(
         )
     )
 
-    # Opening AR is based on the BASELINE AR position.
+    # Existing AR belongs to the baseline.
     #
-    # This is important:
-    # the decision changes future behaviour;
-    # it does not rewrite the existing opening balance.
+    # Therefore it must be calculated from baseline revenue
+    # and baseline AR days, not from projected revenue.
+
     opening_ar_balance = (
-        annual_revenue
+        baseline_annual_revenue
         * baseline_ar_days
         / 365.0
     )
@@ -1135,8 +1178,12 @@ def build_cash_plan(
 
         ar_schedule = (
             _build_collection_cash_schedule(
-                annual_revenue=annual_revenue,
-                opening_ar_balance=opening_ar_balance,
+                annual_revenue=(
+                    projected_annual_revenue
+                ),
+                opening_ar_balance=(
+                    opening_ar_balance
+                ),
                 collection_schedule=(
                     explicit_ar_collection_schedule
                 ),
@@ -1156,7 +1203,7 @@ def build_cash_plan(
 
         ar_schedule = (
             _schedule_from_payment_days(
-                annual_revenue,
+                projected_annual_revenue,
                 selected_ar_days,
                 opening_balance=(
                     opening_ar_balance
@@ -1178,7 +1225,7 @@ def build_cash_plan(
 
         ar_schedule = (
             _schedule_from_payment_days(
-                annual_revenue,
+                projected_annual_revenue,
                 projected_ar_days,
                 opening_balance=(
                     opening_ar_balance
@@ -1196,11 +1243,44 @@ def build_cash_plan(
         )
 
     # =============================================================
-    # PAYABLES
+    # PAYABLES / PURCHASE CASH TIMING
+    # =============================================================
+    #
+    # IMPORTANT:
+    #
+    # Inventory is NOT treated as a separate cash outflow.
+    #
+    # The economic chain is:
+    #
+    #     Purchase requirement
+    #          ↓
+    #     Supplier terms
+    #          ↓
+    #     Supplier payment
+    #          ↓
+    #     Cash outflow
+    #
+    # Until the Purchasing / Inventory Decision is connected,
+    # projected COGS is used as the monthly purchasing proxy.
+    #
+    # This is deliberately a temporary timing assumption and
+    # prevents double counting of inventory + supplier payments.
     # =============================================================
 
     selected_ap_decision = (
         _selected_ap_decision()
+    )
+
+    selected_ap_days = (
+        _decision_ap_days(
+            selected_ap_decision
+        )
+    )
+
+    opening_ap_balance = (
+        baseline_annual_cogs
+        * baseline_ap_days
+        / 365.0
     )
 
     explicit_ap_schedule = (
@@ -1215,34 +1295,26 @@ def build_cash_plan(
         )
     )
 
-    selected_ap_days = (
-        _decision_ap_days(
-            selected_ap_decision
-        )
-    )
-
-    opening_ap_balance = (
-        annual_cogs
-        * baseline_ap_days
-        / 365.0
-    )
-
     if explicit_ap_schedule is not None:
 
-        ap_schedule = (
+        supplier_payment_schedule = (
             explicit_ap_schedule
         )
 
         ap_source = (
             "Current Decision Plan — "
-            "explicit payment schedule"
+            "explicit supplier payment schedule"
+        )
+
+        ap_timing_method = (
+            "Explicit payment schedule"
         )
 
     elif selected_ap_days is not None:
 
-        ap_schedule = (
+        supplier_payment_schedule = (
             _schedule_from_payment_days(
-                annual_cogs,
+                projected_annual_cogs,
                 selected_ap_days,
                 opening_balance=(
                     opening_ap_balance
@@ -1256,11 +1328,15 @@ def build_cash_plan(
             f"({selected_ap_days:.0f} days)"
         )
 
+        ap_timing_method = (
+            "AP-days timing"
+        )
+
     else:
 
-        ap_schedule = (
+        supplier_payment_schedule = (
             _schedule_from_payment_days(
-                annual_cogs,
+                projected_annual_cogs,
                 projected_ap_days,
                 opening_balance=(
                     opening_ap_balance
@@ -1273,42 +1349,58 @@ def build_cash_plan(
             f"({projected_ap_days:.0f} days)"
         )
 
+        ap_timing_method = (
+            "Projected AP-days timing"
+        )
+
+    # =============================================================
+    # FUTURE PURCHASING DECISION STATUS
+    # =============================================================
+
+    purchasing_decision = (
+        _selected_purchasing_decision()
+    )
+
+    purchasing_source = (
+        "Projected COGS used as temporary "
+        "purchasing proxy"
+    )
+
+    if purchasing_decision is not None:
+
+        purchasing_source = (
+            "Current Decision Plan — "
+            "Purchasing Decision detected"
+        )
+
+        # ---------------------------------------------------------
+        # We intentionally do NOT yet override the cash schedule
+        # here.
+        #
+        # The Purchasing / Inventory Lab must first define the
+        # exact purchase-decision structure:
+        #
+        # purchase amount
+        # purchase month
+        # supplier terms
+        #
+        # Once that structure is fixed, this is the only place
+        # that needs to be connected.
+        # ---------------------------------------------------------
+
     # =============================================================
     # FIXED CASH OUTFLOWS
     # =============================================================
 
     monthly_fixed_opex = (
-        annual_fixed_opex / 12.0
+        projected_annual_fixed_opex
+        / 12.0
     )
 
     monthly_debt_service = (
-        annual_debt_service / 12.0
+        annual_debt_service
+        / 12.0
     )
-
-    # =============================================================
-    # INVENTORY
-    # =============================================================
-
-    selected_inventory_decision = (
-        _selected_inventory_decision()
-    )
-
-    inventory_schedule = (
-        _extract_schedule_from_decision(
-            selected_inventory_decision,
-            (
-                "inventory_cash_schedule",
-                "inventory_schedule",
-                "inventory_purchase_schedule",
-            ),
-        )
-    )
-
-    if inventory_schedule is None:
-
-        inventory_schedule = [
-            0.0
-        ] * len(MONTHS)
 
     # =============================================================
     # MONTHLY CASH ROLL-FORWARD
@@ -1340,19 +1432,9 @@ def build_cash_plan(
 
         supplier_payments = _as_float(
             (
-                ap_schedule[index]
+                supplier_payment_schedule[index]
                 if index < len(
-                    ap_schedule
-                )
-                else 0.0
-            )
-        )
-
-        inventory_cash = _as_float(
-            (
-                inventory_schedule[index]
-                if index < len(
-                    inventory_schedule
+                    supplier_payment_schedule
                 )
                 else 0.0
             )
@@ -1366,10 +1448,16 @@ def build_cash_plan(
             monthly_debt_service
         )
 
+        # ---------------------------------------------------------
+        # NO SEPARATE INVENTORY CASH OUTFLOW
+        #
+        # Supplier payments are the cash outflow generated by
+        # purchasing activity.
+        # ---------------------------------------------------------
+
         net_cash_change = (
             collections
             - supplier_payments
-            - inventory_cash
             - fixed_opex
             - debt_service
         )
@@ -1390,12 +1478,6 @@ def build_cash_plan(
                     month=month,
                     label="Supplier payments",
                     amount=supplier_payments,
-                    kind="outflow",
-                ),
-                CashEvent(
-                    month=month,
-                    label="Inventory",
-                    amount=inventory_cash,
                     kind="outflow",
                 ),
                 CashEvent(
@@ -1424,9 +1506,6 @@ def build_cash_plan(
                 ),
                 "Supplier Payments": (
                     supplier_payments
-                ),
-                "Inventory": (
-                    inventory_cash
                 ),
                 "Fixed Opex": (
                     fixed_opex
@@ -1462,6 +1541,14 @@ def build_cash_plan(
     ] = ap_source
 
     dataframe.attrs[
+        "ap_timing_method"
+    ] = ap_timing_method
+
+    dataframe.attrs[
+        "purchasing_source"
+    ] = purchasing_source
+
+    dataframe.attrs[
         "selected_ar_days"
     ] = selected_ar_days
 
@@ -1474,8 +1561,16 @@ def build_cash_plan(
     ] = projected_ar_days
 
     dataframe.attrs[
+        "projected_ap_days"
+    ] = projected_ap_days
+
+    dataframe.attrs[
         "baseline_ar_days"
     ] = baseline_ar_days
+
+    dataframe.attrs[
+        "baseline_ap_days"
+    ] = baseline_ap_days
 
     dataframe.attrs[
         "collection_schedule"
@@ -1490,8 +1585,28 @@ def build_cash_plan(
     ] = opening_ar_balance
 
     dataframe.attrs[
-        "annual_revenue"
-    ] = annual_revenue
+        "opening_ap_balance"
+    ] = opening_ap_balance
+
+    dataframe.attrs[
+        "baseline_annual_revenue"
+    ] = baseline_annual_revenue
+
+    dataframe.attrs[
+        "projected_annual_revenue"
+    ] = projected_annual_revenue
+
+    dataframe.attrs[
+        "baseline_annual_cogs"
+    ] = baseline_annual_cogs
+
+    dataframe.attrs[
+        "projected_annual_cogs"
+    ] = projected_annual_cogs
+
+    dataframe.attrs[
+        "purchasing_decision_detected"
+    ] = purchasing_decision is not None
 
     return CashPlanResult(
         dataframe=dataframe,
@@ -1570,12 +1685,16 @@ def render_cash_management_lab(
 
     st.info(
         "Cash Management is a management planning estimate. "
-        "Customer collections are based on an average collection "
-        "profile attached to the selected Receivables Decision. "
-        "The same average profile is applied to opening AR and "
-        "new sales. If no profile exists, the model falls back "
-        "to AR days."
+        "Customer collections are based on the collection profile "
+        "selected in the Receivables Decision. Supplier payments "
+        "represent the cash timing of purchasing activity. "
+        "Inventory is not shown as a separate cash outflow, "
+        "to avoid double counting."
     )
+
+    # =============================================================
+    # RECEIVABLES STATUS
+    # =============================================================
 
     if selected_ar_decision is not None:
 
@@ -1589,15 +1708,14 @@ def render_cash_management_lab(
 
             st.success(
                 "Customer collection timing is driven by the "
-                "average collection profile in the Current "
-                "Decision Plan."
+                "collection profile in the Current Decision Plan."
             )
 
         elif selected_ar_days is not None:
 
             st.warning(
-                "The selected AR decision does not contain an "
-                "average collection profile. Cash Management "
+                "The selected Receivables Decision does not "
+                "contain a collection profile. Cash Management "
                 "is using the AR-days fallback "
                 f"({selected_ar_days:.0f} days)."
             )
@@ -1605,11 +1723,41 @@ def render_cash_management_lab(
     else:
 
         st.caption(
-            "No receivables decision is currently selected "
+            "No Receivables Decision is currently selected "
             "in the Current Decision Plan. Cash Management "
             "is using the projected CompanyState "
             f"({projected_ar_days:.0f} days)."
         )
+
+    # =============================================================
+    # PURCHASING STATUS
+    # =============================================================
+
+    purchasing_decision = (
+        _selected_purchasing_decision()
+    )
+
+    if purchasing_decision is None:
+
+        st.caption(
+            "Purchasing timing is currently based on projected "
+            "COGS and AP terms. The Inventory / Purchasing "
+            "Decision will later replace this temporary proxy."
+        )
+
+    else:
+
+        st.info(
+            "A Purchasing / Inventory Decision is present in "
+            "the Current Decision Plan. Its exact purchase "
+            "schedule will be connected to supplier payment "
+            "timing once the Purchasing Decision structure is "
+            "finalised."
+        )
+
+    # =============================================================
+    # KEY METRICS
+    # =============================================================
 
     min_cash = float(
         df["Closing Cash"].min()
@@ -1655,13 +1803,16 @@ def render_cash_management_lab(
         f"Minimum cash occurs in {min_cash_month}."
     )
 
+    # =============================================================
+    # CASH TABLE
+    # =============================================================
+
     display_df = df.copy()
 
     money_columns = [
         "Opening Cash",
         "Customer Collections",
         "Supplier Payments",
-        "Inventory",
         "Fixed Opex",
         "Debt Service",
         "Net Cash Change",
@@ -1720,6 +1871,22 @@ def render_cash_management_lab(
         )
 
         st.write(
+            "AP timing method:",
+            df.attrs.get(
+                "ap_timing_method",
+                "",
+            ),
+        )
+
+        st.write(
+            "Purchasing:",
+            df.attrs.get(
+                "purchasing_source",
+                "",
+            ),
+        )
+
+        st.write(
             "Baseline AR days:",
             f"{baseline_ar_days:.0f}",
         )
@@ -1729,6 +1896,30 @@ def render_cash_management_lab(
             f"{projected_ar_days:.0f}",
         )
 
+        baseline_ap_days = _as_float(
+            df.attrs.get(
+                "baseline_ap_days",
+                0.0,
+            )
+        )
+
+        projected_ap_days = _as_float(
+            df.attrs.get(
+                "projected_ap_days",
+                0.0,
+            )
+        )
+
+        st.write(
+            "Baseline AP days:",
+            f"{baseline_ap_days:.0f}",
+        )
+
+        st.write(
+            "Projected AP days:",
+            f"{projected_ap_days:.0f}",
+        )
+
         opening_ar_balance = _as_float(
             df.attrs.get(
                 "opening_ar_balance",
@@ -1736,9 +1927,21 @@ def render_cash_management_lab(
             )
         )
 
+        opening_ap_balance = _as_float(
+            df.attrs.get(
+                "opening_ap_balance",
+                0.0,
+            )
+        )
+
         st.write(
             "Opening AR:",
             f"€{opening_ar_balance:,.0f}",
+        )
+
+        st.write(
+            "Opening AP:",
+            f"€{opening_ap_balance:,.0f}",
         )
 
         if selected_ar_days is not None:
@@ -1791,6 +1994,14 @@ def render_cash_management_lab(
                 "opening AR and new sales. It is not an "
                 "invoice-level ageing model."
             )
+
+        st.caption(
+            "Inventory is currently not treated as a separate "
+            "cash outflow. Purchasing activity is represented "
+            "through supplier payments. The future Purchasing "
+            "Decision will determine the actual purchase amount "
+            "and timing."
+        )
 
     # =============================================================
     # CASH CHART
