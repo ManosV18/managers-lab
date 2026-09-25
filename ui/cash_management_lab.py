@@ -839,8 +839,7 @@ def render_cash_management_lab(
 
     if baseline_state is None:
         st.warning(
-            "Δεν υπάρχει διαθέσιμο CompanyState για να δημιουργηθεί "
-            "η πρόβλεψη ταμείου."
+            "No CompanyState is available to generate the cash flow forecast."
         )
         return
 
@@ -873,37 +872,37 @@ def render_cash_management_lab(
 
     with col1:
         monthly_opex = st.number_input(
-            "Μέσο μηνιαίο λειτουργικό κόστος",
+            "Average monthly operating expenses",
             min_value=0.0,
             value=float(default_monthly_opex),
             step=1000.0,
             help=(
-                "Αφήστε το ποσό όπως είναι για να χρησιμοποιηθεί "
-                "ο μέσος όρος των λειτουργικών εξόδων της εταιρείας. "
-                "Αλλάξτε το μόνο αν θέλετε διαφορετικό μηνιαίο ποσό."
+                "Leave as is to use the company's average "
+                "operating expenses. Change only if you want "
+                "a different monthly figure."
             ),
         )
 
     with col2:
         monthly_debt = st.number_input(
-            "Μηνιαίες δόσεις δανείων & τόκοι",
+            "Monthly loan installments & interest",
             min_value=0.0,
             value=float(default_monthly_debt),
             step=1000.0,
             help=(
-                "Ένα συνολικό ποσό για όλα τα δάνεια μαζί — "
-                "κεφάλαιο και τόκοι."
+                "A combined figure for all loans — "
+                "principal and interest."
             ),
         )
 
     minimum_cash = st.number_input(
-        "Ελάχιστα διαθέσιμα που θέλω να κρατάω στο ταμείο",
+        "Minimum cash reserve to maintain",
         min_value=0.0,
         value=0.0,
         step=1000.0,
         help=(
-            "Το ελάχιστο ποσό μετρητών που θέλετε να παραμένει "
-            "διαθέσιμο στο τέλος κάθε μήνα."
+            "The minimum cash balance you wish to retain "
+            "at the end of each month."
         ),
     )
 
@@ -980,20 +979,20 @@ def render_cash_management_lab(
 
     table = pd.DataFrame(
         {
-            "Εισπράξεις": cash_plan["receipts"],
-            "Πληρωμές προμηθευτών": cash_plan[
+            "Receipts": cash_plan["receipts"],
+            "Supplier payments": cash_plan[
                 "supplier_payments"
             ],
-            "Λειτουργικά έξοδα": cash_plan[
+            "Operating expenses": cash_plan[
                 "operating_expenses"
             ],
-            "Δόσεις δανείων & τόκοι": cash_plan[
+            "Loan payments & interest": cash_plan[
                 "debt_payments"
             ],
-            "Καθαρή ταμειακή ροή": cash_plan[
+            "Net cash flow": cash_plan[
                 "net_cash_flow"
             ],
-            "Διαθέσιμα τέλους μήνα": cash_plan[
+            "Ending cash balance": cash_plan[
                 "ending_cash"
             ],
         },
@@ -1020,20 +1019,20 @@ def render_cash_management_lab(
 
     with result_col1:
         st.metric(
-            "Χαμηλότερο ταμείο",
+            "Lowest cash position",
             _money(minimum_projected_cash),
             minimum_month,
         )
 
     with result_col2:
         st.metric(
-            "Πάνω από το ελάχιστο",
+            "Above minimum reserve",
             _money(surplus_above_minimum),
         )
 
     with result_col3:
         st.metric(
-            "Χρηματοδότηση που χρειάζεται",
+            "Funding required",
             _money(funding_required),
         )
 
@@ -1043,20 +1042,18 @@ def render_cash_management_lab(
 
     if funding_required > 0:
         st.error(
-            f"Χρειάζεται επιπλέον χρηματοδότηση "
-            f"{_money(funding_required)} ώστε το ταμείο να "
-            f"μην πέσει κάτω από {_money(minimum_cash)}. "
-            f"Το χαμηλότερο σημείο εμφανίζεται στον "
+            f"Additional funding of {_money(funding_required)} "
+            f"is required so the cash balance does not fall below "
+            f"{_money(minimum_cash)}. The lowest cash point occurs in "
             f"{minimum_month}."
         )
 
     else:
         st.success(
-            f"Δεν προκύπτει χρηματοδοτικό κενό. "
-            f"Το χαμηλότερο ταμείο είναι "
-            f"{_money(minimum_projected_cash)}, δηλαδή "
-            f"{_money(surplus_above_minimum)} πάνω από το "
-            f"ελάχιστο που θέλετε να κρατάτε."
+            f"No funding deficit identified. "
+            f"The lowest cash position is {_money(minimum_projected_cash)}, "
+            f"which is {_money(surplus_above_minimum)} above your requested "
+            f"minimum reserve."
         )
 
     # -----------------------------------------------------
@@ -1074,8 +1071,7 @@ def render_cash_management_lab(
     )
 
     st.caption(
-        f"Η πρόβλεψη χρησιμοποιεί τις τρέχουσες αποφάσεις "
-        f"Receivables / Suppliers: εισπράξεις με βάση "
-        f"{ar_days:.0f} ημέρες και πληρωμές προμηθευτών με βάση "
-        f"{ap_days:.0f} ημέρες."
+        f"The forecast utilizes current Receivables / Supplier decisions: "
+        f"receipts based on {ar_days:.0f} days and supplier payments based on "
+        f"{ap_days:.0f} days."
     )
