@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Any
 
 
@@ -37,6 +37,7 @@ class Decision:
     description: str
     category: str
     changes: Dict[str, Any]
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     # =====================================================
     # VALIDATION
@@ -93,6 +94,14 @@ class Decision:
                 "Decision changes must be a dictionary."
             )
 
+        if not isinstance(
+            self.metadata,
+            dict,
+        ):
+            raise TypeError(
+                "Decision metadata must be a dictionary."
+            )
+
 
 # =========================================================
 # DECISION FACTORY
@@ -122,6 +131,7 @@ class DecisionFactory:
         description: str,
         category: str,
         changes: Dict[str, Any],
+        metadata: Dict[str, Any] | None = None,
     ) -> Decision:
 
         return Decision(
@@ -130,6 +140,7 @@ class DecisionFactory:
             description=description,
             category=category,
             changes=dict(changes),
+            metadata=dict(metadata) if metadata is not None else {},
         )
 
     # =====================================================
@@ -156,7 +167,7 @@ class DecisionFactory:
                 "price": float(target_price),
             },
         )
-    
+
     # =====================================================
     # VOLUME CHANGE
     # =====================================================
@@ -181,7 +192,7 @@ class DecisionFactory:
                 "volume": float(target_volume),
             },
         )
-    
+
     # =====================================================
     # VARIABLE COST CHANGE
     # =====================================================
@@ -250,7 +261,15 @@ class DecisionFactory:
         *,
         decision_id: str,
         target_ar_days: float,
+        collection_schedule: Dict[str, float] | None = None,
     ) -> Decision:
+
+        metadata = {}
+
+        if collection_schedule is not None:
+            metadata["collection_schedule"] = dict(
+                collection_schedule
+            )
 
         return cls.create(
             decision_id=decision_id,
@@ -264,6 +283,7 @@ class DecisionFactory:
                     target_ar_days
                 ),
             },
+            metadata=metadata,
         )
 
     # =====================================================
