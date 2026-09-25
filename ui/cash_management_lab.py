@@ -27,6 +27,7 @@ def _get_attr(
     names: Sequence[str],
     default: Any = None,
 ) -> Any:
+
     if obj is None:
         return default
 
@@ -51,6 +52,7 @@ def _to_float(
     value: Any,
     default: float = 0.0,
 ) -> float:
+
     try:
         if value is None:
             return default
@@ -74,6 +76,7 @@ def _money(value: Any) -> str:
 
 
 def _normalise_pct(value: Any) -> float:
+
     value = _to_float(value)
 
     if abs(value) > 1:
@@ -87,6 +90,7 @@ def _normalise_pct(value: Any) -> float:
 # =========================================================
 
 def _get_baseline_state() -> Any:
+
     return (
         st.session_state.get("baseline_state")
         or st.session_state.get("locked_baseline")
@@ -95,6 +99,7 @@ def _get_baseline_state() -> Any:
 
 
 def _get_current_plan() -> Any:
+
     plan = st.session_state.get("decision_plan")
 
     if isinstance(plan, DecisionPlan):
@@ -111,6 +116,7 @@ def _get_current_plan() -> Any:
 
 
 def _all_decisions(plan: Any) -> List[Any]:
+
     if plan is None:
         return []
 
@@ -129,6 +135,7 @@ def _all_decisions(plan: Any) -> List[Any]:
 
 
 def _decision_change(decision: Any) -> Any:
+
     return _get_attr(
         decision,
         (
@@ -178,6 +185,7 @@ def _find_decision(
         ]
 
         for value in values:
+
             if str(value) == candidate_key:
                 return decision
 
@@ -190,6 +198,7 @@ def _find_decision(
         if isinstance(changes, Mapping):
 
             if candidate_key == WC_AP_CANDIDATE:
+
                 if any(
                     key in changes
                     for key in (
@@ -201,6 +210,7 @@ def _find_decision(
                     return decision
 
             if candidate_key == WC_AR_CANDIDATE:
+
                 if any(
                     key in changes
                     for key in (
@@ -228,7 +238,9 @@ def _selected_ar_decision() -> Any:
     if decision is not None:
         return decision
 
-    return st.session_state.get(WC_AR_CANDIDATE)
+    return st.session_state.get(
+        WC_AR_CANDIDATE
+    )
 
 
 def _selected_ap_decision() -> Any:
@@ -243,7 +255,9 @@ def _selected_ap_decision() -> Any:
     if decision is not None:
         return decision
 
-    return st.session_state.get(WC_AP_CANDIDATE)
+    return st.session_state.get(
+        WC_AP_CANDIDATE
+    )
 
 
 # =========================================================
@@ -251,6 +265,7 @@ def _selected_ap_decision() -> Any:
 # =========================================================
 
 def _get_drivers(state: Any) -> Any:
+
     return _get_attr(
         state,
         ("drivers",),
@@ -259,6 +274,7 @@ def _get_drivers(state: Any) -> Any:
 
 
 def _get_working_capital(state: Any) -> Any:
+
     return _get_attr(
         state,
         (
@@ -270,6 +286,7 @@ def _get_working_capital(state: Any) -> Any:
 
 
 def _get_capital_structure(state: Any) -> Any:
+
     return _get_attr(
         state,
         ("capital_structure",),
@@ -300,6 +317,7 @@ def _annual_revenue(state: Any) -> float:
     )
 
     if volume is not None and price is not None:
+
         return (
             _to_float(volume)
             * _to_float(price)
@@ -341,6 +359,7 @@ def _annual_cogs(state: Any) -> float:
     )
 
     if volume is not None and variable_cost is not None:
+
         return (
             _to_float(volume)
             * _to_float(variable_cost)
@@ -650,42 +669,84 @@ def _extract_collection_profile(
             if container is not None:
                 candidates.append(container)
 
-    structured_names = (
-        "collection_schedule",
-        "collection_profile",
-        "collection_distribution",
-        "collection_timing",
-        "schedule",
-    )
+    # -----------------------------------------------------
+    # FIRST: look for the explicit collection schedule
+    # -----------------------------------------------------
 
     for obj in candidates:
 
         if not isinstance(obj, Mapping):
             continue
 
-        for name in structured_names:
+        for name in (
+            "collection_schedule",
+            "collection_profile",
+        ):
 
             nested = obj.get(name)
 
-            if isinstance(nested, Mapping):
+            if not isinstance(nested, Mapping):
+                continue
 
-                result = _extract_collection_profile(
-                    nested
+            profile: Dict[int, float] = {}
+
+            for key, value in nested.items():
+
+                key_text = str(key)
+
+                if not key_text.startswith(
+                    "month_"
+                ):
+                    continue
+
+                if not key_text.endswith(
+                    "_pct"
+                ):
+                    continue
+
+                try:
+                    month_index = int(
+                        key_text[
+                            len("month_"):-len("_pct")
+                        ]
+                    )
+                except ValueError:
+                    continue
+
+                profile[month_index] = (
+                    _normalise_pct(value)
                 )
 
-                if result:
-                    return result
+            if profile:
 
-    result: Dict[int, float] = {}
+                profile = {
+                    index: value
+                    for index, value
+                    in profile.items()
+                    if value >= 0
+                }
+
+                total = sum(
+                    profile.values()
+                )
+
+                if total > 0:
+
+                    return {
+                        index: value / total
+                        for index, value
+                        in profile.items()
+                    }
+
+    # -----------------------------------------------------
+    # SECOND: direct month_x_pct fields
+    # -----------------------------------------------------
+
+    profile: Dict[int, float] = {}
 
     for month_index in range(0, 6):
 
-        possible_keys = (
-            f"month_{month_index}_pct",
-            f"month_{month_index}",
-            f"month{month_index}_pct",
-            f"month{month_index}",
-        )
+        key = f"month_{month_index}_pct"
 
         found = None
 
@@ -693,56 +754,47 @@ def _extract_collection_profile(
 
             if isinstance(obj, Mapping):
 
-                for key in possible_keys:
-
-                    if key in obj:
-                        found = obj[key]
-                        break
-
-            if found is not None:
-                break
-
-            for key in possible_keys:
-
-                value = _get_attr(
-                    obj,
-                    (key,),
-                    None,
-                )
-
-                if value is not None:
-                    found = value
+                if key in obj:
+                    found = obj[key]
                     break
 
-            if found is not None:
+            value = _get_attr(
+                obj,
+                (key,),
+                None,
+            )
+
+            if value is not None:
+                found = value
                 break
 
         if found is not None:
 
-            result[month_index] = _normalise_pct(
-                found
+            profile[month_index] = (
+                _normalise_pct(found)
             )
 
-    if not result:
+    if not profile:
         return None
 
-    result = {
+    profile = {
         index: value
-        for index, value in result.items()
+        for index, value
+        in profile.items()
         if value >= 0
     }
 
-    if not result:
-        return None
-
-    total = sum(result.values())
+    total = sum(
+        profile.values()
+    )
 
     if total <= 0:
         return None
 
     return {
         index: value / total
-        for index, value in result.items()
+        for index, value
+        in profile.items()
     }
 
 
@@ -802,6 +854,7 @@ def _monthly_delay_allocation(
     fraction = months - lower
 
     if fraction <= 0:
+
         return {
             lower: 1.0
         }
@@ -813,22 +866,43 @@ def _monthly_delay_allocation(
 
 
 # =========================================================
-# COLLECTIONS
+# NEW SALES COLLECTIONS
 # =========================================================
 
-def _collections_from_profile(
+def _build_new_sales_receipts(
     monthly_sales: Sequence[float],
-    profile: Mapping[int, float],
+    collection_profile: Mapping[int, float],
 ) -> List[float]:
 
     """
-    Apply the selected collection profile only to
-    NEW monthly sales cohorts.
+    Each month's sales form an independent cohort.
 
-    Opening AR is deliberately excluded.
+    The selected collection profile is applied exactly once
+    to each cohort.
+
+    Example:
+
+        Sales = €150,000
+        Profile = 20% / 70% / 10%
+
+    Month 1 cohort:
+        M1 €30,000
+        M2 €105,000
+        M3 €15,000
+
+    Month 2 cohort:
+        M2 €30,000
+        M3 €105,000
+        M4 €15,000
+
+    etc.
+
+    No cohort is reused or reallocated.
     """
 
-    horizon = len(monthly_sales)
+    horizon = len(
+        monthly_sales
+    )
 
     receipts = [
         0.0
@@ -839,18 +913,28 @@ def _collections_from_profile(
         monthly_sales
     ):
 
-        for delay, percentage in profile.items():
+        sales = _to_float(
+            sales
+        )
+
+        for delay, percentage in (
+            collection_profile.items()
+        ):
 
             target_month = (
                 cohort_month
                 + int(delay)
             )
 
-            if 0 <= target_month < horizon:
+            if not (
+                0 <= target_month < horizon
+            ):
+                continue
 
-                receipts[target_month] += (
-                    sales * percentage
-                )
+            receipts[target_month] += (
+                sales
+                * _to_float(percentage)
+            )
 
     return receipts
 
@@ -865,97 +949,131 @@ def _build_receipts(
     monthly_sales: Sequence[float],
 ) -> List[float]:
 
-    profile = _get_collection_profile(
-        ar_decision
+    horizon = len(
+        monthly_sales
     )
+
+    receipts = [
+        0.0
+        for _ in range(horizon)
+    ]
+
+    # =====================================================
+    # 1. OPENING AR
+    # =====================================================
+    #
+    # This is an existing balance.
+    #
+    # It follows the BASELINE AR policy.
+    #
+    # It is NOT part of the new collection profile.
+    # =====================================================
 
     opening_ar = _opening_ar(
         baseline_state
     )
 
-    receipts = [
-        0.0
-        for _ in monthly_sales
-    ]
+    baseline_ar_days = _baseline_ar_days(
+        baseline_state
+    )
 
-    # -----------------------------------------------------
-    # EXISTING OPENING AR
-    # -----------------------------------------------------
-    #
-    # Opening AR follows the BASELINE collection timing.
-    # It is not re-created under the new decision.
-    # -----------------------------------------------------
-
-    baseline_allocation = _monthly_delay_allocation(
-        _baseline_ar_days(
-            baseline_state
+    opening_ar_allocation = (
+        _monthly_delay_allocation(
+            baseline_ar_days
         )
     )
 
     for delay, percentage in (
-        baseline_allocation.items()
+        opening_ar_allocation.items()
     ):
 
-        target_month = int(delay)
+        target_month = int(
+            delay
+        )
 
-        if 0 <= target_month < len(receipts):
+        if 0 <= target_month < horizon:
 
             receipts[target_month] += (
-                opening_ar * percentage
+                opening_ar
+                * percentage
             )
 
-    # -----------------------------------------------------
-    # NEW SALES
-    # -----------------------------------------------------
+    # =====================================================
+    # 2. NEW SALES
+    # =====================================================
 
-    if profile:
+    collection_profile = (
+        _get_collection_profile(
+            ar_decision
+        )
+    )
 
-        new_sales_receipts = _collections_from_profile(
-            monthly_sales=monthly_sales,
-            profile=profile,
+    if collection_profile:
+
+        new_sales_receipts = (
+            _build_new_sales_receipts(
+                monthly_sales=monthly_sales,
+                collection_profile=collection_profile,
+            )
         )
 
     else:
 
+        # If there is no explicit collection profile,
+        # fall back to the selected AR days.
         ar_days = _decision_ar_days(
             baseline_state,
             ar_decision,
         )
 
-        allocation = _monthly_delay_allocation(
-            ar_days
+        allocation = (
+            _monthly_delay_allocation(
+                ar_days
+            )
         )
 
         new_sales_receipts = [
             0.0
-            for _ in monthly_sales
+            for _ in range(horizon)
         ]
 
         for cohort_month, sales in enumerate(
             monthly_sales
         ):
 
-            for delay, percentage in allocation.items():
+            for delay, percentage in (
+                allocation.items()
+            ):
 
                 target_month = (
                     cohort_month
                     + int(delay)
                 )
 
-                if 0 <= target_month < len(
-                    new_sales_receipts
+                if not (
+                    0 <= target_month < horizon
                 ):
+                    continue
 
-                    new_sales_receipts[
-                        target_month
-                    ] += (
-                        sales * percentage
-                    )
+                new_sales_receipts[
+                    target_month
+                ] += (
+                    sales
+                    * percentage
+                )
 
-    for index in range(len(receipts)):
+    # =====================================================
+    # 3. COMBINE
+    # =====================================================
 
-        receipts[index] += (
-            new_sales_receipts[index]
+    for month_index in range(
+        horizon
+    ):
+
+        receipts[month_index] += (
+            new_sales_receipts[
+                month_index
+            ]
         )
 
     return receipts
@@ -976,65 +1094,83 @@ def _build_supplier_payments(
         for _ in monthly_purchases
     ]
 
-    # -----------------------------------------------------
-    # EXISTING OPENING AP
-    # -----------------------------------------------------
+    # =====================================================
+    # OPENING AP
+    # =====================================================
     #
-    # Opening AP follows the BASELINE supplier timing.
-    # The new AP decision applies only to new purchases.
-    # -----------------------------------------------------
+    # Existing AP follows the BASELINE AP policy.
+    # =====================================================
 
     opening_ap = _opening_ap(
         baseline_state
     )
 
-    baseline_ap_allocation = _monthly_delay_allocation(
-        _baseline_ap_days(
-            baseline_state
+    baseline_ap_days = _baseline_ap_days(
+        baseline_state
+    )
+
+    opening_ap_allocation = (
+        _monthly_delay_allocation(
+            baseline_ap_days
         )
     )
 
     for delay, percentage in (
-        baseline_ap_allocation.items()
+        opening_ap_allocation.items()
     ):
 
-        target_month = int(delay)
+        target_month = int(
+            delay
+        )
 
-        if 0 <= target_month < len(payments):
+        if 0 <= target_month < len(
+            payments
+        ):
 
             payments[target_month] += (
-                opening_ap * percentage
+                opening_ap
+                * percentage
             )
 
-    # -----------------------------------------------------
+    # =====================================================
     # NEW PURCHASE COHORTS
-    # -----------------------------------------------------
+    # =====================================================
 
     ap_days = _decision_ap_days(
         baseline_state,
         ap_decision,
     )
 
-    allocation = _monthly_delay_allocation(
-        ap_days
+    allocation = (
+        _monthly_delay_allocation(
+            ap_days
+        )
     )
 
     for cohort_month, purchases in enumerate(
         monthly_purchases
     ):
 
-        for delay, percentage in allocation.items():
+        for delay, percentage in (
+            allocation.items()
+        ):
 
             target_month = (
                 cohort_month
                 + int(delay)
             )
 
-            if 0 <= target_month < len(payments):
-
-                payments[target_month] += (
-                    purchases * percentage
+            if not (
+                0 <= target_month < len(
+                    payments
                 )
+            ):
+                continue
+
+            payments[target_month] += (
+                purchases
+                * percentage
+            )
 
     return payments
 
@@ -1072,15 +1208,17 @@ def _build_cash_plan(
     ]
 
     receipts = _build_receipts(
-        baseline_state,
-        ar_decision,
-        monthly_sales,
+        baseline_state=baseline_state,
+        ar_decision=ar_decision,
+        monthly_sales=monthly_sales,
     )
 
-    supplier_payments = _build_supplier_payments(
-        baseline_state,
-        ap_decision,
-        monthly_purchases,
+    supplier_payments = (
+        _build_supplier_payments(
+            baseline_state=baseline_state,
+            ap_decision=ap_decision,
+            monthly_purchases=monthly_purchases,
+        )
     )
 
     operating_expenses = [
@@ -1100,7 +1238,9 @@ def _build_cash_plan(
         baseline_state
     )
 
-    for month_index in range(len(MONTHS)):
+    for month_index in range(
+        len(MONTHS)
+    ):
 
         net = (
             receipts[month_index]
@@ -1111,8 +1251,13 @@ def _build_cash_plan(
 
         cash += net
 
-        net_cash_flow.append(net)
-        ending_cash.append(cash)
+        net_cash_flow.append(
+            net
+        )
+
+        ending_cash.append(
+            cash
+        )
 
     return {
         "receipts": receipts,
@@ -1135,7 +1280,10 @@ def render_cash_management_lab(
 ) -> None:
 
     if baseline_state is None:
-        baseline_state = _get_baseline_state()
+
+        baseline_state = (
+            _get_baseline_state()
+        )
 
     if baseline_state is None:
 
@@ -1146,17 +1294,24 @@ def render_cash_management_lab(
         return
 
     # =====================================================
-    # READ CURRENT DECISIONS
+    # CURRENT DECISIONS
     # =====================================================
 
-    ar_decision = _selected_ar_decision()
-    ap_decision = _selected_ap_decision()
+    ar_decision = (
+        _selected_ar_decision()
+    )
+
+    ap_decision = (
+        _selected_ap_decision()
+    )
 
     # =====================================================
     # HEADER
     # =====================================================
 
-    st.subheader("Cash Management")
+    st.subheader(
+        "Cash Management"
+    )
 
     st.caption(
         "This is the timing layer that turns your "
@@ -1168,17 +1323,23 @@ def render_cash_management_lab(
     # CASH ASSUMPTIONS
     # =====================================================
 
-    st.markdown("### Cash assumptions")
+    st.markdown(
+        "### Cash assumptions"
+    )
 
     col1, col2 = st.columns(2)
 
     default_monthly_opex = (
-        _annual_fixed_opex(baseline_state)
+        _annual_fixed_opex(
+            baseline_state
+        )
         / 12.0
     )
 
     default_monthly_debt = (
-        _annual_debt_service(baseline_state)
+        _annual_debt_service(
+            baseline_state
+        )
         / 12.0
     )
 
@@ -1187,7 +1348,9 @@ def render_cash_management_lab(
         monthly_opex = st.number_input(
             "Average monthly operating expenses",
             min_value=0.0,
-            value=float(default_monthly_opex),
+            value=float(
+                default_monthly_opex
+            ),
             step=1000.0,
             format="%.0f",
             help=(
@@ -1201,7 +1364,9 @@ def render_cash_management_lab(
         monthly_debt = st.number_input(
             "Monthly loan installments & interest",
             min_value=0.0,
-            value=float(default_monthly_debt),
+            value=float(
+                default_monthly_debt
+            ),
             step=1000.0,
             format="%.0f",
         )
@@ -1221,18 +1386,24 @@ def render_cash_management_lab(
     # CURRENT POLICIES
     # =====================================================
 
-    current_ar_days = _decision_ar_days(
-        baseline_state,
-        ar_decision,
+    current_ar_days = (
+        _decision_ar_days(
+            baseline_state,
+            ar_decision,
+        )
     )
 
-    current_ap_days = _decision_ap_days(
-        baseline_state,
-        ap_decision,
+    current_ap_days = (
+        _decision_ap_days(
+            baseline_state,
+            ap_decision,
+        )
     )
 
-    collection_profile = _get_collection_profile(
-        ar_decision
+    collection_profile = (
+        _get_collection_profile(
+            ar_decision
+        )
     )
 
     # =====================================================
@@ -1242,9 +1413,12 @@ def render_cash_management_lab(
     if collection_profile:
 
         profile_text = " / ".join(
-            f"Month {int(delay) + 1}: {percentage:.0%}"
+            f"Month {int(delay) + 1}: "
+            f"{percentage:.0%}"
             for delay, percentage
-            in sorted(collection_profile.items())
+            in sorted(
+                collection_profile.items()
+            )
         )
 
         st.success(
@@ -1256,7 +1430,8 @@ def render_cash_management_lab(
 
         st.caption(
             "Collection timing: "
-            f"approximately {current_ar_days:.0f} days"
+            f"approximately "
+            f"{current_ar_days:.0f} days"
         )
 
     # =====================================================
@@ -1265,7 +1440,8 @@ def render_cash_management_lab(
 
     st.caption(
         "Supplier payment timing: "
-        f"approximately {current_ap_days:.0f} days"
+        f"approximately "
+        f"{current_ap_days:.0f} days"
     )
 
     # =====================================================
@@ -1284,7 +1460,9 @@ def render_cash_management_lab(
     # CASH OUTLOOK
     # =====================================================
 
-    st.markdown("### Six-month cash outlook")
+    st.markdown(
+        "### Six-month cash outlook"
+    )
 
     table = pd.DataFrame(
         {
@@ -1300,18 +1478,35 @@ def render_cash_management_lab(
             **{
                 month: [
                     (
-                        cash_plan["ending_cash"][i - 1]
+                        cash_plan[
+                            "ending_cash"
+                        ][i - 1]
                         if i > 0
-                        else _opening_cash(baseline_state)
+                        else _opening_cash(
+                            baseline_state
+                        )
                     ),
-                    cash_plan["receipts"][i],
-                    cash_plan["supplier_payments"][i],
-                    cash_plan["operating_expenses"][i],
-                    cash_plan["debt_payments"][i],
-                    cash_plan["net_cash_flow"][i],
-                    cash_plan["ending_cash"][i],
+                    cash_plan[
+                        "receipts"
+                    ][i],
+                    cash_plan[
+                        "supplier_payments"
+                    ][i],
+                    cash_plan[
+                        "operating_expenses"
+                    ][i],
+                    cash_plan[
+                        "debt_payments"
+                    ][i],
+                    cash_plan[
+                        "net_cash_flow"
+                    ][i],
+                    cash_plan[
+                        "ending_cash"
+                    ][i],
                 ]
-                for i, month in enumerate(MONTHS)
+                for i, month
+                in enumerate(MONTHS)
             },
         }
     )
@@ -1332,11 +1527,15 @@ def render_cash_management_lab(
     # =====================================================
 
     lowest_cash = min(
-        cash_plan["ending_cash"]
+        cash_plan[
+            "ending_cash"
+        ]
     )
 
     lowest_month_index = (
-        cash_plan["ending_cash"].index(
+        cash_plan[
+            "ending_cash"
+        ].index(
             lowest_cash
         )
     )
@@ -1395,4 +1594,6 @@ def render_cash_management_lab(
 # COMPATIBILITY ALIAS
 # =========================================================
 
-show_cash_management_lab = render_cash_management_lab
+show_cash_management_lab = (
+    render_cash_management_lab
+)
