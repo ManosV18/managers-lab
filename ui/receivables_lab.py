@@ -1101,7 +1101,132 @@ def render_receivables_lab(
                 ),
             )
 
-        
+        # =================================================
+        # CASH COLLECTION TIMING
+        # =================================================
+
+        st.divider()
+
+        st.subheader(
+            "💶 When will the money actually enter the bank?"
+        )
+
+        st.caption(
+            "Define how the sales under the new collection policy "
+            "will be converted into actual cash receipts. "
+            "The allocation is your commercial assumption."
+        )
+
+        st.markdown(
+            """
+            **Example:** If you expect 20% to be collected in the
+            same month, 70% in the following month and 10% in the
+            third month, enter **20% / 70% / 10%**.
+            """
+        )
+
+        cs1, cs2, cs3 = st.columns(3)
+
+        with cs1:
+
+            collection_month_0 = st.number_input(
+                "Same Month (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=20.0,
+                step=1.0,
+                key="receivables_collection_month_0",
+            )
+
+        with cs2:
+
+            collection_month_1 = st.number_input(
+                "Next Month (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=70.0,
+                step=1.0,
+                key="receivables_collection_month_1",
+            )
+
+        with cs3:
+
+            collection_month_2 = st.number_input(
+                "Month +2 (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=10.0,
+                step=1.0,
+                key="receivables_collection_month_2",
+            )
+
+        collection_total = (
+            collection_month_0
+            + collection_month_1
+            + collection_month_2
+        )
+
+        if abs(collection_total - 100.0) > 0.01:
+
+            st.error(
+                "The collection schedule must add up to 100%."
+            )
+
+        else:
+
+            st.success(
+                f"Collection schedule = "
+                f"{collection_total:.0f}%"
+            )
+
+            # -------------------------------------------------
+            # MONTHLY CASH RECEIPTS FROM ADDITIONAL SALES
+            # -------------------------------------------------
+
+            additional_receipts = {
+                "month_0": (
+                    extra_sales
+                    * collection_month_0
+                    / 100.0
+                ),
+                "month_1": (
+                    extra_sales
+                    * collection_month_1
+                    / 100.0
+                ),
+                "month_2": (
+                    extra_sales
+                    * collection_month_2
+                    / 100.0
+                ),
+            }
+
+            st.markdown(
+                "### Additional Sales — Cash Receipt Timing"
+            )
+
+            ct1, ct2, ct3 = st.columns(3)
+
+            ct1.metric(
+                "Same Month",
+                f"€{additional_receipts['month_0']:,.0f}",
+            )
+
+            ct2.metric(
+                "Next Month",
+                f"€{additional_receipts['month_1']:,.0f}",
+            )
+
+            ct3.metric(
+                "Month +2",
+                f"€{additional_receipts['month_2']:,.0f}",
+            )
+
+            st.caption(
+                f"Total additional sales allocated to cash receipts: "
+                f"€{sum(additional_receipts.values()):,.0f}"
+            )
+            
         # =================================================
         # CREATE AR DECISION CANDIDATE
         # =================================================
