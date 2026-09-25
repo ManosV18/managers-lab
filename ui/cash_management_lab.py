@@ -109,13 +109,12 @@ def _get_current_plan() -> Any:
     """
     IMPORTANT V2 CONNECTION
 
-    Receivables Lab stores the Current Decision Plan under:
+    Receivables Lab and Supplier Lab store the Current
+    Decision Plan under:
 
         st.session_state["decision_plan"]
 
-    Cash Management must read exactly the same object.
-
-    Do NOT create a second plan under another session-state key.
+    Cash Management reads exactly the same object.
     """
 
     plan = st.session_state.get("decision_plan")
@@ -211,6 +210,57 @@ def _find_decision(
             if str(value) == candidate_key:
                 return decision
 
+        # -------------------------------------------------
+        # V2 decision objects created by DecisionFactory
+        # -------------------------------------------------
+        #
+        # Supplier Lab creates IDs such as:
+        #
+        #     supplier_ap_a1b2c3d4
+        #
+        # and stores the actual AP change inside:
+        #
+        #     decision.changes["ap_days"]
+        #
+        # Receivables decisions can similarly carry
+        # ar_days / collection timing inside .changes.
+        #
+        # Therefore candidate_key matching is supplemented
+        # by the contents of .changes.
+        # -------------------------------------------------
+
+        changes = _get_attr(
+            decision,
+            ("changes",),
+            None,
+        )
+
+        if isinstance(changes, Mapping):
+
+            if candidate_key == WC_AP_CANDIDATE:
+                if any(
+                    key in changes
+                    for key in (
+                        "ap_days",
+                        "target_ap_days",
+                        "new_ap_days",
+                    )
+                ):
+                    return decision
+
+            if candidate_key == WC_AR_CANDIDATE:
+                if any(
+                    key in changes
+                    for key in (
+                        "ar_days",
+                        "target_ar_days",
+                        "new_ar_days",
+                        "collection_schedule",
+                        "collection_profile",
+                    )
+                ):
+                    return decision
+
     return None
 
 
@@ -228,7 +278,6 @@ def _selected_ar_decision() -> Any:
     if decision is not None:
         return decision
 
-    # Fallback to the candidate created by Receivables Lab.
     return st.session_state.get(
         WC_AR_CANDIDATE
     )
@@ -482,6 +531,39 @@ def _baseline_ap_days(
 
 
 # =========================================================
+# BASELINE OPENING AP
+# =========================================================
+
+def _opening_ap(
+    state: Any,
+) -> float:
+    """
+    Opening Accounts Payable implied by the baseline
+    purchasing requirement and baseline AP days.
+
+    This mirrors the supplier logic:
+
+        Opening AP
+        = annual purchases × AP days / 365
+
+    The current V2 CompanyState does not carry a separate
+    opening AP euro balance, so it is inferred from the
+    baseline operating model.
+    """
+
+    annual_cogs = _annual_cogs(state)
+
+    baseline_ap_days = _baseline_ap_days(state)
+
+    return max(
+        0.0,
+        annual_cogs
+        * baseline_ap_days
+        / 365.0,
+    )
+
+
+# =========================================================
 # DECISION VALUES
 # =========================================================
 
@@ -494,7 +576,10 @@ def _decision_value(
     if decision is None:
         return default
 
+    # -----------------------------------------------------
     # Direct decision attributes / keys
+    # -----------------------------------------------------
+
     value = _get_attr(
         decision,
         names,
@@ -504,7 +589,31 @@ def _decision_value(
     if value is not None:
         return value
 
+    # -----------------------------------------------------
+    # V2 DecisionFactory .changes
+    # -----------------------------------------------------
+
+    changes = _get_attr(
+        decision,
+        ("changes",),
+        None,
+    )
+
+    if isinstance(changes, Mapping):
+
+        value = _get_attr(
+            changes,
+            names,
+            None,
+        )
+
+        if value is not None:
+            return value
+
+    # -----------------------------------------------------
     # Decision change
+    # -----------------------------------------------------
+
     change = _decision_change(decision)
 
     value = _get_attr(
@@ -516,7 +625,10 @@ def _decision_value(
     if value is not None:
         return value
 
+    # -----------------------------------------------------
     # Nested containers
+    # -----------------------------------------------------
+
     containers = (
         _get_attr(
             decision,
@@ -669,7 +781,7 @@ def _extract_collection_profile(
         schedule
 
     The function also searches payload / parameters /
-    params / metadata.
+    params / metadata and V2 .changes.
     """
 
     if source is None:
@@ -678,6 +790,17 @@ def _extract_collection_profile(
     candidates: List[Any] = [
         source
     ]
+
+    # V2 DecisionFactory stores decision parameters
+    # inside .changes.
+    changes = _get_attr(
+        source,
+        ("changes",),
+        None,
+    )
+
+    if changes is not None:
+        candidates.append(changes)
 
     change = _decision_change(
         source
@@ -848,20 +971,12 @@ def _get_collection_profile(
     the decision to be locked before it can simulate it.
     """
 
-    # -----------------------------------------------------
-    # 1. Selected decision in Current Decision Plan
-    # -----------------------------------------------------
-
     profile = _extract_collection_profile(
         decision
     )
 
     if profile:
         return profile
-
-    # -----------------------------------------------------
-    # 2. Receivables candidate
-    # -----------------------------------------------------
 
     candidate = st.session_state.get(
         WC_AR_CANDIDATE
@@ -873,10 +988,6 @@ def _get_collection_profile(
 
     if profile:
         return profile
-
-    # -----------------------------------------------------
-    # 3. Separate candidate metadata
-    # -----------------------------------------------------
 
     metadata = st.session_state.get(
         "wc_ar_candidate_meta"
@@ -1139,6 +1250,20 @@ def _build_supplier_payments(
     ap_decision: Any,
     monthly_purchases: Sequence[float],
 ) -> List[float]:
+    """
+    Build supplier cash payments from:
+
+        1. Opening AP
+        2. New monthly purchase cohorts
+        3. Selected AP payment terms
+
+    Opening AP is paid in Month 1, matching the Supplier Lab.
+
+    New purchases are paid according to the selected AP days.
+
+    This keeps Cash Management as the timing layer rather than
+    creating a second supplier model.
+    """
 
     ap_days = _decision_ap_days(
         baseline_state,
@@ -1153,6 +1278,25 @@ def _build_supplier_payments(
         0.0
         for _ in monthly_purchases
     ]
+
+    # -----------------------------------------------------
+    # OPENING AP
+    # -----------------------------------------------------
+    #
+    # Opening AP is an existing obligation from the baseline.
+    # It is paid during Month 1.
+    # -----------------------------------------------------
+
+    opening_ap = _opening_ap(
+        baseline_state
+    )
+
+    if payments:
+        payments[0] += opening_ap
+
+    # -----------------------------------------------------
+    # NEW PURCHASE COHORTS
+    # -----------------------------------------------------
 
     for cohort_month, purchases in enumerate(
         monthly_purchases
@@ -1463,199 +1607,4 @@ def render_cash_management_lab(
         )
 
     # -----------------------------------------------------
-    # SHOW SUPPLIER TIMING
-    # -----------------------------------------------------
-
-    st.caption(
-        "Supplier payment timing: "
-        f"approximately {current_ap_days:.0f} days"
-    )
-
-    # =====================================================
-    # BUILD CASH PLAN
-    # =====================================================
-
-    plan = _build_cash_plan(
-        baseline_state=baseline_state,
-        ar_decision=ar_decision,
-        ap_decision=ap_decision,
-        monthly_opex=monthly_opex,
-        monthly_debt=monthly_debt,
-    )
-
-    receipts = plan[
-        "receipts"
-    ]
-
-    supplier_payments = plan[
-        "supplier_payments"
-    ]
-
-    operating_expenses = plan[
-        "operating_expenses"
-    ]
-
-    debt_payments = plan[
-        "debt_payments"
-    ]
-
-    net_cash_flow = plan[
-        "net_cash_flow"
-    ]
-
-    ending_cash = plan[
-        "ending_cash"
-    ]
-
-    # =====================================================
-    # SIX-MONTH CASH OUTLOOK
-    # =====================================================
-
-    st.markdown(
-        "### Six-month cash outlook"
-    )
-
-    opening_cash = _opening_cash(
-        baseline_state
-    )
-
-    st.caption(
-        f"Opening cash: "
-        f"{_money(opening_cash)}"
-    )
-
-    table = pd.DataFrame(
-        {
-            "Receipts": receipts,
-            "Supplier payments": supplier_payments,
-            "Operating expenses": operating_expenses,
-            "Loan payments & interest": debt_payments,
-            "Net cash flow": net_cash_flow,
-            "Ending cash balance": ending_cash,
-        },
-        index=MONTHS,
-    ).T
-
-    st.dataframe(
-        table.style.format(
-            lambda value: _money(value)
-        ),
-        use_container_width=True,
-    )
-
-    # =====================================================
-    # CASH POSITION
-    # =====================================================
-
-    minimum_projected_cash = min(
-        ending_cash
-    )
-
-    minimum_index = ending_cash.index(
-        minimum_projected_cash
-    )
-
-    minimum_month = MONTHS[
-        minimum_index
-    ]
-
-    funding_required = max(
-        0.0,
-        minimum_cash
-        - minimum_projected_cash,
-    )
-
-    surplus_above_minimum = max(
-        0.0,
-        minimum_projected_cash
-        - minimum_cash,
-    )
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-
-        st.metric(
-            "Lowest projected cash",
-            _money(
-                minimum_projected_cash
-            ),
-        )
-
-    with col2:
-
-        st.metric(
-            "Lowest point",
-            minimum_month,
-        )
-
-    with col3:
-
-        st.metric(
-            "Funding required",
-            _money(
-                funding_required
-            ),
-        )
-
-    # =====================================================
-    # INTERPRETATION
-    # =====================================================
-
-    st.markdown(
-        "### What does this mean?"
-    )
-
-    if funding_required > 0:
-
-        st.warning(
-            f"The business falls below the minimum cash "
-            f"reserve in {minimum_month}. "
-            f"The projected shortfall is "
-            f"{_money(funding_required)}."
-        )
-
-        st.write(
-            "The issue is timing: the business may be "
-            "generating sales and profit, but cash is "
-            "leaving the business before the corresponding "
-            "customer receipts arrive."
-        )
-
-    else:
-
-        st.success(
-            f"The six-month cash plan stays above the "
-            f"minimum cash reserve. "
-            f"The lowest projected balance is "
-            f"{_money(minimum_projected_cash)} "
-            f"in {minimum_month}."
-        )
-
-        if surplus_above_minimum > 0:
-
-            st.write(
-                f"At its lowest point, the business retains "
-                f"{_money(surplus_above_minimum)} "
-                f"above the minimum cash reserve."
-            )
-
-        else:
-
-            st.write(
-                "The projected cash balance reaches the "
-                "minimum reserve but does not fall below it."
-            )
-
-
-# =========================================================
-# COMPATIBILITY ALIAS
-# =========================================================
-
-def show_cash_management_lab(
-    baseline_state: Any = None,
-) -> None:
-
-    render_cash_management_lab(
-        baseline_state
-    )
+    # SHOW S
