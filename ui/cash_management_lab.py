@@ -6,8 +6,6 @@ import pandas as pd
 import streamlit as st
 
 from core.decision_plan import DecisionPlan
-st.error("LOADED: ui/cash_management_lab.py")
-st.write("FILE:", __file__)
 
 # =========================================================
 # CONSTANTS
@@ -1553,8 +1551,6 @@ def _build_cash_plan(
 def render_cash_management_lab(
     baseline_state: Any = None,
 ) -> None:
-
-    st.error("NEW CASH MANAGEMENT CODE IS RUNNING")
 
     if baseline_state is None:
 
