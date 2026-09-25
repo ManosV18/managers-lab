@@ -1,6 +1,5 @@
 from uuid import uuid4
 
-import plotly.graph_objects as go
 import streamlit as st
 
 from core.decision import DecisionFactory
@@ -23,7 +22,8 @@ def calculate_inventory_impact(
     annual_cogs: float,
 ):
     """
-    Calculate the economic impact of changing the inventory policy.
+    Calculate the economic impact of changing
+    the inventory holding policy.
 
     Returns:
         current_inv_val
@@ -40,7 +40,9 @@ def calculate_inventory_impact(
         target_inventory_days / 365.0
     ) * annual_cogs
 
-    cash_released = current_inv_val - target_inv_val
+    cash_released = (
+        current_inv_val - target_inv_val
+    )
 
     inventory_turnover = (
         365.0 / target_inventory_days
@@ -59,7 +61,10 @@ def calculate_inventory_impact(
 # ==========================================
 # CANDIDATE MANAGEMENT
 # ==========================================
-def set_inventory_candidate(decision, metadata=None):
+def set_inventory_candidate(
+    decision,
+    metadata=None,
+):
     st.session_state[WC_INV_CANDIDATE] = decision
 
     if metadata is not None:
@@ -67,8 +72,14 @@ def set_inventory_candidate(decision, metadata=None):
 
 
 def clear_inventory_candidate():
-    st.session_state.pop(WC_INV_CANDIDATE, None)
-    st.session_state.pop(WC_INV_META, None)
+    st.session_state.pop(
+        WC_INV_CANDIDATE,
+        None,
+    )
+    st.session_state.pop(
+        WC_INV_META,
+        None,
+    )
 
 
 def _get_current_plan() -> DecisionPlan:
@@ -79,7 +90,9 @@ def _get_current_plan() -> DecisionPlan:
     create the default Current Decision Plan.
     """
 
-    plan = st.session_state.get("decision_plan")
+    plan = st.session_state.get(
+        "decision_plan"
+    )
 
     if isinstance(plan, DecisionPlan):
         return plan
@@ -99,18 +112,22 @@ def _get_current_plan() -> DecisionPlan:
 # ==========================================
 def _get_volume(baseline_state):
     """
-    Read annual production/sales volume from the
-    canonical CompanyState while retaining compatibility
+    Read annual volume from the canonical
+    CompanyState while retaining compatibility
     with older state shapes.
     """
 
     try:
-        return float(baseline_state.volume)
+        return float(
+            baseline_state.volume
+        )
     except AttributeError:
         pass
 
     try:
-        return float(baseline_state.drivers.volume)
+        return float(
+            baseline_state.drivers.volume
+        )
     except AttributeError:
         pass
 
@@ -120,8 +137,8 @@ def _get_volume(baseline_state):
 def _get_variable_cost(baseline_state):
     """
     Read variable cost per unit from the canonical
-    CompanyState while retaining compatibility with
-    older state shapes.
+    CompanyState while retaining compatibility
+    with older state shapes.
     """
 
     try:
@@ -139,7 +156,9 @@ def _get_variable_cost(baseline_state):
         pass
 
     try:
-        return float(baseline_state.variable_cost)
+        return float(
+            baseline_state.variable_cost
+        )
     except AttributeError:
         pass
 
@@ -176,16 +195,25 @@ def show_inventory_lab(baseline_state):
         wc.inventory_days
     )
 
-    volume = _get_volume(baseline_state)
-    variable_cost = _get_variable_cost(baseline_state)
+    volume = _get_volume(
+        baseline_state
+    )
 
-    annual_cogs = volume * variable_cost
+    variable_cost = _get_variable_cost(
+        baseline_state
+    )
+
+    annual_cogs = (
+        volume * variable_cost
+    )
 
     # ==========================================
     # CURRENT STATE
     # ==========================================
 
-    st.subheader("Current Inventory Holding State")
+    st.subheader(
+        "Current Inventory Holding State"
+    )
 
     col1, col2, col3 = st.columns(3)
 
@@ -201,9 +229,12 @@ def show_inventory_lab(baseline_state):
 
     col3.metric(
         "Pending Inventory Candidate",
-        "Yes"
-        if WC_INV_CANDIDATE in st.session_state
-        else "None",
+        (
+            "Yes"
+            if WC_INV_CANDIDATE
+            in st.session_state
+            else "None"
+        ),
     )
 
     st.divider()
@@ -212,11 +243,13 @@ def show_inventory_lab(baseline_state):
     # INVENTORY POLICY
     # ==========================================
 
-    st.markdown("### 📊 Target Inventory Policy")
+    st.markdown(
+        "### 📊 Target Inventory Policy"
+    )
 
     st.caption(
-        "Choose the inventory holding period the business "
-        "wants to operate with."
+        "Choose the inventory holding period "
+        "the business wants to operate with."
     )
 
     target_inventory_days = st.slider(
@@ -225,7 +258,11 @@ def show_inventory_lab(baseline_state):
         max_value=365,
         value=max(
             1,
-            int(round(current_inventory_days)),
+            int(
+                round(
+                    current_inventory_days
+                )
+            ),
         ),
         step=1,
         key="inventory_target_days",
@@ -241,9 +278,11 @@ def show_inventory_lab(baseline_state):
         cash_released,
         inventory_turnover,
     ) = calculate_inventory_impact(
-        current_inventory_days=current_inventory_days,
-        target_inventory_days=float(
-            target_inventory_days
+        current_inventory_days=(
+            current_inventory_days
+        ),
+        target_inventory_days=(
+            float(target_inventory_days)
         ),
         annual_cogs=annual_cogs,
     )
@@ -254,7 +293,9 @@ def show_inventory_lab(baseline_state):
 
     st.divider()
 
-    st.subheader("🏁 Working Capital Impact")
+    st.subheader(
+        "🏁 Working Capital Impact"
+    )
 
     c1, c2, c3 = st.columns(3)
 
@@ -311,80 +352,6 @@ def show_inventory_lab(baseline_state):
         )
 
     # ==========================================
-    # CAPITAL ALLOCATION
-    # ==========================================
-
-    st.divider()
-
-    st.subheader("📈 Inventory Capital")
-
-    col_a, col_b = st.columns(2)
-
-    with col_a:
-
-        st.metric(
-            "Cash Released / Required",
-            f"€ {cash_released:,.0f}",
-            delta=(
-                f"€ {cash_released:,.0f}"
-                if cash_released != 0
-                else None
-            ),
-        )
-
-    with col_b:
-
-        st.metric(
-            "Target Inventory / Annual COGS",
-            (
-                f"{(target_inv_val / annual_cogs):.1%}"
-                if annual_cogs > 0
-                else "0.0%"
-            ),
-        )
-
-    # ==========================================
-    # SIMPLE CAPITAL ALLOCATION CHART
-    # ==========================================
-
-    productive_base = max(
-        0.0,
-        annual_cogs - target_inv_val,
-    )
-
-    fig = go.Figure(
-        data=[
-            go.Pie(
-                labels=[
-                    "Annual COGS not tied in inventory",
-                    "Inventory",
-                ],
-                values=[
-                    productive_base,
-                    target_inv_val,
-                ],
-                hole=0.55,
-            )
-        ]
-    )
-
-    fig.update_layout(
-        title="Inventory Capital Allocation",
-        height=320,
-        margin=dict(
-            l=20,
-            r=20,
-            t=40,
-            b=20,
-        ),
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-    )
-
-    # ==========================================
     # DECISION CREATION
     # ==========================================
 
@@ -398,27 +365,39 @@ def show_inventory_lab(baseline_state):
 
         try:
 
-            decision = DecisionFactory.inventory_days_change(
-                decision_id=(
-                    f"inventory_{uuid4().hex[:8]}"
-                ),
-                target_inventory_days=float(
-                    target_inventory_days
-                ),
+            decision = (
+                DecisionFactory.inventory_days_change(
+                    decision_id=(
+                        f"inventory_"
+                        f"{uuid4().hex[:8]}"
+                    ),
+                    target_inventory_days=(
+                        float(
+                            target_inventory_days
+                        )
+                    ),
+                )
             )
 
         except TypeError:
 
-            decision = DecisionFactory.inventory_days_change(
-                f"inventory_{uuid4().hex[:8]}",
-                float(target_inventory_days),
+            decision = (
+                DecisionFactory.inventory_days_change(
+                    f"inventory_"
+                    f"{uuid4().hex[:8]}",
+                    float(
+                        target_inventory_days
+                    ),
+                )
             )
 
         set_inventory_candidate(
             decision=decision,
             metadata={
                 "source": "inventory_lab",
-                "method": "Inventory Holding Policy",
+                "method": (
+                    "Inventory Holding Policy"
+                ),
                 "inventory_days": float(
                     target_inventory_days
                 ),
@@ -431,7 +410,9 @@ def show_inventory_lab(baseline_state):
                 "target_inventory_value": (
                     target_inv_val
                 ),
-                "cash_released": cash_released,
+                "cash_released": (
+                    cash_released
+                ),
                 "inventory_turnover": (
                     inventory_turnover
                 ),
@@ -439,7 +420,8 @@ def show_inventory_lab(baseline_state):
         )
 
         st.success(
-            "Inventory policy is ready as an Inventory candidate."
+            "Inventory policy is ready "
+            "as an Inventory candidate."
         )
 
         st.rerun()
@@ -472,29 +454,37 @@ def show_inventory_lab(baseline_state):
         raw_inv_val = 0.0
 
         if (
-            hasattr(inv_candidate, "changes")
+            hasattr(
+                inv_candidate,
+                "changes",
+            )
             and isinstance(
                 inv_candidate.changes,
                 dict,
             )
         ):
 
-            raw_inv_val = inv_candidate.changes.get(
-                "inventory_days",
+            raw_inv_val = (
                 inv_candidate.changes.get(
-                    "target_inventory_days",
-                    0,
-                ),
+                    "inventory_days",
+                    inv_candidate.changes.get(
+                        "target_inventory_days",
+                        0,
+                    ),
+                )
             )
 
         try:
+
             inv_val = float(
                 raw_inv_val
             )
+
         except (
             TypeError,
             ValueError,
         ):
+
             inv_val = 0.0
 
         # --------------------------------------
@@ -509,20 +499,24 @@ def show_inventory_lab(baseline_state):
         if "cash_released" in inv_meta:
 
             cash_impact = float(
-                inv_meta["cash_released"]
+                inv_meta[
+                    "cash_released"
+                ]
             )
 
             if cash_impact >= 0:
 
                 st.write(
-                    "Projected Working Capital Released: "
+                    "Projected Working Capital "
+                    "Released: "
                     f"**€{cash_impact:,.0f}**"
                 )
 
             else:
 
                 st.write(
-                    "Additional Working Capital Required: "
+                    "Additional Working Capital "
+                    "Required: "
                     f"**€{abs(cash_impact):,.0f}**"
                 )
 
@@ -538,10 +532,14 @@ def show_inventory_lab(baseline_state):
             use_container_width=True,
         ):
 
-            current_plan = _get_current_plan()
+            current_plan = (
+                _get_current_plan()
+            )
 
-            updated_plan = current_plan.add(
-                inv_candidate
+            updated_plan = (
+                current_plan.add(
+                    inv_candidate
+                )
             )
 
             st.session_state.decision_plan = (
@@ -549,7 +547,7 @@ def show_inventory_lab(baseline_state):
             )
 
             st.success(
-                f"Inventory Decision added: "
+                "Inventory Decision added: "
                 f"{inv_candidate.name}"
             )
 
@@ -570,5 +568,6 @@ def show_inventory_lab(baseline_state):
     else:
 
         st.info(
-            "No active Inventory decision candidate selected."
+            "No active Inventory decision "
+            "candidate selected."
         )
