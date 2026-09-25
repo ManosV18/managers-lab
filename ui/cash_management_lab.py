@@ -654,6 +654,7 @@ def _extract_collection_schedule_from_decision(
 
     schedule_keys = (
         "collection_schedule",
+        "collection_profile",
         "ar_collection_schedule",
         "receivables_schedule",
         "cash_collection_schedule",
