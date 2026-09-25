@@ -66,9 +66,7 @@ def _as_float(
     value: Any,
     default: float = 0.0,
 ) -> float:
-
     try:
-
         if value is None:
             return default
 
@@ -80,7 +78,6 @@ def _as_float(
         return result
 
     except (TypeError, ValueError, OverflowError):
-
         return default
 
 
@@ -97,10 +94,7 @@ def _decision_changes(
         None,
     )
 
-    if isinstance(
-        changes,
-        Mapping,
-    ):
+    if isinstance(changes, Mapping):
         return changes
 
     return {}
@@ -126,10 +120,7 @@ def _decision_metadata(
             None,
         )
 
-        if isinstance(
-            value,
-            Mapping,
-        ):
+        if isinstance(value, Mapping):
             return value
 
     return {}
@@ -154,11 +145,9 @@ def _all_decisions() -> Sequence[Any]:
         return ()
 
     try:
-
         return tuple(decisions)
 
     except TypeError:
-
         return ()
 
 
@@ -168,9 +157,7 @@ def _find_plan_decision_by_change(
 
     decisions = _all_decisions()
 
-    for decision in reversed(
-        tuple(decisions)
-    ):
+    for decision in reversed(tuple(decisions)):
 
         changes = _decision_changes(
             decision
@@ -200,9 +187,7 @@ def _get_baseline_state() -> Any:
 
         repository = BaselineRepository()
 
-        baseline = (
-            repository.get_baseline()
-        )
+        baseline = repository.get_baseline()
 
         builder = StateBuilder()
 
@@ -259,7 +244,6 @@ def _get_projected_state(
             result,
             "projected_state",
         ):
-
             return result.projected_state
 
         return result
@@ -362,13 +346,8 @@ def _annual_operating_values(
         )
     )
 
-    revenue = (
-        price * volume
-    )
-
-    cogs = (
-        variable_cost * volume
-    )
+    revenue = price * volume
+    cogs = variable_cost * volume
 
     return (
         revenue,
@@ -472,7 +451,6 @@ def _normalise_schedule(
         ]
 
         if len(result) >= len(MONTHS):
-
             return result[:len(MONTHS)]
 
         return (
@@ -513,10 +491,8 @@ def _extract_schedule_from_decision(
             if key not in container:
                 continue
 
-            schedule = (
-                _normalise_schedule(
-                    container[key]
-                )
+            schedule = _normalise_schedule(
+                container[key]
             )
 
             if schedule is not None:
@@ -571,7 +547,6 @@ def _normalise_collection_schedule(
             for key in keys:
 
                 if key in value:
-
                     amount = value[key]
                     break
 
@@ -676,10 +651,8 @@ def _extract_collection_schedule_from_decision(
             if key not in container:
                 continue
 
-            schedule = (
-                _normalise_collection_schedule(
-                    container[key]
-                )
+            schedule = _normalise_collection_schedule(
+                container[key]
             )
 
             if schedule is not None:
@@ -688,21 +661,266 @@ def _extract_collection_schedule_from_decision(
     return None
 
 
+# =====================================================================
+# MONTHLY TIMING ALLOCATOR
+# =====================================================================
+
+def _timing_weights_from_days(
+    payment_days: float,
+) -> List[float]:
+    """
+    Convert working-capital days into a simple monthly cash-timing
+    profile.
+
+    Managers Lab intentionally uses a simple owner-manager convention:
+
+        0 days
+            -> same month
+
+        30 days
+            -> next month
+
+        45 days
+            -> 50% next month
+               50% month +2
+
+        60 days
+            -> month +2
+
+        90 days
+            -> month +3
+
+    The purpose is cash timing, not accounting-level invoice ageing.
+    """
+
+    days = max(
+        0.0,
+        _as_float(payment_days),
+    )
+
+    if days <= 0.0:
+        return [1.0, 0.0, 0.0, 0.0]
+
+    month_position = days / 30.0
+
+    full_months = int(
+        month_position
+    )
+
+    fraction = (
+        month_position
+        - full_months
+    )
+
+    weights = [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+    ]
+
+    # -------------------------------------------------------------
+    # 30 days
+    #
+    # full_months = 1
+    # fraction = 0
+    #
+    # → 100% Month +1
+    # -------------------------------------------------------------
+
+    if fraction <= 0.000001:
+
+        if full_months >= len(weights):
+            return weights
+
+        weights[full_months] = 1.0
+
+        return weights
+
+    # -------------------------------------------------------------
+    # Fractional month
+    #
+    # 45 days:
+    #   1.5 months
+    #
+    # → 50% at Month +1
+    # → 50% at Month +2
+    # -------------------------------------------------------------
+
+    first_lag = full_months
+    second_lag = full_months + 1
+
+    if first_lag < len(weights):
+
+        weights[first_lag] = (
+            1.0 - fraction
+        )
+
+    if second_lag < len(weights):
+
+        weights[second_lag] = fraction
+
+    return weights
+
+
+def _build_timed_cash_schedule(
+    monthly_cohorts: Sequence[float],
+    timing_days: float,
+    opening_balance: float = 0.0,
+) -> Tuple[List[float], Dict[str, Any]]:
+    """
+    Generic cohort-based cash timing allocator.
+
+    Each monthly cohort is treated independently.
+
+    Opening balance is also treated as a separate existing cohort.
+
+    This function does not know whether the cohorts are:
+
+        - customer receivables, or
+        - supplier purchases.
+
+    It only translates timing terms into monthly cash movement.
+    """
+
+    cohorts = [
+        max(
+            0.0,
+            _as_float(value),
+        )
+        for value in monthly_cohorts
+    ]
+
+    while len(cohorts) < len(MONTHS):
+
+        cohorts.append(0.0)
+
+    cohorts = cohorts[:len(MONTHS)]
+
+    opening_balance = max(
+        0.0,
+        _as_float(opening_balance),
+    )
+
+    weights = _timing_weights_from_days(
+        timing_days
+    )
+
+    cash_schedule = [
+        0.0
+        for _ in MONTHS
+    ]
+
+    opening_component = [
+        0.0
+        for _ in MONTHS
+    ]
+
+    cohort_component = [
+        [
+            0.0
+            for _ in MONTHS
+        ]
+        for _ in MONTHS
+    ]
+
+    # =============================================================
+    # OPENING BALANCE
+    # =============================================================
+
+    if opening_balance > 0.0:
+
+        for lag, weight in enumerate(weights):
+
+            target_month = lag
+
+            if target_month >= len(MONTHS):
+                continue
+
+            amount = (
+                opening_balance
+                * weight
+            )
+
+            opening_component[
+                target_month
+            ] += amount
+
+            cash_schedule[
+                target_month
+            ] += amount
+
+    # =============================================================
+    # MONTHLY COHORTS
+    # =============================================================
+
+    for source_month, cohort_amount in enumerate(
+        cohorts
+    ):
+
+        if cohort_amount <= 0.0:
+            continue
+
+        for lag, weight in enumerate(weights):
+
+            target_month = (
+                source_month + lag
+            )
+
+            if target_month >= len(MONTHS):
+                continue
+
+            amount = (
+                cohort_amount
+                * weight
+            )
+
+            cohort_component[
+                source_month
+            ][target_month] += amount
+
+            cash_schedule[
+                target_month
+            ] += amount
+
+    diagnostics = {
+        "timing_days": max(
+            0.0,
+            _as_float(timing_days),
+        ),
+        "timing_weights": weights,
+        "opening_balance": opening_balance,
+        "opening_component": opening_component,
+        "cohort_component": cohort_component,
+        "monthly_cohorts": cohorts,
+    }
+
+    return (
+        cash_schedule,
+        diagnostics,
+    )
+
+
+# =====================================================================
+# RECEIVABLES CASH SCHEDULE
+# =====================================================================
+
 def _build_collection_cash_schedule(
     monthly_sales: Sequence[float],
     opening_ar_balance: float,
     collection_schedule: Sequence[float],
 ) -> Tuple[List[float], Dict[str, Any]]:
     """
-    Build the customer collection schedule.
-
-    Opening AR and each new sales cohort are handled separately.
+    Build customer collection timing from an explicit collection
+    profile.
 
     Example:
 
-        Collection profile = 20% / 70% / 10%
+        20% same month
+        70% next month
+        10% month +2
 
-        Month 1 sales = €150,000
+    Month 1 sales = €150,000
 
         Month 1 collection = €30,000
         Month 2 collection = €105,000
@@ -711,9 +929,7 @@ def _build_collection_cash_schedule(
 
     opening_ar_balance = max(
         0.0,
-        _as_float(
-            opening_ar_balance
-        ),
+        _as_float(opening_ar_balance),
     )
 
     schedule = [
@@ -722,7 +938,6 @@ def _build_collection_cash_schedule(
     ]
 
     while len(schedule) < 3:
-
         schedule.append(0.0)
 
     total = sum(schedule)
@@ -756,7 +971,6 @@ def _build_collection_cash_schedule(
     ]
 
     while len(sales) < len(MONTHS):
-
         sales.append(0.0)
 
     sales = sales[:len(MONTHS)]
@@ -766,22 +980,20 @@ def _build_collection_cash_schedule(
         for _ in MONTHS
     ]
 
-    # -------------------------------------------------------------
-    # OPENING AR
-    # -------------------------------------------------------------
-
     opening_ar_collections = [
         0.0
         for _ in MONTHS
     ]
 
+    # =============================================================
+    # OPENING AR
+    # =============================================================
+
     for lag in range(3):
 
         target_month = lag
 
-        if target_month >= len(
-            MONTHS
-        ):
+        if target_month >= len(MONTHS):
             continue
 
         amount = (
@@ -797,9 +1009,9 @@ def _build_collection_cash_schedule(
             target_month
         ] += amount
 
-    # -------------------------------------------------------------
+    # =============================================================
     # NEW SALES COHORTS
-    # -------------------------------------------------------------
+    # =============================================================
 
     sales_cohort_collections = [
         [
@@ -826,9 +1038,7 @@ def _build_collection_cash_schedule(
                 source_month + lag
             )
 
-            if target_month >= len(
-                MONTHS
-            ):
+            if target_month >= len(MONTHS):
                 continue
 
             amount = (
@@ -877,45 +1087,20 @@ def _build_supplier_payment_schedule(
 
     IMPORTANT:
 
-        Inventory determines purchases.
-        AP terms determine payment timing.
+        Inventory determines the purchasing requirement.
 
-    This function therefore does NOT calculate inventory.
+        AP terms determine when those purchases become
+        cash outflows.
 
-    Each purchase month is treated as a separate purchase cohort.
+    Cash Management does not calculate inventory.
 
-    Payment terms are converted using:
-
-        365 / 12 days per month
-
-    Examples:
-
-        0 days
-            → same month
-
-        ~30 days
-            → next month
-
-        ~45 days
-            → 50% next month
-              50% following month
-
-        ~60 days
-            → two months later
+    Each purchase month is treated as a separate cohort.
     """
 
-    payment_days = max(
-        0.0,
-        _as_float(
-            payment_days
-        ),
-    )
-
-    opening_ap_balance = max(
-        0.0,
-        _as_float(
-            opening_ap_balance
-        ),
+    payments, diagnostics = _build_timed_cash_schedule(
+        monthly_cohorts=monthly_purchases,
+        timing_days=payment_days,
+        opening_balance=opening_ap_balance,
     )
 
     purchases = [
@@ -926,195 +1111,25 @@ def _build_supplier_payment_schedule(
         for value in monthly_purchases
     ]
 
-    while len(purchases) < len(
-        MONTHS
-    ):
-
+    while len(purchases) < len(MONTHS):
         purchases.append(0.0)
 
-    purchases = purchases[
-        :len(MONTHS)
-    ]
+    purchases = purchases[:len(MONTHS)]
 
-    payments = [
-        0.0
-        for _ in MONTHS
-    ]
-
-    days_per_month = (
-        365.0 / 12.0
-    )
-
-    lag_months = (
-        payment_days
-        / days_per_month
-    )
-
-    # =============================================================
-    # OPENING AP
-    # =============================================================
-
-    if opening_ap_balance > 0.0:
-
-        if payment_days <= 0.0:
-
-            payments[0] += (
-                opening_ap_balance
-            )
-
-        else:
-
-            full_months = int(
-                lag_months
-            )
-
-            fraction = (
-                lag_months
-                - full_months
-            )
-
-            first_target = (
-                full_months
-            )
-
-            second_target = (
-                full_months + 1
-            )
-
-            if fraction <= 0.000001:
-
-                if first_target < len(
-                    MONTHS
-                ):
-
-                    payments[
-                        first_target
-                    ] += (
-                        opening_ap_balance
-                    )
-
-            else:
-
-                if first_target < len(
-                    MONTHS
-                ):
-
-                    payments[
-                        first_target
-                    ] += (
-                        opening_ap_balance
-                        * (1.0 - fraction)
-                    )
-
-                if second_target < len(
-                    MONTHS
-                ):
-
-                    payments[
-                        second_target
-                    ] += (
-                        opening_ap_balance
-                        * fraction
-                    )
-
-    # =============================================================
-    # PURCHASE COHORTS
-    # =============================================================
-
-    if payment_days <= 0.0:
-
-        for index in range(
-            len(MONTHS)
-        ):
-
-            payments[index] += (
-                purchases[index]
-            )
-
-    else:
-
-        full_months = int(
-            lag_months
-        )
-
-        fraction = (
-            lag_months
-            - full_months
-        )
-
-        for source_month in range(
-            len(MONTHS)
-        ):
-
-            purchase_amount = (
-                purchases[source_month]
-            )
-
-            if purchase_amount <= 0.0:
-                continue
-
-            first_target = (
-                source_month
-                + full_months
-            )
-
-            second_target = (
-                first_target + 1
-            )
-
-            if fraction <= 0.000001:
-
-                if first_target < len(
-                    MONTHS
-                ):
-
-                    payments[
-                        first_target
-                    ] += (
-                        purchase_amount
-                    )
-
-            else:
-
-                first_amount = (
-                    purchase_amount
-                    * (1.0 - fraction)
-                )
-
-                second_amount = (
-                    purchase_amount
-                    * fraction
-                )
-
-                if first_target < len(
-                    MONTHS
-                ):
-
-                    payments[
-                        first_target
-                    ] += first_amount
-
-                if second_target < len(
-                    MONTHS
-                ):
-
-                    payments[
-                        second_target
-                    ] += second_amount
-
-    # =============================================================
+    # -------------------------------------------------------------
     # AP ROLL-FORWARD
-    # =============================================================
+    #
+    # This is a cash-timing diagnostic only.
+    # -------------------------------------------------------------
 
     ending_ap = []
 
-    balance = (
-        opening_ap_balance
+    balance = max(
+        0.0,
+        _as_float(opening_ap_balance),
     )
 
-    for index in range(
-        len(MONTHS)
-    ):
+    for index in range(len(MONTHS)):
 
         balance += purchases[index]
         balance -= payments[index]
@@ -1126,16 +1141,31 @@ def _build_supplier_payment_schedule(
             )
         )
 
-    diagnostics = {
+    result_diagnostics = {
         "monthly_purchases": purchases,
         "supplier_payments": payments,
         "ending_ap": ending_ap,
-        "payment_days": payment_days,
+        "payment_days": max(
+            0.0,
+            _as_float(payment_days),
+        ),
+        "timing_weights": diagnostics.get(
+            "timing_weights",
+            [],
+        ),
+        "opening_component": diagnostics.get(
+            "opening_component",
+            [],
+        ),
+        "cohort_component": diagnostics.get(
+            "cohort_component",
+            [],
+        ),
     }
 
     return (
         payments,
-        diagnostics,
+        result_diagnostics,
     )
 
 
@@ -1165,10 +1195,8 @@ def _selected_inventory_decision() -> Optional[Any]:
         "inventory_change",
     ):
 
-        decision = (
-            _find_plan_decision_by_change(
-                key
-            )
+        decision = _find_plan_decision_by_change(
+            key
         )
 
         if decision is not None:
@@ -1223,19 +1251,20 @@ def _decision_ap_days(
 
 def _selected_purchasing_decision() -> Optional[Any]:
     """
-    Detect a future Purchasing / Inventory decision.
+    Detect a future Purchasing decision if one exists.
 
-    The important architectural rule is:
+    Current Managers Lab V2 Inventory Lab does not create a detailed
+    purchasing schedule.
 
-        Purchasing Decision
-                 ↓
-        monthly purchase amounts
-                 ↓
-        Supplier payment timing
-                 ↓
-        Monthly Cash Flow
+    Therefore Cash Management normally uses:
 
-    Cash Management must not create its own inventory model.
+        projected annual COGS / 12
+
+    as the temporary purchasing proxy.
+
+    If a future purchasing decision supplies actual monthly purchases,
+    this function allows Cash Management to consume that schedule
+    without creating a second purchasing model here.
     """
 
     for key in (
@@ -1247,10 +1276,8 @@ def _selected_purchasing_decision() -> Optional[Any]:
         "inventory_purchase",
     ):
 
-        decision = (
-            _find_plan_decision_by_change(
-                key
-            )
+        decision = _find_plan_decision_by_change(
+            key
         )
 
         if decision is not None:
@@ -1292,10 +1319,8 @@ def _extract_purchase_schedule(
             if key not in container:
                 continue
 
-            schedule = (
-                _normalise_schedule(
-                    container[key]
-                )
+            schedule = _normalise_schedule(
+                container[key]
             )
 
             if schedule is not None:
@@ -1315,16 +1340,12 @@ def build_cash_plan(
 
     if baseline_state is None:
 
-        baseline_state = (
-            _get_baseline_state()
-        )
+        baseline_state = _get_baseline_state()
 
     if projected_state is None:
 
-        projected_state = (
-            _get_projected_state(
-                baseline_state
-            )
+        projected_state = _get_projected_state(
+            baseline_state
         )
 
     # =============================================================
@@ -1371,24 +1392,18 @@ def build_cash_plan(
         baseline_state
     )
 
-    annual_debt_service = (
-        _annual_debt_service(
-            projected_state
-        )
+    annual_debt_service = _annual_debt_service(
+        projected_state
     )
 
     # =============================================================
     # RECEIVABLES
     # =============================================================
 
-    selected_ar_decision = (
-        _selected_ar_decision()
-    )
+    selected_ar_decision = _selected_ar_decision()
 
-    selected_ar_days = (
-        _decision_ar_days(
-            selected_ar_decision
-        )
+    selected_ar_days = _decision_ar_days(
+        selected_ar_decision
     )
 
     explicit_collection_schedule = (
@@ -1397,22 +1412,21 @@ def build_cash_plan(
         )
     )
 
-    # Opening AR belongs to the locked baseline.
-    opening_ar_balance = (
-        max(
-            0.0,
-            baseline_annual_revenue
-            * baseline_ar_days
-            / 365.0,
-        )
+    # Opening AR belongs to the Locked Baseline.
+    opening_ar_balance = max(
+        0.0,
+        baseline_annual_revenue
+        * baseline_ar_days
+        / 365.0,
     )
 
+    # -------------------------------------------------------------
     # Temporary six-month revenue profile.
     #
-    # This is NOT a new revenue model.
-    # It simply spreads projected annual revenue evenly across
-    # the cash-timing horizon until a monthly operating profile
-    # exists elsewhere.
+    # This is only a cash-timing profile.
+    # It is NOT a new revenue model.
+    # -------------------------------------------------------------
+
     monthly_projected_revenue = (
         max(
             0.0,
@@ -1452,11 +1466,11 @@ def build_cash_plan(
 
         (
             ar_schedule,
-            ar_diagnostics,
-        ) = _build_supplier_payment_schedule(
-            monthly_purchases=monthly_sales,
-            payment_days=selected_ar_days,
-            opening_ap_balance=opening_ar_balance,
+            generic_ar_diagnostics,
+        ) = _build_timed_cash_schedule(
+            monthly_cohorts=monthly_sales,
+            timing_days=selected_ar_days,
+            opening_balance=opening_ar_balance,
         )
 
         ar_source = (
@@ -1465,28 +1479,42 @@ def build_cash_plan(
         )
 
         ar_timing_method = (
-            "AR-days fallback"
+            "AR-days monthly cohort timing"
         )
 
-        # The helper above is mathematically usable as a lag
-        # allocator, but its diagnostic names are AP-oriented.
-        # Replace them with explicit AR metadata.
         ar_diagnostics = {
-            "opening_ar_collections": [],
-            "sales_cohort_collections": [],
+            "opening_ar_collections": (
+                generic_ar_diagnostics.get(
+                    "opening_component",
+                    [],
+                )
+            ),
+            "sales_cohort_collections": (
+                generic_ar_diagnostics.get(
+                    "cohort_component",
+                    [],
+                )
+            ),
             "normalised_collection_profile": None,
             "monthly_sales_used": monthly_sales,
+            "timing_days": selected_ar_days,
+            "timing_weights": (
+                generic_ar_diagnostics.get(
+                    "timing_weights",
+                    [],
+                )
+            ),
         }
 
     else:
 
         (
             ar_schedule,
-            ar_diagnostics,
-        ) = _build_supplier_payment_schedule(
-            monthly_purchases=monthly_sales,
-            payment_days=projected_ar_days,
-            opening_ap_balance=opening_ar_balance,
+            generic_ar_diagnostics,
+        ) = _build_timed_cash_schedule(
+            monthly_cohorts=monthly_sales,
+            timing_days=projected_ar_days,
+            opening_balance=opening_ar_balance,
         )
 
         ar_source = (
@@ -1495,49 +1523,62 @@ def build_cash_plan(
         )
 
         ar_timing_method = (
-            "Projected AR-days fallback"
+            "Projected AR-days monthly cohort timing"
         )
 
         ar_diagnostics = {
-            "opening_ar_collections": [],
-            "sales_cohort_collections": [],
+            "opening_ar_collections": (
+                generic_ar_diagnostics.get(
+                    "opening_component",
+                    [],
+                )
+            ),
+            "sales_cohort_collections": (
+                generic_ar_diagnostics.get(
+                    "cohort_component",
+                    [],
+                )
+            ),
             "normalised_collection_profile": None,
             "monthly_sales_used": monthly_sales,
+            "timing_days": projected_ar_days,
+            "timing_weights": (
+                generic_ar_diagnostics.get(
+                    "timing_weights",
+                    [],
+                )
+            ),
         }
 
     # =============================================================
     # PAYABLES
     # =============================================================
 
-    selected_ap_decision = (
-        _selected_ap_decision()
+    selected_ap_decision = _selected_ap_decision()
+
+    selected_ap_days = _decision_ap_days(
+        selected_ap_decision
     )
 
-    selected_ap_days = (
-        _decision_ap_days(
-            selected_ap_decision
-        )
-    )
-
-    opening_ap_balance = (
-        max(
-            0.0,
-            baseline_annual_cogs
-            * baseline_ap_days
-            / 365.0,
-        )
+    opening_ap_balance = max(
+        0.0,
+        baseline_annual_cogs
+        * baseline_ap_days
+        / 365.0,
     )
 
     # -------------------------------------------------------------
-    # FIRST PRIORITY:
+    # PURCHASING
     #
-    # An explicit purchasing decision can provide actual monthly
-    # purchases.
+    # Current Inventory Lab does NOT create a detailed purchase
+    # schedule.
+    #
+    # Therefore projected COGS / 12 remains the simple proxy.
+    #
+    # If a future purchasing decision exists, consume it here.
     # -------------------------------------------------------------
 
-    purchasing_decision = (
-        _selected_purchasing_decision()
-    )
+    purchasing_decision = _selected_purchasing_decision()
 
     explicit_purchase_schedule = (
         _extract_purchase_schedule(
@@ -1557,15 +1598,6 @@ def build_cash_plan(
         )
 
     else:
-
-        # ---------------------------------------------------------
-        # TEMPORARY PROXY
-        #
-        # Until the Inventory / Purchasing Decision is connected,
-        # projected COGS is used as the purchasing requirement.
-        #
-        # This is intentionally a proxy, not an inventory model.
-        # ---------------------------------------------------------
 
         monthly_purchase_proxy = (
             max(
@@ -1621,6 +1653,7 @@ def build_cash_plan(
                 if selected_ap_days is not None
                 else projected_ap_days
             ),
+            "timing_weights": [],
         }
 
         ap_source = (
@@ -1695,25 +1728,17 @@ def build_cash_plan(
     # MONTHLY CASH ROLL-FORWARD
     # =============================================================
 
-    rows: List[
-        Dict[str, Any]
-    ] = []
+    rows: List[Dict[str, Any]] = []
 
-    events: List[
-        CashEvent
-    ] = []
+    events: List[CashEvent] = []
 
     cash = opening_cash
 
-    for index, month in enumerate(
-        MONTHS
-    ):
+    for index, month in enumerate(MONTHS):
 
         collections = _as_float(
             ar_schedule[index]
-            if index < len(
-                ar_schedule
-            )
+            if index < len(ar_schedule)
             else 0.0
         )
 
@@ -1725,20 +1750,17 @@ def build_cash_plan(
             else 0.0
         )
 
-        fixed_opex = (
-            monthly_fixed_opex
-        )
+        fixed_opex = monthly_fixed_opex
 
-        debt_service = (
-            monthly_debt_service
-        )
+        debt_service = monthly_debt_service
 
         # ---------------------------------------------------------
         # IMPORTANT:
         #
-        # Inventory itself is NOT a cash payment.
+        # Inventory is NOT itself a cash outflow.
         #
-        # Purchases become cash outflow through Supplier Payments.
+        # Purchases become cash outflow when supplier invoices
+        # are paid.
         # ---------------------------------------------------------
 
         net_cash_change = (
@@ -1784,31 +1806,17 @@ def build_cash_plan(
         rows.append(
             {
                 "Month": month,
-                "Opening Cash": (
-                    opening_month_cash
-                ),
-                "Customer Collections": (
-                    collections
-                ),
-                "Supplier Payments": (
-                    supplier_payments
-                ),
-                "Fixed Opex": (
-                    fixed_opex
-                ),
-                "Debt Service": (
-                    debt_service
-                ),
-                "Net Cash Change": (
-                    net_cash_change
-                ),
+                "Opening Cash": opening_month_cash,
+                "Customer Collections": collections,
+                "Supplier Payments": supplier_payments,
+                "Fixed Opex": fixed_opex,
+                "Debt Service": debt_service,
+                "Net Cash Change": net_cash_change,
                 "Closing Cash": cash,
             }
         )
 
-    dataframe = pd.DataFrame(
-        rows
-    )
+    dataframe = pd.DataFrame(rows)
 
     # =============================================================
     # METADATA
@@ -1947,9 +1955,7 @@ def render_cash_management_lab(
 
     if baseline_state is None:
 
-        baseline_state = (
-            _get_baseline_state()
-        )
+        baseline_state = _get_baseline_state()
 
     if baseline_state is None:
 
@@ -1959,10 +1965,8 @@ def render_cash_management_lab(
 
         return
 
-    projected_state = (
-        _get_projected_state(
-            baseline_state
-        )
+    projected_state = _get_projected_state(
+        baseline_state
     )
 
     result = build_cash_plan(
@@ -1976,28 +1980,18 @@ def render_cash_management_lab(
     # CURRENT DECISIONS
     # =============================================================
 
-    selected_ar_decision = (
-        _selected_ar_decision()
+    selected_ar_decision = _selected_ar_decision()
+
+    selected_ap_decision = _selected_ap_decision()
+
+    purchasing_decision = _selected_purchasing_decision()
+
+    selected_ar_days = _decision_ar_days(
+        selected_ar_decision
     )
 
-    selected_ap_decision = (
-        _selected_ap_decision()
-    )
-
-    purchasing_decision = (
-        _selected_purchasing_decision()
-    )
-
-    selected_ar_days = (
-        _decision_ar_days(
-            selected_ar_decision
-        )
-    )
-
-    selected_ap_days = (
-        _decision_ap_days(
-            selected_ap_decision
-        )
+    selected_ap_days = _decision_ap_days(
+        selected_ap_decision
     )
 
     # =============================================================
@@ -2095,8 +2089,8 @@ def render_cash_management_lab(
     if purchasing_decision is not None:
 
         st.success(
-            "A Purchasing / Inventory Decision is present "
-            "in the Current Decision Plan. Supplier payments "
+            "A Purchasing Decision is present in the "
+            "Current Decision Plan. Supplier payments "
             "are using its purchase schedule."
         )
 
@@ -2105,8 +2099,8 @@ def render_cash_management_lab(
         st.caption(
             "Purchasing is currently represented by projected "
             "COGS spread across the six-month timing horizon. "
-            "This is a temporary proxy until the Inventory / "
-            "Purchasing Decision supplies actual purchase timing."
+            "This is a temporary proxy until a future Purchasing "
+            "Decision supplies actual purchase timing."
         )
 
     # =============================================================
@@ -2144,9 +2138,7 @@ def render_cash_management_lab(
 
         st.metric(
             "Opening Cash",
-            (
-                f"€{float(df['Opening Cash'].iloc[0]):,.0f}"
-            ),
+            f"€{float(df['Opening Cash'].iloc[0]):,.0f}",
         )
 
     with col2:
@@ -2321,6 +2313,94 @@ def render_cash_management_lab(
             f"€{_as_float(df.attrs.get('opening_ap_balance')):,.0f}",
         )
 
+        # ---------------------------------------------------------
+        # TIMING WEIGHTS
+        # ---------------------------------------------------------
+
+        ar_timing_weights = []
+
+        collection_schedule = df.attrs.get(
+            "collection_schedule"
+        )
+
+        if collection_schedule is not None:
+
+            ar_timing_weights = list(
+                collection_schedule
+            )
+
+        else:
+
+            ar_diagnostics = df.attrs.get(
+                "collection_diagnostics"
+            )
+
+            if isinstance(
+                ar_diagnostics,
+                Mapping,
+            ):
+
+                ar_timing_weights = list(
+                    ar_diagnostics.get(
+                        "timing_weights",
+                        [],
+                    )
+                )
+
+        if ar_timing_weights:
+
+            st.write(
+                "AR timing profile:"
+            )
+
+            if len(ar_timing_weights) == 3:
+
+                timing_df = pd.DataFrame(
+                    {
+                        "Timing": [
+                            "Same month",
+                            "Next month",
+                            "Month +2",
+                        ],
+                        "Collection %": [
+                            f"{ar_timing_weights[0] * 100:.1f}%",
+                            f"{ar_timing_weights[1] * 100:.1f}%",
+                            f"{ar_timing_weights[2] * 100:.1f}%",
+                        ],
+                    }
+                )
+
+            else:
+
+                timing_labels = [
+                    "Same month",
+                    "Next month",
+                    "Month +2",
+                    "Month +3",
+                ]
+
+                timing_df = pd.DataFrame(
+                    {
+                        "Timing": timing_labels[
+                            :len(ar_timing_weights)
+                        ],
+                        "Collection %": [
+                            f"{value * 100:.1f}%"
+                            for value in ar_timing_weights
+                        ],
+                    }
+                )
+
+            st.dataframe(
+                timing_df,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        # ---------------------------------------------------------
+        # MONTHLY PURCHASING
+        # ---------------------------------------------------------
+
         monthly_purchases = df.attrs.get(
             "monthly_purchases",
             [],
@@ -2335,11 +2415,9 @@ def render_cash_management_lab(
             purchases_df = pd.DataFrame(
                 {
                     "Month": MONTHS,
-                    "Purchases": (
-                        list(
-                            monthly_purchases
-                        )[:len(MONTHS)]
-                    ),
+                    "Purchases": list(
+                        monthly_purchases
+                    )[:len(MONTHS)],
                 }
             )
 
@@ -2357,9 +2435,9 @@ def render_cash_management_lab(
                 hide_index=True,
             )
 
-        collection_schedule = df.attrs.get(
-            "collection_schedule"
-        )
+        # ---------------------------------------------------------
+        # CUSTOMER COLLECTION PROFILE
+        # ---------------------------------------------------------
 
         if collection_schedule is not None:
 
@@ -2412,18 +2490,14 @@ def render_cash_management_lab(
             Mapping,
         ):
 
-            opening_component = (
-                diagnostics.get(
-                    "opening_ar_collections",
-                    [],
-                )
+            opening_component = diagnostics.get(
+                "opening_ar_collections",
+                [],
             )
 
-            cohort_component = (
-                diagnostics.get(
-                    "sales_cohort_collections",
-                    [],
-                )
+            cohort_component = diagnostics.get(
+                "sales_cohort_collections",
+                [],
             )
 
             if (
@@ -2444,45 +2518,28 @@ def render_cash_management_lab(
 
                         opening_amount = 0.0
 
-                        if (
-                            index
-                            < len(
-                                opening_component
-                            )
+                        if index < len(
+                            opening_component
                         ):
 
-                            opening_amount = (
-                                _as_float(
-                                    opening_component[
-                                        index
-                                    ]
-                                )
+                            opening_amount = _as_float(
+                                opening_component[index]
                             )
 
                         new_sales_amount = 0.0
 
-                        if (
-                            index
-                            < len(
-                                cohort_component
-                            )
+                        if index < len(
+                            cohort_component
                         ):
 
-                            for cohort in (
-                                cohort_component
-                            ):
+                            for cohort in cohort_component:
 
-                                if (
-                                    index
-                                    < len(
-                                        cohort
-                                    )
+                                if index < len(
+                                    cohort
                                 ):
 
-                                    new_sales_amount += (
-                                        _as_float(
-                                            cohort[index]
-                                        )
+                                    new_sales_amount += _as_float(
+                                        cohort[index]
                                     )
 
                         total = (
@@ -2576,37 +2633,28 @@ def render_cash_management_lab(
                         MONTHS
                     ):
 
-                        purchases = (
-                            _as_float(
-                                supplier_purchases[index]
-                                if index
-                                < len(
-                                    supplier_purchases
-                                )
-                                else 0.0
+                        purchases = _as_float(
+                            supplier_purchases[index]
+                            if index < len(
+                                supplier_purchases
                             )
+                            else 0.0
                         )
 
-                        payments = (
-                            _as_float(
-                                supplier_payments[index]
-                                if index
-                                < len(
-                                    supplier_payments
-                                )
-                                else 0.0
+                        payments = _as_float(
+                            supplier_payments[index]
+                            if index < len(
+                                supplier_payments
                             )
+                            else 0.0
                         )
 
-                        ap_balance = (
-                            _as_float(
-                                ending_ap[index]
-                                if index
-                                < len(
-                                    ending_ap
-                                )
-                                else 0.0
+                        ap_balance = _as_float(
+                            ending_ap[index]
+                            if index < len(
+                                ending_ap
                             )
+                            else 0.0
                         )
 
                         supplier_rows.append(
@@ -2675,9 +2723,7 @@ def render_cash_management_lab(
         if event_rows:
 
             st.dataframe(
-                pd.DataFrame(
-                    event_rows
-                ),
+                pd.DataFrame(event_rows),
                 use_container_width=True,
                 hide_index=True,
             )
