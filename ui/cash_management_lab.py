@@ -819,25 +819,22 @@ def _monthly_delay_allocation(
 def _collections_from_profile(
     monthly_sales: Sequence[float],
     profile: Mapping[int, float],
-    opening_ar: float = 0.0,
 ) -> List[float]:
+
+    """
+    Apply the selected collection profile only to
+    NEW monthly sales cohorts.
+
+    Opening AR is deliberately excluded.
+    """
 
     horizon = len(monthly_sales)
 
-    receipts = [0.0 for _ in range(horizon)]
+    receipts = [
+        0.0
+        for _ in range(horizon)
+    ]
 
-    # Opening AR
-    for delay, percentage in profile.items():
-
-        target_month = int(delay)
-
-        if 0 <= target_month < horizon:
-
-            receipts[target_month] += (
-                opening_ar * percentage
-            )
-
-    # Sales cohorts
     for cohort_month, sales in enumerate(
         monthly_sales
     ):
@@ -876,30 +873,28 @@ def _build_receipts(
         baseline_state
     )
 
-    if profile:
-
-        return _collections_from_profile(
-            monthly_sales=monthly_sales,
-            profile=profile,
-            opening_ar=opening_ar,
-        )
-
-    ar_days = _decision_ar_days(
-        baseline_state,
-        ar_decision,
-    )
-
-    allocation = _monthly_delay_allocation(
-        ar_days
-    )
-
     receipts = [
         0.0
         for _ in monthly_sales
     ]
 
-    # Opening AR
-    for delay, percentage in allocation.items():
+    # -----------------------------------------------------
+    # EXISTING OPENING AR
+    # -----------------------------------------------------
+    #
+    # Opening AR follows the BASELINE collection timing.
+    # It is not re-created under the new decision.
+    # -----------------------------------------------------
+
+    baseline_allocation = _monthly_delay_allocation(
+        _baseline_ar_days(
+            baseline_state
+        )
+    )
+
+    for delay, percentage in (
+        baseline_allocation.items()
+    ):
 
         target_month = int(delay)
 
@@ -909,23 +904,59 @@ def _build_receipts(
                 opening_ar * percentage
             )
 
-    # New sales cohorts
-    for cohort_month, sales in enumerate(
-        monthly_sales
-    ):
+    # -----------------------------------------------------
+    # NEW SALES
+    # -----------------------------------------------------
 
-        for delay, percentage in allocation.items():
+    if profile:
 
-            target_month = (
-                cohort_month
-                + int(delay)
-            )
+        new_sales_receipts = _collections_from_profile(
+            monthly_sales=monthly_sales,
+            profile=profile,
+        )
 
-            if 0 <= target_month < len(receipts):
+    else:
 
-                receipts[target_month] += (
-                    sales * percentage
+        ar_days = _decision_ar_days(
+            baseline_state,
+            ar_decision,
+        )
+
+        allocation = _monthly_delay_allocation(
+            ar_days
+        )
+
+        new_sales_receipts = [
+            0.0
+            for _ in monthly_sales
+        ]
+
+        for cohort_month, sales in enumerate(
+            monthly_sales
+        ):
+
+            for delay, percentage in allocation.items():
+
+                target_month = (
+                    cohort_month
+                    + int(delay)
                 )
+
+                if 0 <= target_month < len(
+                    new_sales_receipts
+                ):
+
+                    new_sales_receipts[
+                        target_month
+                    ] += (
+                        sales * percentage
+                    )
+
+    for index in range(len(receipts)):
+
+        receipts[index] += (
+            new_sales_receipts[index]
+        )
 
     return receipts
 
@@ -940,6 +971,45 @@ def _build_supplier_payments(
     monthly_purchases: Sequence[float],
 ) -> List[float]:
 
+    payments = [
+        0.0
+        for _ in monthly_purchases
+    ]
+
+    # -----------------------------------------------------
+    # EXISTING OPENING AP
+    # -----------------------------------------------------
+    #
+    # Opening AP follows the BASELINE supplier timing.
+    # The new AP decision applies only to new purchases.
+    # -----------------------------------------------------
+
+    opening_ap = _opening_ap(
+        baseline_state
+    )
+
+    baseline_ap_allocation = _monthly_delay_allocation(
+        _baseline_ap_days(
+            baseline_state
+        )
+    )
+
+    for delay, percentage in (
+        baseline_ap_allocation.items()
+    ):
+
+        target_month = int(delay)
+
+        if 0 <= target_month < len(payments):
+
+            payments[target_month] += (
+                opening_ap * percentage
+            )
+
+    # -----------------------------------------------------
+    # NEW PURCHASE COHORTS
+    # -----------------------------------------------------
+
     ap_days = _decision_ap_days(
         baseline_state,
         ap_decision,
@@ -949,19 +1019,6 @@ def _build_supplier_payments(
         ap_days
     )
 
-    payments = [
-        0.0
-        for _ in monthly_purchases
-    ]
-
-    # Existing opening AP
-    if payments:
-
-        payments[0] += _opening_ap(
-            baseline_state
-        )
-
-    # New purchase cohorts
     for cohort_month, purchases in enumerate(
         monthly_purchases
     ):
