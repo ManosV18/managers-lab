@@ -6,7 +6,8 @@ import pandas as pd
 import streamlit as st
 
 from core.decision_plan import DecisionPlan
-
+st.error("LOADED: ui/cash_management_lab.py")
+st.write("FILE:", __file__)
 
 # =========================================================
 # CONSTANTS
