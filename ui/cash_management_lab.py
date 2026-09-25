@@ -21,7 +21,6 @@ WC_AP_CANDIDATE = "wc_ap_candidate"
 # =========================================================
 
 def _get_attr(obj: Any, *names: str, default: Any = None) -> Any:
-    """Read the first available attribute/key from an object or mapping."""
     if obj is None:
         return default
 
@@ -54,22 +53,16 @@ def _money(value: float) -> str:
 
 
 # =========================================================
-# STATE HELPERS
+# STATE
 # =========================================================
 
 def _get_baseline_state() -> Any:
-    """
-    Try to retrieve the canonical baseline CompanyState from the
-    existing Managers Lab V2 repositories/session state.
-    """
-
     for key in (
         "baseline_state",
         "locked_baseline_state",
         "company_state",
     ):
         value = st.session_state.get(key)
-
         if value is not None:
             return value
 
@@ -91,7 +84,6 @@ def _get_baseline_state() -> Any:
 
                     if value is not None:
                         return value
-
                 except Exception:
                     pass
 
@@ -102,11 +94,6 @@ def _get_baseline_state() -> Any:
 
 
 def _get_projected_state() -> Any:
-    """
-    Retrieve projected CompanyState if another V2 component has
-    already created one.
-    """
-
     for key in (
         "projected_state",
         "current_projected_state",
@@ -120,10 +107,6 @@ def _get_projected_state() -> Any:
 
 
 def _get_current_plan() -> Any:
-    """
-    Read the Current Decision Plan without creating a second architecture.
-    """
-
     try:
         from core.decision_plan import DecisionPlan
 
@@ -184,9 +167,8 @@ def _find_decision(
     plan: Any,
     keywords: Sequence[str],
 ) -> Optional[Any]:
-    decisions = _all_decisions(plan)
 
-    for decision in decisions:
+    for decision in _all_decisions(plan):
         change = _decision_change(decision)
 
         if any(
@@ -222,7 +204,7 @@ def _selected_ap_decision(plan: Any) -> Optional[Any]:
 
 
 # =========================================================
-# COMPANY ECONOMICS
+# COMPANY DATA
 # =========================================================
 
 def _get_drivers(state: Any) -> Any:
@@ -417,6 +399,7 @@ def _decision_value(
     names: Sequence[str],
     default: Any = None,
 ) -> Any:
+
     if decision is None:
         return default
 
@@ -451,6 +434,7 @@ def _decision_ar_days(
     baseline_state: Any,
     plan: Any,
 ) -> float:
+
     decision = _selected_ar_decision(plan)
 
     value = _decision_value(
@@ -485,7 +469,9 @@ def _decision_ar_days(
 
     return _to_float(
         value,
-        _baseline_ar_days(baseline_state),
+        _baseline_ar_days(
+            baseline_state
+        ),
     )
 
 
@@ -493,6 +479,7 @@ def _decision_ap_days(
     baseline_state: Any,
     plan: Any,
 ) -> float:
+
     decision = _selected_ap_decision(plan)
 
     value = _decision_value(
@@ -527,7 +514,9 @@ def _decision_ap_days(
 
     return _to_float(
         value,
-        _baseline_ap_days(baseline_state),
+        _baseline_ap_days(
+            baseline_state
+        ),
     )
 
 
@@ -539,15 +528,13 @@ def _monthly_delay_allocation(
     days: float,
 ) -> List[Tuple[int, float]]:
     """
-    Simple owner-manager monthly convention.
+    Simple monthly convention.
 
     0 days  -> same month
     30 days -> next month
     45 days -> 50% next month + 50% month +2
     60 days -> month +2
     90 days -> month +3
-
-    This intentionally avoids calendar-day precision.
     """
 
     days = max(
@@ -567,14 +554,8 @@ def _monthly_delay_allocation(
         return [(whole, 1.0)]
 
     return [
-        (
-            whole,
-            1.0 - fraction,
-        ),
-        (
-            whole + 1,
-            fraction,
-        ),
+        (whole, 1.0 - fraction),
+        (whole + 1, fraction),
     ]
 
 
@@ -583,11 +564,6 @@ def _allocate_cohort(
     delay_days: float,
     horizon: int = 6,
 ) -> List[float]:
-    """
-    Allocate each monthly cohort according to the selected payment delay.
-
-    Amounts falling beyond the six-month horizon are not shown.
-    """
 
     result = [0.0] * horizon
 
@@ -598,9 +574,12 @@ def _allocate_cohort(
     for cohort_month, amount in enumerate(
         monthly_values
     ):
+
         for delay_months, percentage in allocation:
+
             target_month = (
-                cohort_month + delay_months
+                cohort_month
+                + delay_months
             )
 
             if 0 <= target_month < horizon:
@@ -612,23 +591,12 @@ def _allocate_cohort(
 
 
 # =========================================================
-# RECEIPTS
+# RECEIVABLES
 # =========================================================
 
 def _get_collection_profile(
     decision: Any,
 ) -> Optional[Dict[int, float]]:
-    """
-    Receivables Lab can provide an explicit collection profile.
-
-    Example:
-        Month 0 = 20%
-        Month 1 = 70%
-        Month 2 = 10%
-
-    If no explicit profile exists, Cash Management falls back
-    to the selected AR days.
-    """
 
     if decision is None:
         return None
@@ -644,18 +612,30 @@ def _get_collection_profile(
         default=None,
     )
 
-    if not isinstance(profile, Mapping):
+    if not isinstance(
+        profile,
+        Mapping,
+    ):
         return None
 
     result: Dict[int, float] = {}
 
     for key, value in profile.items():
+
         try:
+
             if isinstance(key, str):
+
                 cleaned = (
                     key.lower()
-                    .replace("month_", "")
-                    .replace("month", "")
+                    .replace(
+                        "month_",
+                        "",
+                    )
+                    .replace(
+                        "month",
+                        "",
+                    )
                     .strip()
                 )
 
@@ -664,15 +644,22 @@ def _get_collection_profile(
             else:
                 offset = int(key)
 
-            result[offset] = _to_float(value)
+            result[offset] = _to_float(
+                value
+            )
 
-        except (TypeError, ValueError):
+        except (
+            TypeError,
+            ValueError,
+        ):
             continue
 
     if not result:
         return None
 
-    total = sum(result.values())
+    total = sum(
+        result.values()
+    )
 
     if total <= 0:
         return None
@@ -691,14 +678,18 @@ def _collections_from_profile(
     profile: Mapping[int, float],
     horizon: int = 6,
 ) -> List[float]:
+
     result = [0.0] * horizon
 
     for cohort_month, sales in enumerate(
         monthly_sales
     ):
+
         for offset, percentage in profile.items():
+
             target_month = (
-                cohort_month + int(offset)
+                cohort_month
+                + int(offset)
             )
 
             if 0 <= target_month < horizon:
@@ -715,20 +706,15 @@ def _build_receipts(
     plan: Any,
     horizon: int = 6,
 ) -> List[float]:
-    """
-    Receipts consist of:
-
-    1. opening receivables collected according to the selected
-       collection policy / AR days;
-    2. collections from the six new monthly sales cohorts.
-    """
 
     state = (
         projected_state
         or baseline_state
     )
 
-    annual_revenue = _annual_revenue(state)
+    annual_revenue = _annual_revenue(
+        state
+    )
 
     monthly_sales = [
         annual_revenue / 12.0
@@ -743,7 +729,12 @@ def _build_receipts(
         ar_decision
     )
 
+    # -----------------------------------------------------
+    # NEW SALES
+    # -----------------------------------------------------
+
     if profile is not None:
+
         new_sales_receipts = (
             _collections_from_profile(
                 monthly_sales,
@@ -753,16 +744,23 @@ def _build_receipts(
         )
 
     else:
+
         ar_days = _decision_ar_days(
             baseline_state,
             plan,
         )
 
-        new_sales_receipts = _allocate_cohort(
-            monthly_sales,
-            ar_days,
-            horizon,
+        new_sales_receipts = (
+            _allocate_cohort(
+                monthly_sales,
+                ar_days,
+                horizon,
+            )
         )
+
+    # -----------------------------------------------------
+    # OPENING RECEIVABLES
+    # -----------------------------------------------------
 
     opening_ar = (
         annual_revenue
@@ -779,30 +777,40 @@ def _build_receipts(
     ]
 
     if profile is not None:
+
         for offset, percentage in profile.items():
+
             target_month = int(offset)
 
             if 0 <= target_month < horizon:
+
                 opening_ar_receipts[
                     target_month
                 ] += (
-                    opening_ar * percentage
+                    opening_ar
+                    * percentage
                 )
 
     else:
-        allocation = _monthly_delay_allocation(
-            _decision_ar_days(
-                baseline_state,
-                plan,
+
+        allocation = (
+            _monthly_delay_allocation(
+                _decision_ar_days(
+                    baseline_state,
+                    plan,
+                )
             )
         )
 
         for offset, percentage in allocation:
+
             if 0 <= offset < horizon:
+
                 opening_ar_receipts[
                     offset
                 ] += (
-                    opening_ar * percentage
+                    opening_ar
+                    * percentage
                 )
 
     return [
@@ -822,21 +830,15 @@ def _build_supplier_payments(
     plan: Any,
     horizon: int = 6,
 ) -> List[float]:
-    """
-    Monthly purchasing proxy = projected annual COGS / 12.
-
-    No purchasing schedule is required unless a separate decision
-    explicitly changes purchasing.
-
-    The Supplier Lab controls payment timing through AP days.
-    """
 
     state = (
         projected_state
         or baseline_state
     )
 
-    annual_cogs = _annual_cogs(state)
+    annual_cogs = _annual_cogs(
+        state
+    )
 
     monthly_purchases = [
         annual_cogs / 12.0
@@ -848,16 +850,24 @@ def _build_supplier_payments(
         plan,
     )
 
+    # -----------------------------------------------------
+    # NEW PURCHASES
+    # -----------------------------------------------------
+
+    payments = _allocate_cohort(
+        monthly_purchases,
+        ap_days,
+        horizon,
+    )
+
+    # -----------------------------------------------------
+    # OPENING PAYABLES
+    # -----------------------------------------------------
+
     opening_ap = (
         annual_cogs
         * ap_days
         / 365.0
-    )
-
-    result = _allocate_cohort(
-        monthly_purchases,
-        ap_days,
-        horizon,
     )
 
     opening_ap_payments = [
@@ -866,24 +876,29 @@ def _build_supplier_payments(
     ]
 
     for offset, percentage in (
-        _monthly_delay_allocation(ap_days)
+        _monthly_delay_allocation(
+            ap_days
+        )
     ):
+
         if 0 <= offset < horizon:
+
             opening_ap_payments[
                 offset
             ] += (
-                opening_ap * percentage
+                opening_ap
+                * percentage
             )
 
     return [
-        result[i]
+        payments[i]
         + opening_ap_payments[i]
         for i in range(horizon)
     ]
 
 
 # =========================================================
-# CASH PLAN
+# CASH ROLL-FORWARD
 # =========================================================
 
 def _build_cash_plan(
@@ -893,14 +908,22 @@ def _build_cash_plan(
     operating_expenses: Sequence[float],
     debt_payments: Sequence[float],
 ) -> Dict[str, List[float]]:
+
+    opening_cash_by_month: List[float] = []
     net_cash_flow: List[float] = []
     ending_cash: List[float] = []
-    opening_cash_by_month: List[float] = []
 
-    cash = float(opening_cash)
+    cash = float(
+        opening_cash
+    )
 
-    for i in range(len(receipts)):
-        opening_cash_by_month.append(cash)
+    for i in range(
+        len(receipts)
+    ):
+
+        opening_cash_by_month.append(
+            cash
+        )
 
         net = (
             receipts[i]
@@ -911,8 +934,13 @@ def _build_cash_plan(
 
         cash += net
 
-        net_cash_flow.append(net)
-        ending_cash.append(cash)
+        net_cash_flow.append(
+            net
+        )
+
+        ending_cash.append(
+            cash
+        )
 
     return {
         "opening_cash": opening_cash_by_month,
@@ -932,40 +960,34 @@ def _build_cash_plan(
 
 
 # =========================================================
-# MAIN UI
+# UI
 # =========================================================
 
 def render_cash_management_lab(
     baseline_state: Any = None,
 ) -> None:
-    """
-    Managers Lab V2 — Cash Management.
 
-    Purpose:
-        Show the owner-manager the six-month cash position
-        in one simple table.
-
-    The timing logic remains connected to:
-
-        Receivables Lab
-        Supplier Lab
-        Current Decision Plan
-
-    The UI intentionally stops after the cash table.
-    """
-
-    st.subheader("Cash Management")
+    st.subheader(
+        "Cash Management"
+    )
 
     if baseline_state is None:
-        baseline_state = _get_baseline_state()
-
-    if baseline_state is None:
-        st.warning(
-            "No CompanyState is available to build the cash forecast."
+        baseline_state = (
+            _get_baseline_state()
         )
+
+    if baseline_state is None:
+
+        st.warning(
+            "Δεν υπάρχει διαθέσιμο "
+            "CompanyState."
+        )
+
         return
 
-    projected_state = _get_projected_state()
+    projected_state = (
+        _get_projected_state()
+    )
 
     state_for_defaults = (
         projected_state
@@ -974,71 +996,57 @@ def render_cash_management_lab(
 
     plan = _get_current_plan()
 
-    # -----------------------------------------------------
-    # BASIC DEFAULTS
-    # -----------------------------------------------------
+    # =====================================================
+    # CASH TIMING ASSUMPTIONS
+    # =====================================================
 
-    opening_cash = _opening_cash(
-        baseline_state
+    st.markdown(
+        "### Cash timing assumptions"
     )
-
-    annual_fixed_opex = _annual_fixed_opex(
-        state_for_defaults
-    )
-
-    default_monthly_opex = (
-        annual_fixed_opex / 12.0
-    )
-
-    annual_debt_service = _annual_debt_service(
-        state_for_defaults
-    )
-
-    default_monthly_debt = (
-        annual_debt_service / 12.0
-    )
-
-    # -----------------------------------------------------
-    # SIMPLE USER INPUTS
-    # -----------------------------------------------------
-
-    st.markdown("### Cash timing assumptions")
 
     col1, col2 = st.columns(2)
 
     with col1:
+
+        default_opex = (
+            _annual_fixed_opex(
+                state_for_defaults
+            )
+            / 12.0
+        )
+
         monthly_opex = st.number_input(
-            "Average monthly operating expenses",
+            "Μέσο μηνιαίο λειτουργικό κόστος",
             min_value=0.0,
             value=float(
-                default_monthly_opex
+                default_opex
             ),
             step=1000.0,
-            help=(
-                "The default uses the company's average "
-                "annual operating expenses divided by 12. "
-                "Change it only if you want a different "
-                "monthly amount."
-            ),
+            key="cash_monthly_opex",
         )
 
     with col2:
-        monthly_debt = st.number_input(
-            "Monthly loan installments & interest",
-            min_value=0.0,
-            value=float(
-                default_monthly_debt
-            ),
-            step=1000.0,
-            help=(
-                "Enter one total monthly amount for all "
-                "loans together — principal and interest."
-            ),
+
+        default_debt = (
+            _annual_debt_service(
+                state_for_defaults
+            )
+            / 12.0
         )
 
-    # -----------------------------------------------------
-    # BUILD MONTHLY CASH FLOWS
-    # -----------------------------------------------------
+        monthly_debt = st.number_input(
+            "Δόσεις δανείων & τόκοι",
+            min_value=0.0,
+            value=float(
+                default_debt
+            ),
+            step=1000.0,
+            key="cash_monthly_debt",
+        )
+
+    # =====================================================
+    # CASH FLOW
+    # =====================================================
 
     receipts = _build_receipts(
         baseline_state=baseline_state,
@@ -1047,11 +1055,13 @@ def render_cash_management_lab(
         horizon=6,
     )
 
-    supplier_payments = _build_supplier_payments(
-        baseline_state=baseline_state,
-        projected_state=projected_state,
-        plan=plan,
-        horizon=6,
+    supplier_payments = (
+        _build_supplier_payments(
+            baseline_state=baseline_state,
+            projected_state=projected_state,
+            plan=plan,
+            horizon=6,
+        )
     )
 
     operating_expenses = [
@@ -1065,40 +1075,55 @@ def render_cash_management_lab(
     ]
 
     cash_plan = _build_cash_plan(
-        opening_cash=opening_cash,
+        opening_cash=_opening_cash(
+            baseline_state
+        ),
         receipts=receipts,
         supplier_payments=supplier_payments,
         operating_expenses=operating_expenses,
         debt_payments=debt_payments,
     )
 
-    # -----------------------------------------------------
-    # ONE CASH TABLE
-    # -----------------------------------------------------
+    # =====================================================
+    # ONE TABLE — NOTHING ELSE
+    # =====================================================
 
     table = pd.DataFrame(
         {
-            "Opening cash": cash_plan[
-                "opening_cash"
-            ],
-            "Receipts": cash_plan[
-                "receipts"
-            ],
-            "Supplier payments": cash_plan[
-                "supplier_payments"
-            ],
-            "Operating expenses": cash_plan[
-                "operating_expenses"
-            ],
-            "Loan installments & interest": cash_plan[
-                "debt_payments"
-            ],
-            "Net cash flow": cash_plan[
-                "net_cash_flow"
-            ],
-            "Ending cash": cash_plan[
-                "ending_cash"
-            ],
+            "Opening cash":
+                cash_plan[
+                    "opening_cash"
+                ],
+
+            "Receipts":
+                cash_plan[
+                    "receipts"
+                ],
+
+            "Supplier payments":
+                cash_plan[
+                    "supplier_payments"
+                ],
+
+            "Operating expenses":
+                cash_plan[
+                    "operating_expenses"
+                ],
+
+            "Loan installments & interest":
+                cash_plan[
+                    "debt_payments"
+                ],
+
+            "Net cash flow":
+                cash_plan[
+                    "net_cash_flow"
+                ],
+
+            "Ending cash":
+                cash_plan[
+                    "ending_cash"
+                ],
         },
         index=MONTHS,
     ).T
