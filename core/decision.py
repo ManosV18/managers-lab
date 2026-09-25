@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 # =========================================================
@@ -14,22 +14,13 @@ class Decision:
     A Decision is a declarative description of a
     management action.
 
-    It does NOT:
-        - modify CompanyState
-        - execute itself
-        - calculate financial impact
-        - resolve conflicts
-        - manage scenarios
+    changes:
+        Values that change CompanyState.
 
-    Execution is handled exclusively by:
-
-        Decision
-            ↓
-        DecisionPlan
-            ↓
-        DecisionRunner.run_many()
-            ↓
-        Projected CompanyState
+    metadata:
+        Additional assumptions attached to this specific
+        decision. Metadata does not modify CompanyState and
+        is not executed by DecisionRunner.
     """
 
     id: str
@@ -37,7 +28,9 @@ class Decision:
     description: str
     category: str
     changes: Dict[str, Any]
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(
+        default_factory=dict
+    )
 
     # =====================================================
     # VALIDATION
@@ -131,7 +124,7 @@ class DecisionFactory:
         description: str,
         category: str,
         changes: Dict[str, Any],
-        metadata: Dict[str, Any] | None = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Decision:
 
         return Decision(
@@ -140,7 +133,11 @@ class DecisionFactory:
             description=description,
             category=category,
             changes=dict(changes),
-            metadata=dict(metadata) if metadata is not None else {},
+            metadata=dict(
+                metadata
+                if metadata is not None
+                else {}
+            ),
         )
 
     # =====================================================
@@ -261,7 +258,9 @@ class DecisionFactory:
         *,
         decision_id: str,
         target_ar_days: float,
-        collection_schedule: Dict[str, float] | None = None,
+        collection_schedule: Optional[
+            Dict[str, float]
+        ] = None,
     ) -> Decision:
 
         metadata = {}
@@ -423,9 +422,9 @@ class DecisionFactory:
             },
         )
 
-    # =========================================================
+    # =====================================================
     # ANNUAL INTEREST EXPENSE CHANGE
-    # =========================================================
+    # =====================================================
 
     @classmethod
     def annual_interest_change(
