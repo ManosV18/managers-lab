@@ -779,11 +779,16 @@ def render_receivables_lab(
         use_container_width=True,
     ):
 
-        collection_schedule={
-            "month_0_pct": collection_month_0 / 100.0,
-            "month_1_pct": collection_month_1 / 100.0,
-            "month_2_pct": collection_month_2 / 100.0,
-        }
+        decision = (
+            DecisionFactory.ar_days_change(
+                decision_id=(
+                    "receivables_manual_"
+                    f"{uuid4().hex[:8]}"
+                ),
+                target_ar_days=float(
+                    ar_target
+                ),
+            )
         )
 
         set_ar_candidate(
@@ -1163,7 +1168,12 @@ def render_receivables_lab(
             + collection_month_2
         )
 
-        if abs(collection_total - 100.0) > 0.01:
+        collection_schedule_valid = (
+            abs(collection_total - 100.0)
+            <= 0.01
+        )
+
+        if not collection_schedule_valid:
 
             st.error(
                 "The collection schedule must add up to 100%."
@@ -1223,7 +1233,7 @@ def render_receivables_lab(
                 f"Total additional sales allocated to cash receipts: "
                 f"€{sum(additional_receipts.values()):,.0f}"
             )
-            
+
         # =================================================
         # CREATE AR DECISION CANDIDATE
         # =================================================
@@ -1234,67 +1244,106 @@ def render_receivables_lab(
             use_container_width=True,
         ):
 
-            effective_ar_days = float(
-                result[
-                    "new_avg_collection_period"
-                ]
-            )
+            if not collection_schedule_valid:
 
-            decision = (
-                DecisionFactory.ar_days_change(
-                    decision_id=(
-                        "receivables_discount_"
-                        f"{uuid4().hex[:8]}"
-                    ),
-                    target_ar_days=(
-                        effective_ar_days
-                    ),
+                st.error(
+                    "Please make sure the collection schedule "
+                    "adds up to 100% before using this policy."
                 )
-            )
 
-            set_ar_candidate(
-                decision=decision,
-                metadata={
-                    "source": "tool",
-                    "method": (
-                        "Early Payment Discount"
-                    ),
-                    "ar_days": (
-                        effective_ar_days
-                    ),
-                    "npv": npv,
-                    "cash_released": (
-                        result[
-                            "free_capital"
-                        ]
-                    ),
-                    "discount": (
-                        discount_trial * 100
-                    ),
-                    "adoption": (
-                        adoption * 100
-                    ),
-                    "baseline_sales": revenue,
-                    "baseline_cogs": (
-                        cogs_default
-                    ),
-                    "baseline_wacc": (
-                        wacc_default
-                    ),
-                    "baseline_ar_days": (
-                        current_ar_days
-                    ),
-                    "baseline_ap_days": (
-                        supplier_days_default
-                    ),
-                },
-            )
+            else:
 
-            st.success(
-                "Collection policy is ready as an AR candidate."
-            )
+                effective_ar_days = float(
+                    result[
+                        "new_avg_collection_period"
+                    ]
+                )
 
-            st.rerun()
+                # -------------------------------------------------
+                # THIS IS THE IMPORTANT V2 CONNECTION
+                #
+                # The AR decision changes ar_days as its driver,
+                # while collection_schedule travels with the
+                # decision as metadata.
+                #
+                # Cash Management can therefore read the actual
+                # commercial timing chosen here instead of falling
+                # back to AR-days timing.
+                # -------------------------------------------------
+
+                collection_schedule = {
+                    "month_0_pct": (
+                        collection_month_0 / 100.0
+                    ),
+                    "month_1_pct": (
+                        collection_month_1 / 100.0
+                    ),
+                    "month_2_pct": (
+                        collection_month_2 / 100.0
+                    ),
+                }
+
+                decision = (
+                    DecisionFactory.ar_days_change(
+                        decision_id=(
+                            "receivables_discount_"
+                            f"{uuid4().hex[:8]}"
+                        ),
+                        target_ar_days=(
+                            effective_ar_days
+                        ),
+                        collection_schedule=(
+                            collection_schedule
+                        ),
+                    )
+                )
+
+                set_ar_candidate(
+                    decision=decision,
+                    metadata={
+                        "source": "tool",
+                        "method": (
+                            "Early Payment Discount"
+                        ),
+                        "ar_days": (
+                            effective_ar_days
+                        ),
+                        "npv": npv,
+                        "cash_released": (
+                            result[
+                                "free_capital"
+                            ]
+                        ),
+                        "discount": (
+                            discount_trial * 100
+                        ),
+                        "adoption": (
+                            adoption * 100
+                        ),
+                        "baseline_sales": revenue,
+                        "baseline_cogs": (
+                            cogs_default
+                        ),
+                        "baseline_wacc": (
+                            wacc_default
+                        ),
+                        "baseline_ar_days": (
+                            current_ar_days
+                        ),
+                        "baseline_ap_days": (
+                            supplier_days_default
+                        ),
+                        "collection_schedule": (
+                            collection_schedule
+                        ),
+                    },
+                )
+
+                st.success(
+                    "Collection policy is ready as an AR candidate."
+                )
+
+                st.rerun()
 
     # =====================================================
     # ACTIVE CANDIDATE
@@ -1359,6 +1408,44 @@ def render_receivables_lab(
             st.write(
                 "Cash Released → "
                 f"**€{ar_meta['cash_released']:,.0f}**"
+            )
+
+        # -------------------------------------------------
+        # SHOW STORED COLLECTION PROFILE
+        # -------------------------------------------------
+
+        decision_metadata = getattr(
+            ar_candidate,
+            "metadata",
+            {},
+        )
+
+        collection_schedule = (
+            decision_metadata.get(
+                "collection_schedule"
+            )
+            if isinstance(
+                decision_metadata,
+                dict,
+            )
+            else None
+        )
+
+        if collection_schedule:
+
+            st.write(
+                "Cash Collection Profile → "
+                f"**"
+                f"{collection_schedule.get('month_0_pct', 0) * 100:.0f}% "
+                f"/ "
+                f"{collection_schedule.get('month_1_pct', 0) * 100:.0f}% "
+                f"/ "
+                f"{collection_schedule.get('month_2_pct', 0) * 100:.0f}%"
+                f"**"
+            )
+
+            st.caption(
+                "Same Month / Next Month / Month +2"
             )
 
         btn_col1, btn_col2 = st.columns(2)
