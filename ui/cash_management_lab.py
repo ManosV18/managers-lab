@@ -65,11 +65,7 @@ def _to_float(
 
         return float(value)
 
-    except (
-        TypeError,
-        ValueError,
-        OverflowError,
-    ):
+    except (TypeError, ValueError, OverflowError):
         return default
 
 
@@ -98,25 +94,7 @@ def _get_baseline_state() -> Any:
     )
 
 
-def _get_projected_state() -> Any:
-    return (
-        st.session_state.get("projected_state")
-        or st.session_state.get("company_state_projected")
-    )
-
-
 def _get_current_plan() -> Any:
-    """
-    IMPORTANT V2 CONNECTION
-
-    Receivables Lab and Supplier Lab store the Current
-    Decision Plan under:
-
-        st.session_state["decision_plan"]
-
-    Cash Management reads exactly the same object.
-    """
-
     plan = st.session_state.get("decision_plan")
 
     if isinstance(plan, DecisionPlan):
@@ -132,18 +110,11 @@ def _get_current_plan() -> Any:
     return plan
 
 
-def _all_decisions(
-    plan: Any,
-) -> List[Any]:
-
+def _all_decisions(plan: Any) -> List[Any]:
     if plan is None:
         return []
 
-    decisions = getattr(
-        plan,
-        "decisions",
-        None,
-    )
+    decisions = getattr(plan, "decisions", None)
 
     if decisions is None:
         return []
@@ -157,10 +128,7 @@ def _all_decisions(
         return []
 
 
-def _decision_change(
-    decision: Any,
-) -> Any:
-
+def _decision_change(decision: Any) -> Any:
     return _get_attr(
         decision,
         (
@@ -172,6 +140,10 @@ def _decision_change(
         None,
     )
 
+
+# =========================================================
+# DECISION LOOKUP
+# =========================================================
 
 def _find_decision(
     decisions: Iterable[Any],
@@ -206,28 +178,8 @@ def _find_decision(
         ]
 
         for value in values:
-
             if str(value) == candidate_key:
                 return decision
-
-        # -------------------------------------------------
-        # V2 decision objects created by DecisionFactory
-        # -------------------------------------------------
-        #
-        # Supplier Lab creates IDs such as:
-        #
-        #     supplier_ap_a1b2c3d4
-        #
-        # and stores the actual AP change inside:
-        #
-        #     decision.changes["ap_days"]
-        #
-        # Receivables decisions can similarly carry
-        # ar_days / collection timing inside .changes.
-        #
-        # Therefore candidate_key matching is supplemented
-        # by the contents of .changes.
-        # -------------------------------------------------
 
         changes = _get_attr(
             decision,
@@ -268,48 +220,37 @@ def _selected_ar_decision() -> Any:
 
     plan = _get_current_plan()
 
-    decisions = _all_decisions(plan)
-
     decision = _find_decision(
-        decisions,
+        _all_decisions(plan),
         WC_AR_CANDIDATE,
     )
 
     if decision is not None:
         return decision
 
-    return st.session_state.get(
-        WC_AR_CANDIDATE
-    )
+    return st.session_state.get(WC_AR_CANDIDATE)
 
 
 def _selected_ap_decision() -> Any:
 
     plan = _get_current_plan()
 
-    decisions = _all_decisions(plan)
-
     decision = _find_decision(
-        decisions,
+        _all_decisions(plan),
         WC_AP_CANDIDATE,
     )
 
     if decision is not None:
         return decision
 
-    return st.session_state.get(
-        WC_AP_CANDIDATE
-    )
+    return st.session_state.get(WC_AP_CANDIDATE)
 
 
 # =========================================================
 # COMPANY ECONOMICS
 # =========================================================
 
-def _get_drivers(
-    state: Any,
-) -> Any:
-
+def _get_drivers(state: Any) -> Any:
     return _get_attr(
         state,
         ("drivers",),
@@ -317,10 +258,7 @@ def _get_drivers(
     )
 
 
-def _get_working_capital(
-    state: Any,
-) -> Any:
-
+def _get_working_capital(state: Any) -> Any:
     return _get_attr(
         state,
         (
@@ -331,10 +269,7 @@ def _get_working_capital(
     )
 
 
-def _get_capital_structure(
-    state: Any,
-) -> Any:
-
+def _get_capital_structure(state: Any) -> Any:
     return _get_attr(
         state,
         ("capital_structure",),
@@ -342,9 +277,7 @@ def _get_capital_structure(
     )
 
 
-def _annual_revenue(
-    state: Any,
-) -> float:
+def _annual_revenue(state: Any) -> float:
 
     drivers = _get_drivers(state)
 
@@ -366,10 +299,7 @@ def _annual_revenue(
         None,
     )
 
-    if (
-        volume is not None
-        and price is not None
-    ):
+    if volume is not None and price is not None:
         return (
             _to_float(volume)
             * _to_float(price)
@@ -387,9 +317,7 @@ def _annual_revenue(
     )
 
 
-def _annual_cogs(
-    state: Any,
-) -> float:
+def _annual_cogs(state: Any) -> float:
 
     drivers = _get_drivers(state)
 
@@ -412,10 +340,7 @@ def _annual_cogs(
         None,
     )
 
-    if (
-        volume is not None
-        and variable_cost is not None
-    ):
+    if volume is not None and variable_cost is not None:
         return (
             _to_float(volume)
             * _to_float(variable_cost)
@@ -434,9 +359,7 @@ def _annual_cogs(
     )
 
 
-def _annual_fixed_opex(
-    state: Any,
-) -> float:
+def _annual_fixed_opex(state: Any) -> float:
 
     drivers = _get_drivers(state)
 
@@ -454,9 +377,7 @@ def _annual_fixed_opex(
     )
 
 
-def _opening_cash(
-    state: Any,
-) -> float:
+def _opening_cash(state: Any) -> float:
 
     drivers = _get_drivers(state)
 
@@ -473,9 +394,7 @@ def _opening_cash(
     )
 
 
-def _annual_debt_service(
-    state: Any,
-) -> float:
+def _annual_debt_service(state: Any) -> float:
 
     capital = _get_capital_structure(state)
 
@@ -492,9 +411,7 @@ def _annual_debt_service(
     )
 
 
-def _baseline_ar_days(
-    state: Any,
-) -> float:
+def _baseline_ar_days(state: Any) -> float:
 
     wc = _get_working_capital(state)
 
@@ -511,9 +428,7 @@ def _baseline_ar_days(
     )
 
 
-def _baseline_ap_days(
-    state: Any,
-) -> float:
+def _baseline_ap_days(state: Any) -> float:
 
     wc = _get_working_capital(state)
 
@@ -531,35 +446,24 @@ def _baseline_ap_days(
 
 
 # =========================================================
-# BASELINE OPENING AP
+# OPENING BALANCES
 # =========================================================
 
-def _opening_ap(
-    state: Any,
-) -> float:
-    """
-    Opening Accounts Payable implied by the baseline
-    purchasing requirement and baseline AP days.
+def _opening_ar(state: Any) -> float:
 
-    This mirrors the supplier logic:
+    return (
+        _annual_revenue(state)
+        * _baseline_ar_days(state)
+        / 365.0
+    )
 
-        Opening AP
-        = annual purchases × AP days / 365
 
-    The current V2 CompanyState does not carry a separate
-    opening AP euro balance, so it is inferred from the
-    baseline operating model.
-    """
+def _opening_ap(state: Any) -> float:
 
-    annual_cogs = _annual_cogs(state)
-
-    baseline_ap_days = _baseline_ap_days(state)
-
-    return max(
-        0.0,
-        annual_cogs
-        * baseline_ap_days
-        / 365.0,
+    return (
+        _annual_cogs(state)
+        * _baseline_ap_days(state)
+        / 365.0
     )
 
 
@@ -576,10 +480,6 @@ def _decision_value(
     if decision is None:
         return default
 
-    # -----------------------------------------------------
-    # Direct decision attributes / keys
-    # -----------------------------------------------------
-
     value = _get_attr(
         decision,
         names,
@@ -588,10 +488,6 @@ def _decision_value(
 
     if value is not None:
         return value
-
-    # -----------------------------------------------------
-    # V2 DecisionFactory .changes
-    # -----------------------------------------------------
 
     changes = _get_attr(
         decision,
@@ -610,10 +506,6 @@ def _decision_value(
         if value is not None:
             return value
 
-    # -----------------------------------------------------
-    # Decision change
-    # -----------------------------------------------------
-
     change = _decision_change(decision)
 
     value = _get_attr(
@@ -625,59 +517,20 @@ def _decision_value(
     if value is not None:
         return value
 
-    # -----------------------------------------------------
-    # Nested containers
-    # -----------------------------------------------------
-
     containers = (
-        _get_attr(
-            decision,
-            ("payload",),
-            None,
-        ),
-        _get_attr(
-            decision,
-            ("parameters",),
-            None,
-        ),
-        _get_attr(
-            decision,
-            ("params",),
-            None,
-        ),
-        _get_attr(
-            decision,
-            ("metadata",),
-            None,
-        ),
-        _get_attr(
-            change,
-            ("payload",),
-            None,
-        ),
-        _get_attr(
-            change,
-            ("parameters",),
-            None,
-        ),
-        _get_attr(
-            change,
-            ("params",),
-            None,
-        ),
-        _get_attr(
-            change,
-            ("metadata",),
-            None,
-        ),
+        _get_attr(decision, ("payload",), None),
+        _get_attr(decision, ("parameters",), None),
+        _get_attr(decision, ("params",), None),
+        _get_attr(decision, ("metadata",), None),
+        _get_attr(change, ("payload",), None),
+        _get_attr(change, ("parameters",), None),
+        _get_attr(change, ("params",), None),
+        _get_attr(change, ("metadata",), None),
     )
 
     for container in containers:
 
-        if not isinstance(
-            container,
-            Mapping,
-        ):
+        if not isinstance(container, Mapping):
             continue
 
         value = _get_attr(
@@ -757,42 +610,12 @@ def _decision_ap_days(
 def _extract_collection_profile(
     source: Any,
 ) -> Optional[Dict[int, float]]:
-    """
-    Extract the Receivables collection schedule.
-
-    Supported forms:
-
-        month_0_pct
-        month_1_pct
-        month_2_pct
-
-    or:
-
-        month_0
-        month_1
-        month_2
-
-    or nested inside:
-
-        collection_schedule
-        collection_profile
-        collection_distribution
-        collection_timing
-        schedule
-
-    The function also searches payload / parameters /
-    params / metadata and V2 .changes.
-    """
 
     if source is None:
         return None
 
-    candidates: List[Any] = [
-        source
-    ]
+    candidates: List[Any] = [source]
 
-    # V2 DecisionFactory stores decision parameters
-    # inside .changes.
     changes = _get_attr(
         source,
         ("changes",),
@@ -802,16 +625,12 @@ def _extract_collection_profile(
     if changes is not None:
         candidates.append(changes)
 
-    change = _decision_change(
-        source
-    )
+    change = _decision_change(source)
 
     if change is not None:
         candidates.append(change)
 
-    original_candidates = list(
-        candidates
-    )
+    original_candidates = list(candidates)
 
     for obj in original_candidates:
 
@@ -829,13 +648,7 @@ def _extract_collection_profile(
             )
 
             if container is not None:
-                candidates.append(
-                    container
-                )
-
-    # -----------------------------------------------------
-    # Structured profile
-    # -----------------------------------------------------
+                candidates.append(container)
 
     structured_names = (
         "collection_schedule",
@@ -847,33 +660,21 @@ def _extract_collection_profile(
 
     for obj in candidates:
 
-        if not isinstance(
-            obj,
-            Mapping,
-        ):
+        if not isinstance(obj, Mapping):
             continue
 
         for name in structured_names:
 
             nested = obj.get(name)
 
-            if isinstance(
-                nested,
-                Mapping,
-            ):
+            if isinstance(nested, Mapping):
 
-                result = (
-                    _extract_collection_profile(
-                        nested
-                    )
+                result = _extract_collection_profile(
+                    nested
                 )
 
                 if result:
                     return result
-
-    # -----------------------------------------------------
-    # Flat profile
-    # -----------------------------------------------------
 
     result: Dict[int, float] = {}
 
@@ -890,15 +691,11 @@ def _extract_collection_profile(
 
         for obj in candidates:
 
-            if isinstance(
-                obj,
-                Mapping,
-            ):
+            if isinstance(obj, Mapping):
 
                 for key in possible_keys:
 
                     if key in obj:
-
                         found = obj[key]
                         break
 
@@ -914,7 +711,6 @@ def _extract_collection_profile(
                 )
 
                 if value is not None:
-
                     found = value
                     break
 
@@ -923,9 +719,7 @@ def _extract_collection_profile(
 
         if found is not None:
 
-            result[
-                month_index
-            ] = _normalise_pct(
+            result[month_index] = _normalise_pct(
                 found
             )
 
@@ -941,35 +735,20 @@ def _extract_collection_profile(
     if not result:
         return None
 
-    total = sum(
-        result.values()
-    )
+    total = sum(result.values())
 
     if total <= 0:
         return None
 
-    # Normalise rounding differences.
-    result = {
+    return {
         index: value / total
         for index, value in result.items()
     }
-
-    return result
 
 
 def _get_collection_profile(
     decision: Any,
 ) -> Optional[Dict[int, float]]:
-    """
-    Read collection timing from:
-
-    1. Current Decision Plan
-    2. AR candidate
-    3. AR candidate metadata
-
-    This means the Cash Management Lab does not require
-    the decision to be locked before it can simulate it.
-    """
 
     profile = _extract_collection_profile(
         decision
@@ -1010,17 +789,6 @@ def _get_collection_profile(
 def _monthly_delay_allocation(
     days: float,
 ) -> Dict[int, float]:
-    """
-    Timing convention:
-
-        0 days  -> same month
-        30 days -> next month
-        45 days -> 50% next month + 50% month +2
-        60 days -> month +2
-        90 days -> month +3
-
-    Uses 30-day months intentionally.
-    """
 
     days = max(
         0.0,
@@ -1031,9 +799,7 @@ def _monthly_delay_allocation(
 
     lower = int(months)
 
-    fraction = (
-        months - lower
-    )
+    fraction = months - lower
 
     if fraction <= 0:
         return {
@@ -1047,7 +813,7 @@ def _monthly_delay_allocation(
 
 
 # =========================================================
-# COLLECTION BY PROFILE
+# COLLECTIONS
 # =========================================================
 
 def _collections_from_profile(
@@ -1055,62 +821,23 @@ def _collections_from_profile(
     profile: Mapping[int, float],
     opening_ar: float = 0.0,
 ) -> List[float]:
-    """
-    Cohort-based collection model.
 
-    Example 20 / 70 / 10:
+    horizon = len(monthly_sales)
 
-        Month 1:
-            20% of Month 1 sales
-            + 20% of opening AR
+    receipts = [0.0 for _ in range(horizon)]
 
-        Month 2:
-            70% of Month 1 sales
-            + 20% of Month 2 sales
-            + 70% of opening AR
-
-        Month 3:
-            10% of Month 1 sales
-            + 70% of Month 2 sales
-            + 20% of Month 3 sales
-            + 10% of opening AR
-    """
-
-    horizon = len(
-        monthly_sales
-    )
-
-    receipts = [
-        0.0
-        for _ in range(horizon)
-    ]
-
-    # -----------------------------------------------------
-    # OPENING AR
-    # -----------------------------------------------------
-
+    # Opening AR
     for delay, percentage in profile.items():
 
-        target_month = int(
-            delay
-        )
+        target_month = int(delay)
 
-        if (
-            0 <= target_month
-            < horizon
-        ):
+        if 0 <= target_month < horizon:
 
-            receipts[
-                target_month
-            ] += (
-                opening_ar
-                * percentage
+            receipts[target_month] += (
+                opening_ar * percentage
             )
 
-    # -----------------------------------------------------
-    # MONTHLY SALES COHORTS
-    # -----------------------------------------------------
-
+    # Sales cohorts
     for cohort_month, sales in enumerate(
         monthly_sales
     ):
@@ -1122,16 +849,10 @@ def _collections_from_profile(
                 + int(delay)
             )
 
-            if (
-                0 <= target_month
-                < horizon
-            ):
+            if 0 <= target_month < horizon:
 
-                receipts[
-                    target_month
-                ] += (
-                    sales
-                    * percentage
+                receipts[target_month] += (
+                    sales * percentage
                 )
 
     return receipts
@@ -1151,23 +872,9 @@ def _build_receipts(
         ar_decision
     )
 
-    annual_revenue = _annual_revenue(
+    opening_ar = _opening_ar(
         baseline_state
     )
-
-    # Opening receivables belong to the baseline.
-    # The new AR decision does not rewrite the opening balance.
-    opening_ar = (
-        annual_revenue
-        * _baseline_ar_days(
-            baseline_state
-        )
-        / 365.0
-    )
-
-    # -----------------------------------------------------
-    # EXPLICIT RECEIVABLES COLLECTION PROFILE
-    # -----------------------------------------------------
 
     if profile:
 
@@ -1176,10 +883,6 @@ def _build_receipts(
             profile=profile,
             opening_ar=opening_ar,
         )
-
-    # -----------------------------------------------------
-    # FALLBACK: AR DAYS
-    # -----------------------------------------------------
 
     ar_days = _decision_ar_days(
         baseline_state,
@@ -1198,20 +901,12 @@ def _build_receipts(
     # Opening AR
     for delay, percentage in allocation.items():
 
-        target_month = int(
-            delay
-        )
+        target_month = int(delay)
 
-        if (
-            0 <= target_month
-            < len(receipts)
-        ):
+        if 0 <= target_month < len(receipts):
 
-            receipts[
-                target_month
-            ] += (
-                opening_ar
-                * percentage
+            receipts[target_month] += (
+                opening_ar * percentage
             )
 
     # New sales cohorts
@@ -1226,16 +921,10 @@ def _build_receipts(
                 + int(delay)
             )
 
-            if (
-                0 <= target_month
-                < len(receipts)
-            ):
+            if 0 <= target_month < len(receipts):
 
-                receipts[
-                    target_month
-                ] += (
-                    sales
-                    * percentage
+                receipts[target_month] += (
+                    sales * percentage
                 )
 
     return receipts
@@ -1250,20 +939,6 @@ def _build_supplier_payments(
     ap_decision: Any,
     monthly_purchases: Sequence[float],
 ) -> List[float]:
-    """
-    Build supplier cash payments from:
-
-        1. Opening AP
-        2. New monthly purchase cohorts
-        3. Selected AP payment terms
-
-    Opening AP is paid in Month 1, matching the Supplier Lab.
-
-    New purchases are paid according to the selected AP days.
-
-    This keeps Cash Management as the timing layer rather than
-    creating a second supplier model.
-    """
 
     ap_days = _decision_ap_days(
         baseline_state,
@@ -1279,25 +954,14 @@ def _build_supplier_payments(
         for _ in monthly_purchases
     ]
 
-    # -----------------------------------------------------
-    # OPENING AP
-    # -----------------------------------------------------
-    #
-    # Opening AP is an existing obligation from the baseline.
-    # It is paid during Month 1.
-    # -----------------------------------------------------
-
-    opening_ap = _opening_ap(
-        baseline_state
-    )
-
+    # Existing opening AP
     if payments:
-        payments[0] += opening_ap
 
-    # -----------------------------------------------------
-    # NEW PURCHASE COHORTS
-    # -----------------------------------------------------
+        payments[0] += _opening_ap(
+            baseline_state
+        )
 
+    # New purchase cohorts
     for cohort_month, purchases in enumerate(
         monthly_purchases
     ):
@@ -1309,16 +973,10 @@ def _build_supplier_payments(
                 + int(delay)
             )
 
-            if (
-                0 <= target_month
-                < len(payments)
-            ):
+            if 0 <= target_month < len(payments):
 
-                payments[
-                    target_month
-                ] += (
-                    purchases
-                    * percentage
+                payments[target_month] += (
+                    purchases * percentage
                 )
 
     return payments
@@ -1344,105 +1002,60 @@ def _build_cash_plan(
         baseline_state
     )
 
-    # -----------------------------------------------------
-    # MONTHLY SALES
-    # -----------------------------------------------------
-
     monthly_sales = [
         annual_revenue / 12.0
         for _ in MONTHS
     ]
 
-    # -----------------------------------------------------
-    # MONTHLY PURCHASE PROXY
-    #
     # Until a formal purchasing decision exists,
-    # purchases are represented by monthly COGS.
-    # -----------------------------------------------------
-
+    # monthly purchases are proxied by COGS / 12.
     monthly_purchases = [
         annual_cogs / 12.0
         for _ in MONTHS
     ]
 
-    # -----------------------------------------------------
-    # RECEIPTS
-    # -----------------------------------------------------
-
     receipts = _build_receipts(
-        baseline_state=baseline_state,
-        ar_decision=ar_decision,
-        monthly_sales=monthly_sales,
+        baseline_state,
+        ar_decision,
+        monthly_sales,
     )
 
-    # -----------------------------------------------------
-    # SUPPLIER PAYMENTS
-    # -----------------------------------------------------
-
-    supplier_payments = (
-        _build_supplier_payments(
-            baseline_state=baseline_state,
-            ap_decision=ap_decision,
-            monthly_purchases=monthly_purchases,
-        )
+    supplier_payments = _build_supplier_payments(
+        baseline_state,
+        ap_decision,
+        monthly_purchases,
     )
-
-    # -----------------------------------------------------
-    # OPERATING EXPENSES
-    # -----------------------------------------------------
 
     operating_expenses = [
         monthly_opex
         for _ in MONTHS
     ]
 
-    # -----------------------------------------------------
-    # DEBT
-    # -----------------------------------------------------
-
     debt_payments = [
         monthly_debt
         for _ in MONTHS
     ]
 
-    # -----------------------------------------------------
-    # CASH
-    # -----------------------------------------------------
-
-    net_cash_flow = []
-
-    ending_cash = []
+    net_cash_flow: List[float] = []
+    ending_cash: List[float] = []
 
     cash = _opening_cash(
         baseline_state
     )
 
-    for month_index in range(
-        len(MONTHS)
-    ):
+    for month_index in range(len(MONTHS)):
 
         net = (
             receipts[month_index]
-            - supplier_payments[
-                month_index
-            ]
-            - operating_expenses[
-                month_index
-            ]
-            - debt_payments[
-                month_index
-            ]
+            - supplier_payments[month_index]
+            - operating_expenses[month_index]
+            - debt_payments[month_index]
         )
 
         cash += net
 
-        net_cash_flow.append(
-            net
-        )
-
-        ending_cash.append(
-            cash
-        )
+        net_cash_flow.append(net)
+        ending_cash.append(cash)
 
     return {
         "receipts": receipts,
@@ -1480,16 +1093,13 @@ def render_cash_management_lab(
     # =====================================================
 
     ar_decision = _selected_ar_decision()
-
     ap_decision = _selected_ap_decision()
 
     # =====================================================
     # HEADER
     # =====================================================
 
-    st.subheader(
-        "Cash Management"
-    )
+    st.subheader("Cash Management")
 
     st.caption(
         "This is the timing layer that turns your "
@@ -1501,23 +1111,17 @@ def render_cash_management_lab(
     # CASH ASSUMPTIONS
     # =====================================================
 
-    st.markdown(
-        "### Cash assumptions"
-    )
+    st.markdown("### Cash assumptions")
 
     col1, col2 = st.columns(2)
 
     default_monthly_opex = (
-        _annual_fixed_opex(
-            baseline_state
-        )
+        _annual_fixed_opex(baseline_state)
         / 12.0
     )
 
     default_monthly_debt = (
-        _annual_debt_service(
-            baseline_state
-        )
+        _annual_debt_service(baseline_state)
         / 12.0
     )
 
@@ -1526,9 +1130,7 @@ def render_cash_management_lab(
         monthly_opex = st.number_input(
             "Average monthly operating expenses",
             min_value=0.0,
-            value=float(
-                default_monthly_opex
-            ),
+            value=float(default_monthly_opex),
             step=1000.0,
             format="%.0f",
             help=(
@@ -1542,9 +1144,7 @@ def render_cash_management_lab(
         monthly_debt = st.number_input(
             "Monthly loan installments & interest",
             min_value=0.0,
-            value=float(
-                default_monthly_debt
-            ),
+            value=float(default_monthly_debt),
             step=1000.0,
             format="%.0f",
         )
@@ -1574,28 +1174,24 @@ def render_cash_management_lab(
         ap_decision,
     )
 
-    collection_profile = (
-        _get_collection_profile(
-            ar_decision
-        )
+    collection_profile = _get_collection_profile(
+        ar_decision
     )
 
-    # -----------------------------------------------------
-    # SHOW RECEIVABLES TIMING
-    # -----------------------------------------------------
+    # =====================================================
+    # RECEIVABLES TIMING
+    # =====================================================
 
     if collection_profile:
 
         profile_text = " / ".join(
             f"Month {int(delay) + 1}: {percentage:.0%}"
             for delay, percentage
-            in sorted(
-                collection_profile.items()
-            )
+            in sorted(collection_profile.items())
         )
 
         st.success(
-            f"Collection timing from Receivables Decision: "
+            "Collection timing from Receivables Decision: "
             f"{profile_text}"
         )
 
@@ -1606,5 +1202,140 @@ def render_cash_management_lab(
             f"approximately {current_ar_days:.0f} days"
         )
 
-    # -----------------------------------------------------
-    # SHOW S
+    # =====================================================
+    # SUPPLIER TIMING
+    # =====================================================
+
+    st.caption(
+        "Supplier payment timing: "
+        f"approximately {current_ap_days:.0f} days"
+    )
+
+    # =====================================================
+    # BUILD CASH PLAN
+    # =====================================================
+
+    cash_plan = _build_cash_plan(
+        baseline_state=baseline_state,
+        ar_decision=ar_decision,
+        ap_decision=ap_decision,
+        monthly_opex=monthly_opex,
+        monthly_debt=monthly_debt,
+    )
+
+    # =====================================================
+    # CASH OUTLOOK
+    # =====================================================
+
+    st.markdown("### Six-month cash outlook")
+
+    table = pd.DataFrame(
+        {
+            "": [
+                "Opening cash",
+                "Receipts",
+                "Supplier payments",
+                "Operating expenses",
+                "Loan payments & interest",
+                "Net cash flow",
+                "Ending cash balance",
+            ],
+            **{
+                month: [
+                    (
+                        cash_plan["ending_cash"][i - 1]
+                        if i > 0
+                        else _opening_cash(baseline_state)
+                    ),
+                    cash_plan["receipts"][i],
+                    cash_plan["supplier_payments"][i],
+                    cash_plan["operating_expenses"][i],
+                    cash_plan["debt_payments"][i],
+                    cash_plan["net_cash_flow"][i],
+                    cash_plan["ending_cash"][i],
+                ]
+                for i, month in enumerate(MONTHS)
+            },
+        }
+    )
+
+    st.dataframe(
+        table.style.format(
+            {
+                month: "€{:,.0f}"
+                for month in MONTHS
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # =====================================================
+    # CASH POSITION
+    # =====================================================
+
+    lowest_cash = min(
+        cash_plan["ending_cash"]
+    )
+
+    lowest_month_index = (
+        cash_plan["ending_cash"].index(
+            lowest_cash
+        )
+    )
+
+    funding_required = max(
+        0.0,
+        minimum_cash - lowest_cash,
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Lowest projected cash",
+            _money(lowest_cash),
+            f"Month {lowest_month_index + 1}",
+        )
+
+    with col2:
+
+        st.metric(
+            "Minimum cash reserve",
+            _money(minimum_cash),
+        )
+
+    with col3:
+
+        st.metric(
+            "Funding required",
+            _money(funding_required),
+        )
+
+    # =====================================================
+    # INTERPRETATION
+    # =====================================================
+
+    if funding_required > 0:
+
+        st.warning(
+            "The projected cash balance falls below the "
+            "minimum reserve during the six-month period. "
+            f"The estimated funding requirement is "
+            f"{_money(funding_required)}."
+        )
+
+    else:
+
+        st.success(
+            "The projected cash balance remains above "
+            "the minimum reserve throughout the six-month period."
+        )
+
+
+# =========================================================
+# COMPATIBILITY ALIAS
+# =========================================================
+
+show_cash_management_lab = render_cash_management_lab
