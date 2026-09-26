@@ -337,79 +337,143 @@ def calculate_monthly_survival(
             f"projected surplus of €{cash_gap:,.0f}."
         )
 
-    # =====================================================
-    # RESULT
-    # =====================================================
 
-    return {
-        "state_version": getattr(
-            state,
-            "version",
-            None,
-        ),
+# =====================================================
+# RESULT
+# =====================================================
 
-        # Scenario
-        "price": price,
-        "variable_cost": variable_cost,
-        "volume": volume,
-        "sales_amount": sales_amount,
-        "purchases_amount": purchases_amount,
+return {
+    "state_version": getattr(
+        state,
+        "version",
+        None,
+    ),
 
-        # Fixed cash obligations
-        "monthly_fixed_costs": monthly_fixed_costs,
-        "monthly_debt_service": monthly_debt_service,
+    # =================================================
+    # SCENARIO
+    # =================================================
 
-        # Shared timing
-        "ar_days": ar_days,
-        "ap_days": ap_days,
-        "collection_profile": collection_profile,
+    "price": price,
+    "variable_cost": variable_cost,
+    "volume": volume,
+    "sales_amount": sales_amount,
+    "purchases_amount": purchases_amount,
 
-        # Existing balances
-        "opening_ar": cash_timing.get(
-            "opening_ar",
-            0.0,
-        ),
-        "opening_ap": cash_timing.get(
-            "opening_ap",
-            0.0,
-        ),
+    # =================================================
+    # FIXED CASH OBLIGATIONS
+    # =================================================
 
-        # Cash receipts
-        "existing_ar_cash_in": existing_ar_cash_in,
-        "current_sales_cash_in": current_sales_cash_in,
-        "total_monthly_cash_in": total_monthly_cash_in,
+    "monthly_fixed_costs": monthly_fixed_costs,
+    "monthly_debt_service": monthly_debt_service,
 
-        # Compatibility names expected by Monthly Survival UI
-        "existing_ar_receipts": existing_ar_cash_in,
-        "new_sales_receipts": current_sales_cash_in,
+    # =================================================
+    # SHARED CASH TIMING
+    # =================================================
 
-        # Supplier cash payments
-        "existing_ap_cash_out": existing_ap_cash_out,
-        "current_purchase_cash_out": current_purchase_cash_out,
-        "supplier_cash_out": supplier_cash_out,
-        "total_cash_outflow": total_cash_outflow,
-        "cash_gap": cash_gap,
+    "ar_days": ar_days,
+    "ap_days": ap_days,
+    "collection_profile": collection_profile,
 
-        # Compatibility names expected by Monthly Survival UI
-        "existing_ap_payments": existing_ap_cash_out,
-        "new_purchase_payments": current_purchase_cash_out,
-        
-        # Incremental cash economics
-        "cash_revenue_per_unit": cash_revenue_per_unit,
-        "cash_purchase_cost_per_unit": (
-            cash_purchase_cost_per_unit
-        ),
-        "cash_contribution_per_unit": (
-            cash_contribution_per_unit
-        ),
+    # =================================================
+    # EXISTING BALANCES
+    # =================================================
 
-        # Break-even
-        "cash_bep": cash_bep,
-        "unit_gap": unit_gap,
+    "opening_ar": cash_timing.get(
+        "opening_ar",
+        0.0,
+    ),
 
-        # Status
-        "status": status,
-        "interpretation": interpretation,
+    "opening_ap": cash_timing.get(
+        "opening_ap",
+        0.0,
+    ),
+
+    # =================================================
+    # CASH RECEIPTS
+    # =================================================
+
+    "existing_ar_cash_in": existing_ar_cash_in,
+
+    "current_sales_cash_in": current_sales_cash_in,
+
+    "total_monthly_cash_in": total_monthly_cash_in,
+
+    # Compatibility names expected by
+    # Monthly Survival UI
+    "existing_ar_receipts": existing_ar_cash_in,
+
+    "new_sales_receipts": current_sales_cash_in,
+
+    # =================================================
+    # SUPPLIER CASH PAYMENTS
+    # =================================================
+
+    "existing_ap_cash_out": existing_ap_cash_out,
+
+    "current_purchase_cash_out": current_purchase_cash_out,
+
+    "supplier_cash_out": supplier_cash_out,
+
+    # Compatibility names expected by
+    # Monthly Survival UI
+    "existing_ap_payments": existing_ap_cash_out,
+
+    "new_purchase_payments": current_purchase_cash_out,
+
+    # =================================================
+    # TOTAL CASH
+    # =================================================
+
+    "total_cash_outflow": total_cash_outflow,
+
+    "cash_gap": cash_gap,
+
+    # =================================================
+    # INCREMENTAL CASH ECONOMICS
+    # =================================================
+
+    "cash_revenue_per_unit": cash_revenue_per_unit,
+
+    "cash_purchase_cost_per_unit": (
+        cash_purchase_cost_per_unit
+    ),
+
+    "cash_contribution_per_unit": (
+        cash_contribution_per_unit
+    ),
+
+    # =================================================
+    # CASH BREAK-EVEN
+    # =================================================
+
+    "cash_bep": cash_bep,
+
+    "unit_gap": unit_gap,
+
+    # =================================================
+    # STATUS
+    # =================================================
+
+    "status": status,
+
+    "interpretation": interpretation,
+
+    # =================================================
+    # BACKWARD COMPATIBILITY
+    # =================================================
+
+    "cash_collection_pct": (
+        float(cash_collection_pct)
+        if cash_collection_pct is not None
+        else None
+    ),
+
+    "past_collections": (
+        float(past_collections)
+        if past_collections is not None
+        else None
+    ),
+}
 
         # =================================================
         # BACKWARD-COMPATIBLE FIELDS
