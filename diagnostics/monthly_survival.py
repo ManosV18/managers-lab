@@ -14,25 +14,32 @@ def calculate_monthly_survival(
     sim_fc: Optional[float] = None,
     sim_debt: Optional[float] = None,
     sim_volume: Optional[float] = None,
-    cash_timing: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Monthly Cash Coverage diagnostic.
 
-    Important V2 rule:
-    Cash timing is owned by Cash Management.
+    V2 architecture:
+        Monthly Cash Coverage does NOT create its own
+        receivables / payables timing model.
 
-    This diagnostic keeps the scenario controls
-    (price, variable cost, fixed costs, debt and volume),
-    but does not create an independent collection/payables model.
+        It delegates cash timing to:
+            ui.cash_management_lab.build_monthly_cash_coverage
 
-    cash_timing should normally come from:
-        ui.cash_management_lab.build_monthly_cash_coverage()
+    Scenario controls remain local to this diagnostic:
+        - price
+        - variable cost
+        - volume
+        - fixed costs
+        - debt service
+        - seasonality
 
-    The legacy cash_collection_pct and past_collections arguments
-    are retained only for compatibility with older callers.
-    They are NOT used when cash_timing is supplied.
+    Cash timing comes from the same Cash Management logic
+    used by the six-month cash plan.
     """
+
+    # -----------------------------------------------------
+    # STATE
+    # -----------------------------------------------------
 
     state = (
         projected_state
@@ -40,8 +47,17 @@ def calculate_monthly_survival(
         else baseline_state
     )
 
+    if state is None:
+        raise ValueError(
+            "A baseline_state or projected_state is required."
+        )
+
     drivers = state.drivers
     capital = state.capital_structure
+
+    # -----------------------------------------------------
+    # CANONICAL BASELINE VALUES
+    # -----------------------------------------------------
 
     default_price = float(
         drivers.price
@@ -54,10 +70,6 @@ def calculate_monthly_survival(
     default_monthly_volume = (
         float(drivers.volume)
         / 12.0
-        * (
-            float(season_factor)
-            / 100.0
-        )
     )
 
     default_monthly_fixed_cost = (
@@ -66,8 +78,19 @@ def calculate_monthly_survival(
     )
 
     default_monthly_debt_service = (
-        float(capital.annual_debt_service)
+        float(
+            capital.annual_debt_service
+        )
         / 12.0
+    )
+
+    # -----------------------------------------------------
+    # SCENARIO VALUES
+    # -----------------------------------------------------
+
+    season_factor = max(
+        0.0,
+        float(season_factor),
     )
 
     price = (
@@ -91,19 +114,22 @@ def calculate_monthly_survival(
     monthly_debt_service = (
         float(sim_debt)
         if sim_debt is not None
-        else default_monthly_debt
+        else default_monthly_debt_service
     )
 
-    volume = (
-        float(sim_volume)
-        if sim_volume is not None
-        else default_monthly_volume
-    )
+    if sim_volume is not None:
 
-    volume = max(
-        0.0,
-        volume,
-    )
+        volume = float(
+            sim_volume
+        )
+
+    else:
+
+        volume = (
+            default_monthly_volume
+            * season_factor
+            / 100.0
+        )
 
     price = max(
         0.0,
@@ -125,156 +151,103 @@ def calculate_monthly_survival(
         monthly_debt_service,
     )
 
+    volume = max(
+        0.0,
+        volume,
+    )
+
+    # -----------------------------------------------------
+    # SCENARIO SALES / PURCHASES
+    # -----------------------------------------------------
+
     monthly_sales = (
-        volume
-        * price
+        volume * price
     )
 
     monthly_purchases = (
-        volume
-        * variable_cost
+        volume * variable_cost
     )
 
     # -----------------------------------------------------
-    # CASH TIMING
+    # SHARED CASH MANAGEMENT TIMING
     # -----------------------------------------------------
+
+    # Imported here rather than at module level to avoid
+    # creating unnecessary import coupling during app load.
+    from ui.cash_management_lab import (
+        build_monthly_cash_coverage,
+    )
+
+    cash_timing = (
+        build_monthly_cash_coverage(
+            baseline_state=baseline_state,
+            sales_amount=monthly_sales,
+            purchases_amount=monthly_purchases,
+            monthly_opex=monthly_fixed_costs,
+            monthly_debt=monthly_debt_service,
+        )
+    )
 
     if cash_timing is None:
 
-        # Compatibility fallback.
-        #
-        # This should only be reached by an older caller that
-        # has not yet been connected to Cash Management.
-        #
-        # The normal V2 UI always supplies cash_timing.
-
-        collection_pct = (
-            20.0
-            if cash_collection_pct is None
-            else max(
-                0.0,
-                min(
-                    100.0,
-                    float(cash_collection_pct),
-                ),
-            )
+        raise ValueError(
+            "Cash Management timing could not be calculated."
         )
 
-        previous_collections = (
-            0.0
-            if past_collections is None
-            else max(
-                0.0,
-                float(past_collections),
-            )
-        )
+    if not cash_timing.get(
+        "valid",
+        False,
+    ):
 
-        current_sales_cash_in = (
-            monthly_sales
-            * collection_pct
-            / 100.0
-        )
-
-        total_monthly_cash_in = (
-            current_sales_cash_in
-            + previous_collections
-        )
-
-        total_supplier_payments = (
-            monthly_purchases
-        )
-
-        existing_ar_receipts = (
-            previous_collections
-        )
-
-        new_sales_receipts = (
-            current_sales_cash_in
-        )
-
-        existing_ap_payments = 0.0
-        new_purchase_payments = (
-            total_supplier_payments
-        )
-
-        ar_timing_source = (
-            "Legacy compatibility assumption"
-        )
-
-        ap_days = None
-
-    else:
-
-        if not cash_timing.get(
-            "valid",
-            False,
-        ):
-
-            return {
-                "valid": False,
-                "reason": cash_timing.get(
-                    "reason",
-                    "Cash timing calculation is invalid.",
-                ),
-            }
-
-        existing_ar_receipts = float(
+        raise ValueError(
             cash_timing.get(
-                "existing_ar_receipts",
-                0.0,
+                "reason",
+                "Cash Management timing assumptions are invalid.",
             )
-        )
-
-        new_sales_receipts = float(
-            cash_timing.get(
-                "new_sales_receipts",
-                0.0,
-            )
-        )
-
-        total_monthly_cash_in = float(
-            cash_timing.get(
-                "total_cash_receipts",
-                0.0,
-            )
-        )
-
-        existing_ap_payments = float(
-            cash_timing.get(
-                "existing_ap_payments",
-                0.0,
-            )
-        )
-
-        new_purchase_payments = float(
-            cash_timing.get(
-                "new_purchase_payments",
-                0.0,
-            )
-        )
-
-        total_supplier_payments = float(
-            cash_timing.get(
-                "total_supplier_payments",
-                0.0,
-            )
-        )
-
-        ar_timing_source = cash_timing.get(
-            "ar_timing_source",
-            "Cash Management",
-        )
-
-        ap_days = cash_timing.get(
-            "ap_days"
         )
 
     # -----------------------------------------------------
-    # CASH OUTFLOW
+    # CASH FLOWS
     # -----------------------------------------------------
+
+    current_sales_cash_in = float(
+        cash_timing[
+            "new_sales_receipts"
+        ]
+    )
+
+    existing_ar_cash_in = float(
+        cash_timing[
+            "existing_ar_receipts"
+        ]
+    )
+
+    total_monthly_cash_in = float(
+        cash_timing[
+            "cash_receipts"
+        ]
+    )
+
+    current_purchase_cash_out = float(
+        cash_timing[
+            "new_purchase_payments"
+        ]
+    )
+
+    existing_ap_cash_out = float(
+        cash_timing[
+            "existing_ap_payments"
+        ]
+    )
+
+    supplier_cash_out = float(
+        cash_timing[
+            "supplier_payments"
+        ]
+    )
 
     total_cash_outflow = (
-        total_supplier_payments
+        supplier_cash_out
         + monthly_fixed_costs
         + monthly_debt_service
     )
@@ -286,49 +259,73 @@ def calculate_monthly_survival(
 
     # -----------------------------------------------------
     # CASH CONTRIBUTION
-    #
-    # This is deliberately kept as a diagnostic metric,
-    # but it is now based on actual current-month cash
-    # generated by the timing layer.
     # -----------------------------------------------------
+    #
+    # This is deliberately different from the old model.
+    #
+    # We no longer say:
+    #
+    #     cash collected per unit - variable cost
+    #
+    # because variable cost is not necessarily paid
+    # immediately.
+    #
+    # Instead we calculate the actual month-1 cash effect
+    # of the scenario through the shared AR/AP timing.
+    #
 
-    current_sales_cash_in = (
-        new_sales_receipts
-    )
-
-    cash_revenue_per_unit = (
+    current_sales_cash_in_per_unit = (
         current_sales_cash_in / volume
         if volume > 0
         else 0.0
     )
 
-    new_purchase_cash_out = (
-        new_purchase_payments
-    )
-
-    cash_variable_cost_per_unit = (
-        new_purchase_cash_out / volume
+    current_purchase_cash_out_per_unit = (
+        current_purchase_cash_out / volume
         if volume > 0
         else 0.0
     )
 
     cash_contribution_per_unit = (
-        cash_revenue_per_unit
-        - cash_variable_cost_per_unit
+        current_sales_cash_in_per_unit
+        - current_purchase_cash_out_per_unit
     )
 
     # -----------------------------------------------------
     # CASH BREAK-EVEN
     # -----------------------------------------------------
+    #
+    # Existing AR/AP receipts/payments are fixed for the
+    # scenario. We calculate the incremental cash needed
+    # from the current month's sales cohort.
+    #
 
     fixed_cash_obligations = (
         monthly_fixed_costs
         + monthly_debt_service
-        + existing_ap_payments
-        - existing_ar_receipts
+        + existing_ap_cash_out
+        - existing_ar_cash_in
     )
 
-    if cash_contribution_per_unit <= 0:
+    incremental_cash_contribution_per_unit = (
+        price
+        * (
+            current_sales_cash_in / monthly_sales
+            if monthly_sales > 0
+            else 0.0
+        )
+        - variable_cost
+        * (
+            current_purchase_cash_out / monthly_purchases
+            if monthly_purchases > 0
+            else 0.0
+        )
+    )
+
+    if (
+        incremental_cash_contribution_per_unit
+        <= 0
+    ):
 
         cash_bep = None
 
@@ -339,7 +336,7 @@ def calculate_monthly_survival(
                 0.0,
                 fixed_cash_obligations,
             )
-            / cash_contribution_per_unit
+            / incremental_cash_contribution_per_unit
         )
 
     unit_gap = (
@@ -352,17 +349,19 @@ def calculate_monthly_survival(
     # STATUS
     # -----------------------------------------------------
 
-    if cash_contribution_per_unit <= 0:
+    if (
+        incremental_cash_contribution_per_unit
+        <= 0
+    ):
 
         status = (
-            "Negative Cash Contribution"
+            "Negative Incremental Cash Contribution"
         )
 
         interpretation = (
-            "Cash generated by the current month's "
-            "sales is insufficient, after current-month "
-            "purchase cash payments, to generate a "
-            "positive cash contribution."
+            "Under the current Receivables and Supplier "
+            "timing assumptions, an additional unit does not "
+            "generate positive cash contribution in this month."
         )
 
     elif cash_gap < 0:
@@ -372,9 +371,9 @@ def calculate_monthly_survival(
         interpretation = (
             f"Monthly cash shortfall of "
             f"€{abs(cash_gap):,.0f}. "
-            "Cash receipts arriving this month are "
-            "insufficient to cover supplier payments "
-            "and other modeled cash obligations."
+            "Expected cash receipts are insufficient to cover "
+            "supplier payments and fixed cash obligations "
+            "under the current timing assumptions."
         )
 
     else:
@@ -382,56 +381,95 @@ def calculate_monthly_survival(
         status = "Covered"
 
         interpretation = (
-            f"Monthly cash obligations are covered "
-            f"with a projected surplus of "
-            f"€{cash_gap:,.0f}."
+            f"Monthly cash obligations are covered with "
+            f"a projected surplus of €{cash_gap:,.0f}."
         )
 
-    return {
-        "valid": True,
+    # -----------------------------------------------------
+    # RETURN
+    # -----------------------------------------------------
 
+    return {
         "state_version": getattr(
             state,
             "version",
             None,
         ),
 
+        # Scenario economics.
         "price": price,
         "variable_cost": variable_cost,
         "volume": volume,
-
         "monthly_sales": monthly_sales,
         "monthly_purchases": monthly_purchases,
+
+        # Cash timing.
+        "current_sales_cash_in": current_sales_cash_in,
+        "existing_ar_cash_in": existing_ar_cash_in,
+        "total_monthly_cash_in": total_monthly_cash_in,
+
+        "current_purchase_cash_out": current_purchase_cash_out,
+        "existing_ap_cash_out": existing_ap_cash_out,
+        "supplier_cash_out": supplier_cash_out,
 
         "monthly_fixed_costs": monthly_fixed_costs,
         "monthly_debt_service": monthly_debt_service,
 
-        "existing_ar_receipts": existing_ar_receipts,
-        "new_sales_receipts": new_sales_receipts,
-        "current_sales_cash_in": current_sales_cash_in,
-        "total_monthly_cash_in": total_monthly_cash_in,
-
-        "existing_ap_payments": existing_ap_payments,
-        "new_purchase_payments": new_purchase_payments,
-        "total_supplier_payments": total_supplier_payments,
-
         "total_cash_outflow": total_cash_outflow,
         "cash_gap": cash_gap,
 
-        "cash_revenue_per_unit": cash_revenue_per_unit,
-        "cash_variable_cost_per_unit": (
-            cash_variable_cost_per_unit
+        # Timing diagnostics.
+        "ar_days": cash_timing[
+            "ar_days"
+        ],
+        "ap_days": cash_timing[
+            "ap_days"
+        ],
+        "collection_profile": cash_timing[
+            "collection_profile"
+        ],
+
+        # Contribution / BEP.
+        "cash_revenue_per_unit": (
+            current_sales_cash_in_per_unit
+        ),
+        "cash_purchase_cost_per_unit": (
+            current_purchase_cash_out_per_unit
         ),
         "cash_contribution_per_unit": (
             cash_contribution_per_unit
         ),
-
+        "incremental_cash_contribution_per_unit": (
+            incremental_cash_contribution_per_unit
+        ),
+        "fixed_cash_obligations": (
+            fixed_cash_obligations
+        ),
         "cash_bep": cash_bep,
         "unit_gap": unit_gap,
 
-        "ar_timing_source": ar_timing_source,
-        "ap_days": ap_days,
-
+        # Status.
         "status": status,
         "interpretation": interpretation,
+
+        # Full shared timing result.
+        "cash_timing": cash_timing,
+
+        # Backward-compatible fields.
+        #
+        # These are retained so older UI code does not
+        # immediately fail, but they are no longer the
+        # source of the cash calculation.
+        "cash_collection_pct": (
+            (
+                current_sales_cash_in
+                / monthly_sales
+                * 100.0
+            )
+            if monthly_sales > 0
+            else 0.0
+        ),
+        "past_collections": (
+            existing_ar_cash_in
+        ),
     }
