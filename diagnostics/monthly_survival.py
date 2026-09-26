@@ -137,14 +137,15 @@ def calculate_monthly_survival(
     # SHARED CASH MANAGEMENT TIMING
     # =====================================================
 
-    cash_timing = build_monthly_cash_coverage(
-        baseline_state=baseline_state,
-        sales_amount=sales_amount,
-        purchases_amount=purchases_amount,
-        monthly_opex=monthly_fixed_costs,
-        monthly_debt=monthly_debt_service,
-    )
-
+    if cash_timing is None:
+        cash_timing = build_monthly_cash_coverage(
+            baseline_state=baseline_state,
+            sales_amount=sales_amount,
+            purchases_amount=purchases_amount,
+            monthly_opex=monthly_fixed_costs,
+            monthly_debt=monthly_debt_service,
+        )
+    
     if not cash_timing.get("valid", False):
         raise ValueError(
             cash_timing.get(
