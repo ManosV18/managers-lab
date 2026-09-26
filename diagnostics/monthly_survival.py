@@ -387,6 +387,8 @@ def calculate_monthly_survival(
         "existing_ap_cash_out": existing_ap_cash_out,
         "current_purchase_cash_out": current_purchase_cash_out,
         "supplier_cash_out": supplier_cash_out,
+        "total_cash_outflow": total_cash_outflow,
+        "cash_gap": cash_gap,
 
         # Compatibility names expected by Monthly Survival UI
         "existing_ap_payments": existing_ap_cash_out,
