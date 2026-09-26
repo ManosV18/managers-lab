@@ -409,8 +409,16 @@ def calculate_monthly_survival(
         # =================================================
 
         "cash_revenue_per_unit": cash_revenue_per_unit,
-        "cash_purchase_cost_per_unit": cash_purchase_cost_per_unit,
-        "cash_contribution_per_unit": cash_contribution_per_unit,
+        "cash_purchase_cost_per_unit": (
+            cash_purchase_cost_per_unit
+        ),
+        # Compatibility field expected by Monthly Survival UI
+        "cash_variable_cost_per_unit": (
+            cash_purchase_cost_per_unit
+        ),
+        "cash_contribution_per_unit": (
+            cash_contribution_per_unit
+        ),
 
         # =================================================
         # CASH BREAK-EVEN
