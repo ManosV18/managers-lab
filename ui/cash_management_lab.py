@@ -1495,6 +1495,286 @@ def _build_cash_plan(
 
 
 # =========================================================
+# MONTHLY CASH COVERAGE
+# =========================================================
+
+def build_monthly_cash_coverage(
+    baseline_state: Any,
+    sales_amount: float,
+    purchases_amount: float,
+    monthly_opex: float,
+    monthly_debt: float,
+    ar_decision: Any = None,
+    ap_decision: Any = None,
+    existing_ar_profile: Optional[Mapping[int, float]] = None,
+    existing_ap_profile: Optional[Mapping[int, float]] = None,
+) -> Dict[str, Any]:
+    """
+    Shared one-month cash timing calculation.
+
+    This is intentionally owned by Cash Management.
+
+    Monthly Cash Coverage can use different scenario sales and
+    purchase amounts, but it must use the same timing rules as
+    the main Cash Management module.
+
+    The one-month horizon represents cash arriving/leaving THIS
+    month. Existing AR/AP are represented by their existing-balance
+    timing profiles. New sales and purchases follow the current
+    Receivables and Supplier decisions.
+    """
+
+    if baseline_state is None:
+        return {
+            "valid": False,
+            "reason": "Baseline company state is not available.",
+        }
+
+    if ar_decision is None:
+        ar_decision = _selected_ar_decision()
+
+    if ap_decision is None:
+        ap_decision = _selected_ap_decision()
+
+    if existing_ar_profile is None:
+        existing_ar_profile = (
+            _existing_profile_from_session(
+                session_key="cash_existing_ar_profile",
+                default_profile=DEFAULT_EXISTING_AR_PROFILE,
+            )
+        )
+    else:
+        existing_ar_profile = _normalise_existing_profile(
+            existing_ar_profile
+        )
+
+    if existing_ap_profile is None:
+        existing_ap_profile = (
+            _existing_profile_from_session(
+                session_key="cash_existing_ap_profile",
+                default_profile=DEFAULT_EXISTING_AP_PROFILE,
+            )
+        )
+    else:
+        existing_ap_profile = _normalise_existing_profile(
+            existing_ap_profile
+        )
+
+    if not _existing_profile_is_valid(
+        existing_ar_profile
+    ):
+        return {
+            "valid": False,
+            "reason": (
+                "Existing receivables timing assumptions "
+                "must total 100%."
+            ),
+        }
+
+    if not _existing_profile_is_valid(
+        existing_ap_profile
+    ):
+        return {
+            "valid": False,
+            "reason": (
+                "Existing payables timing assumptions "
+                "must total 100%."
+            ),
+        }
+
+    sales_amount = max(
+        0.0,
+        _to_float(sales_amount),
+    )
+
+    purchases_amount = max(
+        0.0,
+        _to_float(purchases_amount),
+    )
+
+    monthly_opex = max(
+        0.0,
+        _to_float(monthly_opex),
+    )
+
+    monthly_debt = max(
+        0.0,
+        _to_float(monthly_debt),
+    )
+
+    # -----------------------------------------------------
+    # EXISTING AR
+    # -----------------------------------------------------
+
+    opening_ar = _opening_ar(
+        baseline_state
+    )
+
+    existing_ar_receipts_list = (
+        _build_existing_ar_receipts(
+            opening_ar=opening_ar,
+            existing_ar_profile=existing_ar_profile,
+            horizon=1,
+        )
+    )
+
+    existing_ar_receipts = (
+        existing_ar_receipts_list[0]
+        if existing_ar_receipts_list
+        else 0.0
+    )
+
+    # -----------------------------------------------------
+    # NEW SALES
+    # -----------------------------------------------------
+
+    collection_profile = (
+        _get_collection_profile(
+            ar_decision
+        )
+    )
+
+    if collection_profile:
+
+        new_sales_receipts_list = (
+            _build_new_sales_receipts(
+                monthly_sales=[sales_amount],
+                collection_profile=collection_profile,
+            )
+        )
+
+        new_sales_receipts = (
+            new_sales_receipts_list[0]
+            if new_sales_receipts_list
+            else 0.0
+        )
+
+        timing_source = "Receivables Decision"
+
+    else:
+
+        ar_days = _decision_ar_days(
+            baseline_state,
+            ar_decision,
+        )
+
+        allocation = (
+            _monthly_delay_allocation(
+                ar_days
+            )
+        )
+
+        new_sales_receipts = (
+            sales_amount
+            * _to_float(
+                allocation.get(0, 0.0)
+            )
+        )
+
+        timing_source = (
+            f"AR days ({ar_days:.0f} days)"
+        )
+
+    total_cash_receipts = (
+        existing_ar_receipts
+        + new_sales_receipts
+    )
+
+    # -----------------------------------------------------
+    # EXISTING AP
+    # -----------------------------------------------------
+
+    opening_ap = _opening_ap(
+        baseline_state
+    )
+
+    existing_ap_payments_list = (
+        _build_existing_ap_payments(
+            opening_ap=opening_ap,
+            existing_ap_profile=existing_ap_profile,
+            horizon=1,
+        )
+    )
+
+    existing_ap_payments = (
+        existing_ap_payments_list[0]
+        if existing_ap_payments_list
+        else 0.0
+    )
+
+    # -----------------------------------------------------
+    # NEW PURCHASES
+    # -----------------------------------------------------
+
+    ap_days = _decision_ap_days(
+        baseline_state,
+        ap_decision,
+    )
+
+    new_purchase_payments_list = (
+        _build_new_purchase_payments(
+            monthly_purchases=[purchases_amount],
+            ap_days=ap_days,
+        )
+    )
+
+    new_purchase_payments = (
+        new_purchase_payments_list[0]
+        if new_purchase_payments_list
+        else 0.0
+    )
+
+    total_supplier_payments = (
+        existing_ap_payments
+        + new_purchase_payments
+    )
+
+    # -----------------------------------------------------
+    # MONTHLY CASH RESULT
+    # -----------------------------------------------------
+
+    total_cash_outflow = (
+        total_supplier_payments
+        + monthly_opex
+        + monthly_debt
+    )
+
+    cash_gap = (
+        total_cash_receipts
+        - total_cash_outflow
+    )
+
+    return {
+        "valid": True,
+
+        "sales_amount": sales_amount,
+        "purchases_amount": purchases_amount,
+
+        "opening_ar": opening_ar,
+        "existing_ar_receipts": existing_ar_receipts,
+        "new_sales_receipts": new_sales_receipts,
+        "total_cash_receipts": total_cash_receipts,
+
+        "opening_ap": opening_ap,
+        "existing_ap_payments": existing_ap_payments,
+        "new_purchase_payments": new_purchase_payments,
+        "total_supplier_payments": total_supplier_payments,
+
+        "operating_expenses": monthly_opex,
+        "debt_payments": monthly_debt,
+
+        "total_cash_outflow": total_cash_outflow,
+        "cash_gap": cash_gap,
+
+        "ar_timing_source": timing_source,
+        "ap_days": ap_days,
+        "collection_profile": collection_profile,
+        "existing_ar_profile": dict(existing_ar_profile),
+        "existing_ap_profile": dict(existing_ap_profile),
+    }
+
+
+# =========================================================
 # CASH MANAGEMENT ASSUMPTIONS
 # =========================================================
 
@@ -1724,7 +2004,6 @@ def build_cash_management_summary(
         }
     )
 
-    # Keep the same result available to the rest of V2.
     st.session_state[
         "cash_management_result"
     ] = result
@@ -1928,10 +2207,6 @@ def render_cash_management_lab(
         "### Future transactions"
     )
 
-    # -----------------------------------------------------
-    # RECEIVABLES
-    # -----------------------------------------------------
-
     if collection_profile:
 
         profile_text = " / ".join(
@@ -1955,10 +2230,6 @@ def render_cash_management_lab(
             f"approximately "
             f"{current_ar_days:.0f} days"
         )
-
-    # -----------------------------------------------------
-    # SUPPLIERS
-    # -----------------------------------------------------
 
     st.caption(
         "New purchase payment timing from Supplier "
