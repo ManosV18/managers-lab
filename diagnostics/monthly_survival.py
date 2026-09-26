@@ -6,6 +6,7 @@ from diagnostics.monthly_survival import (
     calculate_monthly_survival,
 )
 
+
 def render_monthly_survival_lab(
     baseline_state,
     projected_state=None,
@@ -513,4 +514,8 @@ under the current timing assumptions.
 
 Monthly cash surplus:
 **€{cash_gap:,.0f}**
+"""
                 )
+
+
+show_monthly_survival_lab = render_monthly_survival_lab
