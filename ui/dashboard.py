@@ -1,8 +1,12 @@
 import streamlit as st
 
 from core.decision_plan import DecisionPlan
-# Εισαγωγή του engine υπολογισμού υγείας/fragility από το domain/diagnostics layer
+
+# Domain / diagnostics layer
 from diagnostics.cash_fragility import calculate_cash_fragility
+
+# Cash Management timing layer
+from ui.cash_management_lab import build_cash_management_summary
 
 
 # =========================================================
@@ -193,7 +197,7 @@ def _classify_decision_plan(
     # Profitability deteriorates while cash generation improves
     if profitability_negative and cash_positive:
         return "mixed"
-        
+
     if wacc_present and not operational_present and not wc_present:
         if capital_cost_negative:
             return "capital_negative"
@@ -335,6 +339,8 @@ def _render_executive_decision(
         st.info(
             "💧 Working capital has no incremental cash impact."
         )
+
+
 # =========================================================
 # CAPITAL COST / VALUATION
 # =========================================================
@@ -357,23 +363,45 @@ def _render_capital_cost(
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Baseline WACC", _fmt_rate(baseline_wacc))
-    c2.metric("Projected WACC", _fmt_rate(projected_wacc), f"{wacc_delta_pp:+.2f} pp", delta_color="inverse")
-    c3.metric("WACC Decision", "Applied" if wacc_decision else "None")
+    c2.metric(
+        "Projected WACC",
+        _fmt_rate(projected_wacc),
+        f"{wacc_delta_pp:+.2f} pp",
+        delta_color="inverse",
+    )
+    c3.metric(
+        "WACC Decision",
+        "Applied" if wacc_decision else "None",
+    )
 
     if not wacc_decision:
-        st.caption("No WACC decision is included in the current Decision Plan.")
+        st.caption(
+            "No WACC decision is included in the current Decision Plan."
+        )
         return
 
     if wacc_delta_pp < -1e-9:
-        st.success(f"📉 Capital efficiency improved: WACC decreased from {_fmt_rate(baseline_wacc)} to {_fmt_rate(projected_wacc)}.")
+        st.success(
+            f"📉 Capital efficiency improved: WACC decreased "
+            f"from {_fmt_rate(baseline_wacc)} to "
+            f"{_fmt_rate(projected_wacc)}."
+        )
     elif wacc_delta_pp > 1e-9:
-        st.warning(f"📈 Capital cost increased: WACC increased from {_fmt_rate(baseline_wacc)} to {_fmt_rate(projected_wacc)}.")
+        st.warning(
+            f"📈 Capital cost increased: WACC increased "
+            f"from {_fmt_rate(baseline_wacc)} to "
+            f"{_fmt_rate(projected_wacc)}."
+        )
     else:
-        st.info("WACC decision is present, but the projected WACC is unchanged versus baseline.")
+        st.info(
+            "WACC decision is present, but the projected WACC "
+            "is unchanged versus baseline."
+        )
 
     st.caption(
         "WACC is treated exclusively as a capital-cost / valuation driver. "
-        "It does not directly change Net Profit, Interest Expense or FCFE in FinancialEngine v1."
+        "It does not directly change Net Profit, Interest Expense or FCFE "
+        "in FinancialEngine v1."
     )
 
 
@@ -389,40 +417,86 @@ def _render_valuation_impact(
     if decision_plan is None or not _has_wacc_decision(decision_plan):
         return
 
-    baseline_wacc = float(baseline_state.capital_structure.wacc)
-    projected_wacc = float(projected_state.capital_structure.wacc)
+    baseline_wacc = float(
+        baseline_state.capital_structure.wacc
+    )
+    projected_wacc = float(
+        projected_state.capital_structure.wacc
+    )
     delta_wacc = projected_wacc - baseline_wacc
 
     st.subheader("📉 Valuation Impact")
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Baseline Discount Rate", _fmt_rate(baseline_wacc))
-    c2.metric("Projected Discount Rate", _fmt_rate(projected_wacc), f"{delta_wacc * 100.0:+.2f} pp", delta_color="inverse")
+    c1.metric(
+        "Baseline Discount Rate",
+        _fmt_rate(baseline_wacc),
+    )
+    c2.metric(
+        "Projected Discount Rate",
+        _fmt_rate(projected_wacc),
+        f"{delta_wacc * 100.0:+.2f} pp",
+        delta_color="inverse",
+    )
 
     if delta_wacc > 1e-9:
         valuation_signal = "Negative"
-        c3.metric("Valuation Signal", "🔴 Downward")
-        st.error("🔴 Higher WACC increases the discount rate applied to future FCFF and therefore creates downward pressure on Enterprise Value, all else equal.")
+        c3.metric(
+            "Valuation Signal",
+            "🔴 Downward",
+        )
+        st.error(
+            "🔴 Higher WACC increases the discount rate applied "
+            "to future FCFF and therefore creates downward pressure "
+            "on Enterprise Value, all else equal."
+        )
     elif delta_wacc < -1e-9:
         valuation_signal = "Positive"
-        c3.metric("Valuation Signal", "🟢 Upward")
-        st.success("🟢 Lower WACC reduces the discount rate applied to future FCFF and therefore creates upward pressure on Enterprise Value, all else equal.")
+        c3.metric(
+            "Valuation Signal",
+            "🟢 Upward",
+        )
+        st.success(
+            "🟢 Lower WACC reduces the discount rate applied "
+            "to future FCFF and therefore creates upward pressure "
+            "on Enterprise Value, all else equal."
+        )
     else:
         valuation_signal = "Neutral"
-        c3.metric("Valuation Signal", "⚪ Neutral")
-        st.info("WACC is unchanged; there is no incremental valuation signal from the discount-rate layer.")
+        c3.metric(
+            "Valuation Signal",
+            "⚪ Neutral",
+        )
+        st.info(
+            "WACC is unchanged; there is no incremental valuation "
+            "signal from the discount-rate layer."
+        )
 
     st.markdown("#### Valuation Interpretation")
+
     if valuation_signal == "Negative":
-        st.write("The Decision Plan improves the company's operating and/or cash-flow metrics, but the higher WACC makes future cash flows less valuable in a DCF framework.")
+        st.write(
+            "The Decision Plan improves the company's operating "
+            "and/or cash-flow metrics, but the higher WACC makes "
+            "future cash flows less valuable in a DCF framework."
+        )
     elif valuation_signal == "Positive":
-        st.write("The Decision Plan improves the company's capital efficiency because the lower WACC reduces the discount rate applied to future FCFF.")
+        st.write(
+            "The Decision Plan improves the company's capital "
+            "efficiency because the lower WACC reduces the discount "
+            "rate applied to future FCFF."
+        )
     else:
-        st.write("The Decision Plan produces no incremental valuation effect through the WACC layer.")
+        st.write(
+            "The Decision Plan produces no incremental valuation "
+            "effect through the WACC layer."
+        )
 
     st.caption(
-        "Important: FinancialEngine v1 does not calculate FCFF, terminal value or Enterprise Value. "
-        "Therefore this section intentionally reports the directional valuation effect of the WACC change rather than inventing a € valuation impact."
+        "Important: FinancialEngine v1 does not calculate FCFF, "
+        "terminal value or Enterprise Value. Therefore this section "
+        "intentionally reports the directional valuation effect of "
+        "the WACC change rather than inventing a € valuation impact."
     )
 
 
@@ -432,12 +506,36 @@ def _render_valuation_impact(
 
 def _render_financial_impact(financial_impact):
     st.subheader("📊 Executive Financial Impact")
+
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric("Revenue Δ", _fmt_signed_eur(financial_impact.revenue_delta))
-    c2.metric("EBITDA Δ", _fmt_signed_eur(financial_impact.ebitda_delta))
-    c3.metric("Net Profit Δ", _fmt_signed_eur(financial_impact.net_profit_delta))
-    c4.metric("FCFE Δ", _fmt_signed_eur(financial_impact.fcfe_delta))
+    c1.metric(
+        "Revenue Δ",
+        _fmt_signed_eur(
+            financial_impact.revenue_delta
+        ),
+    )
+
+    c2.metric(
+        "EBITDA Δ",
+        _fmt_signed_eur(
+            financial_impact.ebitda_delta
+        ),
+    )
+
+    c3.metric(
+        "Net Profit Δ",
+        _fmt_signed_eur(
+            financial_impact.net_profit_delta
+        ),
+    )
+
+    c4.metric(
+        "FCFE Δ",
+        _fmt_signed_eur(
+            financial_impact.fcfe_delta
+        ),
+    )
 
 
 # =========================================================
@@ -491,15 +589,34 @@ def _render_profitability_snapshot(
 def _render_revenue_bridge(financial_impact):
     st.subheader("📈 Revenue Bridge")
 
-    price_effect = float(financial_impact.price_effect)
-    volume_effect = float(financial_impact.volume_effect)
-    revenue_delta = float(financial_impact.revenue_delta)
+    price_effect = float(
+        financial_impact.price_effect
+    )
+
+    volume_effect = float(
+        financial_impact.volume_effect
+    )
+
+    revenue_delta = float(
+        financial_impact.revenue_delta
+    )
 
     c1, c2, c3 = st.columns(3)
 
-    c1.metric("Price Effect", _fmt_signed_eur(price_effect))
-    c2.metric("Volume Effect", _fmt_signed_eur(volume_effect))
-    c3.metric("Total Revenue Δ", _fmt_signed_eur(revenue_delta))
+    c1.metric(
+        "Price Effect",
+        _fmt_signed_eur(price_effect),
+    )
+
+    c2.metric(
+        "Volume Effect",
+        _fmt_signed_eur(volume_effect),
+    )
+
+    c3.metric(
+        "Total Revenue Δ",
+        _fmt_signed_eur(revenue_delta),
+    )
 
 
 # =========================================================
@@ -516,13 +633,26 @@ def _render_working_capital(
     b = baseline_fin.working_capital
     p = projected_fin.working_capital
 
-    cash_impact = float(financial_impact.nwc_cash_impact_delta)
+    cash_impact = float(
+        financial_impact.nwc_cash_impact_delta
+    )
 
     c1, c2, c3 = st.columns(3)
 
-    c1.metric("Baseline NWC", _fmt_eur(b.nwc))
-    c2.metric("Projected NWC", _fmt_eur(p.nwc))
-    c3.metric("Incremental Cash Impact", _fmt_signed_eur(cash_impact))
+    c1.metric(
+        "Baseline NWC",
+        _fmt_eur(b.nwc),
+    )
+
+    c2.metric(
+        "Projected NWC",
+        _fmt_eur(p.nwc),
+    )
+
+    c3.metric(
+        "Incremental Cash Impact",
+        _fmt_signed_eur(cash_impact),
+    )
 
     rows = [
         {
@@ -555,6 +685,111 @@ def _render_working_capital(
         rows,
         use_container_width=True,
         hide_index=True,
+    )
+
+
+# =========================================================
+# CASH MANAGEMENT — TIMING LAYER
+# =========================================================
+
+def _render_cash_management_summary(
+    baseline_state,
+):
+    st.subheader(
+        "💧 Cash Management"
+    )
+
+    st.caption(
+        "Timing layer: when cash actually arrives and leaves, "
+        "and whether the planned cash reserve is breached."
+    )
+
+    result = build_cash_management_summary(
+        baseline_state=baseline_state,
+    )
+
+    if result is None:
+        st.warning(
+            "Cash Management cannot be calculated because "
+            "the baseline company state is not available."
+        )
+        return
+
+    if not result.get("valid", True):
+        st.warning(
+            result.get(
+                "reason",
+                "Cash Management assumptions are not valid.",
+            )
+        )
+        return
+
+    lowest_cash = float(
+        result.get(
+            "lowest_projected_cash",
+            0.0,
+        )
+    )
+
+    lowest_month = result.get(
+        "lowest_cash_month"
+    )
+
+    minimum_cash = float(
+        result.get(
+            "minimum_cash_reserve",
+            0.0,
+        )
+    )
+
+    funding_required = float(
+        result.get(
+            "funding_required",
+            0.0,
+        )
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
+        "Lowest Projected Cash",
+        _fmt_eur(lowest_cash),
+    )
+
+    c2.metric(
+        "Lowest Cash Month",
+        (
+            f"Month {lowest_month}"
+            if lowest_month is not None
+            else "—"
+        ),
+    )
+
+    c3.metric(
+        "Minimum Cash Reserve",
+        _fmt_eur(minimum_cash),
+    )
+
+    c4.metric(
+        "Funding Required",
+        _fmt_eur(funding_required),
+    )
+
+    if funding_required > 0:
+        st.warning(
+            "🟠 Projected cash falls below the minimum "
+            f"reserve. Estimated funding requirement: "
+            f"{_fmt_eur(funding_required)}."
+        )
+    else:
+        st.success(
+            "🟢 Projected cash remains above the minimum "
+            "cash reserve throughout the six-month period."
+        )
+
+    st.caption(
+        "The full six-month cash table remains in Cash Management. "
+        "This section shows only the executive timing result."
     )
 
 
@@ -811,7 +1046,8 @@ def _render_decision_diagnostics(
                 else "No"
             ),
             "Financial Effect": (
-                f"EBITDA Impact: {_fmt_signed_eur(financial_impact.ebitda_delta)}"
+                f"EBITDA Impact: "
+                f"{_fmt_signed_eur(financial_impact.ebitda_delta)}"
                 if operational_present
                 else "€ 0"
             ),
@@ -824,7 +1060,8 @@ def _render_decision_diagnostics(
                 else "No"
             ),
             "Financial Effect": (
-                f"Cash Impact: {_fmt_signed_eur(financial_impact.nwc_cash_impact_delta)}"
+                f"Cash Impact: "
+                f"{_fmt_signed_eur(financial_impact.nwc_cash_impact_delta)}"
                 if wc_present
                 else "€ 0"
             ),
@@ -1046,6 +1283,16 @@ def render_dashboard(
         baseline_fin=baseline_fin,
         projected_fin=projected_fin,
         financial_impact=financial_impact,
+    )
+
+    st.divider()
+
+    # =====================================================
+    # CASH MANAGEMENT TIMING LAYER
+    # =====================================================
+
+    _render_cash_management_summary(
+        baseline_state=baseline_state,
     )
 
     st.divider()
