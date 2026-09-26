@@ -7,6 +7,7 @@ import streamlit as st
 
 from core.decision_plan import DecisionPlan
 
+
 # =========================================================
 # CONSTANTS
 # =========================================================
@@ -1544,6 +1545,80 @@ def _build_cash_plan(
         "monthly_purchases": monthly_purchases,
     }
 
+
+# =========================================================
+# CASH MANAGEMENT RESULT
+# =========================================================
+
+def _store_cash_management_result(
+    cash_plan: Mapping[str, Sequence[float]],
+    minimum_cash: float,
+) -> Dict[str, Any]:
+    """
+    Store the already-calculated Cash Management result
+    for use by other V2 presentation layers.
+
+    This function does NOT recalculate cash flows.
+    It only interprets the existing cash_plan output.
+    """
+
+    ending_cash = [
+        _to_float(value)
+        for value in cash_plan.get(
+            "ending_cash",
+            [],
+        )
+    ]
+
+    if not ending_cash:
+        result = {
+            "lowest_projected_cash": 0.0,
+            "lowest_cash_month": None,
+            "minimum_cash_reserve": _to_float(
+                minimum_cash
+            ),
+            "funding_required": 0.0,
+        }
+
+        st.session_state[
+            "cash_management_result"
+        ] = result
+
+        return result
+
+    lowest_cash = min(
+        ending_cash
+    )
+
+    lowest_month_index = ending_cash.index(
+        lowest_cash
+    )
+
+    minimum_cash = _to_float(
+        minimum_cash
+    )
+
+    funding_required = max(
+        0.0,
+        minimum_cash - lowest_cash,
+    )
+
+    result = {
+        "lowest_projected_cash": lowest_cash,
+        "lowest_cash_month": (
+            lowest_month_index + 1
+        ),
+        "minimum_cash_reserve": minimum_cash,
+        "funding_required": funding_required,
+    }
+
+    st.session_state[
+        "cash_management_result"
+    ] = result
+
+    return result
+
+
 # =========================================================
 # UI
 # =========================================================
@@ -1858,23 +1933,29 @@ def render_cash_management_lab(
     # CASH POSITION
     # =====================================================
 
-    lowest_cash = min(
-        cash_plan[
-            "ending_cash"
+    cash_management_result = (
+        _store_cash_management_result(
+            cash_plan=cash_plan,
+            minimum_cash=minimum_cash,
+        )
+    )
+
+    lowest_cash = (
+        cash_management_result[
+            "lowest_projected_cash"
         ]
     )
 
     lowest_month_index = (
-        cash_plan[
-            "ending_cash"
-        ].index(
-            lowest_cash
-        )
+        cash_management_result[
+            "lowest_cash_month"
+        ] - 1
     )
 
-    funding_required = max(
-        0.0,
-        minimum_cash - lowest_cash,
+    funding_required = (
+        cash_management_result[
+            "funding_required"
+        ]
     )
 
     col1, col2, col3 = st.columns(3)
@@ -1891,7 +1972,11 @@ def render_cash_management_lab(
 
         st.metric(
             "Minimum cash reserve",
-            _money(minimum_cash),
+            _money(
+                cash_management_result[
+                    "minimum_cash_reserve"
+                ]
+            ),
         )
 
     with col3:
