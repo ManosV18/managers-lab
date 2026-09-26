@@ -1004,7 +1004,6 @@ def _render_existing_timing_inputs(
             "Timing assumption totals 100%."
         )
 
-    # Keep the exact user-entered values in session state.
     st.session_state[session_key] = raw_profile
 
     return raw_profile
@@ -1395,6 +1394,253 @@ def _build_supplier_payments(
 
 
 # =========================================================
+# SHARED MONTHLY CASH COVERAGE ENGINE
+# =========================================================
+
+def build_monthly_cash_coverage(
+    baseline_state: Any,
+    sales_amount: float,
+    purchases_amount: float,
+    monthly_opex: float,
+    monthly_debt: float,
+    ar_decision: Any = None,
+    ap_decision: Any = None,
+    existing_ar_profile: Optional[Mapping[int, float]] = None,
+    existing_ap_profile: Optional[Mapping[int, float]] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Shared one-month cash timing calculation.
+
+    IMPORTANT:
+    Monthly Cash Coverage uses this function instead of
+    creating its own collection/payment model.
+
+    It uses exactly the same:
+        - existing AR timing
+        - existing AP timing
+        - Receivables Decision collection profile
+        - Supplier/AP Decision payment timing
+
+    as the six-month Cash Management module.
+
+    The sales_amount and purchases_amount are supplied by
+    the Monthly Cash Coverage scenario, so scenario changes
+    to price / volume / variable cost still work correctly.
+    """
+
+    if baseline_state is None:
+        return None
+
+    if ar_decision is None:
+        ar_decision = _selected_ar_decision()
+
+    if ap_decision is None:
+        ap_decision = _selected_ap_decision()
+
+    if existing_ar_profile is None:
+        existing_ar_profile = (
+            _existing_profile_from_session(
+                session_key="cash_existing_ar_profile",
+                default_profile=DEFAULT_EXISTING_AR_PROFILE,
+            )
+        )
+    else:
+        existing_ar_profile = (
+            _normalise_existing_profile(
+                existing_ar_profile
+            )
+        )
+
+    if existing_ap_profile is None:
+        existing_ap_profile = (
+            _existing_profile_from_session(
+                session_key="cash_existing_ap_profile",
+                default_profile=DEFAULT_EXISTING_AP_PROFILE,
+            )
+        )
+    else:
+        existing_ap_profile = (
+            _normalise_existing_profile(
+                existing_ap_profile
+            )
+        )
+
+    if not _existing_profile_is_valid(
+        existing_ar_profile
+    ):
+        return {
+            "valid": False,
+            "reason": (
+                "Existing receivables timing assumptions "
+                "must total 100%."
+            ),
+        }
+
+    if not _existing_profile_is_valid(
+        existing_ap_profile
+    ):
+        return {
+            "valid": False,
+            "reason": (
+                "Existing payables timing assumptions "
+                "must total 100%."
+            ),
+        }
+
+    sales_amount = max(
+        0.0,
+        _to_float(sales_amount),
+    )
+
+    purchases_amount = max(
+        0.0,
+        _to_float(purchases_amount),
+    )
+
+    monthly_opex = max(
+        0.0,
+        _to_float(monthly_opex),
+    )
+
+    monthly_debt = max(
+        0.0,
+        _to_float(monthly_debt),
+    )
+
+    # One-month horizon.
+    monthly_sales = [sales_amount]
+    monthly_purchases = [purchases_amount]
+
+    receipts = _build_receipts(
+        baseline_state=baseline_state,
+        ar_decision=ar_decision,
+        monthly_sales=monthly_sales,
+        existing_ar_profile=existing_ar_profile,
+    )
+
+    supplier_payments = (
+        _build_supplier_payments(
+            baseline_state=baseline_state,
+            ap_decision=ap_decision,
+            monthly_purchases=monthly_purchases,
+            existing_ap_profile=existing_ap_profile,
+        )
+    )
+
+    existing_ar_receipts = (
+        _build_existing_ar_receipts(
+            opening_ar=_opening_ar(
+                baseline_state
+            ),
+            existing_ar_profile=existing_ar_profile,
+            horizon=1,
+        )
+    )
+
+    collection_profile = (
+        _get_collection_profile(
+            ar_decision
+        )
+    )
+
+    if collection_profile:
+        new_sales_receipts = (
+            _build_new_sales_receipts(
+                monthly_sales=monthly_sales,
+                collection_profile=collection_profile,
+            )
+        )
+    else:
+        ar_days = _decision_ar_days(
+            baseline_state,
+            ar_decision,
+        )
+
+        allocation = (
+            _monthly_delay_allocation(
+                ar_days
+            )
+        )
+
+        new_sales_receipts = [0.0]
+
+        for delay, percentage in allocation.items():
+            if int(delay) == 0:
+                new_sales_receipts[0] += (
+                    sales_amount
+                    * _to_float(percentage)
+                )
+
+    existing_ap_payments = (
+        _build_existing_ap_payments(
+            opening_ap=_opening_ap(
+                baseline_state
+            ),
+            existing_ap_profile=existing_ap_profile,
+            horizon=1,
+        )
+    )
+
+    ap_days = _decision_ap_days(
+        baseline_state,
+        ap_decision,
+    )
+
+    new_purchase_payments = (
+        _build_new_purchase_payments(
+            monthly_purchases=monthly_purchases,
+            ap_days=ap_days,
+        )
+    )
+
+    cash_receipts = receipts[0]
+    supplier_cash_out = supplier_payments[0]
+
+    net_cash_flow = (
+        cash_receipts
+        - supplier_cash_out
+        - monthly_opex
+        - monthly_debt
+    )
+
+    return {
+        "valid": True,
+        "sales_amount": sales_amount,
+        "purchases_amount": purchases_amount,
+        "cash_receipts": cash_receipts,
+        "existing_ar_receipts": existing_ar_receipts[0],
+        "new_sales_receipts": new_sales_receipts[0],
+        "supplier_payments": supplier_cash_out,
+        "existing_ap_payments": existing_ap_payments[0],
+        "new_purchase_payments": new_purchase_payments[0],
+        "operating_expenses": monthly_opex,
+        "debt_payments": monthly_debt,
+        "net_cash_flow": net_cash_flow,
+        "opening_ar": _opening_ar(
+            baseline_state
+        ),
+        "opening_ap": _opening_ap(
+            baseline_state
+        ),
+        "ar_days": _decision_ar_days(
+            baseline_state,
+            ar_decision,
+        ),
+        "ap_days": _decision_ap_days(
+            baseline_state,
+            ap_decision,
+        ),
+        "collection_profile": collection_profile,
+        "existing_ar_profile": dict(
+            existing_ar_profile
+        ),
+        "existing_ap_profile": dict(
+            existing_ap_profile
+        ),
+    }
+
+
+# =========================================================
 # CASH PLAN
 # =========================================================
 
@@ -1495,286 +1741,6 @@ def _build_cash_plan(
 
 
 # =========================================================
-# MONTHLY CASH COVERAGE
-# =========================================================
-
-def build_monthly_cash_coverage(
-    baseline_state: Any,
-    sales_amount: float,
-    purchases_amount: float,
-    monthly_opex: float,
-    monthly_debt: float,
-    ar_decision: Any = None,
-    ap_decision: Any = None,
-    existing_ar_profile: Optional[Mapping[int, float]] = None,
-    existing_ap_profile: Optional[Mapping[int, float]] = None,
-) -> Dict[str, Any]:
-    """
-    Shared one-month cash timing calculation.
-
-    This is intentionally owned by Cash Management.
-
-    Monthly Cash Coverage can use different scenario sales and
-    purchase amounts, but it must use the same timing rules as
-    the main Cash Management module.
-
-    The one-month horizon represents cash arriving/leaving THIS
-    month. Existing AR/AP are represented by their existing-balance
-    timing profiles. New sales and purchases follow the current
-    Receivables and Supplier decisions.
-    """
-
-    if baseline_state is None:
-        return {
-            "valid": False,
-            "reason": "Baseline company state is not available.",
-        }
-
-    if ar_decision is None:
-        ar_decision = _selected_ar_decision()
-
-    if ap_decision is None:
-        ap_decision = _selected_ap_decision()
-
-    if existing_ar_profile is None:
-        existing_ar_profile = (
-            _existing_profile_from_session(
-                session_key="cash_existing_ar_profile",
-                default_profile=DEFAULT_EXISTING_AR_PROFILE,
-            )
-        )
-    else:
-        existing_ar_profile = _normalise_existing_profile(
-            existing_ar_profile
-        )
-
-    if existing_ap_profile is None:
-        existing_ap_profile = (
-            _existing_profile_from_session(
-                session_key="cash_existing_ap_profile",
-                default_profile=DEFAULT_EXISTING_AP_PROFILE,
-            )
-        )
-    else:
-        existing_ap_profile = _normalise_existing_profile(
-            existing_ap_profile
-        )
-
-    if not _existing_profile_is_valid(
-        existing_ar_profile
-    ):
-        return {
-            "valid": False,
-            "reason": (
-                "Existing receivables timing assumptions "
-                "must total 100%."
-            ),
-        }
-
-    if not _existing_profile_is_valid(
-        existing_ap_profile
-    ):
-        return {
-            "valid": False,
-            "reason": (
-                "Existing payables timing assumptions "
-                "must total 100%."
-            ),
-        }
-
-    sales_amount = max(
-        0.0,
-        _to_float(sales_amount),
-    )
-
-    purchases_amount = max(
-        0.0,
-        _to_float(purchases_amount),
-    )
-
-    monthly_opex = max(
-        0.0,
-        _to_float(monthly_opex),
-    )
-
-    monthly_debt = max(
-        0.0,
-        _to_float(monthly_debt),
-    )
-
-    # -----------------------------------------------------
-    # EXISTING AR
-    # -----------------------------------------------------
-
-    opening_ar = _opening_ar(
-        baseline_state
-    )
-
-    existing_ar_receipts_list = (
-        _build_existing_ar_receipts(
-            opening_ar=opening_ar,
-            existing_ar_profile=existing_ar_profile,
-            horizon=1,
-        )
-    )
-
-    existing_ar_receipts = (
-        existing_ar_receipts_list[0]
-        if existing_ar_receipts_list
-        else 0.0
-    )
-
-    # -----------------------------------------------------
-    # NEW SALES
-    # -----------------------------------------------------
-
-    collection_profile = (
-        _get_collection_profile(
-            ar_decision
-        )
-    )
-
-    if collection_profile:
-
-        new_sales_receipts_list = (
-            _build_new_sales_receipts(
-                monthly_sales=[sales_amount],
-                collection_profile=collection_profile,
-            )
-        )
-
-        new_sales_receipts = (
-            new_sales_receipts_list[0]
-            if new_sales_receipts_list
-            else 0.0
-        )
-
-        timing_source = "Receivables Decision"
-
-    else:
-
-        ar_days = _decision_ar_days(
-            baseline_state,
-            ar_decision,
-        )
-
-        allocation = (
-            _monthly_delay_allocation(
-                ar_days
-            )
-        )
-
-        new_sales_receipts = (
-            sales_amount
-            * _to_float(
-                allocation.get(0, 0.0)
-            )
-        )
-
-        timing_source = (
-            f"AR days ({ar_days:.0f} days)"
-        )
-
-    total_cash_receipts = (
-        existing_ar_receipts
-        + new_sales_receipts
-    )
-
-    # -----------------------------------------------------
-    # EXISTING AP
-    # -----------------------------------------------------
-
-    opening_ap = _opening_ap(
-        baseline_state
-    )
-
-    existing_ap_payments_list = (
-        _build_existing_ap_payments(
-            opening_ap=opening_ap,
-            existing_ap_profile=existing_ap_profile,
-            horizon=1,
-        )
-    )
-
-    existing_ap_payments = (
-        existing_ap_payments_list[0]
-        if existing_ap_payments_list
-        else 0.0
-    )
-
-    # -----------------------------------------------------
-    # NEW PURCHASES
-    # -----------------------------------------------------
-
-    ap_days = _decision_ap_days(
-        baseline_state,
-        ap_decision,
-    )
-
-    new_purchase_payments_list = (
-        _build_new_purchase_payments(
-            monthly_purchases=[purchases_amount],
-            ap_days=ap_days,
-        )
-    )
-
-    new_purchase_payments = (
-        new_purchase_payments_list[0]
-        if new_purchase_payments_list
-        else 0.0
-    )
-
-    total_supplier_payments = (
-        existing_ap_payments
-        + new_purchase_payments
-    )
-
-    # -----------------------------------------------------
-    # MONTHLY CASH RESULT
-    # -----------------------------------------------------
-
-    total_cash_outflow = (
-        total_supplier_payments
-        + monthly_opex
-        + monthly_debt
-    )
-
-    cash_gap = (
-        total_cash_receipts
-        - total_cash_outflow
-    )
-
-    return {
-        "valid": True,
-
-        "sales_amount": sales_amount,
-        "purchases_amount": purchases_amount,
-
-        "opening_ar": opening_ar,
-        "existing_ar_receipts": existing_ar_receipts,
-        "new_sales_receipts": new_sales_receipts,
-        "total_cash_receipts": total_cash_receipts,
-
-        "opening_ap": opening_ap,
-        "existing_ap_payments": existing_ap_payments,
-        "new_purchase_payments": new_purchase_payments,
-        "total_supplier_payments": total_supplier_payments,
-
-        "operating_expenses": monthly_opex,
-        "debt_payments": monthly_debt,
-
-        "total_cash_outflow": total_cash_outflow,
-        "cash_gap": cash_gap,
-
-        "ar_timing_source": timing_source,
-        "ap_days": ap_days,
-        "collection_profile": collection_profile,
-        "existing_ar_profile": dict(existing_ar_profile),
-        "existing_ap_profile": dict(existing_ap_profile),
-    }
-
-
-# =========================================================
 # CASH MANAGEMENT ASSUMPTIONS
 # =========================================================
 
@@ -1835,12 +1801,6 @@ def _interpret_cash_plan(
     cash_plan: Mapping[str, Sequence[float]],
     minimum_cash: float,
 ) -> Dict[str, Any]:
-    """
-    Interpret an already-built Cash Management plan.
-
-    This is the single place where the six-month cash
-    position is translated into executive metrics.
-    """
 
     ending_cash = [
         _to_float(value)
@@ -1892,13 +1852,6 @@ def _store_cash_management_result(
     cash_plan: Mapping[str, Sequence[float]],
     minimum_cash: float,
 ) -> Dict[str, Any]:
-    """
-    Store the already-calculated Cash Management result
-    for use by other V2 presentation layers.
-
-    This function does NOT recalculate cash flows.
-    It only interprets the existing cash_plan output.
-    """
 
     result = _interpret_cash_plan(
         cash_plan=cash_plan,
@@ -1917,16 +1870,6 @@ def build_cash_management_summary(
     ar_decision: Any = None,
     ap_decision: Any = None,
 ) -> Optional[Dict[str, Any]]:
-    """
-    Public presentation-layer interface for Cash Management.
-
-    The Cash Management module remains the owner of the
-    monthly cash calculation. Dashboard only consumes the
-    summary returned here.
-
-    If the Cash Management page has not yet been visited,
-    stored assumptions fall back to the baseline defaults.
-    """
 
     if baseline_state is None:
         baseline_state = _get_baseline_state()
@@ -2033,10 +1976,6 @@ def render_cash_management_lab(
 
         return
 
-    # =====================================================
-    # CURRENT DECISIONS
-    # =====================================================
-
     ar_decision = (
         _selected_ar_decision()
     )
@@ -2044,10 +1983,6 @@ def render_cash_management_lab(
     ap_decision = (
         _selected_ap_decision()
     )
-
-    # =====================================================
-    # HEADER
-    # =====================================================
 
     st.subheader(
         "Cash Management"
@@ -2058,10 +1993,6 @@ def render_cash_management_lab(
         "Receivables, Supplier and operating decisions "
         "into a monthly cash view."
     )
-
-    # =====================================================
-    # CASH ASSUMPTIONS
-    # =====================================================
 
     st.markdown(
         "### Cash assumptions"
@@ -2136,10 +2067,6 @@ def render_cash_management_lab(
         ),
     )
 
-    # =====================================================
-    # CURRENT POLICIES
-    # =====================================================
-
     current_ar_days = (
         _decision_ar_days(
             baseline_state,
@@ -2159,10 +2086,6 @@ def render_cash_management_lab(
             ar_decision
         )
     )
-
-    # =====================================================
-    # EXISTING BALANCES
-    # =====================================================
 
     st.markdown(
         "### Existing balances"
@@ -2199,10 +2122,6 @@ def render_cash_management_lab(
         )
     )
 
-    # =====================================================
-    # FUTURE TRANSACTIONS
-    # =====================================================
-
     st.markdown(
         "### Future transactions"
     )
@@ -2237,10 +2156,6 @@ def render_cash_management_lab(
         f"{current_ap_days:.0f} days"
     )
 
-    # =====================================================
-    # BUILD CASH PLAN
-    # =====================================================
-
     if not existing_profiles_valid:
 
         st.warning(
@@ -2260,10 +2175,6 @@ def render_cash_management_lab(
         existing_ar_profile=existing_ar_profile,
         existing_ap_profile=existing_ap_profile,
     )
-
-    # =====================================================
-    # CASH OUTLOOK
-    # =====================================================
 
     st.markdown(
         "### Six-month cash outlook"
@@ -2327,10 +2238,6 @@ def render_cash_management_lab(
         hide_index=True,
     )
 
-    # =====================================================
-    # CASH POSITION
-    # =====================================================
-
     cash_management_result = (
         _store_cash_management_result(
             cash_plan=cash_plan,
@@ -2383,10 +2290,6 @@ def render_cash_management_lab(
             "Funding required",
             _money(funding_required),
         )
-
-    # =====================================================
-    # INTERPRETATION
-    # =====================================================
 
     if funding_required > 0:
 
