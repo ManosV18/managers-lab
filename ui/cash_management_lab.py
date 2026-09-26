@@ -17,6 +17,11 @@ MONTHS = [f"Month {i}" for i in range(1, 7)]
 WC_AR_CANDIDATE = "wc_ar_candidate"
 WC_AP_CANDIDATE = "wc_ap_candidate"
 
+# Stable Cash Management session-state keys.
+CASH_MONTHLY_OPEX_KEY = "cash_management_monthly_opex"
+CASH_MONTHLY_DEBT_KEY = "cash_management_monthly_debt"
+CASH_MINIMUM_CASH_KEY = "cash_management_minimum_cash"
+
 # Simple owner-manager assumptions for EXISTING balances.
 # These are deliberately editable in the UI.
 DEFAULT_EXISTING_AR_PROFILE = {
@@ -1070,23 +1075,6 @@ def _build_new_sales_receipts(
 
     The selected Receivables Decision collection profile
     is applied exactly once to each cohort.
-
-    Example:
-
-        Sales = €150,000
-        Profile = 20% / 70% / 10%
-
-    Month 1 cohort:
-        M1 €30,000
-        M2 €105,000
-        M3 €15,000
-
-    Month 2 cohort:
-        M2 €30,000
-        M3 €105,000
-        M4 €15,000
-
-    No cohort is reused or reallocated.
     """
 
     horizon = len(
@@ -1187,17 +1175,6 @@ def _build_receipts(
         for _ in range(horizon)
     ]
 
-    # =====================================================
-    # 1. EXISTING AR
-    # =====================================================
-    #
-    # Existing receivables are now treated separately
-    # from future sales.
-    #
-    # This avoids forcing the entire opening AR balance
-    # into one month based on baseline AR days.
-    # =====================================================
-
     opening_ar = _opening_ar(
         baseline_state
     )
@@ -1209,13 +1186,6 @@ def _build_receipts(
             horizon=horizon,
         )
     )
-
-    # =====================================================
-    # 2. NEW SALES
-    # =====================================================
-    #
-    # New sales continue to use the Receivables Decision.
-    # =====================================================
 
     collection_profile = (
         _get_collection_profile(
@@ -1234,8 +1204,6 @@ def _build_receipts(
 
     else:
 
-        # If no explicit collection profile exists,
-        # use the selected AR days for future sales.
         ar_days = _decision_ar_days(
             baseline_state,
             ar_decision,
@@ -1276,10 +1244,6 @@ def _build_receipts(
                     sales
                     * percentage
                 )
-
-    # =====================================================
-    # 3. COMBINE
-    # =====================================================
 
     for month_index in range(
         horizon
@@ -1395,10 +1359,6 @@ def _build_supplier_payments(
     existing_ap_profile: Mapping[int, float],
 ) -> List[float]:
 
-    # =====================================================
-    # 1. EXISTING AP
-    # =====================================================
-
     opening_ap = _opening_ap(
         baseline_state
     )
@@ -1411,14 +1371,6 @@ def _build_supplier_payments(
         )
     )
 
-    # =====================================================
-    # 2. NEW PURCHASE COHORTS
-    # =====================================================
-    #
-    # Future purchases continue to use the Supplier
-    # Decision / selected AP days.
-    # =====================================================
-
     ap_days = _decision_ap_days(
         baseline_state,
         ap_decision,
@@ -1430,10 +1382,6 @@ def _build_supplier_payments(
             ap_days=ap_days,
         )
     )
-
-    # =====================================================
-    # 3. COMBINE
-    # =====================================================
 
     payments = [
         existing_ap_payments[i]
@@ -1547,8 +1495,118 @@ def _build_cash_plan(
 
 
 # =========================================================
+# CASH MANAGEMENT ASSUMPTIONS
+# =========================================================
+
+def _get_cash_management_assumptions(
+    baseline_state: Any,
+) -> Dict[str, float]:
+
+    default_monthly_opex = (
+        _annual_fixed_opex(
+            baseline_state
+        )
+        / 12.0
+    )
+
+    default_monthly_debt = (
+        _annual_debt_service(
+            baseline_state
+        )
+        / 12.0
+    )
+
+    monthly_opex = _to_float(
+        st.session_state.get(
+            CASH_MONTHLY_OPEX_KEY,
+            default_monthly_opex,
+        ),
+        default_monthly_opex,
+    )
+
+    monthly_debt = _to_float(
+        st.session_state.get(
+            CASH_MONTHLY_DEBT_KEY,
+            default_monthly_debt,
+        ),
+        default_monthly_debt,
+    )
+
+    minimum_cash = _to_float(
+        st.session_state.get(
+            CASH_MINIMUM_CASH_KEY,
+            0.0,
+        ),
+        0.0,
+    )
+
+    return {
+        "monthly_opex": monthly_opex,
+        "monthly_debt": monthly_debt,
+        "minimum_cash": minimum_cash,
+    }
+
+
+# =========================================================
 # CASH MANAGEMENT RESULT
 # =========================================================
+
+def _interpret_cash_plan(
+    cash_plan: Mapping[str, Sequence[float]],
+    minimum_cash: float,
+) -> Dict[str, Any]:
+    """
+    Interpret an already-built Cash Management plan.
+
+    This is the single place where the six-month cash
+    position is translated into executive metrics.
+    """
+
+    ending_cash = [
+        _to_float(value)
+        for value in cash_plan.get(
+            "ending_cash",
+            [],
+        )
+    ]
+
+    minimum_cash = _to_float(
+        minimum_cash
+    )
+
+    if not ending_cash:
+
+        return {
+            "lowest_projected_cash": 0.0,
+            "lowest_cash_month": None,
+            "minimum_cash_reserve": minimum_cash,
+            "funding_required": 0.0,
+            "cash_above_reserve": True,
+            "ending_cash": [],
+        }
+
+    lowest_cash = min(
+        ending_cash
+    )
+
+    lowest_month_index = ending_cash.index(
+        lowest_cash
+    )
+
+    funding_required = max(
+        0.0,
+        minimum_cash - lowest_cash,
+    )
+
+    return {
+        "lowest_projected_cash": lowest_cash,
+        "lowest_cash_month": lowest_month_index + 1,
+        "minimum_cash_reserve": minimum_cash,
+        "funding_required": funding_required,
+        "cash_above_reserve": funding_required <= 0.0,
+        "ending_cash": ending_cash,
+    }
+
 
 def _store_cash_management_result(
     cash_plan: Mapping[str, Sequence[float]],
@@ -1562,56 +1620,111 @@ def _store_cash_management_result(
     It only interprets the existing cash_plan output.
     """
 
-    ending_cash = [
-        _to_float(value)
-        for value in cash_plan.get(
-            "ending_cash",
-            [],
-        )
-    ]
+    result = _interpret_cash_plan(
+        cash_plan=cash_plan,
+        minimum_cash=minimum_cash,
+    )
 
-    if not ending_cash:
-        result = {
-            "lowest_projected_cash": 0.0,
-            "lowest_cash_month": None,
-            "minimum_cash_reserve": _to_float(
-                minimum_cash
+    st.session_state[
+        "cash_management_result"
+    ] = result
+
+    return result
+
+
+def build_cash_management_summary(
+    baseline_state: Any = None,
+    ar_decision: Any = None,
+    ap_decision: Any = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Public presentation-layer interface for Cash Management.
+
+    The Cash Management module remains the owner of the
+    monthly cash calculation. Dashboard only consumes the
+    summary returned here.
+
+    If the Cash Management page has not yet been visited,
+    stored assumptions fall back to the baseline defaults.
+    """
+
+    if baseline_state is None:
+        baseline_state = _get_baseline_state()
+
+    if baseline_state is None:
+        return None
+
+    if ar_decision is None:
+        ar_decision = _selected_ar_decision()
+
+    if ap_decision is None:
+        ap_decision = _selected_ap_decision()
+
+    assumptions = _get_cash_management_assumptions(
+        baseline_state
+    )
+
+    existing_ar_profile = (
+        _existing_profile_from_session(
+            session_key="cash_existing_ar_profile",
+            default_profile=DEFAULT_EXISTING_AR_PROFILE,
+        )
+    )
+
+    existing_ap_profile = (
+        _existing_profile_from_session(
+            session_key="cash_existing_ap_profile",
+            default_profile=DEFAULT_EXISTING_AP_PROFILE,
+        )
+    )
+
+    if not _existing_profile_is_valid(
+        existing_ar_profile
+    ):
+        return {
+            "valid": False,
+            "reason": (
+                "Existing receivables timing assumptions "
+                "must total 100%."
             ),
-            "funding_required": 0.0,
         }
 
-        st.session_state[
-            "cash_management_result"
-        ] = result
+    if not _existing_profile_is_valid(
+        existing_ap_profile
+    ):
+        return {
+            "valid": False,
+            "reason": (
+                "Existing payables timing assumptions "
+                "must total 100%."
+            ),
+        }
 
-        return result
-
-    lowest_cash = min(
-        ending_cash
+    cash_plan = _build_cash_plan(
+        baseline_state=baseline_state,
+        ar_decision=ar_decision,
+        ap_decision=ap_decision,
+        monthly_opex=assumptions["monthly_opex"],
+        monthly_debt=assumptions["monthly_debt"],
+        existing_ar_profile=existing_ar_profile,
+        existing_ap_profile=existing_ap_profile,
     )
 
-    lowest_month_index = ending_cash.index(
-        lowest_cash
+    result = _interpret_cash_plan(
+        cash_plan=cash_plan,
+        minimum_cash=assumptions["minimum_cash"],
     )
 
-    minimum_cash = _to_float(
-        minimum_cash
+    result.update(
+        {
+            "valid": True,
+            "monthly_opex": assumptions["monthly_opex"],
+            "monthly_debt": assumptions["monthly_debt"],
+            "cash_plan": cash_plan,
+        }
     )
 
-    funding_required = max(
-        0.0,
-        minimum_cash - lowest_cash,
-    )
-
-    result = {
-        "lowest_projected_cash": lowest_cash,
-        "lowest_cash_month": (
-            lowest_month_index + 1
-        ),
-        "minimum_cash_reserve": minimum_cash,
-        "funding_required": funding_required,
-    }
-
+    # Keep the same result available to the rest of V2.
     st.session_state[
         "cash_management_result"
     ] = result
@@ -1697,10 +1810,14 @@ def render_cash_management_lab(
             "Average monthly operating expenses",
             min_value=0.0,
             value=float(
-                default_monthly_opex
+                st.session_state.get(
+                    CASH_MONTHLY_OPEX_KEY,
+                    default_monthly_opex,
+                )
             ),
             step=1000.0,
             format="%.0f",
+            key=CASH_MONTHLY_OPEX_KEY,
             help=(
                 "Average monthly operating expenses "
                 "excluding supplier payments and loan payments."
@@ -1713,18 +1830,28 @@ def render_cash_management_lab(
             "Monthly loan installments & interest",
             min_value=0.0,
             value=float(
-                default_monthly_debt
+                st.session_state.get(
+                    CASH_MONTHLY_DEBT_KEY,
+                    default_monthly_debt,
+                )
             ),
             step=1000.0,
             format="%.0f",
+            key=CASH_MONTHLY_DEBT_KEY,
         )
 
     minimum_cash = st.number_input(
         "Minimum cash reserve to maintain",
         min_value=0.0,
-        value=0.0,
+        value=float(
+            st.session_state.get(
+                CASH_MINIMUM_CASH_KEY,
+                0.0,
+            )
+        ),
         step=5000.0,
         format="%.0f",
+        key=CASH_MINIMUM_CASH_KEY,
         help=(
             "Cash level you want to keep available at all times."
         ),
