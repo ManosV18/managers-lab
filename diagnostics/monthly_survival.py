@@ -18,6 +18,7 @@ def calculate_monthly_survival(
     sim_fc: Optional[float] = None,
     sim_debt: Optional[float] = None,
     sim_volume: Optional[float] = None,
+    cash_timing: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Monthly Cash Coverage / Survival diagnostic.
