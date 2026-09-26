@@ -379,15 +379,19 @@ def calculate_monthly_survival(
         "current_sales_cash_in": current_sales_cash_in,
         "total_monthly_cash_in": total_monthly_cash_in,
 
+        # Compatibility names expected by Monthly Survival UI
+        "existing_ar_receipts": existing_ar_cash_in,
+        "new_sales_receipts": current_sales_cash_in,
+
         # Supplier cash payments
         "existing_ap_cash_out": existing_ap_cash_out,
         "current_purchase_cash_out": current_purchase_cash_out,
         "supplier_cash_out": supplier_cash_out,
 
-        # Total cash
-        "total_cash_outflow": total_cash_outflow,
-        "cash_gap": cash_gap,
-
+        # Compatibility names expected by Monthly Survival UI
+        "existing_ap_payments": existing_ap_cash_out,
+        "new_purchase_payments": current_purchase_cash_out,
+        
         # Incremental cash economics
         "cash_revenue_per_unit": cash_revenue_per_unit,
         "cash_purchase_cost_per_unit": (
