@@ -1,10 +1,10 @@
+import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 
 from diagnostics.monthly_survival import (
     calculate_monthly_survival,
 )
-
 
 def render_monthly_survival_lab(
     baseline_state,
