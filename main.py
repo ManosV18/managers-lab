@@ -1061,6 +1061,13 @@ if current_page == "🚚 Suppliers & Payables Lab":
 
     st.stop()
 
+if current_page == "📐 Working Capital Data Analyzer":
+
+    render_working_capital_data_analyzer(
+        baseline_state=baseline
+    )
+
+    st.stop()
 
 if current_page == "💧 Cash Break-Even Lab":
 
