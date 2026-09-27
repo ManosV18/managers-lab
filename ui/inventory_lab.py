@@ -153,6 +153,9 @@ def show_inventory_lab(baseline_state):
 
     # =====================================================
     # CURRENT INVENTORY DATA SOURCE
+    #
+    # Measured Working Capital is optional evidence for
+    # this Lab. It never changes CompanyState.
     # =====================================================
 
     baseline_inventory_days = float(
@@ -173,14 +176,26 @@ def show_inventory_lab(baseline_state):
 
     if measured_inventory_days is not None:
 
+        st.subheader(
+            "Inventory Days for this Analysis"
+        )
+
+        st.caption(
+            "Choose which current Inventory Days figure "
+            "the Inventory Lab should use. "
+            "This choice affects this analysis only."
+        )
+
         source = st.radio(
             "Current inventory data source",
             options=[
                 "Baseline",
                 "Measured Working Capital",
             ],
+            index=0,
             horizontal=True,
             key="inventory_current_data_source",
+            label_visibility="visible",
         )
 
         if source == "Measured Working Capital":
@@ -189,10 +204,25 @@ def show_inventory_lab(baseline_state):
                 measured_inventory_days
             )
 
+            st.info(
+                f"Using **Measured Working Capital: "
+                f"{current_inventory_days:.1f} days** "
+                f"for this Inventory Lab. "
+                f"Baseline Inventory Days remain "
+                f"**{baseline_inventory_days:.1f} days**."
+            )
+
         else:
 
             current_inventory_days = (
                 baseline_inventory_days
+            )
+
+            st.caption(
+                f"Using **Baseline: "
+                f"{baseline_inventory_days:.1f} days**. "
+                f"Measured Working Capital: "
+                f"{float(measured_inventory_days):.1f} days."
             )
 
     else:
@@ -201,6 +231,29 @@ def show_inventory_lab(baseline_state):
 
         current_inventory_days = (
             baseline_inventory_days
+        )
+
+        st.info(
+            "💡 **Make this analysis more precise**\n\n"
+            "Upload your inventory transaction data "
+            "to measure your actual inventory holding time."
+        )
+
+        if st.button(
+            "Measure Working Capital →",
+            key="inventory_measure_working_capital",
+        ):
+
+            st.session_state["current_page"] = (
+                "📐 Working Capital Data Analyzer"
+            )
+
+            st.rerun()
+
+        st.caption(
+            f"This analysis is currently using Baseline "
+            f"Inventory Days: "
+            f"**{current_inventory_days:.1f} days**."
         )
 
     volume = _get_volume(baseline_state)
