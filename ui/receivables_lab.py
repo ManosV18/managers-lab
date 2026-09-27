@@ -788,7 +788,20 @@ def render_receivables_lab(
                 f"Baseline AR Days remain "
                 f"**{baseline_ar_days:.1f} days**."
             )
+        if measured_ar_days is None:
+            st.info(
+                "💡 You can make this analysis more precise. "
+                "Upload your customer invoice and payment data to measure "
+                "your actual collection time."
+            )
 
+        if st.button(
+            "Measure Working Capital →",
+            key="receivables_measure_working_capital",
+            ):
+            st.session_state["active_section"] = "Working Capital"
+            st.rerun()
+        
         else:
 
             analysis_ar_days = (
