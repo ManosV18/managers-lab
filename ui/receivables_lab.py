@@ -971,10 +971,31 @@ def render_receivables_lab(
 
     col_a, col_b = st.columns(2)
 
+    
+    # =====================================================
+    # CURRENT PAYMENT DAYS — SOURCE-SPECIFIC STATE
+    #
+    # Streamlit keeps widget state by key.
+    # Use a different key for Baseline vs Measured Working
+    # Capital so switching source initializes the fields
+    # from the selected source instead of retaining the old
+    # value.
+    # =====================================================
+
+    ar_source_key = (
+        "measured"
+        if source == "Measured Working Capital"
+        else "baseline"
+    )
+
+    current_days_default = float(
+        analysis_ar_days
+    )
+    
     # =====================================================
     # POLICY INPUTS — LEFT
     # =====================================================
-
+    
     with col_a:
 
         extra_sales = st.number_input(
@@ -1011,20 +1032,16 @@ def render_receivables_lab(
 
         current_discount_days = st.number_input(
             "Current Payment Days — Customers Taking Discount",
-            min_value=0,
-            max_value=365,
-            value=max(
-                0,
-                int(
-                    round(
-                        analysis_ar_days
-                    )
-                ),
+            min_value=0.0,
+            max_value=365.0,
+            value=current_days_default,
+            step=1.0,
+            key=(
+                "receivables_current_discount_days_"
+                f"{ar_source_key}"
             ),
-            step=1,
-            key="receivables_current_discount_days",
         )
-
+        
     # =====================================================
     # POLICY INPUTS — RIGHT
     # =====================================================
@@ -1033,20 +1050,16 @@ def render_receivables_lab(
 
         non_discount_days = st.number_input(
             "Current Payment Days — Customers Not Taking Discount",
-            min_value=0,
-            max_value=365,
-            value=max(
-                0,
-                int(
-                    round(
-                        analysis_ar_days
-                    )
-                ),
+            min_value=0.0,
+            max_value=365.0,
+            value=current_days_default,
+            step=1.0,
+            key=(
+                "receivables_non_discount_days_"
+                f"{ar_source_key}"
             ),
-            step=1,
-            key="receivables_non_discount_days",
         )
-
+       
         new_payment_days = st.number_input(
             "New Payment Days for Customers Taking Discount",
             min_value=0,
