@@ -151,9 +151,57 @@ def show_inventory_lab(baseline_state):
 
     wc = baseline_state.working_capital
 
-    current_inventory_days = float(
+    # =====================================================
+    # CURRENT INVENTORY DATA SOURCE
+    # =====================================================
+
+    baseline_inventory_days = float(
         wc.inventory_days
     )
+
+    wc_measurement = st.session_state.get(
+        "working_capital_measurement"
+    )
+
+    measured_inventory_days = None
+
+    if wc_measurement is not None:
+
+        measured_inventory_days = wc_measurement.get(
+            "inventory_days"
+        )
+
+    if measured_inventory_days is not None:
+
+        source = st.radio(
+            "Current inventory data source",
+            options=[
+                "Baseline",
+                "Measured Working Capital",
+            ],
+            horizontal=True,
+            key="inventory_current_data_source",
+        )
+
+        if source == "Measured Working Capital":
+
+            current_inventory_days = float(
+                measured_inventory_days
+            )
+
+        else:
+
+            current_inventory_days = (
+                baseline_inventory_days
+            )
+
+    else:
+
+        source = "Baseline"
+
+        current_inventory_days = (
+            baseline_inventory_days
+        )
 
     volume = _get_volume(baseline_state)
     variable_cost = _get_variable_cost(baseline_state)
@@ -193,6 +241,20 @@ def show_inventory_lab(baseline_state):
         "Current Inventory Turnover",
         f"{current_turnover:.1f}x",
     )
+
+    if source == "Measured Working Capital":
+
+        st.caption(
+            "Current inventory days are based on measured "
+            "Working Capital transaction data."
+        )
+
+    else:
+
+        st.caption(
+            "Current inventory days are based on the "
+            "company Baseline."
+        )
 
     st.caption(
         f"Annual COGS: € {annual_cogs:,.0f}"
@@ -310,7 +372,7 @@ def show_inventory_lab(baseline_state):
 
         st.info(
             "The target inventory level matches "
-            "the current baseline."
+            "the current analysis position."
         )
 
     st.divider()
@@ -350,8 +412,12 @@ def show_inventory_lab(baseline_state):
                     target_inventory_days
                 ),
                 "baseline_inventory_days": (
+                    baseline_inventory_days
+                ),
+                "analysis_inventory_days": (
                     current_inventory_days
                 ),
+                "inventory_data_source": source,
                 "current_inventory_value": (
                     current_inventory_value
                 ),
