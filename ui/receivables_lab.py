@@ -745,11 +745,8 @@ def render_receivables_lab(
     # =====================================================
     # AR DAYS SOURCE
     #
-    # IMPORTANT:
-    # Keep this OUTSIDE the metric columns.
-    #
-    # The selected source determines analysis_ar_days.
-    # It never changes CompanyState.
+    # Measured Working Capital is optional evidence for
+    # this Lab. It never changes CompanyState.
     # =====================================================
 
     if measured_ar_days is not None:
@@ -788,20 +785,7 @@ def render_receivables_lab(
                 f"Baseline AR Days remain "
                 f"**{baseline_ar_days:.1f} days**."
             )
-        if measured_ar_days is None:
-            st.info(
-                "💡 You can make this analysis more precise. "
-                "Upload your customer invoice and payment data to measure "
-                "your actual collection time."
-            )
 
-        if st.button(
-            "Measure Working Capital →",
-            key="receivables_measure_working_capital",
-            ):
-            st.session_state["active_section"] = "Working Capital"
-            st.rerun()
-        
         else:
 
             analysis_ar_days = (
@@ -822,12 +806,26 @@ def render_receivables_lab(
             baseline_ar_days
         )
 
-        st.caption(
-            "No Working Capital measurement is available. "
-            f"This analysis is using Baseline AR Days: "
-            f"**{analysis_ar_days:.1f} days**."
+        st.info(
+            "💡 **Make this analysis more precise**\n\n"
+            "Upload your customer invoice and payment data "
+            "to measure your actual collection time."
         )
 
+        if st.button(
+            "Measure Working Capital →",
+            key="receivables_measure_working_capital",
+        ):
+            st.session_state["current_page"] = (
+                "📐 Working Capital Data Analyzer"
+            )
+            st.rerun()
+
+        st.caption(
+            f"This analysis is currently using Baseline AR Days: "
+            f"**{analysis_ar_days:.1f} days**."
+        )
+        
     # =====================================================
     # COMPANY BASELINE
     # =====================================================
