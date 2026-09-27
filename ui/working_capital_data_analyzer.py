@@ -300,9 +300,20 @@ def render_working_capital_data_analyzer():
                 reference_date=reference_date,
             )
 
+            st.session_state["working_capital_measurement"] = {
+                "ar_days": result.ar_days,
+                "inventory_days": result.inventory_days,
+                "ap_days": result.ap_days,
+                "cash_conversion_cycle": result.cash_conversion_cycle,
+                "top_customer_pct": result.top_customer_pct,
+                "customer_hhi": result.customer_hhi,
+                "top_supplier_pct": result.top_supplier_pct,
+                "supplier_hhi": result.supplier_hhi,
+                "reference_date": reference_date,
+            }
+
             _render_results(result)
-
-
+            
 # =========================================================
 # RESULTS
 # =========================================================
