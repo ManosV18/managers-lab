@@ -731,29 +731,9 @@ def render_receivables_lab(
             "ar_days"
         )
 
-    if measured_ar_days is not None:
-
-        source = st.radio(
-            "Current AR data source",
-            options=[
-                "Baseline",
-                "Measured Working Capital",
-            ],
-            horizontal=True,
-            key="receivables_current_data_source",
-        )
-
-        if source == "Measured Working Capital":
-            analysis_ar_days = float(
-                measured_ar_days
-            )
-        else:
-            analysis_ar_days = baseline_ar_days
-
-    else:
-
-        source = "Baseline"
-        analysis_ar_days = baseline_ar_days
+    # =====================================================
+    # COMPANY BASELINE
+    # =====================================================
 
     st.subheader(
         "Company Baseline"
@@ -771,10 +751,69 @@ def render_receivables_lab(
         f"€{cogs_default:,.0f}",
     )
 
-    b3.metric(
-        "Baseline AR Days",
-        f"{baseline_ar_days:.1f}",
-    )
+    # -----------------------------------------------------
+    # AR DAYS
+    #
+    # This is deliberately placed with the AR Days metric.
+    # The selected value is used only by this Lab.
+    # -----------------------------------------------------
+
+    with b3:
+
+        if measured_ar_days is not None:
+
+            source = st.radio(
+                "AR Days used for this analysis",
+                options=[
+                    "Baseline",
+                    "Measured Working Capital",
+                ],
+                horizontal=True,
+                key="receivables_current_data_source",
+            )
+
+            if source == "Measured Working Capital":
+
+                analysis_ar_days = float(
+                    measured_ar_days
+                )
+
+            else:
+
+                analysis_ar_days = baseline_ar_days
+
+            st.metric(
+                "AR Days",
+                f"{analysis_ar_days:.1f}",
+            )
+
+            if source == "Measured Working Capital":
+
+                st.caption(
+                    f"Measured: {measured_ar_days:.1f} days"
+                    f"  |  Baseline: {baseline_ar_days:.1f} days"
+                )
+
+            else:
+
+                st.caption(
+                    f"Baseline: {baseline_ar_days:.1f} days"
+                    f"  |  Measured: {measured_ar_days:.1f} days"
+                )
+
+        else:
+
+            source = "Baseline"
+            analysis_ar_days = baseline_ar_days
+
+            st.metric(
+                "AR Days",
+                f"{analysis_ar_days:.1f}",
+            )
+
+            st.caption(
+                "Baseline"
+            )
 
     b4.metric(
         "Supplier Days",
@@ -786,12 +825,24 @@ def render_receivables_lab(
         f"{wacc_default * 100:.2f}%",
     )
 
-    if source == "Measured Working Capital":
+    if measured_ar_days is not None:
 
-        st.info(
-            f"Measured AR Days: **{analysis_ar_days:.1f} days**  "
-            f"| Baseline AR Days: **{baseline_ar_days:.1f} days**"
-        )
+        if source == "Measured Working Capital":
+
+            st.info(
+                f"Using measured AR Days of "
+                f"**{analysis_ar_days:.1f} days** "
+                f"for this Receivables Lab analysis. "
+                f"The Baseline remains **{baseline_ar_days:.1f} days**."
+            )
+
+        else:
+
+            st.caption(
+                f"Measured Working Capital indicates "
+                f"**{measured_ar_days:.1f} AR Days**, "
+                f"but this analysis is using the Baseline."
+            )
 
     else:
 
