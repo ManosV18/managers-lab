@@ -705,13 +705,55 @@ def render_receivables_lab(
         baseline_state
     )
 
-    current_ar_days = _get_ar_days(
+    baseline_ar_days = _get_ar_days(
         baseline_state
     )
 
     supplier_days_default = _get_ap_days(
         baseline_state
     )
+
+    # -----------------------------------------------------
+    # MEASURED WORKING CAPITAL
+    #
+    # Measured data is evidence for this Lab only.
+    # It does not modify CompanyState or the mainline.
+    # -----------------------------------------------------
+
+    wc_measurement = st.session_state.get(
+        "working_capital_measurement"
+    )
+
+    measured_ar_days = None
+
+    if wc_measurement is not None:
+        measured_ar_days = wc_measurement.get(
+            "ar_days"
+        )
+
+    if measured_ar_days is not None:
+
+        source = st.radio(
+            "Current AR data source",
+            options=[
+                "Baseline",
+                "Measured Working Capital",
+            ],
+            horizontal=True,
+            key="receivables_current_data_source",
+        )
+
+        if source == "Measured Working Capital":
+            analysis_ar_days = float(
+                measured_ar_days
+            )
+        else:
+            analysis_ar_days = baseline_ar_days
+
+    else:
+
+        source = "Baseline"
+        analysis_ar_days = baseline_ar_days
 
     st.subheader(
         "Company Baseline"
@@ -730,8 +772,8 @@ def render_receivables_lab(
     )
 
     b3.metric(
-        "Current AR Days",
-        f"{current_ar_days:.1f}",
+        "Baseline AR Days",
+        f"{baseline_ar_days:.1f}",
     )
 
     b4.metric(
@@ -744,10 +786,24 @@ def render_receivables_lab(
         f"{wacc_default * 100:.2f}%",
     )
 
+    if source == "Measured Working Capital":
+
+        st.info(
+            f"Measured AR Days: **{analysis_ar_days:.1f} days**  "
+            f"| Baseline AR Days: **{baseline_ar_days:.1f} days**"
+        )
+
+    else:
+
+        st.caption(
+            f"Current AR position used in this analysis: "
+            f"**{analysis_ar_days:.1f} days (Baseline)**"
+        )
+
     st.caption(
-        "These are company baseline values. "
-        "They are read from the central CompanyState and "
-        "cannot be changed inside this Lab."
+        "Baseline values remain the company's central CompanyState. "
+        "Measured Working Capital is used only inside this Lab "
+        "when selected and does not change the baseline."
     )
 
     # =====================================================
@@ -768,7 +824,7 @@ def render_receivables_lab(
     ar_target = st.number_input(
         "Target Collection Time (days)",
         min_value=0.0,
-        value=current_ar_days,
+        value=analysis_ar_days,
         step=1.0,
         key="receivables_ar_target",
     )
@@ -801,6 +857,13 @@ def render_receivables_lab(
                 "ar_days": float(
                     ar_target
                 ),
+                "baseline_ar_days": (
+                    baseline_ar_days
+                ),
+                "analysis_ar_days": (
+                    analysis_ar_days
+                ),
+                "ar_data_source": source,
             },
         )
 
@@ -895,7 +958,7 @@ def render_receivables_lab(
                 0,
                 int(
                     round(
-                        current_ar_days
+                        analysis_ar_days
                     )
                 ),
             ),
@@ -917,7 +980,7 @@ def render_receivables_lab(
                 0,
                 int(
                     round(
-                        current_ar_days
+                        analysis_ar_days
                     )
                 ),
             ),
@@ -935,7 +998,9 @@ def render_receivables_lab(
         )
 
     st.caption(
-        f"Baseline AR days: {current_ar_days:.1f} days  |  "
+        f"Baseline AR days: {baseline_ar_days:.1f} days  |  "
+        f"AR days used in this analysis: "
+        f"{analysis_ar_days:.1f} days ({source})  |  "
         f"Baseline supplier payment days: "
         f"{supplier_days_default:.1f} days  |  "
         f"Baseline WACC: {wacc_default * 100:.2f}%"
@@ -1328,7 +1393,13 @@ def render_receivables_lab(
                             wacc_default
                         ),
                         "baseline_ar_days": (
-                            current_ar_days
+                            baseline_ar_days
+                        ),
+                        "analysis_ar_days": (
+                            analysis_ar_days
+                        ),
+                        "ar_data_source": (
+                            source
                         ),
                         "baseline_ap_days": (
                             supplier_days_default
