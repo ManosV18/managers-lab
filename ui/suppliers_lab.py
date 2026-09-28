@@ -495,13 +495,108 @@ def render_suppliers_lab(baseline_state):
 
     # =====================================================
     # BASELINE
+    #
+    # Measured Working Capital is optional evidence for
+    # this Lab. It never changes CompanyState.
     # =====================================================
 
     wc = _get_working_capital(baseline_state)
 
-    current_ap_days = _get_ap_days(baseline_state)
+    baseline_ap_days = _get_ap_days(baseline_state)
     inventory_days = _get_inventory_days(baseline_state)
     annual_cogs = _get_annual_cogs(baseline_state)
+
+    wc_measurement = st.session_state.get(
+        "working_capital_measurement"
+    )
+
+    measured_ap_days = None
+
+    if wc_measurement is not None:
+
+        measured_ap_days = wc_measurement.get(
+            "ap_days"
+        )
+
+    if measured_ap_days is not None:
+
+        st.subheader(
+            "AP Days for this Analysis"
+        )
+
+        st.caption(
+            "Choose which current AP Days figure the "
+            "Suppliers Lab should use. This choice affects "
+            "this analysis only."
+        )
+
+        source = st.radio(
+            "Current supplier payment data source",
+            options=[
+                "Baseline",
+                "Measured Working Capital",
+            ],
+            index=0,
+            horizontal=True,
+            key="suppliers_current_data_source",
+            label_visibility="visible",
+        )
+
+        if source == "Measured Working Capital":
+
+            current_ap_days = float(
+                measured_ap_days
+            )
+
+            st.info(
+                f"Using **Measured Working Capital: "
+                f"{current_ap_days:.1f} days** "
+                f"for this Suppliers Lab. "
+                f"Baseline AP Days remain "
+                f"**{baseline_ap_days:.1f} days**."
+            )
+
+        else:
+
+            current_ap_days = (
+                baseline_ap_days
+            )
+
+            st.caption(
+                f"Using **Baseline: {baseline_ap_days:.1f} days**. "
+                f"Measured Working Capital: "
+                f"{float(measured_ap_days):.1f} days."
+            )
+
+    else:
+
+        source = "Baseline"
+
+        current_ap_days = (
+            baseline_ap_days
+        )
+
+        st.info(
+            "💡 **Make this analysis more precise**\n\n"
+            "Upload your supplier invoice and payment data "
+            "to measure your actual supplier payment time."
+        )
+
+        if st.button(
+            "Measure Working Capital →",
+            key="suppliers_measure_working_capital",
+        ):
+
+            st.session_state["current_page"] = (
+                "📐 Working Capital Data Analyzer"
+            )
+
+            st.rerun()
+
+        st.caption(
+            f"This analysis is currently using Baseline AP Days: "
+            f"**{current_ap_days:.1f} days**."
+        )
 
     purchase_model = calculate_supplier_purchases(
         annual_cogs=annual_cogs,
