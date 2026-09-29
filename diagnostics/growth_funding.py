@@ -41,14 +41,11 @@ class GrowthDiagnosisResult:
 
 @dataclass(frozen=True)
 class GrowthFundingCapacityResult:
-    """Funding-capacity interpretation of the resulting CompanyState."""
-
     current_growth_pct: float
     current_revenue: float
     current_fcfe: float
-    additional_growth_capacity_pct: float
-    maximum_self_funded_growth_pct: float
-    capacity_revenue: float
+    tested_additional_growth_pct: float
+    tested_growth_revenue: float
     capacity_reached: bool
     current_state_requires_funding: bool
 
