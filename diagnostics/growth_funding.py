@@ -187,27 +187,21 @@ def calculate_growth_funding_capacity(
     max_additional_growth_pct: float = 500.0,
     tolerance_pct: float = 0.01,
 ) -> GrowthFundingCapacityResult:
-    """
-    Calculate additional revenue growth that the resulting projected
-    CompanyState can support before projected FCFE becomes negative.
-
-    Canonical flow:
-        Locked Baseline
-            -> Current Decision Plan
-            -> Projected CompanyState
-            -> FinancialProjection
-            -> Funding Capacity diagnostic
-
-    The capacity calculation is read-only. It does not mutate CompanyState,
-    DecisionPlan or Streamlit session state.
-    """
 
     baseline_fin = financial_projection.baseline
     projected_fin = financial_projection.projected
 
-    baseline_revenue = float(baseline_fin.income_statement.revenue)
-    current_revenue = float(projected_fin.income_statement.revenue)
-    current_fcfe = float(projected_fin.fcfe)
+    baseline_revenue = float(
+        baseline_fin.income_statement.revenue
+    )
+
+    current_revenue = float(
+        projected_fin.income_statement.revenue
+    )
+
+    current_fcfe = float(
+        projected_fin.fcfe
+    )
 
     current_growth_pct = (
         ((current_revenue / baseline_revenue) - 1.0) * 100.0
@@ -215,7 +209,12 @@ def calculate_growth_funding_capacity(
         else 0.0
     )
 
+    # ---------------------------------------------------------
+    # Current state already requires funding
+    # ---------------------------------------------------------
+
     if current_fcfe < 0:
+
         return GrowthFundingCapacityResult(
             current_growth_pct=current_growth_pct,
             current_revenue=current_revenue,
@@ -225,11 +224,22 @@ def calculate_growth_funding_capacity(
             capacity_reached=True,
             current_state_requires_funding=True,
         )
-        
-    baseline_nwc = float(baseline_fin.working_capital.nwc)
-    upper = max(0.0, float(max_additional_growth_pct))
+
+    baseline_nwc = float(
+        baseline_fin.working_capital.nwc
+    )
+
+    upper = max(
+        0.0,
+        float(max_additional_growth_pct),
+    )
+
+    # ---------------------------------------------------------
+    # No test range
+    # ---------------------------------------------------------
 
     if upper == 0.0:
+
         return GrowthFundingCapacityResult(
             current_growth_pct=current_growth_pct,
             current_revenue=current_revenue,
@@ -239,14 +249,25 @@ def calculate_growth_funding_capacity(
             capacity_reached=False,
             current_state_requires_funding=False,
         )
-        
-    upper_fcfe, upper_revenue = _fcfe_at_additional_growth(
-        projected_state=projected_state,
-        baseline_nwc=baseline_nwc,
-        additional_growth_pct=upper,
+
+    # ---------------------------------------------------------
+    # Test upper boundary
+    # ---------------------------------------------------------
+
+    upper_fcfe, upper_revenue = (
+        _fcfe_at_additional_growth(
+            projected_state=projected_state,
+            baseline_nwc=baseline_nwc,
+            additional_growth_pct=upper,
+        )
     )
 
+    # ---------------------------------------------------------
+    # No funding boundary within test range
+    # ---------------------------------------------------------
+
     if upper_fcfe >= 0:
+
         return GrowthFundingCapacityResult(
             current_growth_pct=current_growth_pct,
             current_revenue=current_revenue,
@@ -257,15 +278,25 @@ def calculate_growth_funding_capacity(
             current_state_requires_funding=False,
         )
 
+    # ---------------------------------------------------------
+    # Funding boundary exists
+    # ---------------------------------------------------------
+
     lower = 0.0
     high = upper
 
     for _ in range(80):
-        midpoint = (lower + high) / 2.0
-        fcfe, _ = _fcfe_at_additional_growth(
-            projected_state=projected_state,
-            baseline_nwc=baseline_nwc,
-            additional_growth_pct=midpoint,
+
+        midpoint = (
+            lower + high
+        ) / 2.0
+
+        fcfe, _ = (
+            _fcfe_at_additional_growth(
+                projected_state=projected_state,
+                baseline_nwc=baseline_nwc,
+                additional_growth_pct=midpoint,
+            )
         )
 
         if fcfe >= 0:
@@ -276,12 +307,17 @@ def calculate_growth_funding_capacity(
         if high - lower <= tolerance_pct:
             break
 
-    capacity = max(0.0, lower)
+    capacity = max(
+        0.0,
+        lower,
+    )
 
-    _, capacity_revenue = _fcfe_at_additional_growth(
-        projected_state=projected_state,
-        baseline_nwc=baseline_nwc,
-        additional_growth_pct=capacity,
+    _, capacity_revenue = (
+        _fcfe_at_additional_growth(
+            projected_state=projected_state,
+            baseline_nwc=baseline_nwc,
+            additional_growth_pct=capacity,
+        )
     )
 
     return GrowthFundingCapacityResult(
