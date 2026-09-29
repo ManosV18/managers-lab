@@ -136,16 +136,15 @@ def render_growth_funding_lab(
         projected_state=projected_state,
         financial_projection=financial_projection,
     )
-
-    c1, c2, c3 = st.columns(3)
+    
+    c1, c2 = st.columns(2)
 
     if capacity.current_state_requires_funding:
-        c1.metric("Additional Self-Funded Growth", "0.0%")
-        c2.metric(
-            "Maximum Self-Funded Growth",
-            f"{capacity.maximum_self_funded_growth_pct:.1f}%",
+        c1.metric(
+            "Additional Growth Tested",
+            "0.0%",
         )
-        c3.metric(
+        c2.metric(
             "Current Projected FCFE",
             f"€{capacity.current_fcfe:,.0f}",
         )
@@ -158,41 +157,32 @@ def render_growth_funding_lab(
 
     elif capacity.capacity_reached:
         c1.metric(
-            "Additional Self-Funded Growth",
-            f"{capacity.additional_growth_capacity_pct:.1f}%",
+            "Additional Growth Tested",
+            f"+{capacity.tested_additional_growth_pct:.1f}%",
         )
         c2.metric(
-            "Maximum Self-Funded Growth",
-            f"{capacity.maximum_self_funded_growth_pct:.1f}%",
-        )
-        c3.metric(
-            "Revenue at Capacity",
-            f"€{capacity.capacity_revenue:,.0f}",
-        )
-
-        st.success(
-            f"✅ **The resulting company can support approximately "
-            f"{capacity.additional_growth_capacity_pct:.1f}% additional revenue growth** "
-            "before projected FCFE becomes negative."
-        )
-
-    else:
-        c1.metric(
-            "Additional Self-Funded Growth",
-            f">{capacity.additional_growth_capacity_pct:.0f}%",
-        )
-        c2.metric(
-            "Maximum Self-Funded Growth",
-            f">{capacity.maximum_self_funded_growth_pct:.0f}%",
-        )
-        c3.metric(
             "Current Projected FCFE",
             f"€{capacity.current_fcfe:,.0f}",
         )
 
         st.success(
-            f"✅ **No funding boundary was reached within the tested "
-            f"range of {capacity.additional_growth_capacity_pct:.0f}% additional growth.**"
+            f"✅ **A funding boundary was reached at approximately "
+            f"+{capacity.tested_additional_growth_pct:.1f}% additional growth.**"
+        )
+
+    else:
+        c1.metric(
+            "Additional Growth Tested",
+            f"+{capacity.tested_additional_growth_pct:.0f}%",
+        )
+        c2.metric(
+            "Current Projected FCFE",
+            f"€{capacity.current_fcfe:,.0f}",
+        )
+
+        st.info(
+            f"**No funding boundary was reached within the tested "
+            f"growth range of +{capacity.tested_additional_growth_pct:.0f}%.**"
         )
 
     st.caption(
