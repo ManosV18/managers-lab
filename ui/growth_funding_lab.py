@@ -182,7 +182,7 @@ def render_growth_funding_lab(
 
         st.info(
             f"**No funding boundary was reached within the tested "
-            f"growth range of +{capacity.tested_additional_growth_pct:.0f}%.**"
+            f"+{capacity.tested_additional_growth_pct:.0f}% growth range.**"
         )
 
     st.caption(
@@ -219,7 +219,7 @@ def render_growth_funding_lab(
         st.success(
             "✅ **DIAGNOSIS: Cash-Supported Growth.**\n\n"
             "The projected company generates sufficient internal cash flow "
-            "to remain self-funded under the current Decision Plan."
+            "to absorb the working capital investment required by the current Decision Plan."
         )
 
     # =========================================================
