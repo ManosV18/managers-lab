@@ -220,13 +220,12 @@ def calculate_growth_funding_capacity(
             current_growth_pct=current_growth_pct,
             current_revenue=current_revenue,
             current_fcfe=current_fcfe,
-            additional_growth_capacity_pct=0.0,
-            maximum_self_funded_growth_pct=max(0.0, current_growth_pct),
-            capacity_revenue=current_revenue,
+            tested_additional_growth_pct=0.0,
+            tested_growth_revenue=current_revenue,
             capacity_reached=True,
             current_state_requires_funding=True,
         )
-
+        
     baseline_nwc = float(baseline_fin.working_capital.nwc)
     upper = max(0.0, float(max_additional_growth_pct))
 
@@ -235,13 +234,12 @@ def calculate_growth_funding_capacity(
             current_growth_pct=current_growth_pct,
             current_revenue=current_revenue,
             current_fcfe=current_fcfe,
-            additional_growth_capacity_pct=0.0,
-            maximum_self_funded_growth_pct=max(0.0, current_growth_pct),
-            capacity_revenue=current_revenue,
+            tested_additional_growth_pct=0.0,
+            tested_growth_revenue=current_revenue,
             capacity_reached=False,
             current_state_requires_funding=False,
         )
-
+        
     upper_fcfe, upper_revenue = _fcfe_at_additional_growth(
         projected_state=projected_state,
         baseline_nwc=baseline_nwc,
@@ -253,9 +251,8 @@ def calculate_growth_funding_capacity(
             current_growth_pct=current_growth_pct,
             current_revenue=current_revenue,
             current_fcfe=current_fcfe,
-            additional_growth_capacity_pct=upper,
-            maximum_self_funded_growth_pct=current_growth_pct + upper,
-            capacity_revenue=upper_revenue,
+            tested_additional_growth_pct=upper,
+            tested_growth_revenue=upper_revenue,
             capacity_reached=False,
             current_state_requires_funding=False,
         )
@@ -291,9 +288,8 @@ def calculate_growth_funding_capacity(
         current_growth_pct=current_growth_pct,
         current_revenue=current_revenue,
         current_fcfe=current_fcfe,
-        additional_growth_capacity_pct=capacity,
-        maximum_self_funded_growth_pct=current_growth_pct + capacity,
-        capacity_revenue=capacity_revenue,
+        tested_additional_growth_pct=capacity,
+        tested_growth_revenue=capacity_revenue,
         capacity_reached=True,
         current_state_requires_funding=False,
     )
