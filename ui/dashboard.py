@@ -362,13 +362,19 @@ def _render_capital_cost(
     st.subheader("🏦 Capital Cost / Valuation")
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Baseline WACC", _fmt_rate(baseline_wacc))
+
+    c1.metric(
+        "Baseline WACC",
+        _fmt_rate(baseline_wacc),
+    )
+
     c2.metric(
         "Projected WACC",
         _fmt_rate(projected_wacc),
         f"{wacc_delta_pp:+.2f} pp",
         delta_color="inverse",
     )
+
     c3.metric(
         "WACC Decision",
         "Applied" if wacc_decision else "None",
@@ -420,18 +426,22 @@ def _render_valuation_impact(
     baseline_wacc = float(
         baseline_state.capital_structure.wacc
     )
+
     projected_wacc = float(
         projected_state.capital_structure.wacc
     )
+
     delta_wacc = projected_wacc - baseline_wacc
 
     st.subheader("📉 Valuation Impact")
 
     c1, c2, c3 = st.columns(3)
+
     c1.metric(
         "Baseline Discount Rate",
         _fmt_rate(baseline_wacc),
     )
+
     c2.metric(
         "Projected Discount Rate",
         _fmt_rate(projected_wacc),
@@ -441,32 +451,40 @@ def _render_valuation_impact(
 
     if delta_wacc > 1e-9:
         valuation_signal = "Negative"
+
         c3.metric(
             "Valuation Signal",
             "🔴 Downward",
         )
+
         st.error(
             "🔴 Higher WACC increases the discount rate applied "
             "to future FCFF and therefore creates downward pressure "
             "on Enterprise Value, all else equal."
         )
+
     elif delta_wacc < -1e-9:
         valuation_signal = "Positive"
+
         c3.metric(
             "Valuation Signal",
             "🟢 Upward",
         )
+
         st.success(
             "🟢 Lower WACC reduces the discount rate applied "
             "to future FCFF and therefore creates upward pressure "
             "on Enterprise Value, all else equal."
         )
+
     else:
         valuation_signal = "Neutral"
+
         c3.metric(
             "Valuation Signal",
             "⚪ Neutral",
         )
+
         st.info(
             "WACC is unchanged; there is no incremental valuation "
             "signal from the discount-rate layer."
@@ -480,12 +498,14 @@ def _render_valuation_impact(
             "and/or cash-flow metrics, but the higher WACC makes "
             "future cash flows less valuable in a DCF framework."
         )
+
     elif valuation_signal == "Positive":
         st.write(
             "The Decision Plan improves the company's capital "
             "efficiency because the lower WACC reduces the discount "
             "rate applied to future FCFF."
         )
+
     else:
         st.write(
             "The Decision Plan produces no incremental valuation "
@@ -1232,6 +1252,10 @@ def render_dashboard(
 
     decision_plan = _get_decision_plan()
 
+    # =====================================================
+    # 1. EXECUTIVE DECISION / BUSINESS OUTCOME
+    # =====================================================
+
     _render_executive_decision(
         baseline_state=baseline_state,
         projected_state=projected_state,
@@ -1243,27 +1267,29 @@ def render_dashboard(
 
     st.divider()
 
-    _render_capital_cost(
-        baseline_state=baseline_state,
-        projected_state=projected_state,
-        decision_plan=decision_plan,
-    )
-
-    st.divider()
-
-    _render_valuation_impact(
-        baseline_state=baseline_state,
-        projected_state=projected_state,
-        decision_plan=decision_plan,
-    )
-
-    st.divider()
+    # =====================================================
+    # 2. FINANCIAL IMPACT
+    # =====================================================
 
     _render_financial_impact(
         financial_impact
     )
 
     st.divider()
+
+    # =====================================================
+    # 3. SALES / REVENUE CHANGE
+    # =====================================================
+
+    _render_revenue_bridge(
+        financial_impact
+    )
+
+    st.divider()
+
+    # =====================================================
+    # 4. PROFITABILITY
+    # =====================================================
 
     _render_profitability_snapshot(
         baseline_state=baseline_state,
@@ -1273,11 +1299,9 @@ def render_dashboard(
 
     st.divider()
 
-    _render_revenue_bridge(
-        financial_impact
-    )
-
-    st.divider()
+    # =====================================================
+    # 5. WORKING CAPITAL
+    # =====================================================
 
     _render_working_capital(
         baseline_fin=baseline_fin,
@@ -1288,7 +1312,7 @@ def render_dashboard(
     st.divider()
 
     # =====================================================
-    # CASH MANAGEMENT TIMING LAYER
+    # 6. CASH MANAGEMENT — TIMING LAYER
     # =====================================================
 
     _render_cash_management_summary(
@@ -1297,11 +1321,45 @@ def render_dashboard(
 
     st.divider()
 
+    # =====================================================
+    # 7. FINANCIAL HEALTH / CASH FRAGILITY
+    # =====================================================
+
     _render_cash_fragility_diagnostic(
         baseline_state=baseline_state,
         projected_state=projected_state,
         financial_projection=financial_projection,
     )
+
+    st.divider()
+
+    # =====================================================
+    # 8. CAPITAL COST / WACC
+    # =====================================================
+
+    _render_capital_cost(
+        baseline_state=baseline_state,
+        projected_state=projected_state,
+        decision_plan=decision_plan,
+    )
+
+    st.divider()
+
+    # =====================================================
+    # 9. VALUATION IMPACT
+    # =====================================================
+
+    _render_valuation_impact(
+        baseline_state=baseline_state,
+        projected_state=projected_state,
+        decision_plan=decision_plan,
+    )
+
+    st.divider()
+
+    # =====================================================
+    # 10. DETAILED DECISION DIAGNOSTICS
+    # =====================================================
 
     with st.expander(
         "🔍 Decision Impact Diagnostics"
