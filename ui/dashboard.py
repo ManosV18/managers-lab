@@ -461,7 +461,7 @@ def _render_executive_decision(
     # -----------------------------------------------------
 
     st.markdown(
-        "### The Business in 3 Numbers"
+        "### The Decision in 3 Numbers"
     )
 
     c1, c2, c3 = st.columns(3)
@@ -470,27 +470,27 @@ def _render_executive_decision(
     c1.metric(
         "💰 Revenue",
         _fmt_eur(p.revenue),
-        _fmt_signed_eur(
-            revenue_delta
-        ),
+    )
+    c1.caption(
+        f"Change: {_fmt_signed_eur(revenue_delta)}"
     )
 
     # Profit
     c2.metric(
         "📈 Net Profit",
         _fmt_eur(p.net_profit),
-        _fmt_signed_eur(
-            net_profit_delta
-        ),
+    )
+    c2.caption(
+        f"Change: {_fmt_signed_eur(net_profit_delta)}"
     )
 
     # Cash / owner cash flow
     c3.metric(
         "💶 Cash Generation",
         _fmt_eur(projected_fin.fcfe),
-        _fmt_signed_eur(
-            fcfe_delta
-        ),
+    )
+    c3.caption(
+        f"Change: {_fmt_signed_eur(fcfe_delta)}"
     )
 
     # -----------------------------------------------------
@@ -541,21 +541,21 @@ def _render_revenue_bridge(financial_impact):
     c1, c2, c3 = st.columns(3)
 
     c1.metric(
-        "Price Effect",
+        "Price Change",
         _fmt_signed_eur(
             price_effect
         ),
     )
 
     c2.metric(
-        "Volume Effect",
+        "Volume Change",
         _fmt_signed_eur(
             volume_effect
         ),
     )
 
     c3.metric(
-        "Revenue Change",
+        "Total Revenue Change",
         _fmt_signed_eur(
             revenue_delta
         ),
@@ -594,26 +594,37 @@ def _render_profitability_snapshot(
         projected_revenue,
     )
 
+    net_profit_change = (
+        p.net_profit
+        - baseline_state.net_profit
+    )
+
+    margin_change = (
+        proj_net_margin
+        - base_net_margin
+    )
+
     c1, c2, c3 = st.columns(3)
 
     c1.metric(
         "Net Profit",
         _fmt_eur(p.net_profit),
-        _fmt_signed_eur(
-            p.net_profit
-            - baseline_state.net_profit
-        ),
+    )
+    c1.caption(
+        f"Change: {_fmt_signed_eur(net_profit_change)}"
     )
 
     c2.metric(
-        "Baseline Net Margin",
+        "Profit Margin — Before",
         f"{base_net_margin:.1f}%",
     )
 
     c3.metric(
-        "Projected Net Margin",
+        "Profit Margin — After",
         f"{proj_net_margin:.1f}%",
-        f"{proj_net_margin - base_net_margin:+.1f} pp",
+    )
+    c3.caption(
+        f"Change: {margin_change:+.1f} percentage points"
     )
 
 
@@ -637,23 +648,25 @@ def _render_working_capital(
         financial_impact.nwc_cash_impact_delta
     )
 
+    nwc_change = p.nwc - b.nwc
+
     c1, c2, c3 = st.columns(3)
 
     c1.metric(
-        "Baseline",
+        "Before",
         _fmt_eur(b.nwc),
     )
 
     c2.metric(
-        "Projected",
+        "After",
         _fmt_eur(p.nwc),
-        _fmt_signed_eur(
-            p.nwc - b.nwc
-        ),
+    )
+    c2.caption(
+        f"Change: {_fmt_signed_eur(nwc_change)}"
     )
 
     c3.metric(
-        "Cash Impact",
+        "Cash Change",
         _fmt_signed_eur(
             cash_impact
         ),
@@ -690,33 +703,33 @@ def _render_working_capital(
         rows = [
             {
                 "Metric": "Accounts Receivable",
-                "Baseline": _fmt_eur(b.ar),
-                "Projected": _fmt_eur(p.ar),
-                "Δ": _fmt_signed_eur(
+                "Before": _fmt_eur(b.ar),
+                "After": _fmt_eur(p.ar),
+                "Change": _fmt_signed_eur(
                     p.ar - b.ar
                 ),
             },
             {
                 "Metric": "Inventory",
-                "Baseline": _fmt_eur(b.inventory),
-                "Projected": _fmt_eur(p.inventory),
-                "Δ": _fmt_signed_eur(
+                "Before": _fmt_eur(b.inventory),
+                "After": _fmt_eur(p.inventory),
+                "Change": _fmt_signed_eur(
                     p.inventory - b.inventory
                 ),
             },
             {
                 "Metric": "Accounts Payable",
-                "Baseline": _fmt_eur(b.ap),
-                "Projected": _fmt_eur(p.ap),
-                "Δ": _fmt_signed_eur(
+                "Before": _fmt_eur(b.ap),
+                "After": _fmt_eur(p.ap),
+                "Change": _fmt_signed_eur(
                     p.ap - b.ap
                 ),
             },
             {
                 "Metric": "Net Working Capital",
-                "Baseline": _fmt_eur(b.nwc),
-                "Projected": _fmt_eur(p.nwc),
-                "Δ": _fmt_signed_eur(
+                "Before": _fmt_eur(b.nwc),
+                "After": _fmt_eur(p.nwc),
+                "Change": _fmt_signed_eur(
                     p.nwc - b.nwc
                 ),
             },
@@ -788,12 +801,12 @@ def _render_cash_management_summary(
     c1, c2, c3 = st.columns(3)
 
     c1.metric(
-        "Lowest Projected Cash",
+        "Lowest Cash Available",
         _fmt_eur(lowest_cash),
     )
 
     c2.metric(
-        "Lowest Cash Month",
+        "Lowest Point",
         (
             f"Month {lowest_month}"
             if lowest_month is not None
@@ -936,61 +949,61 @@ def _render_cash_fragility_diagnostic(
         rows = [
             {
                 "Diagnostic Metric": "Cash Runway",
-                "Baseline": (
+                "Before": (
                     f'{baseline_diag["cash_runway"]:.1f} days'
                 ),
-                "Projected": (
+                "After": (
                     f'{projected_diag["cash_runway"]:.1f} days'
                 ),
-                "Δ": (
+                "Change": (
                     f"{runway_delta:+.1f} days"
                 ),
             },
             {
                 "Diagnostic Metric": "Cash Conversion Cycle",
-                "Baseline": (
+                "Before": (
                     f'{baseline_diag["ccc_days"]:.1f} days'
                 ),
-                "Projected": (
+                "After": (
                     f'{projected_diag["ccc_days"]:.1f} days'
                 ),
-                "Δ": (
+                "Change": (
                     f"{ccc_delta:+.1f} days"
                 ),
             },
             {
                 "Diagnostic Metric": "Runway After CCC",
-                "Baseline": (
+                "Before": (
                     f'{baseline_diag["runway_after_cycle"]:+.1f} days'
                 ),
-                "Projected": (
+                "After": (
                     f'{projected_diag["runway_after_cycle"]:+.1f} days'
                 ),
-                "Δ": (
+                "Change": (
                     f"{net_runway_delta:+.1f} days"
                 ),
             },
             {
                 "Diagnostic Metric": "Fragility Score",
-                "Baseline": (
+                "Before": (
                     f'{baseline_diag["fragility_score"]:.2f}'
                 ),
-                "Projected": (
+                "After": (
                     f'{projected_diag["fragility_score"]:.2f}'
                 ),
-                "Δ": (
+                "Change": (
                     f"{score_delta:+.2f}"
                 ),
             },
             {
                 "Diagnostic Metric": "Liquidity Status",
-                "Baseline": (
+                "Before": (
                     baseline_diag["status"]
                 ),
-                "Projected": (
+                "After": (
                     projected_diag["status"]
                 ),
-                "Δ": health_signal,
+                "Change": health_signal,
             },
         ]
 
