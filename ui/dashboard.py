@@ -1529,6 +1529,128 @@ def render_dashboard(
     decision_plan = _get_decision_plan()
 
     # =====================================================
+    # BASELINE VIEW — NO DECISION PLAN
+    # =====================================================
+
+    if decision_plan is None:
+        st.info(
+            "🔵 **BASELINE VIEW** — No Decision Plan is currently selected. "
+            "The figures below show the locked baseline of the business."
+        )
+
+        st.markdown(
+            "### Baseline Business Snapshot"
+        )
+
+        baseline_p = baseline_fin.income_statement
+
+        baseline_revenue = float(
+            baseline_p.revenue
+        )
+
+        baseline_net_profit = float(
+            baseline_p.net_profit
+        )
+
+        baseline_margin = _margin(
+            baseline_net_profit,
+            baseline_revenue,
+        )
+
+        cash_result = build_cash_management_summary(
+            baseline_state=baseline_state,
+        )
+
+        lowest_cash = None
+
+        if (
+            cash_result is not None
+            and cash_result.get("valid", True)
+        ):
+            lowest_cash_value = cash_result.get(
+                "lowest_projected_cash"
+            )
+
+            if lowest_cash_value is not None:
+                lowest_cash = float(
+                    lowest_cash_value
+                )
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "💰 Revenue",
+            _fmt_eur(baseline_revenue),
+        )
+
+        c2.metric(
+            "📈 Net Profit",
+            _fmt_eur(baseline_net_profit),
+        )
+
+        c3.metric(
+            "📊 Profit Margin",
+            f"{baseline_margin:.1f}%",
+        )
+
+        c4.metric(
+            "💧 Lowest Cash",
+            (
+                _fmt_eur(lowest_cash)
+                if lowest_cash is not None
+                else "—"
+            ),
+        )
+
+        st.divider()
+
+        st.subheader(
+            "💧 Working Capital"
+        )
+
+        st.metric(
+            "Net Working Capital",
+            _fmt_eur(
+                baseline_fin.working_capital.nwc
+            ),
+        )
+
+        st.caption(
+            "Locked baseline position."
+        )
+
+        st.divider()
+
+        _render_cash_management_summary(
+            baseline_state=baseline_state,
+        )
+
+        return
+
+    # =====================================================
+    # 1. EXECUTIVE DECISION / 5-SECOND VIEW
+    # =====================================================
+
+    _render_executive_decision(
+        baseline_state=baseline_state,
+        projected_state=projected_state,
+        baseline_fin=baseline_fin,
+        projected_fin=projected_fin,
+        financial_impact=financial_impact,
+        decision_plan=decision_plan,
+    )
+
+    st.divider()
+
+    # =====================================================
+    # 2. SALES / REVENUE — WHY DID IT CHANGE?
+    # =====================================================
+
+    _render_revenue_bridge(
+        financial_impact
+    )
+
+    # =====================================================
     # 1. EXECUTIVE DECISION / 5-SECOND VIEW
     # =====================================================
 
