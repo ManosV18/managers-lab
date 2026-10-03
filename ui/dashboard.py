@@ -379,6 +379,7 @@ def _render_executive_decision(
     )
 
     funding_required = 0.0
+    lowest_cash = None
 
     if (
         cash_result is not None
@@ -390,6 +391,15 @@ def _render_executive_decision(
                 0.0,
             )
         )
+
+        lowest_cash_value = cash_result.get(
+            "lowest_projected_cash"
+        )
+
+        if lowest_cash_value is not None:
+            lowest_cash = float(
+                lowest_cash_value
+            )
 
     # -----------------------------------------------------
     # TOP DECISION MESSAGE
@@ -457,14 +467,14 @@ def _render_executive_decision(
         )
 
     # -----------------------------------------------------
-    # THREE CORE BUSINESS CARDS
+    # FOUR CORE BUSINESS CARDS
     # -----------------------------------------------------
 
     st.markdown(
-        "### The Decision in 3 Numbers"
+        "### The Decision in 4 Numbers"
     )
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
 
     # Revenue
     c1.metric(
@@ -472,7 +482,8 @@ def _render_executive_decision(
         _fmt_eur(p.revenue),
     )
     c1.caption(
-        f"Change: {_fmt_signed_eur(revenue_delta)}"
+        f"Change vs baseline: "
+        f"{_fmt_signed_eur(revenue_delta)}"
     )
 
     # Profit
@@ -481,7 +492,8 @@ def _render_executive_decision(
         _fmt_eur(p.net_profit),
     )
     c2.caption(
-        f"Change: {_fmt_signed_eur(net_profit_delta)}"
+        f"Change vs baseline: "
+        f"{_fmt_signed_eur(net_profit_delta)}"
     )
 
     # Cash / owner cash flow
@@ -490,8 +502,33 @@ def _render_executive_decision(
         _fmt_eur(projected_fin.fcfe),
     )
     c3.caption(
-        f"Change: {_fmt_signed_eur(fcfe_delta)}"
+        f"Change vs baseline: "
+        f"{_fmt_signed_eur(fcfe_delta)}"
     )
+
+    # Lowest cash
+    if lowest_cash is not None:
+        c4.metric(
+            "💧 Lowest Cash",
+            _fmt_eur(lowest_cash),
+        )
+
+        if funding_required > 0:
+            c4.caption(
+                "🔴 Below minimum reserve"
+            )
+        else:
+            c4.caption(
+                "🟢 Above minimum reserve"
+            )
+    else:
+        c4.metric(
+            "💧 Lowest Cash",
+            "—",
+        )
+        c4.caption(
+            "Cash timing unavailable"
+        )
 
     # -----------------------------------------------------
     # SHORT CAUSAL EXPLANATION
@@ -541,14 +578,14 @@ def _render_revenue_bridge(financial_impact):
     c1, c2, c3 = st.columns(3)
 
     c1.metric(
-        "Price Change",
+        "Price Change Impact",
         _fmt_signed_eur(
             price_effect
         ),
     )
 
     c2.metric(
-        "Volume Change",
+        "Volume Change Impact",
         _fmt_signed_eur(
             volume_effect
         ),
@@ -611,7 +648,8 @@ def _render_profitability_snapshot(
         _fmt_eur(p.net_profit),
     )
     c1.caption(
-        f"Change: {_fmt_signed_eur(net_profit_change)}"
+        f"Change vs baseline: "
+        f"{_fmt_signed_eur(net_profit_change)}"
     )
 
     c2.metric(
@@ -623,9 +661,21 @@ def _render_profitability_snapshot(
         "Profit Margin — After",
         f"{proj_net_margin:.1f}%",
     )
-    c3.caption(
-        f"Change: {margin_change:+.1f} percentage points"
-    )
+
+    if margin_change > 0:
+        c3.caption(
+            f"🟢 Margin improved: "
+            f"+{margin_change:.1f} percentage points"
+        )
+    elif margin_change < 0:
+        c3.caption(
+            f"🟠 Margin reduced: "
+            f"{margin_change:.1f} percentage points"
+        )
+    else:
+        c3.caption(
+            "Margin unchanged"
+        )
 
 
 # =========================================================
@@ -662,7 +712,8 @@ def _render_working_capital(
         _fmt_eur(p.nwc),
     )
     c2.caption(
-        f"Change: {_fmt_signed_eur(nwc_change)}"
+        f"Change vs baseline: "
+        f"{_fmt_signed_eur(nwc_change)}"
     )
 
     c3.metric(
@@ -674,22 +725,21 @@ def _render_working_capital(
 
     if cash_impact < 0:
         st.warning(
-            f"💧 The decision ties up "
+            f"🟠 The decision ties up "
             f"**{_fmt_eur(abs(cash_impact))}** "
             f"of additional cash in working capital."
         )
 
     elif cash_impact > 0:
         st.success(
-            f"💧 The decision releases "
+            f"🟢 The decision releases "
             f"**{_fmt_eur(cash_impact)}** "
             f"of cash from working capital."
         )
 
     else:
         st.info(
-            "💧 The decision has no incremental working-capital "
-            "cash effect."
+            "Working capital has no incremental cash effect."
         )
 
     # -----------------------------------------------------
@@ -705,7 +755,7 @@ def _render_working_capital(
                 "Metric": "Accounts Receivable",
                 "Before": _fmt_eur(b.ar),
                 "After": _fmt_eur(p.ar),
-                "Change": _fmt_signed_eur(
+                "Change vs baseline": _fmt_signed_eur(
                     p.ar - b.ar
                 ),
             },
@@ -713,7 +763,7 @@ def _render_working_capital(
                 "Metric": "Inventory",
                 "Before": _fmt_eur(b.inventory),
                 "After": _fmt_eur(p.inventory),
-                "Change": _fmt_signed_eur(
+                "Change vs baseline": _fmt_signed_eur(
                     p.inventory - b.inventory
                 ),
             },
@@ -721,7 +771,7 @@ def _render_working_capital(
                 "Metric": "Accounts Payable",
                 "Before": _fmt_eur(b.ap),
                 "After": _fmt_eur(p.ap),
-                "Change": _fmt_signed_eur(
+                "Change vs baseline": _fmt_signed_eur(
                     p.ap - b.ap
                 ),
             },
@@ -729,7 +779,7 @@ def _render_working_capital(
                 "Metric": "Net Working Capital",
                 "Before": _fmt_eur(b.nwc),
                 "After": _fmt_eur(p.nwc),
-                "Change": _fmt_signed_eur(
+                "Change vs baseline": _fmt_signed_eur(
                     p.nwc - b.nwc
                 ),
             },
@@ -955,7 +1005,7 @@ def _render_cash_fragility_diagnostic(
                 "After": (
                     f'{projected_diag["cash_runway"]:.1f} days'
                 ),
-                "Change": (
+                "Change vs baseline": (
                     f"{runway_delta:+.1f} days"
                 ),
             },
@@ -967,7 +1017,7 @@ def _render_cash_fragility_diagnostic(
                 "After": (
                     f'{projected_diag["ccc_days"]:.1f} days'
                 ),
-                "Change": (
+                "Change vs baseline": (
                     f"{ccc_delta:+.1f} days"
                 ),
             },
@@ -979,7 +1029,7 @@ def _render_cash_fragility_diagnostic(
                 "After": (
                     f'{projected_diag["runway_after_cycle"]:+.1f} days'
                 ),
-                "Change": (
+                "Change vs baseline": (
                     f"{net_runway_delta:+.1f} days"
                 ),
             },
@@ -991,7 +1041,7 @@ def _render_cash_fragility_diagnostic(
                 "After": (
                     f'{projected_diag["fragility_score"]:.2f}'
                 ),
-                "Change": (
+                "Change vs baseline": (
                     f"{score_delta:+.2f}"
                 ),
             },
@@ -1003,7 +1053,7 @@ def _render_cash_fragility_diagnostic(
                 "After": (
                     projected_diag["status"]
                 ),
-                "Change": health_signal,
+                "Change vs baseline": health_signal,
             },
         ]
 
@@ -1375,7 +1425,7 @@ def _render_decision_diagnostics(
             "Working Capital Driver": "Accounts Receivable",
             "Baseline": _fmt_eur(b.ar),
             "Projected": _fmt_eur(p.ar),
-            "Change": _fmt_signed_eur(
+            "Change vs baseline": _fmt_signed_eur(
                 p.ar - b.ar
             ),
             "Cash Effect": _fmt_signed_eur(
@@ -1386,7 +1436,7 @@ def _render_decision_diagnostics(
             "Working Capital Driver": "Inventory",
             "Baseline": _fmt_eur(b.inventory),
             "Projected": _fmt_eur(p.inventory),
-            "Change": _fmt_signed_eur(
+            "Change vs baseline": _fmt_signed_eur(
                 p.inventory - b.inventory
             ),
             "Cash Effect": _fmt_signed_eur(
@@ -1397,7 +1447,7 @@ def _render_decision_diagnostics(
             "Working Capital Driver": "Accounts Payable",
             "Baseline": _fmt_eur(b.ap),
             "Projected": _fmt_eur(p.ap),
-            "Change": _fmt_signed_eur(
+            "Change vs baseline": _fmt_signed_eur(
                 p.ap - b.ap
             ),
             "Cash Effect": _fmt_signed_eur(
@@ -1408,7 +1458,7 @@ def _render_decision_diagnostics(
             "Working Capital Driver": "TOTAL",
             "Baseline": _fmt_eur(b.nwc),
             "Projected": _fmt_eur(p.nwc),
-            "Change": _fmt_signed_eur(
+            "Change vs baseline": _fmt_signed_eur(
                 p.nwc - b.nwc
             ),
             "Cash Effect": _fmt_signed_eur(
