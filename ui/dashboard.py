@@ -1650,29 +1650,6 @@ def render_dashboard(
         financial_impact
     )
 
-    # =====================================================
-    # 1. EXECUTIVE DECISION / 5-SECOND VIEW
-    # =====================================================
-
-    _render_executive_decision(
-        baseline_state=baseline_state,
-        projected_state=projected_state,
-        baseline_fin=baseline_fin,
-        projected_fin=projected_fin,
-        financial_impact=financial_impact,
-        decision_plan=decision_plan,
-    )
-
-    st.divider()
-
-    # =====================================================
-    # 2. SALES / REVENUE — WHY DID IT CHANGE?
-    # =====================================================
-
-    _render_revenue_bridge(
-        financial_impact
-    )
-
     st.divider()
 
     # =====================================================
