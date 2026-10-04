@@ -55,7 +55,6 @@ from core.state_builder import StateBuilder
 # =========================================================
 
 from tools.loan_vs_leasing import render_loan_vs_leasing_lab
-
 from ui.baseline import render_baseline_setup
 from ui.cash_break_even_lab import render_cash_break_even_lab
 from ui.cash_fragility_lab import render_cash_fragility_lab
@@ -80,6 +79,7 @@ from ui.customer_cash_economics_lab import render_customer_cash_economics_lab
 from ui.inventory_ordering_lab import render_inventory_ordering_lab
 from ui.salesperson_value_lab import render_salesperson_value_lab
 from ui.growth_funding_lab import render_growth_funding_lab
+from ui.investment_decision_lab import render_investment_decision_lab
 from ui.working_capital_data_analyzer import render_working_capital_data_analyzer
 from ui.cash_management_lab import render_cash_management_lab
 from ui.qspm_lab import render_qspm_lab
@@ -773,6 +773,12 @@ def render_home():
                     "home_strategy",
                 )
 
+                navigation_button(
+                    "Investment Decision",
+                    "📊 Investment Decision Lab",
+                    "home_investment_decision",
+                )            
+
     # -----------------------------------------------------
     # PROTECT BUSINESS
     # -----------------------------------------------------
@@ -1078,6 +1084,14 @@ if current_page == "📈 Growth & Funding Lab":
         baseline_state=b_state,
         projected_state=p_state,
         financial_projection=fin_proj,
+    )
+
+    st.stop()
+
+if current_page == "📊 Investment Decision Lab":
+
+    render_investment_decision_lab(
+        baseline_state=baseline
     )
 
     st.stop()
