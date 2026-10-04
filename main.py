@@ -72,45 +72,18 @@ from ui.suppliers_lab import render_suppliers_lab
 from ui.wacc_lab import render_wacc_lab
 from ui.pricing_threshold_lab import render_pricing_threshold
 from ui.monthly_survival_lab import render_monthly_survival_lab
-
-from ui.complementary_products_lab import (
-    render_complementary_products_lab
-)
-
-from ui.substitute_products_lab import (
-    render_substitute_products_lab
-)
-
+from ui.complementary_products_lab import render_complementary_products_lab
+from ui.substitute_products_lab import render_substitute_products_lab
 from ui.deal_auditor_lab import render_deal_auditor_lab
 from ui.stress_test_lab import render_stress_test_lab
-
-from ui.customer_cash_economics_lab import (
-    render_customer_cash_economics_lab
-)
-
-from ui.inventory_ordering_lab import (
-    render_inventory_ordering_lab
-)
-
-from ui.salesperson_value_lab import (
-    render_salesperson_value_lab
-)
-
-from ui.growth_funding_lab import (
-    render_growth_funding_lab
-)
-
-from ui.working_capital_data_analyzer import (
-    render_working_capital_data_analyzer
-)
-
-from ui.cash_management_lab import (
-    render_cash_management_lab
-)
-
+from ui.customer_cash_economics_lab import render_customer_cash_economics_lab
+from ui.inventory_ordering_lab import render_inventory_ordering_lab
+from ui.salesperson_value_lab import render_salesperson_value_lab
+from ui.growth_funding_lab import render_growth_funding_lab
+from ui.working_capital_data_analyzer import render_working_capital_data_analyzer
+from ui.cash_management_lab import render_cash_management_lab
 from ui.qspm_lab import render_qspm_lab
 from ui.concentration_lab import render_concentration_lab
-
 
 # =========================================================
 # APPLICATION SERVICES
