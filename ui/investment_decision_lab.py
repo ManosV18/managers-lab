@@ -396,29 +396,29 @@ def render_investment_decision_lab(
     # BASELINE DEFAULTS
     # ---------------------------------------------------------
 
-    baseline_price = getattr(
-        baseline_state,
-        "price",
-        0.0,
-    )
+baseline_price = (
+    baseline_state.drivers.price
+    if baseline_state is not None
+    else 0.0
+)
 
-    baseline_variable_cost = getattr(
-        baseline_state,
-        "variable_cost_per_unit",
-        0.0,
-    )
+baseline_variable_cost = (
+    baseline_state.drivers.variable_cost_per_unit
+    if baseline_state is not None
+    else 0.0
+)
 
-    baseline_tax_rate = getattr(
-        baseline_state,
-        "tax_rate",
-        0.0,
-    )
+baseline_tax_rate = (
+    baseline_state.capital_structure.tax_rate
+    if baseline_state is not None
+    else 0.0
+)
 
-    baseline_wacc = getattr(
-        baseline_state,
-        "wacc",
-        0.0,
-    )
+baseline_wacc = (
+    baseline_state.capital_structure.wacc
+    if baseline_state is not None
+    else 0.0
+)
 
     # ---------------------------------------------------------
     # INVESTMENT INPUTS
@@ -611,10 +611,10 @@ def render_investment_decision_lab(
             tax_rate=baseline_tax_rate,
             wacc=baseline_wacc,
             price=baseline_price,
-            fixed_costs=getattr(
-                baseline_state,
-                "fixed_costs",
-                0.0,
+            fixed_costs=(
+                baseline_state.drivers.fixed_opex
+                if baseline_state is not None
+                else 0.0
             ),
         )
 
