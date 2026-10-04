@@ -396,29 +396,29 @@ def render_investment_decision_lab(
     # BASELINE DEFAULTS
     # ---------------------------------------------------------
 
-baseline_price = (
-    baseline_state.drivers.price
-    if baseline_state is not None
-    else 0.0
-)
+    baseline_price = (
+        baseline_state.drivers.price
+        if baseline_state is not None
+        else 0.0
+    )
 
-baseline_variable_cost = (
-    baseline_state.drivers.variable_cost_per_unit
-    if baseline_state is not None
-    else 0.0
-)
+    baseline_variable_cost = (
+        baseline_state.drivers.variable_cost_per_unit
+        if baseline_state is not None
+        else 0.0
+    )
 
-baseline_tax_rate = (
-    baseline_state.capital_structure.tax_rate
-    if baseline_state is not None
-    else 0.0
-)
+    baseline_tax_rate = (
+        baseline_state.capital_structure.tax_rate
+        if baseline_state is not None
+        else 0.0
+    )
 
-baseline_wacc = (
-    baseline_state.capital_structure.wacc
-    if baseline_state is not None
-    else 0.0
-)
+    baseline_wacc = (
+        baseline_state.capital_structure.wacc
+        if baseline_state is not None
+        else 0.0
+    )
 
     # ---------------------------------------------------------
     # INVESTMENT INPUTS
