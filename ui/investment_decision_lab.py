@@ -372,3 +372,397 @@ if __name__ == "__main__":
     tornado = calculate_tornado_sensitivity(proj_assump, company_ctx)
     for t in tornado:
         print(f"• {t.driver_name:<25} | Range Impact: €{t.range_span:,.2f} [Min NPV: €{t.low_npv:,.2f} -> Max NPV: €{t.high_npv:,.2f}]")
+
+# ---------------------------------------------------------------------------
+# 7. Streamlit UI
+# ---------------------------------------------------------------------------
+
+import streamlit as st
+
+
+def render_investment_decision_lab(
+    baseline_state=None,
+):
+    st.title("📊 Investment Decision Lab")
+
+    st.markdown(
+        "Evaluate a proposed investment using NPV, IRR, "
+        "Payback and decision-driver sensitivity."
+    )
+
+    st.divider()
+
+    # ---------------------------------------------------------
+    # BASELINE DEFAULTS
+    # ---------------------------------------------------------
+
+    baseline_price = getattr(
+        baseline_state,
+        "price",
+        0.0,
+    )
+
+    baseline_variable_cost = getattr(
+        baseline_state,
+        "variable_cost_per_unit",
+        0.0,
+    )
+
+    baseline_tax_rate = getattr(
+        baseline_state,
+        "tax_rate",
+        0.0,
+    )
+
+    baseline_wacc = getattr(
+        baseline_state,
+        "wacc",
+        0.0,
+    )
+
+    # ---------------------------------------------------------
+    # INVESTMENT INPUTS
+    # ---------------------------------------------------------
+
+    st.subheader("Investment Assumptions")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        initial_investment = st.number_input(
+            "Initial Investment",
+            min_value=0.0,
+            value=0.0,
+            step=1000.0,
+        )
+
+        project_years = st.number_input(
+            "Project Years",
+            min_value=1,
+            value=5,
+            step=1,
+        )
+
+        units = st.number_input(
+            "Annual Units",
+            min_value=0.0,
+            value=0.0,
+            step=1000.0,
+        )
+
+        price = st.number_input(
+            "Selling Price / Unit",
+            min_value=0.0,
+            value=float(baseline_price),
+            step=0.10,
+        )
+
+    with col2:
+
+        fixed_costs = st.number_input(
+            "Annual Fixed Costs",
+            min_value=0.0,
+            value=0.0,
+            step=1000.0,
+        )
+
+        working_capital = st.number_input(
+            "Initial Working Capital",
+            min_value=0.0,
+            value=0.0,
+            step=1000.0,
+        )
+
+        salvage_value = st.number_input(
+            "Salvage Value",
+            min_value=0.0,
+            value=0.0,
+            step=1000.0,
+        )
+
+    # ---------------------------------------------------------
+    # PROJECT GROWTH
+    # ---------------------------------------------------------
+
+    st.subheader("Project Growth Assumptions")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        volume_growth = st.number_input(
+            "Annual Volume Growth %",
+            value=0.0,
+            step=1.0,
+        ) / 100
+
+    with col2:
+        price_growth = st.number_input(
+            "Annual Price Growth %",
+            value=0.0,
+            step=1.0,
+        ) / 100
+
+    with col3:
+        variable_cost_growth = st.number_input(
+            "Annual Variable Cost Growth %",
+            value=0.0,
+            step=1.0,
+        ) / 100
+
+    with col4:
+        fixed_cost_growth = st.number_input(
+            "Annual Fixed Cost Growth %",
+            value=0.0,
+            step=1.0,
+        ) / 100
+
+    # ---------------------------------------------------------
+    # COMPANY DEFAULTS
+    # ---------------------------------------------------------
+
+    st.subheader("Company Baseline Defaults")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "Baseline Variable Cost",
+            f"{baseline_variable_cost:,.2f}",
+        )
+
+    with col2:
+        st.metric(
+            "Baseline Tax Rate",
+            f"{baseline_tax_rate * 100:.1f}%",
+        )
+
+    with col3:
+        st.metric(
+            "Baseline WACC",
+            f"{baseline_wacc * 100:.1f}%",
+        )
+
+    # ---------------------------------------------------------
+    # OPTIONAL OVERRIDES
+    # ---------------------------------------------------------
+
+    st.subheader("Project Overrides")
+
+    use_vc_override = st.checkbox(
+        "Override Variable Cost / Unit"
+    )
+
+    override_vc = None
+
+    if use_vc_override:
+
+        override_vc = st.number_input(
+            "Project Variable Cost / Unit",
+            min_value=0.0,
+            value=float(baseline_variable_cost),
+            step=0.10,
+        )
+
+    use_tax_override = st.checkbox(
+        "Override Tax Rate"
+    )
+
+    override_tax = None
+
+    if use_tax_override:
+
+        override_tax = st.number_input(
+            "Project Tax Rate %",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(baseline_tax_rate * 100),
+            step=1.0,
+        ) / 100
+
+    use_wacc_override = st.checkbox(
+        "Override WACC"
+    )
+
+    override_wacc = None
+
+    if use_wacc_override:
+
+        override_wacc = st.number_input(
+            "Project WACC %",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(baseline_wacc * 100),
+            step=0.5,
+        ) / 100
+
+    # ---------------------------------------------------------
+    # EVALUATION
+    # ---------------------------------------------------------
+
+    if st.button(
+        "▶ Evaluate Investment",
+        type="primary",
+        use_container_width=True,
+    ):
+
+        context = CompanyStateContext(
+            variable_cost_per_unit=baseline_variable_cost,
+            tax_rate=baseline_tax_rate,
+            wacc=baseline_wacc,
+            price=baseline_price,
+            fixed_costs=getattr(
+                baseline_state,
+                "fixed_costs",
+                0.0,
+            ),
+        )
+
+        assumptions = InvestmentAssumptions(
+            initial_investment=initial_investment,
+            project_years=int(project_years),
+            units=units,
+            annual_volume_growth=volume_growth,
+            annual_price_growth=price_growth,
+            annual_variable_cost_growth=variable_cost_growth,
+            annual_fixed_cost_growth=fixed_cost_growth,
+            working_capital=working_capital,
+            salvage_value=salvage_value,
+            fixed_costs=fixed_costs,
+            price=price,
+            override_variable_cost_per_unit=override_vc,
+            override_tax_rate=override_tax,
+            override_wacc=override_wacc,
+        )
+
+        result = evaluate_investment(
+            assumptions,
+            context,
+        )
+
+        # -----------------------------------------------------
+        # RESULTS
+        # -----------------------------------------------------
+
+        st.divider()
+
+        st.subheader("Investment Decision")
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            st.metric(
+                "NPV",
+                f"€{result.npv:,.0f}",
+            )
+
+        with c2:
+            st.metric(
+                "IRR",
+                f"{result.irr * 100:.1f}%",
+            )
+
+        with c3:
+
+            if np.isinf(result.payback_years):
+
+                payback_text = "Not recovered"
+
+            else:
+
+                payback_text = (
+                    f"{result.payback_years:.2f} years"
+                )
+
+            st.metric(
+                "Payback",
+                payback_text,
+            )
+
+        # -----------------------------------------------------
+        # DECISION SIGNAL
+        # -----------------------------------------------------
+
+        if result.npv > 0:
+
+            st.success(
+                "🟢 Positive NPV — the project creates "
+                "value at the selected discount rate."
+            )
+
+        elif result.npv < 0:
+
+            st.error(
+                "🔴 Negative NPV — the project destroys "
+                "value at the selected discount rate."
+            )
+
+        else:
+
+            st.warning(
+                "🟡 NPV is approximately zero — the project "
+                "is at the value-neutral threshold."
+            )
+
+        # -----------------------------------------------------
+        # YEARLY CASH FLOWS
+        # -----------------------------------------------------
+
+        st.subheader("Project Cash Flow")
+
+        rows = []
+
+        for year in result.yearly_cash_flows:
+
+            rows.append(
+                {
+                    "Year": year.year,
+                    "Units": year.units,
+                    "Price": year.price,
+                    "Revenue": year.revenue,
+                    "Variable Cost": year.variable_cost_total,
+                    "Fixed Costs": year.fixed_costs,
+                    "EBIT": year.operating_profit,
+                    "Tax": year.tax,
+                    "Operating Cash Flow": year.operating_cash_flow,
+                    "Working Capital": year.working_capital_change,
+                    "Salvage": year.salvage_value,
+                    "Project Cash Flow": year.project_cash_flow,
+                }
+            )
+
+        st.dataframe(
+            rows,
+            use_container_width=True,
+        )
+
+        # -----------------------------------------------------
+        # TORNADO ANALYSIS
+        # -----------------------------------------------------
+
+        st.subheader(
+            "Decision Drivers — NPV Sensitivity"
+        )
+
+        tornado = calculate_tornado_sensitivity(
+            assumptions,
+            context,
+        )
+
+        if tornado:
+
+            tornado_rows = [
+                {
+                    "Driver": t.driver_name,
+                    "Low NPV": t.low_npv,
+                    "Base NPV": t.base_npv,
+                    "High NPV": t.high_npv,
+                    "Impact Range": t.range_span,
+                }
+                for t in tornado
+            ]
+
+            st.dataframe(
+                tornado_rows,
+                use_container_width=True,
+            )
