@@ -523,26 +523,32 @@ def render_investment_decision_lab(
 
     st.subheader("Company Baseline Defaults")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         st.metric(
-            "Baseline Variable Cost",
-            f"{baseline_variable_cost:,.2f}",
+            "Baseline Price",
+            f"€{baseline_price:,.2f}",
         )
 
     with col2:
+        st.metric(
+            "Baseline Variable Cost",
+            f"€{baseline_variable_cost:,.2f}",
+        )
+
+    with col3:
         st.metric(
             "Baseline Tax Rate",
             f"{baseline_tax_rate * 100:.1f}%",
         )
 
-    with col3:
+    with col4:
         st.metric(
             "Baseline WACC",
             f"{baseline_wacc * 100:.1f}%",
         )
-
+    
     # ---------------------------------------------------------
     # OPTIONAL OVERRIDES
     # ---------------------------------------------------------
