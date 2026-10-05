@@ -219,12 +219,13 @@ def calculate_payback(cash_flows: List[float]) -> float:
             return (i - 1) + fraction
     return float('inf')  # Δεν αποσβένεται εντός της διάρκειας
 
+
 def calculate_exit_option(
     assumptions: InvestmentAssumptions,
     context: CompanyStateContext,
 ) -> Dict[str, float]:
     """
-    Evaluates the value of allowing management
+    Evaluates the value of having the flexibility
     to exit the project after Year 1.
     """
 
@@ -241,7 +242,7 @@ def calculate_exit_option(
     wacc = assumptions.get_effective_wacc(context)
 
     # -----------------------------------------------------
-    # Value if the project continues
+    # Value if project continues
     # -----------------------------------------------------
 
     continue_value = calculate_npv(
@@ -254,7 +255,6 @@ def calculate_exit_option(
     # -----------------------------------------------------
 
     if not assumptions.allow_exit_after_year_1:
-
         return {
             "continue_value": continue_value,
             "exit_value": 0.0,
@@ -263,11 +263,10 @@ def calculate_exit_option(
         }
 
     # -----------------------------------------------------
-    # Project must have at least Year 1
+    # Need at least Year 1
     # -----------------------------------------------------
 
     if len(cash_flows) < 2:
-
         return {
             "continue_value": continue_value,
             "exit_value": 0.0,
@@ -276,7 +275,16 @@ def calculate_exit_option(
         }
 
     # -----------------------------------------------------
-    # Value available at the end of Year 1
+    # Exit after Year 1
+    #
+    # Initial investment remains sunk.
+    # We therefore compare:
+    #
+    # Continue:
+    #   CF0 + CF1/(1+WACC) + CF2/(1+WACC)^2 + ...
+    #
+    # Exit:
+    #   CF0 + (CF1 + Exit Value - Exit Cost)/(1+WACC)
     # -----------------------------------------------------
 
     year_1_cf = cash_flows[1]
@@ -286,27 +294,23 @@ def calculate_exit_option(
         - assumptions.exit_cost
     )
 
-    exit_value_at_year_1 = (
+    exit_cash_flow_year_1 = (
         year_1_cf
         + net_exit_value
     )
 
-    # -----------------------------------------------------
-    # Discount Year-1 exit value to today
-    # -----------------------------------------------------
-
-    exit_value_today = (
-        exit_value_at_year_1
-        / (1 + wacc)
+    exit_value = (
+        cash_flows[0]
+        + exit_cash_flow_year_1 / (1 + wacc)
     )
 
     # -----------------------------------------------------
-    # Management flexibility
+    # Value of flexibility
     # -----------------------------------------------------
 
     value_with_exit_option = max(
         continue_value,
-        exit_value_today,
+        exit_value,
     )
 
     value_of_flexibility = max(
@@ -316,7 +320,7 @@ def calculate_exit_option(
 
     return {
         "continue_value": continue_value,
-        "exit_value": exit_value_today,
+        "exit_value": exit_value,
         "value_with_exit_option": value_with_exit_option,
         "value_of_flexibility": value_of_flexibility,
     }
@@ -470,7 +474,7 @@ if __name__ == "__main__":
     print("\n--- RESULTS ---")
     print(f"NPV  (@ {company_ctx.wacc*100}% WACC): €{res.npv:,.2f}")
     print(f"IRR                   : {res.irr*100:.2f}%")
-    print(f"Payback Period        : {res.payback_years:.2f} έτη")
+    print(f"Payback Period         : {res.payback_years:.2f} έτη")
     print(f"Total Net Cash Flow   : €{res.total_project_cash_flow:,.2f}")
 
     # 4. Εκτέλεση Tornado Analysis (Decision Drivers)
@@ -718,6 +722,50 @@ def render_investment_decision_lab(
         ) / 100
 
     # ---------------------------------------------------------
+    # PROJECT FLEXIBILITY
+    # ---------------------------------------------------------
+
+    st.subheader("Project Flexibility")
+
+    allow_exit = st.checkbox(
+        "Allow Exit after Year 1",
+        help=(
+            "Test whether management could limit downside "
+            "by stopping the project after the first year."
+        ),
+    )
+
+    exit_value = 0.0
+    exit_cost = 0.0
+
+    if allow_exit:
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            exit_value = st.number_input(
+                "Recoverable Exit Value",
+                min_value=0.0,
+                value=0.0,
+                step=1000.0,
+                help=(
+                    "Estimated cash value recoverable if the "
+                    "project is stopped after Year 1."
+                ),
+            )
+
+        with col2:
+            exit_cost = st.number_input(
+                "Exit / Shutdown Cost",
+                min_value=0.0,
+                value=0.0,
+                step=1000.0,
+                help=(
+                    "Costs incurred when terminating the project."
+                ),
+            )
+
+    # ---------------------------------------------------------
     # EVALUATION
     # ---------------------------------------------------------
 
@@ -754,6 +802,9 @@ def render_investment_decision_lab(
             override_variable_cost_per_unit=override_vc,
             override_tax_rate=override_tax,
             override_wacc=override_wacc,
+            allow_exit_after_year_1=allow_exit,
+            exit_value=exit_value,
+            exit_cost=exit_cost,
         )
 
         result = evaluate_investment(
@@ -765,7 +816,7 @@ def render_investment_decision_lab(
             assumptions,
             context,
         )
-        
+
         # -----------------------------------------------------
         # RESULTS
         # -----------------------------------------------------
@@ -829,6 +880,51 @@ def render_investment_decision_lab(
                 "🟡 NPV is approximately zero — the project "
                 "is at the value-neutral threshold."
             )
+
+        # -----------------------------------------------------
+        # PROJECT FLEXIBILITY
+        # -----------------------------------------------------
+
+        if allow_exit:
+
+            st.divider()
+
+            st.subheader("Project Flexibility")
+
+            f1, f2, f3 = st.columns(3)
+
+            with f1:
+                st.metric(
+                    "Continue Value",
+                    f"€{exit_analysis['continue_value']:,.0f}",
+                )
+
+            with f2:
+                st.metric(
+                    "Exit Value",
+                    f"€{exit_analysis['exit_value']:,.0f}",
+                )
+
+            with f3:
+                st.metric(
+                    "Value of Flexibility",
+                    f"€{exit_analysis['value_of_flexibility']:,.0f}",
+                )
+
+            if exit_analysis["value_of_flexibility"] > 0:
+
+                st.info(
+                    "💡 The project has measurable downside protection: "
+                    "an exit after Year 1 can preserve value if conditions "
+                    "prove worse than expected."
+                )
+
+            else:
+
+                st.caption(
+                    "The exit option does not add measurable value "
+                    "under the current assumptions."
+                )
 
         # -----------------------------------------------------
         # YEARLY CASH FLOWS
