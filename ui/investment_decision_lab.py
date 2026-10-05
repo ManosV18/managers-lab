@@ -452,7 +452,7 @@ def render_investment_decision_lab(
         )
 
         price = st.number_input(
-            "Selling Price / Unit",
+            "Project Selling Price / Unit",
             min_value=0.0,
             value=float(baseline_price),
             step=0.10,
