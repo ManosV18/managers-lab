@@ -50,6 +50,11 @@ class InvestmentAssumptions:
     override_tax_rate: Optional[float] = None
     override_wacc: Optional[float] = None
 
+    # Project flexibility
+    allow_exit_after_year_1: bool = False
+    exit_value: float = 0.0
+    exit_cost: float = 0.0
+
     def get_effective_variable_cost(self, context: CompanyStateContext) -> float:
         if self.override_variable_cost_per_unit is not None:
             return self.override_variable_cost_per_unit
@@ -214,6 +219,108 @@ def calculate_payback(cash_flows: List[float]) -> float:
             return (i - 1) + fraction
     return float('inf')  # Δεν αποσβένεται εντός της διάρκειας
 
+def calculate_exit_option(
+    assumptions: InvestmentAssumptions,
+    context: CompanyStateContext,
+) -> Dict[str, float]:
+    """
+    Evaluates the value of allowing management
+    to exit the project after Year 1.
+    """
+
+    yearly_structs = build_investment_cash_flows(
+        assumptions,
+        context,
+    )
+
+    cash_flows = [
+        y.project_cash_flow
+        for y in yearly_structs
+    ]
+
+    wacc = assumptions.get_effective_wacc(context)
+
+    # -----------------------------------------------------
+    # Value if the project continues
+    # -----------------------------------------------------
+
+    continue_value = calculate_npv(
+        cash_flows,
+        wacc,
+    )
+
+    # -----------------------------------------------------
+    # No exit option
+    # -----------------------------------------------------
+
+    if not assumptions.allow_exit_after_year_1:
+
+        return {
+            "continue_value": continue_value,
+            "exit_value": 0.0,
+            "value_with_exit_option": continue_value,
+            "value_of_flexibility": 0.0,
+        }
+
+    # -----------------------------------------------------
+    # Project must have at least Year 1
+    # -----------------------------------------------------
+
+    if len(cash_flows) < 2:
+
+        return {
+            "continue_value": continue_value,
+            "exit_value": 0.0,
+            "value_with_exit_option": continue_value,
+            "value_of_flexibility": 0.0,
+        }
+
+    # -----------------------------------------------------
+    # Value available at the end of Year 1
+    # -----------------------------------------------------
+
+    year_1_cf = cash_flows[1]
+
+    net_exit_value = (
+        assumptions.exit_value
+        - assumptions.exit_cost
+    )
+
+    exit_value_at_year_1 = (
+        year_1_cf
+        + net_exit_value
+    )
+
+    # -----------------------------------------------------
+    # Discount Year-1 exit value to today
+    # -----------------------------------------------------
+
+    exit_value_today = (
+        exit_value_at_year_1
+        / (1 + wacc)
+    )
+
+    # -----------------------------------------------------
+    # Management flexibility
+    # -----------------------------------------------------
+
+    value_with_exit_option = max(
+        continue_value,
+        exit_value_today,
+    )
+
+    value_of_flexibility = max(
+        0.0,
+        value_with_exit_option - continue_value,
+    )
+
+    return {
+        "continue_value": continue_value,
+        "exit_value": exit_value_today,
+        "value_with_exit_option": value_with_exit_option,
+        "value_of_flexibility": value_of_flexibility,
+    }
+
 
 def evaluate_investment(
     assumptions: InvestmentAssumptions,
@@ -239,7 +346,6 @@ def evaluate_investment(
         total_project_cash_flow=total_cf,
         yearly_cash_flows=yearly_structs
     )
-
 
 # ---------------------------------------------------------------------------
 # 5. Decision Drivers Engine (Tornado Sensitivity)
