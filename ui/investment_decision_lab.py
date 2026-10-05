@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional
 import numpy as np
 import numpy_financial as npf
+import streamlit as st
 
 
 # ---------------------------------------------------------------------------
@@ -162,7 +163,7 @@ def build_investment_cash_flows(
         nopat = ebit - tax
         
         # Λειτουργική ταμειακή ροή
-        ocf = nopat  # Μπορεί να προστεθεί depreciation αν οριστεί
+        ocf = nopat
 
         # Τελευταίο έτος: Επιστροφή Working Capital & Salvage Value
         wc_change = assumptions.working_capital if y == assumptions.project_years else 0.0
@@ -214,39 +215,43 @@ def calculate_payback(cash_flows: List[float]) -> float:
             if i == 0:
                 return 0.0
             prev_cum = cum_cf - cf
-            # Γραμμική παρεμβολή εντός του έτους
             fraction = abs(prev_cum) / cf if cf != 0 else 0.0
             return (i - 1) + fraction
-    return float('inf')  # Δεν αποσβένεται εντός της διάρκειας
+    return float('inf')
 
 
 def calculate_exit_option(
     assumptions: InvestmentAssumptions,
     context: CompanyStateContext,
+    downside_volume_pct: float = 0.0,
 ) -> Dict[str, float]:
     """
     Evaluates the value of having the flexibility
-    to exit the project after Year 1.
+    to exit after Year 1 under a downside volume scenario.
+
+    The Year-1 downside volume becomes the new operating
+    base for the remaining project years.
     """
 
-    yearly_structs = build_investment_cash_flows(
+    # -----------------------------------------------------
+    # Base project cash flows
+    # -----------------------------------------------------
+
+    base_yearly_structs = build_investment_cash_flows(
         assumptions,
         context,
     )
 
-    cash_flows = [
+    base_cash_flows = [
         y.project_cash_flow
-        for y in yearly_structs
+        for y in base_yearly_structs
     ]
 
     wacc = assumptions.get_effective_wacc(context)
 
-    # -----------------------------------------------------
-    # Value if project continues
-    # -----------------------------------------------------
-
-    continue_value = calculate_npv(
-        cash_flows,
+    # Base case continuation value
+    base_continue_value = calculate_npv(
+        base_cash_flows,
         wacc,
     )
 
@@ -256,38 +261,61 @@ def calculate_exit_option(
 
     if not assumptions.allow_exit_after_year_1:
         return {
-            "continue_value": continue_value,
+            "continue_value": base_continue_value,
             "exit_value": 0.0,
-            "value_with_exit_option": continue_value,
+            "value_with_exit_option": base_continue_value,
             "value_of_flexibility": 0.0,
+            "downside_continue_value": base_continue_value,
+            "downside_exit_value": 0.0,
         }
 
-    # -----------------------------------------------------
-    # Need at least Year 1
-    # -----------------------------------------------------
-
-    if len(cash_flows) < 2:
+    if len(base_cash_flows) < 2:
         return {
-            "continue_value": continue_value,
+            "continue_value": base_continue_value,
             "exit_value": 0.0,
-            "value_with_exit_option": continue_value,
+            "value_with_exit_option": base_continue_value,
             "value_of_flexibility": 0.0,
+            "downside_continue_value": base_continue_value,
+            "downside_exit_value": 0.0,
         }
 
     # -----------------------------------------------------
-    # Exit after Year 1
-    #
-    # Initial investment remains sunk.
-    # We therefore compare:
-    #
-    # Continue:
-    #   CF0 + CF1/(1+WACC) + CF2/(1+WACC)^2 + ...
-    #
-    # Exit:
-    #   CF0 + (CF1 + Exit Value - Exit Cost)/(1+WACC)
+    # Year-1 downside scenario
     # -----------------------------------------------------
 
-    year_1_cf = cash_flows[1]
+    downside_units = assumptions.units * (
+        1.0 - downside_volume_pct
+    )
+
+    downside_assumptions = _copy_assumptions_with(
+        assumptions,
+        units=downside_units,
+    )
+
+    downside_yearly_structs = build_investment_cash_flows(
+        downside_assumptions,
+        context,
+    )
+
+    downside_cash_flows = [
+        y.project_cash_flow
+        for y in downside_yearly_structs
+    ]
+
+    # -----------------------------------------------------
+    # Value if management continues under downside
+    # -----------------------------------------------------
+
+    downside_continue_value = calculate_npv(
+        downside_cash_flows,
+        wacc,
+    )
+
+    # -----------------------------------------------------
+    # Value if management exits after Year 1
+    # -----------------------------------------------------
+
+    year_1_cf = downside_cash_flows[1]
 
     net_exit_value = (
         assumptions.exit_value
@@ -299,30 +327,32 @@ def calculate_exit_option(
         + net_exit_value
     )
 
-    exit_value = (
-        cash_flows[0]
+    downside_exit_value = (
+        downside_cash_flows[0]
         + exit_cash_flow_year_1 / (1 + wacc)
     )
 
     # -----------------------------------------------------
-    # Value of flexibility
+    # Value of flexibility under downside
     # -----------------------------------------------------
 
     value_with_exit_option = max(
-        continue_value,
-        exit_value,
+        downside_continue_value,
+        downside_exit_value,
     )
 
     value_of_flexibility = max(
         0.0,
-        value_with_exit_option - continue_value,
+        downside_exit_value - downside_continue_value,
     )
 
     return {
-        "continue_value": continue_value,
-        "exit_value": exit_value,
+        "continue_value": base_continue_value,
+        "exit_value": downside_exit_value,
         "value_with_exit_option": value_with_exit_option,
         "value_of_flexibility": value_of_flexibility,
+        "downside_continue_value": downside_continue_value,
+        "downside_exit_value": downside_exit_value,
     }
 
 
@@ -360,22 +390,17 @@ class TornadoDriver:
     base_npv: float
     low_npv: float
     high_npv: float
-    range_span: float  # abs(high_npv - low_npv)
+    range_span: float
 
 
 def calculate_tornado_sensitivity(
     assumptions: InvestmentAssumptions,
     context: CompanyStateContext,
-    variation_pct: float = 0.10  # +/- 10%
+    variation_pct: float = 0.10
 ) -> List[TornadoDriver]:
-    """
-    Υπολογίζει την ευαισθησία του NPV στις βασικές μεταβλητές (+/- 10%)
-    και επιστρέφει ταξινομημένα τα αποτελέσματα για Tornado Chart.
-    """
     base_result = evaluate_investment(assumptions, context)
     base_npv = base_result.npv
 
-    # Μεταβλητές προς εξέταση
     drivers_to_test = [
         "price",
         "units",
@@ -388,7 +413,6 @@ def calculate_tornado_sensitivity(
     tornado_results: List[TornadoDriver] = []
 
     for driver in drivers_to_test:
-        # Παίρνουμε την τρέχουσα τιμή
         val = getattr(assumptions, driver)
         if val is None:
             if driver == "override_variable_cost_per_unit":
@@ -401,23 +425,18 @@ def calculate_tornado_sensitivity(
         if val == 0 or val is None:
             continue
 
-        # Δημιουργούμε Low & High σενάρια (+/- variation_pct)
         low_val = val * (1 - variation_pct)
         high_val = val * (1 + variation_pct)
 
-        # Evaluate Low
         kwargs_low = {driver: low_val}
         assump_low = _copy_assumptions_with(assumptions, **kwargs_low)
         npv_low = evaluate_investment(assump_low, context).npv
 
-        # Evaluate High
         kwargs_high = {driver: high_val}
         assump_high = _copy_assumptions_with(assumptions, **kwargs_high)
         npv_high = evaluate_investment(assump_high, context).npv
 
         span = abs(npv_high - npv_low)
-        
-        # Καθαρός τίτλος οδηγού
         display_name = driver.replace("override_", "").replace("_", " ").title()
 
         tornado_results.append(
@@ -430,7 +449,6 @@ def calculate_tornado_sensitivity(
             )
         )
 
-    # Ταξινόμηση με βάση το εύρος επίδρασης (Largest impact first)
     tornado_results.sort(key=lambda x: x.range_span, reverse=True)
     return tornado_results
 
@@ -443,53 +461,8 @@ def _copy_assumptions_with(assumptions: InvestmentAssumptions, **kwargs) -> Inve
 
 
 # ---------------------------------------------------------------------------
-# 6. Verification / Quick Run (Testing against Excel logic)
+# 6. Streamlit UI
 # ---------------------------------------------------------------------------
-if __name__ == "__main__":
-    print("=== MANAGERS LAB: INVESTMENT DECISION LAB CORE ENGINE ===")
-    
-    # 1. Έστω ότι το Locked CompanyState έχει ήδη αυτά τα δεδομένα:
-    company_ctx = CompanyStateContext(
-        variable_cost_per_unit=2.10,  # π.χ. $2.10/unit
-        tax_rate=0.40,               # 40%
-        wacc=0.12,                   # 12%
-        price=3.00
-    )
-    print(f"\n[Context Loaded] Company Baseline VC: €{company_ctx.variable_cost_per_unit}, Tax: {company_ctx.tax_rate*100}%, WACC: {company_ctx.wacc*100}%")
-
-    # 2. Ο χρήστης ορίζει ΜΟΝΟ τα νέα δεδομένα της επένδυσης
-    proj_assump = InvestmentAssumptions(
-        initial_investment=20000.0,   # $20,000 CapEx
-        project_years=4,
-        units=20000.0,
-        fixed_costs=8000.0,
-        working_capital=6000.0,
-        salvage_value=10607.2,
-        # Ο χρήστης ΔΕΝ έβαλε Price/VC/Tax/WACC -> Θα χρησιμοποιηθούν τα defaults του Company Context!
-    )
-
-    # 3. Εκτέλεση Αξιολόγησης
-    res = evaluate_investment(proj_assump, company_ctx)
-
-    print("\n--- RESULTS ---")
-    print(f"NPV  (@ {company_ctx.wacc*100}% WACC): €{res.npv:,.2f}")
-    print(f"IRR                   : {res.irr*100:.2f}%")
-    print(f"Payback Period         : {res.payback_years:.2f} έτη")
-    print(f"Total Net Cash Flow   : €{res.total_project_cash_flow:,.2f}")
-
-    # 4. Εκτέλεση Tornado Analysis (Decision Drivers)
-    print("\n--- DECISION DRIVERS (TORNADO ANALYSIS +/- 10%) ---")
-    tornado = calculate_tornado_sensitivity(proj_assump, company_ctx)
-    for t in tornado:
-        print(f"• {t.driver_name:<25} | Range Impact: €{t.range_span:,.2f} [Min NPV: €{t.low_npv:,.2f} -> Max NPV: €{t.high_npv:,.2f}]")
-
-
-# ---------------------------------------------------------------------------
-# 7. Streamlit UI
-# ---------------------------------------------------------------------------
-
-import streamlit as st
-
 
 def render_investment_decision_lab(
     baseline_state=None,
@@ -737,10 +710,11 @@ def render_investment_decision_lab(
 
     exit_value = 0.0
     exit_cost = 0.0
+    downside_volume_pct = 0.0
 
     if allow_exit:
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             exit_value = st.number_input(
@@ -764,6 +738,19 @@ def render_investment_decision_lab(
                     "Costs incurred when terminating the project."
                 ),
             )
+
+        with col3:
+            downside_volume_pct = st.number_input(
+                "Year-1 Volume Downside %",
+                min_value=0.0,
+                max_value=100.0,
+                value=20.0,
+                step=5.0,
+                help=(
+                    "Tests the project if Year-1 volume is below "
+                    "plan by this percentage."
+                ),
+            ) / 100
 
     # ---------------------------------------------------------
     # EVALUATION
@@ -815,6 +802,7 @@ def render_investment_decision_lab(
         exit_analysis = calculate_exit_option(
             assumptions,
             context,
+            downside_volume_pct=downside_volume_pct,
         )
 
         # -----------------------------------------------------
@@ -891,18 +879,23 @@ def render_investment_decision_lab(
 
             st.subheader("Project Flexibility")
 
+            st.caption(
+                f"Downside test: Year-1 volume "
+                f"{downside_volume_pct * 100:.0f}% below plan"
+            )
+
             f1, f2, f3 = st.columns(3)
 
             with f1:
                 st.metric(
                     "Continue Value",
-                    f"€{exit_analysis['continue_value']:,.0f}",
+                    f"€{exit_analysis['downside_continue_value']:,.0f}",
                 )
 
             with f2:
                 st.metric(
                     "Exit Value",
-                    f"€{exit_analysis['exit_value']:,.0f}",
+                    f"€{exit_analysis['downside_exit_value']:,.0f}",
                 )
 
             with f3:
@@ -913,17 +906,16 @@ def render_investment_decision_lab(
 
             if exit_analysis["value_of_flexibility"] > 0:
 
-                st.info(
-                    "💡 The project has measurable downside protection: "
-                    "an exit after Year 1 can preserve value if conditions "
-                    "prove worse than expected."
+                st.success(
+                    "💡 Under the downside scenario, the ability "
+                    "to exit after Year 1 has economic value."
                 )
 
             else:
 
                 st.caption(
-                    "The exit option does not add measurable value "
-                    "under the current assumptions."
+                    "Even under the downside scenario, continuing "
+                    "the project has higher value than exiting."
                 )
 
         # -----------------------------------------------------
