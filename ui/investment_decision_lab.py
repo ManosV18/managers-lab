@@ -342,7 +342,8 @@ if __name__ == "__main__":
     company_ctx = CompanyStateContext(
         variable_cost_per_unit=2.10,  # π.χ. $2.10/unit
         tax_rate=0.40,               # 40%
-        wacc=0.12                    # 12%
+        wacc=0.12,                   # 12%
+        price=3.00
     )
     print(f"\n[Context Loaded] Company Baseline VC: €{company_ctx.variable_cost_per_unit}, Tax: {company_ctx.tax_rate*100}%, WACC: {company_ctx.wacc*100}%")
 
@@ -351,11 +352,10 @@ if __name__ == "__main__":
         initial_investment=20000.0,   # $20,000 CapEx
         project_years=4,
         units=20000.0,
-        price=3.00,                   # $3.00/unit
         fixed_costs=8000.0,
         working_capital=6000.0,
         salvage_value=10607.2,
-        # Ο χρήστης ΔΕΝ έβαλε VC/Tax/WACC -> Θα χρησιμοποιηθούν τα defaults του Company Context!
+        # Ο χρήστης ΔΕΝ έβαλε Price/VC/Tax/WACC -> Θα χρησιμοποιηθούν τα defaults του Company Context!
     )
 
     # 3. Εκτέλεση Αξιολόγησης
@@ -363,15 +363,16 @@ if __name__ == "__main__":
 
     print("\n--- RESULTS ---")
     print(f"NPV  (@ {company_ctx.wacc*100}% WACC): €{res.npv:,.2f}")
-    print(f"IRR                  : {res.irr*100:.2f}%")
-    print(f"Payback Period       : {res.payback_years:.2f} έτη")
-    print(f"Total Net Cash Flow  : €{res.total_project_cash_flow:,.2f}")
+    print(f"IRR                   : {res.irr*100:.2f}%")
+    print(f"Payback Period        : {res.payback_years:.2f} έτη")
+    print(f"Total Net Cash Flow   : €{res.total_project_cash_flow:,.2f}")
 
     # 4. Εκτέλεση Tornado Analysis (Decision Drivers)
     print("\n--- DECISION DRIVERS (TORNADO ANALYSIS +/- 10%) ---")
     tornado = calculate_tornado_sensitivity(proj_assump, company_ctx)
     for t in tornado:
         print(f"• {t.driver_name:<25} | Range Impact: €{t.range_span:,.2f} [Min NPV: €{t.low_npv:,.2f} -> Max NPV: €{t.high_npv:,.2f}]")
+
 
 # ---------------------------------------------------------------------------
 # 7. Streamlit UI
@@ -449,13 +450,6 @@ def render_investment_decision_lab(
             min_value=0.0,
             value=0.0,
             step=1000.0,
-        )
-
-        price = st.number_input(
-            "Project Selling Price / Unit",
-            min_value=0.0,
-            value=float(baseline_price),
-            step=0.10,
         )
 
     with col2:
@@ -554,6 +548,21 @@ def render_investment_decision_lab(
     # ---------------------------------------------------------
 
     st.subheader("Project Overrides")
+
+    use_price_override = st.checkbox(
+        "Override Selling Price / Unit"
+    )
+
+    price = None
+
+    if use_price_override:
+
+        price = st.number_input(
+            "Project Selling Price / Unit",
+            min_value=0.0,
+            value=float(baseline_price),
+            step=0.10,
+        )
 
     use_vc_override = st.checkbox(
         "Override Variable Cost / Unit"
