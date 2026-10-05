@@ -761,6 +761,11 @@ def render_investment_decision_lab(
             context,
         )
 
+        exit_analysis = calculate_exit_option(
+            assumptions,
+            context,
+        )
+        
         # -----------------------------------------------------
         # RESULTS
         # -----------------------------------------------------
