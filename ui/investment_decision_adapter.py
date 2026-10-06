@@ -3,45 +3,44 @@ Managers Lab — Investment Decision Adapter
 
 Purpose
 -------
-Connect the existing Investment Decision Lab to the canonical Managers Lab flow
-without changing the core architecture.
+Connect the Investment Decision Lab to the canonical Managers Lab flow.
 
-Canonical flow:
-    Locked Baseline
-        -> Investment Decision
-        -> DecisionPlan
-        -> DecisionEvaluator
-        -> Projected CompanyState
-        -> Financial Impact
+Architecture
+------------
+Locked Baseline
+    -> Investment Domain
+    -> InvestmentCompanyImpact
+    -> Canonical Investment Decision
+    -> DecisionPlan
+    -> DecisionEvaluator
+    -> Projected CompanyState
+    -> Financial Impact
 
-Important design rule
----------------------
-CompanyState changes contain only company drivers that genuinely change.
+Important
+---------
+Investment economics are incremental.
 
-Project-specific assumptions such as:
-- initial working capital
-- project life
-- depreciation schedule
-- salvage value
-- WACC override
-- tax override
-- NPV / IRR / payback
+The investment does NOT replace the company's:
+- price
+- volume
+- variable cost
 
-remain project-analysis data and are kept in Decision.metadata rather than
-being forced into CompanyState v1.
+Instead, the investment contributes incremental:
+- volume
+- revenue
+- variable cost
+- fixed opex
+- fixed assets
+- depreciation
 
-This file does NOT modify:
-- Decision
-- DecisionPlan
-- DecisionRunner
-- DecisionEvaluator
-- FinancialEngine
-- Investment Decision Lab formulas
+Revenue and variable-cost deltas are authoritative when investment
+overrides are used.
+
+Project-specific assumptions remain in Decision.metadata.
 """
 
 from __future__ import annotations
 
-import inspect
 from dataclasses import asdict, is_dataclass
 from typing import Any, Dict, Tuple
 
@@ -54,243 +53,405 @@ from investment_decision_lab import (
     CompanyStateContext,
     InvestmentAssumptions,
     InvestmentResult,
+    InvestmentCompanyImpact,
     build_investment_cash_flows,
+    build_investment_year1_impact,
+    build_investment_company_impact,
 )
 
 
-def build_investment_context(baseline_state: CompanyState) -> CompanyStateContext:
+# ---------------------------------------------------------------------------
+# 1. Build Investment Context from Locked CompanyState
+# ---------------------------------------------------------------------------
+
+def build_investment_context(
+    baseline_state: CompanyState,
+) -> CompanyStateContext:
     """
     Build the Investment Lab context directly from the locked CompanyState.
 
-    This is the key baseline-reuse rule:
-    the investment tool does not ask the user to re-enter values already
-    available in Managers Lab.
+    The Investment Lab inherits:
+        - price
+        - variable cost
+        - tax rate
+        - WACC
+        - AR days
+        - Inventory days
+        - AP days
+        - fixed assets
+        - depreciation
+
+    No baseline value is re-entered by the user.
     """
+
+    if not isinstance(baseline_state, CompanyState):
+        raise TypeError(
+            "baseline_state must be a CompanyState."
+        )
+
     return CompanyStateContext(
-        variable_cost_per_unit=baseline_state.drivers.variable_cost_per_unit,
+        price=baseline_state.drivers.price,
+        variable_cost_per_unit=(
+            baseline_state.drivers.variable_cost_per_unit
+        ),
+        fixed_costs=baseline_state.drivers.fixed_opex,
+
         tax_rate=baseline_state.capital_structure.tax_rate,
         wacc=baseline_state.capital_structure.wacc,
-        price=baseline_state.drivers.price,
-        fixed_costs=baseline_state.drivers.fixed_opex,
+
+        ar_days=baseline_state.working_capital.ar_days,
+        inventory_days=baseline_state.working_capital.inventory_days,
+        ap_days=baseline_state.working_capital.ap_days,
+
+        fixed_assets=baseline_state.drivers.fixed_assets,
+        depreciation=baseline_state.drivers.depreciation,
     )
 
 
-def _effective_value(
-    explicit_value: Any,
-    baseline_value: Any,
-) -> Any:
-    """Use the investment override when supplied; otherwise use baseline."""
-    return baseline_value if explicit_value is None else explicit_value
+# ---------------------------------------------------------------------------
+# 2. Run Existing Investment Domain
+# ---------------------------------------------------------------------------
 
-
-def _investment_values(
+def run_investment_analysis(
     baseline_state: CompanyState,
     assumptions: InvestmentAssumptions,
-) -> Dict[str, Any]:
+) -> InvestmentResult:
     """
-    Resolve the project values against the locked baseline.
+    Run the existing Investment Lab calculations.
 
-    The InvestmentAssumptions object already supports optional overrides.
+    No investment mathematics are duplicated here.
     """
+
+    if not isinstance(baseline_state, CompanyState):
+        raise TypeError(
+            "baseline_state must be a CompanyState."
+        )
+
+    if not isinstance(assumptions, InvestmentAssumptions):
+        raise TypeError(
+            "assumptions must be InvestmentAssumptions."
+        )
+
     context = build_investment_context(baseline_state)
 
-    price = _effective_value(assumptions.price, context.price)
-    variable_cost = _effective_value(
-        assumptions.override_variable_cost_per_unit,
-        context.variable_cost_per_unit,
-    )
-    tax_rate = _effective_value(
-        assumptions.override_tax_rate,
-        context.tax_rate,
-    )
-    wacc = _effective_value(
-        assumptions.override_wacc,
-        context.wacc,
+    # The domain function already has a canonical signature:
+    #
+    # build_investment_cash_flows(
+    #     assumptions,
+    #     context,
+    # )
+    #
+    # It returns yearly InvestmentYear structures.
+    #
+    # We construct InvestmentResult here so that this adapter remains
+    # responsible only for connecting the domain to the application.
+
+    yearly_flows = build_investment_cash_flows(
+        assumptions,
+        context,
     )
 
-    return {
-        "price": price,
-        "variable_cost_per_unit": variable_cost,
-        "tax_rate": tax_rate,
-        "wacc": wacc,
-        "units": assumptions.units,
-        "incremental_fixed_costs": assumptions.incremental_fixed_costs,
-        "initial_investment": assumptions.initial_investment,
-        "initial_working_capital": assumptions.initial_working_capital,
-        "project_years": assumptions.project_years,
-        "after_tax_salvage_value": assumptions.after_tax_salvage_value,
-        "depreciation_years": assumptions.effective_depreciation_years,
-    }
+    cash_flows = [
+        year.project_cash_flow
+        for year in yearly_flows
+    ]
 
+    from investment_decision_lab import (
+        calculate_npv,
+        calculate_irr,
+        calculate_payback,
+    )
+
+    wacc = assumptions.get_effective_wacc(context)
+
+    npv = calculate_npv(
+        cash_flows,
+        wacc,
+    )
+
+    irr = calculate_irr(
+        cash_flows,
+    )
+
+    payback = calculate_payback(
+        cash_flows,
+    )
+
+    year_1_impact = build_investment_year1_impact(
+        assumptions,
+        context,
+    )
+
+    return InvestmentResult(
+        npv=npv,
+        irr=irr,
+        payback_years=payback,
+        initial_investment=assumptions.initial_investment,
+        total_project_cash_flow=sum(cash_flows),
+        yearly_cash_flows=yearly_flows,
+        year_1_impact=year_1_impact,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3. Build Incremental Company Impact
+# ---------------------------------------------------------------------------
+
+def build_company_impact(
+    result: InvestmentResult,
+) -> InvestmentCompanyImpact:
+    """
+    Convert the accepted investment's Year-1 impact into the
+    authoritative company-level incremental impact.
+
+    This is NOT a new CompanyState.
+
+    It is the bridge between:
+        Investment Domain
+            ->
+        Existing Company
+    """
+
+    if result.year_1_impact is None:
+        raise ValueError(
+            "InvestmentResult does not contain Year-1 impact."
+        )
+
+    return build_investment_company_impact(
+        result.year_1_impact
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4. Build Canonical Investment Decision
+# ---------------------------------------------------------------------------
 
 def build_investment_decision(
     baseline_state: CompanyState,
     assumptions: InvestmentAssumptions,
+    result: InvestmentResult,
     *,
     decision_name: str = "Investment Decision",
 ) -> Decision:
     """
-    Convert Investment Lab assumptions into one canonical Managers Lab Decision.
+    Convert the investment proposal into one canonical Decision.
 
-    CompanyState changes:
-        price
-        volume
-        variable_cost_per_unit
-        fixed_opex
-        fixed_assets
+    IMPORTANT:
+    The Decision stores project-specific assumptions and the
+    authoritative incremental Year-1 impact in metadata.
 
-    Project-only assumptions are attached as metadata.
+    It does NOT overwrite company price / volume / variable cost.
     """
+
     if not isinstance(baseline_state, CompanyState):
-        raise TypeError("baseline_state must be a CompanyState.")
+        raise TypeError(
+            "baseline_state must be a CompanyState."
+        )
 
     if not isinstance(assumptions, InvestmentAssumptions):
-        raise TypeError("assumptions must be InvestmentAssumptions.")
+        raise TypeError(
+            "assumptions must be InvestmentAssumptions."
+        )
 
-    values = _investment_values(baseline_state, assumptions)
+    if not isinstance(result, InvestmentResult):
+        raise TypeError(
+            "result must be an InvestmentResult."
+        )
 
-    baseline_fixed_assets = baseline_state.drivers.fixed_assets
-    baseline_fixed_opex = baseline_state.drivers.fixed_opex
-
-    # Investment changes the company's operating state.
-    # The initial investment is added to fixed assets.
-    target_fixed_assets = (
-        baseline_fixed_assets + assumptions.initial_investment
+    context = build_investment_context(
+        baseline_state
     )
 
-    target_fixed_opex = (
-        baseline_fixed_opex + assumptions.incremental_fixed_costs
+    impact = build_company_impact(
+        result
     )
-
-    changes = {
-        "price": values["price"],
-        "volume": values["units"],
-        "variable_cost_per_unit": values["variable_cost_per_unit"],
-        "fixed_opex": target_fixed_opex,
-        "fixed_assets": target_fixed_assets,
-    }
 
     metadata = {
         "decision_type": "investment",
+
         "investment": {
-            "initial_investment": values["initial_investment"],
-            "project_years": values["project_years"],
-            "units": values["units"],
-            "annual_volume_growth": assumptions.annual_volume_growth,
-            "annual_price_growth": assumptions.annual_price_growth,
+            # Proposal
+            "initial_investment": (
+                assumptions.initial_investment
+            ),
+            "project_years": (
+                assumptions.project_years
+            ),
+            "units": assumptions.units,
+            "depreciation_years": (
+                assumptions.depreciation_years
+            ),
+            "incremental_fixed_costs": (
+                assumptions.incremental_fixed_costs
+            ),
+
+            # Growth
+            "annual_volume_growth": (
+                assumptions.annual_volume_growth
+            ),
+            "annual_price_growth": (
+                assumptions.annual_price_growth
+            ),
             "annual_variable_cost_growth": (
                 assumptions.annual_variable_cost_growth
             ),
-            "annual_fixed_cost_growth": assumptions.annual_fixed_cost_growth,
-            "initial_working_capital": values["initial_working_capital"],
-            "after_tax_salvage_value": values["after_tax_salvage_value"],
-            "incremental_fixed_costs": values["incremental_fixed_costs"],
-            "depreciation_years": values["depreciation_years"],
-            "allow_company_tax_shield": (
-                assumptions.allow_company_tax_shield
+            "annual_fixed_cost_growth": (
+                assumptions.annual_fixed_cost_growth
             ),
-            "wacc": values["wacc"],
-            "tax_rate": values["tax_rate"],
-            "price": values["price"],
-            "variable_cost_per_unit": values["variable_cost_per_unit"],
+
+            # Terminal value
+            "salvage_value": assumptions.salvage_value,
+
+            # Overrides
+            "price_override": (
+                assumptions.price_override
+            ),
+            "variable_cost_override": (
+                assumptions.variable_cost_override
+            ),
+            "tax_rate_override": (
+                assumptions.tax_rate_override
+            ),
+            "wacc_override": (
+                assumptions.wacc_override
+            ),
+
+            # Flexibility
+            "allow_exit_after_year_1": (
+                assumptions.allow_exit_after_year_1
+            ),
+            "exit_value": assumptions.exit_value,
+            "exit_cost": assumptions.exit_cost,
+
+            # Effective economics
+            "effective_price": (
+                assumptions.get_effective_price(context)
+            ),
+            "effective_variable_cost": (
+                assumptions.get_effective_variable_cost(
+                    context
+                )
+            ),
+            "effective_tax_rate": (
+                assumptions.get_effective_tax_rate(
+                    context
+                )
+            ),
+            "effective_wacc": (
+                assumptions.get_effective_wacc(
+                    context
+                )
+            ),
+
+            # Project economics
+            "npv": result.npv,
+            "irr": result.irr,
+            "payback_years": result.payback_years,
+
+            # Authoritative Year-1 company impact
+            "company_impact": {
+                "volume_delta": impact.volume_delta,
+                "revenue_delta": impact.revenue_delta,
+                "variable_cost_delta": (
+                    impact.variable_cost_delta
+                ),
+                "fixed_opex_delta": (
+                    impact.fixed_opex_delta
+                ),
+                "fixed_assets_delta": (
+                    impact.fixed_assets_delta
+                ),
+                "depreciation_delta": (
+                    impact.depreciation_delta
+                ),
+            },
+
+            # Calculated funding requirement
+            "initial_capex": (
+                result.year_1_impact.initial_capex
+                if result.year_1_impact
+                else 0.0
+            ),
+            "initial_nwc_requirement": (
+                result.year_1_impact.initial_nwc_requirement
+                if result.year_1_impact
+                else 0.0
+            ),
+            "initial_funding_requirement": (
+                result.year_1_impact.initial_funding_requirement
+                if result.year_1_impact
+                else 0.0
+            ),
         },
     }
 
     return DecisionFactory.create(
         name=decision_name,
         description=(
-            "Investment decision linked to the locked Managers Lab "
-            "CompanyState and evaluated through the canonical DecisionPlan."
+            "Investment decision evaluated as an incremental "
+            "expansion of the existing company."
         ),
         category="investment",
-        changes=changes,
+
+        # No company-driver replacement here.
+        #
+        # The incremental economics are stored in metadata until
+        # the canonical DecisionEvaluator / FinancialEngine boundary
+        # is explicitly extended to consume InvestmentCompanyImpact.
+        changes={},
+
         metadata=metadata,
     )
 
 
-def _run_existing_investment_lab(
-    baseline_state: CompanyState,
-    assumptions: InvestmentAssumptions,
-) -> InvestmentResult:
-    """
-    Run the existing Investment Lab without duplicating or changing its math.
-
-    A small signature adapter is used so this connector remains compatible
-    if the Investment Lab's argument order is changed between versions.
-    """
-    context = build_investment_context(baseline_state)
-    signature = inspect.signature(build_investment_cash_flows)
-
-    kwargs: Dict[str, Any] = {}
-    unresolved = []
-
-    for parameter in signature.parameters.values():
-        if parameter.kind in (
-            inspect.Parameter.VAR_POSITIONAL,
-            inspect.Parameter.VAR_KEYWORD,
-        ):
-            continue
-
-        name = parameter.name.lower()
-
-        if "assumption" in name:
-            kwargs[parameter.name] = assumptions
-        elif "context" in name or "company_state" in name:
-            kwargs[parameter.name] = context
-        else:
-            unresolved.append(parameter)
-
-    if not unresolved:
-        return build_investment_cash_flows(**kwargs)
-
-    # Fallback for a simple two-positional-argument implementation.
-    positional = [
-        p for p in signature.parameters.values()
-        if p.kind in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-        )
-    ]
-
-    if len(positional) == 2:
-        first = positional[0].name.lower()
-        if "context" in first or "company_state" in first:
-            return build_investment_cash_flows(context, assumptions)
-        return build_investment_cash_flows(assumptions, context)
-
-    raise TypeError(
-        "Could not determine the argument signature of "
-        "build_investment_cash_flows()."
-    )
-
+# ---------------------------------------------------------------------------
+# 5. Package
+# ---------------------------------------------------------------------------
 
 def build_investment_package(
     baseline_state: CompanyState,
     assumptions: InvestmentAssumptions,
     *,
     decision_name: str = "Investment Decision",
-) -> Tuple[Decision, InvestmentResult]:
+) -> Tuple[
+    Decision,
+    InvestmentResult,
+    InvestmentCompanyImpact,
+]:
     """
-    Return the two outputs needed by the application:
+    Return the three objects needed by the application:
 
-        1. canonical Managers Lab Decision
-        2. existing Investment Lab result
-
-    The project result is NOT put inside CompanyState.
+        1. canonical Decision
+        2. InvestmentResult
+        3. InvestmentCompanyImpact
     """
+
+    result = run_investment_analysis(
+        baseline_state,
+        assumptions,
+    )
+
+    impact = build_company_impact(
+        result
+    )
+
     decision = build_investment_decision(
         baseline_state,
         assumptions,
+        result,
         decision_name=decision_name,
     )
 
-    result = _run_existing_investment_lab(
-        baseline_state,
-        assumptions,
+    return (
+        decision,
+        result,
+        impact,
     )
 
-    return decision, result
 
+# ---------------------------------------------------------------------------
+# 6. Add Investment to DecisionPlan
+# ---------------------------------------------------------------------------
 
 def add_investment_to_plan(
     baseline_state: CompanyState,
@@ -298,30 +459,37 @@ def add_investment_to_plan(
     assumptions: InvestmentAssumptions,
     *,
     decision_name: str = "Investment Decision",
-) -> Tuple[DecisionPlan, InvestmentResult]:
+) -> Tuple[
+    DecisionPlan,
+    InvestmentResult,
+    InvestmentCompanyImpact,
+]:
     """
-    Add the investment as a normal Decision to an existing DecisionPlan.
+    Add the investment decision to an existing DecisionPlan.
 
-    This is the preferred Streamlit integration point.
-
-    Example
-    -------
-        new_plan, investment_result = add_investment_to_plan(
-            baseline_state,
-            current_plan,
-            investment_assumptions,
-        )
-
-    The returned plan can then go through the existing DecisionEvaluator.
+    The project economics remain available separately.
     """
-    decision, result = build_investment_package(
+
+    (
+        decision,
+        result,
+        impact,
+    ) = build_investment_package(
         baseline_state,
         assumptions,
         decision_name=decision_name,
     )
 
-    return plan.add(decision), result
+    return (
+        plan.add(decision),
+        result,
+        impact,
+    )
 
+
+# ---------------------------------------------------------------------------
+# 7. Streamlit / Application Evaluation Helper
+# ---------------------------------------------------------------------------
 
 def evaluate_investment(
     baseline_state: CompanyState,
@@ -329,21 +497,33 @@ def evaluate_investment(
     assumptions: InvestmentAssumptions,
     *,
     decision_name: str = "Investment Decision",
-) -> Tuple[DecisionEvaluation, InvestmentResult]:
+) -> Tuple[
+    DecisionEvaluation,
+    InvestmentResult,
+    InvestmentCompanyImpact,
+]:
     """
-    One-call integration helper for Streamlit.
+    Evaluate the investment through the canonical DecisionEvaluator.
 
-    It:
-        1. creates the canonical investment Decision,
-        2. adds it to the existing DecisionPlan,
-        3. evaluates the whole plan through DecisionEvaluator,
-        4. returns both CompanyState/Financial Impact and project economics.
+    IMPORTANT:
+    The current DecisionEvaluator can only apply ordinary CompanyState
+    changes through Decision.changes.
 
-    No alternative execution path is created.
+    Therefore this function deliberately does NOT fake the application
+    of the incremental investment economics.
+
+    The InvestmentCompanyImpact is returned separately and must be consumed
+    by the canonical projection layer once that layer is extended to support
+    incremental investment economics.
     """
+
     from core.decision_evaluator import DecisionEvaluator
 
-    new_plan, investment_result = add_investment_to_plan(
+    (
+        new_plan,
+        investment_result,
+        investment_impact,
+    ) = add_investment_to_plan(
         baseline_state,
         plan,
         assumptions,
@@ -355,29 +535,37 @@ def evaluate_investment(
         new_plan,
     )
 
-    return evaluation, investment_result
+    return (
+        evaluation,
+        investment_result,
+        investment_impact,
+    )
 
+
+# ---------------------------------------------------------------------------
+# 8. Simple Result Summary for UI
+# ---------------------------------------------------------------------------
 
 def investment_result_summary(
     result: InvestmentResult,
 ) -> Dict[str, Any]:
     """
-    Convert InvestmentResult to a simple dictionary for Streamlit display.
+    Convert InvestmentResult to a simple dictionary for UI display.
 
     No calculation is performed here.
     """
-    if is_dataclass(result):
-        data = asdict(result)
-    else:
-        data = {
-            key: getattr(result, key)
-            for key in (
-                "npv",
-                "irr",
-                "payback_period",
-                "cash_flows",
-            )
-            if hasattr(result, key)
-        }
 
-    return data
+    if is_dataclass(result):
+        return asdict(result)
+
+    return {
+        "npv": result.npv,
+        "irr": result.irr,
+        "payback_years": result.payback_years,
+        "initial_investment": result.initial_investment,
+        "total_project_cash_flow": (
+            result.total_project_cash_flow
+        ),
+        "yearly_cash_flows": result.yearly_cash_flows,
+        "year_1_impact": result.year_1_impact,
+    }
