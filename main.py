@@ -774,13 +774,23 @@ def render_home():
                     "home_strategy",
                 )
 
+            b5, b6 = st.columns(2)
+
+            with b5:
+
                 navigation_button(
                     "Investment Decision",
                     "📊 Investment Decision Lab",
                     "home_investment_decision",
-                )            
+                )
 
-        
+            with b6:
+
+                navigation_button(
+                    "Replacement Analysis",
+                    "🔄 Replacement Analysis",
+                    "home_replacement_analysis",
+                )
 
     # -----------------------------------------------------
     # PROTECT BUSINESS
@@ -836,7 +846,7 @@ def render_home():
                 )
 
     # =====================================================
-    # EXPLORE & TEST (CLEANED UP - NO DUPLICATES)
+    # EXPLORE & TEST
     # =====================================================
 
     st.divider()
@@ -1220,12 +1230,16 @@ if current_page == "🧠 QSPM Strategic Evaluation":
         baseline_state=baseline,
         decision_plan=decision_plan,
     )
+
     st.stop()
 
-    if current_page == "🔄 Replacement Analysis":
-    render_replacement_analysis(
+
+if current_page == "🔄 Replacement Analysis":
+
+    render_replacement_analysis_lab(
         baseline_state=baseline
     )
+
     st.stop()
 
 # =========================================================
