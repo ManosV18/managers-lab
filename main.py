@@ -84,6 +84,7 @@ from ui.working_capital_data_analyzer import render_working_capital_data_analyze
 from ui.cash_management_lab import render_cash_management_lab
 from ui.qspm_lab import render_qspm_lab
 from ui.concentration_lab import render_concentration_lab
+from ui.replacement_analysis_lab import render_replacement_analysis_lab
 
 # =========================================================
 # APPLICATION SERVICES
@@ -779,6 +780,8 @@ def render_home():
                     "home_investment_decision",
                 )            
 
+        
+
     # -----------------------------------------------------
     # PROTECT BUSINESS
     # -----------------------------------------------------
@@ -1218,8 +1221,11 @@ if current_page == "🧠 QSPM Strategic Evaluation":
         decision_plan=decision_plan,
     )
 
+    if current_page == "🔄 Replacement Analysis":
+    render_replacement_analysis(
+        baseline_state=baseline
+    )
     st.stop()
-
 
 # =========================================================
 # MANAGEMENT
