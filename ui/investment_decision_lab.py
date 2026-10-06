@@ -2,101 +2,187 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional
 import numpy as np
 import numpy_financial as npf
-import streamlit as st
 
 
 # ---------------------------------------------------------------------------
-# 1. Company State Context (Baseline Integration)
+# 1. Company State Context
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class CompanyStateContext:
     """
-    Το υφιστάμενο πλαίσιο της εταιρείας (Locked Baseline).
-    Το Investment Lab τραβάει από εδώ τα defaults για να μην ξαναρωτάει τον χρήστη.
+    Locked Baseline της εταιρείας.
+
+    Το Investment Lab κληρονομεί από εδώ τα υφιστάμενα
+    company economics και working-capital policies.
     """
+    price: float
     variable_cost_per_unit: float
+    fixed_costs: float
+
     tax_rate: float
     wacc: float
-    price: float = 0.0
-    fixed_costs: float = 0.0
+
+    ar_days: float
+    inventory_days: float
+    ap_days: float
+
+    fixed_assets: float
+    depreciation: float
 
 
 # ---------------------------------------------------------------------------
-# 2. Investment Assumptions & Overrides
+# 2. Investment Assumptions
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class InvestmentAssumptions:
     """
-    Παραδοχές Επένδυσης με defaults από το CompanyStateContext.
+    Παραδοχές της επενδυτικής πρότασης.
+
+    Company economics χρησιμοποιούνται ως defaults.
+    Overrides επιτρέπονται μόνο όπου η επένδυση έχει
+    διαφορετικά economics.
     """
+    # Investment proposal
     initial_investment: float
     project_years: int
     units: float
 
-    # Νέες μεταβλητές που αφορούν αποκλειστικά το Project
+    # Useful life of new CAPEX
+    depreciation_years: int
+
+    # Incremental operating costs
+    incremental_fixed_costs: float = 0.0
+
+    # Project growth
     annual_volume_growth: float = 0.0
     annual_price_growth: float = 0.0
     annual_variable_cost_growth: float = 0.0
     annual_fixed_cost_growth: float = 0.0
 
-    working_capital: float = 0.0
+    # Terminal value
     salvage_value: float = 0.0
-    fixed_costs: float = 0.0
 
-    # Τιμή πώλησης (αν είναι νέο προϊόν, αλλιώς default από baseline)
-    price: Optional[float] = None
-
-    # Overrides: Αν None, χρησιμοποιούνται τα defaults του CompanyState Context
-    override_variable_cost_per_unit: Optional[float] = None
-    override_tax_rate: Optional[float] = None
-    override_wacc: Optional[float] = None
+    # Optional company-economics overrides
+    price_override: Optional[float] = None
+    variable_cost_override: Optional[float] = None
+    tax_rate_override: Optional[float] = None
+    wacc_override: Optional[float] = None
 
     # Project flexibility
     allow_exit_after_year_1: bool = False
     exit_value: float = 0.0
     exit_cost: float = 0.0
 
+    def get_effective_price(self, context: CompanyStateContext) -> float:
+        return (
+            self.price_override
+            if self.price_override is not None
+            else context.price
+        )
+
     def get_effective_variable_cost(self, context: CompanyStateContext) -> float:
-        if self.override_variable_cost_per_unit is not None:
-            return self.override_variable_cost_per_unit
-        return context.variable_cost_per_unit
+        return (
+            self.variable_cost_override
+            if self.variable_cost_override is not None
+            else context.variable_cost_per_unit
+        )
 
     def get_effective_tax_rate(self, context: CompanyStateContext) -> float:
-        if self.override_tax_rate is not None:
-            return self.override_tax_rate
-        return context.tax_rate
+        return (
+            self.tax_rate_override
+            if self.tax_rate_override is not None
+            else context.tax_rate
+        )
 
     def get_effective_wacc(self, context: CompanyStateContext) -> float:
-        if self.override_wacc is not None:
-            return self.override_wacc
-        return context.wacc
+        return (
+            self.wacc_override
+            if self.wacc_override is not None
+            else context.wacc
+        )
 
-    def get_effective_price(self, context: CompanyStateContext) -> float:
-        if self.price is not None:
-            return self.price
-        return context.price
+    def get_incremental_depreciation(self) -> float:
+        if self.depreciation_years <= 0:
+            return 0.0
+        return self.initial_investment / self.depreciation_years
 
 
 # ---------------------------------------------------------------------------
-# 3. Output Data Structures
+# 3. Investment Year
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class InvestmentYear:
     year: int
+
     units: float
     price: float
     revenue: float
+
     variable_cost_per_unit: float
     variable_cost_total: float
+
     fixed_costs: float
-    operating_profit: float  # EBIT
+    depreciation: float
+
+    operating_profit: float
     tax: float
-    operating_cash_flow: float  # NOPAT + Addbacks
-    working_capital_change: float
+    operating_cash_flow: float
+
+    incremental_ar: float
+    incremental_inventory: float
+    incremental_ap: float
+    incremental_nwc: float
+
+    working_capital_cash_flow: float
+
     salvage_value: float
     project_cash_flow: float
 
 
+# ---------------------------------------------------------------------------
+# 4. Incremental Year-1 Company Impact
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class InvestmentYear1Impact:
+    """
+    Η καθαρή επίδραση της αποδεκτής επένδυσης στην υπάρχουσα εταιρεία
+    κατά το πρώτο έτος.
+
+    Αυτό είναι το bridge μεταξύ Investment Domain και CompanyState.
+    """
+    # Operating impact
+    incremental_units: float
+    incremental_revenue: float
+    incremental_variable_cost: float
+    incremental_fixed_costs: float
+
+    # Accounting / operating impact
+    incremental_depreciation: float
+    incremental_ebit: float
+    incremental_tax: float
+    incremental_net_profit: float
+
+    # Working capital
+    incremental_ar: float
+    incremental_inventory: float
+    incremental_ap: float
+    incremental_nwc: float
+
+    # Investment / asset impact
+    incremental_fixed_assets: float
+
+    # Cash requirement / impact
+    initial_capex: float
+    initial_nwc_requirement: float
+    initial_funding_requirement: float
+
+    # Operating cash flow
+    incremental_operating_cash_flow: float
+
+
+# ---------------------------------------------------------------------------
+# 5. Investment Result
+# ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class InvestmentResult:
     npv: float
@@ -106,68 +192,220 @@ class InvestmentResult:
     total_project_cash_flow: float
     yearly_cash_flows: List[InvestmentYear]
 
+    year_1_impact: Optional[InvestmentYear1Impact] = None
+
 
 # ---------------------------------------------------------------------------
-# 4. Core Calculation Engine
+# Helper Calculation Functions
+# ---------------------------------------------------------------------------
+def calculate_incremental_working_capital(
+    revenue: float,
+    variable_cost_total: float,
+    context: CompanyStateContext,
+) -> Dict[str, float]:
+    """
+    Υπολογισμός NWC της επένδυσης βάσει των Working Capital policies
+    της εταιρείας (CompanyStateContext).
+    """
+    incremental_ar = (revenue * context.ar_days) / 365.0
+    incremental_inventory = (variable_cost_total * context.inventory_days) / 365.0
+    incremental_ap = (variable_cost_total * context.ap_days) / 365.0
+
+    incremental_nwc = (
+        incremental_ar
+        + incremental_inventory
+        - incremental_ap
+    )
+
+    return {
+        "ar": incremental_ar,
+        "inventory": incremental_inventory,
+        "ap": incremental_ap,
+        "nwc": incremental_nwc,
+    }
+
+
+def calculate_npv(cash_flows: List[float], discount_rate: float) -> float:
+    """Υπολογισμός Net Present Value (NPV)."""
+    return float(npf.npv(discount_rate, cash_flows))
+
+
+def calculate_irr(cash_flows: List[float]) -> float:
+    """Υπολογισμός Internal Rate of Return (IRR)."""
+    try:
+        val = float(npf.irr(cash_flows))
+        return val if not np.isnan(val) else 0.0
+    except Exception:
+        return 0.0
+
+
+def calculate_payback(cash_flows: List[float]) -> float:
+    """Υπολογισμός Payback Period σε έτη."""
+    cumulative = 0.0
+    for i, cf in enumerate(cash_flows):
+        cumulative += cf
+        if cumulative >= 0:
+            if i == 0:
+                return 0.0
+            prev_cum = cumulative - cf
+            fraction = (-prev_cum) / cf if cf != 0 else 0.0
+            return (i - 1) + fraction
+    return float("inf")
+
+
+# ---------------------------------------------------------------------------
+# 6. Year-1 Impact Builder
+# ---------------------------------------------------------------------------
+def build_investment_year1_impact(
+    assumptions: InvestmentAssumptions,
+    context: CompanyStateContext,
+) -> InvestmentYear1Impact:
+    """
+    Μετατρέπει την επένδυση σε incremental Year-1 impact πάνω στην υπάρχουσα εταιρεία.
+    """
+    units = assumptions.units
+    price = assumptions.get_effective_price(context)
+    variable_cost_per_unit = assumptions.get_effective_variable_cost(context)
+    incremental_fixed_costs = assumptions.incremental_fixed_costs
+    tax_rate = assumptions.get_effective_tax_rate(context)
+
+    revenue = units * price
+    variable_cost_total = units * variable_cost_per_unit
+    depreciation = assumptions.get_incremental_depreciation()
+
+    ebit = (
+        revenue
+        - variable_cost_total
+        - incremental_fixed_costs
+        - depreciation
+    )
+
+    tax = max(0.0, ebit * tax_rate)
+    net_profit = ebit - tax
+    operating_cash_flow = net_profit + depreciation
+
+    wc = calculate_incremental_working_capital(
+        revenue=revenue,
+        variable_cost_total=variable_cost_total,
+        context=context,
+    )
+
+    incremental_nwc = wc["nwc"]
+    initial_capex = assumptions.initial_investment
+    initial_funding_requirement = initial_capex + incremental_nwc
+
+    return InvestmentYear1Impact(
+        incremental_units=units,
+        incremental_revenue=revenue,
+        incremental_variable_cost=variable_cost_total,
+        incremental_fixed_costs=incremental_fixed_costs,
+        incremental_depreciation=depreciation,
+        incremental_ebit=ebit,
+        incremental_tax=tax,
+        incremental_net_profit=net_profit,
+        incremental_ar=wc["ar"],
+        incremental_inventory=wc["inventory"],
+        incremental_ap=wc["ap"],
+        incremental_nwc=incremental_nwc,
+        incremental_fixed_assets=initial_capex,
+        initial_capex=initial_capex,
+        initial_nwc_requirement=incremental_nwc,
+        initial_funding_requirement=initial_funding_requirement,
+        incremental_operating_cash_flow=operating_cash_flow,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 7. Cash Flow Engine
 # ---------------------------------------------------------------------------
 def build_investment_cash_flows(
     assumptions: InvestmentAssumptions,
-    context: CompanyStateContext
+    context: CompanyStateContext,
 ) -> List[InvestmentYear]:
     """
-    Κατασκευάζει τις ετήσιες ταμειακές ροές της επένδυσης.
+    Κατασκευάζει τις ετήσιες χρηματικές ροές της επένδυσης.
     """
     yearly_flows: List[InvestmentYear] = []
-    
-    # Αρχικές τιμές 1ου έτους
+
     curr_units = assumptions.units
     curr_price = assumptions.get_effective_price(context)
     curr_vc_per_unit = assumptions.get_effective_variable_cost(context)
-    curr_fixed_cost = assumptions.fixed_costs
+    curr_fixed_cost = assumptions.incremental_fixed_costs
     tax_rate = assumptions.get_effective_tax_rate(context)
+    depreciation = assumptions.get_incremental_depreciation()
 
-    # Έτος 0: Αρχική εκροή επένδυσης + Κεφάλαιο Κίνησης
-    initial_outlay = -(assumptions.initial_investment + assumptions.working_capital)
+    # Year 1 NWC για το αρχικό outlay του Year 0
+    year_1_revenue = curr_units * curr_price
+    year_1_vc_total = curr_units * curr_vc_per_unit
+
+    year_1_wc = calculate_incremental_working_capital(
+        revenue=year_1_revenue,
+        variable_cost_total=year_1_vc_total,
+        context=context,
+    )
+    initial_nwc = year_1_wc["nwc"]
+
+    # Year 0 Initial Outlay
+    initial_outlay = -(assumptions.initial_investment + initial_nwc)
+
     yearly_flows.append(
         InvestmentYear(
             year=0,
-            units=0,
-            price=0,
-            revenue=0,
-            variable_cost_per_unit=0,
-            variable_cost_total=0,
-            fixed_costs=0,
-            operating_profit=0,
-            tax=0,
-            operating_cash_flow=0,
-            working_capital_change=-assumptions.working_capital,
-            salvage_value=0,
-            project_cash_flow=initial_outlay
+            units=0.0,
+            price=0.0,
+            revenue=0.0,
+            variable_cost_per_unit=0.0,
+            variable_cost_total=0.0,
+            fixed_costs=0.0,
+            depreciation=0.0,
+            operating_profit=0.0,
+            tax=0.0,
+            operating_cash_flow=0.0,
+            incremental_ar=0.0,
+            incremental_inventory=0.0,
+            incremental_ap=0.0,
+            incremental_nwc=initial_nwc,
+            working_capital_cash_flow=-initial_nwc,
+            salvage_value=0.0,
+            project_cash_flow=initial_outlay,
         )
     )
 
-    # Έτη 1 έως N
+    # Subsequent Years
+    prev_nwc = initial_nwc
+
     for y in range(1, assumptions.project_years + 1):
         if y > 1:
-            curr_units *= (1 + assumptions.annual_volume_growth)
-            curr_price *= (1 + assumptions.annual_price_growth)
-            curr_vc_per_unit *= (1 + assumptions.annual_variable_cost_growth)
-            curr_fixed_cost *= (1 + assumptions.annual_fixed_cost_growth)
+            curr_units *= (1.0 + assumptions.annual_volume_growth)
+            curr_price *= (1.0 + assumptions.annual_price_growth)
+            curr_vc_per_unit *= (1.0 + assumptions.annual_variable_cost_growth)
+            curr_fixed_cost *= (1.0 + assumptions.annual_fixed_cost_growth)
 
         revenue = curr_units * curr_price
         vc_total = curr_units * curr_vc_per_unit
-        ebit = revenue - vc_total - curr_fixed_cost
-        
-        # Φόρος (αν EBIT > 0)
+
+        ebit = revenue - vc_total - curr_fixed_cost - depreciation
         tax = max(0.0, ebit * tax_rate)
         nopat = ebit - tax
-        
-        # Λειτουργική ταμειακή ροή
-        ocf = nopat
+        ocf = nopat + depreciation
 
-        # Τελευταίο έτος: Επιστροφή Working Capital & Salvage Value
-        wc_change = assumptions.working_capital if y == assumptions.project_years else 0.0
-        salvage = assumptions.salvage_value if y == assumptions.project_years else 0.0
+        wc = calculate_incremental_working_capital(
+            revenue=revenue,
+            variable_cost_total=vc_total,
+            context=context,
+        )
+        curr_nwc = wc["nwc"]
+
+        # Terminal Year calculations
+        if y == assumptions.project_years:
+            # Στο τελευταίο έτος επιστρέφεται το NWC + Salvage Value
+            wc_change = curr_nwc  # NWC Release
+            salvage = assumptions.salvage_value
+        else:
+            wc_change = -(curr_nwc - prev_nwc)  # Investment in NWC
+            salvage = 0.0
+
+        prev_nwc = curr_nwc
 
         total_cf = ocf + wc_change + salvage
 
@@ -180,191 +418,36 @@ def build_investment_cash_flows(
                 variable_cost_per_unit=curr_vc_per_unit,
                 variable_cost_total=vc_total,
                 fixed_costs=curr_fixed_cost,
+                depreciation=depreciation,
                 operating_profit=ebit,
                 tax=tax,
                 operating_cash_flow=ocf,
-                working_capital_change=wc_change,
+                incremental_ar=wc["ar"],
+                incremental_inventory=wc["inventory"],
+                incremental_ap=wc["ap"],
+                incremental_nwc=curr_nwc,
+                working_capital_cash_flow=wc_change,
                 salvage_value=salvage,
-                project_cash_flow=total_cf
+                project_cash_flow=total_cf,
             )
         )
 
     return yearly_flows
 
 
-def calculate_npv(cash_flows: List[float], wacc: float) -> float:
-    """Υπολογισμός Καθαρής Παρούσας Αξίας (NPV)."""
-    return float(npf.npv(wacc, cash_flows))
-
-
-def calculate_irr(cash_flows: List[float]) -> float:
-    """Υπολογισμός Εσωτερικού Βαθμού Απόδοσης (IRR)."""
-    try:
-        val = float(npf.irr(cash_flows))
-        return val if not np.isnan(val) else 0.0
-    except Exception:
-        return 0.0
-
-
-def calculate_payback(cash_flows: List[float]) -> float:
-    """Υπολογισμός Περιόδου Επανείσπραξης (Payback Period σε έτη)."""
-    cum_cf = 0.0
-    for i, cf in enumerate(cash_flows):
-        cum_cf += cf
-        if cum_cf >= 0:
-            if i == 0:
-                return 0.0
-            prev_cum = cum_cf - cf
-            fraction = abs(prev_cum) / cf if cf != 0 else 0.0
-            return (i - 1) + fraction
-    return float('inf')
-
-
-def calculate_exit_option(
-    assumptions: InvestmentAssumptions,
-    context: CompanyStateContext,
-    downside_volume_pct: float = 0.0,
-) -> Dict[str, float]:
-    """
-    Evaluates the value of having the flexibility
-    to exit after Year 1 under a downside volume scenario.
-
-    The Year-1 downside volume becomes the new operating
-    base for the remaining project years.
-    """
-
-    # -----------------------------------------------------
-    # Base project cash flows
-    # -----------------------------------------------------
-
-    base_yearly_structs = build_investment_cash_flows(
-        assumptions,
-        context,
-    )
-
-    base_cash_flows = [
-        y.project_cash_flow
-        for y in base_yearly_structs
-    ]
-
-    wacc = assumptions.get_effective_wacc(context)
-
-    # Base case continuation value
-    base_continue_value = calculate_npv(
-        base_cash_flows,
-        wacc,
-    )
-
-    # -----------------------------------------------------
-    # No exit option
-    # -----------------------------------------------------
-
-    if not assumptions.allow_exit_after_year_1:
-        return {
-            "continue_value": base_continue_value,
-            "exit_value": 0.0,
-            "value_with_exit_option": base_continue_value,
-            "value_of_flexibility": 0.0,
-            "downside_continue_value": base_continue_value,
-            "downside_exit_value": 0.0,
-        }
-
-    if len(base_cash_flows) < 2:
-        return {
-            "continue_value": base_continue_value,
-            "exit_value": 0.0,
-            "value_with_exit_option": base_continue_value,
-            "value_of_flexibility": 0.0,
-            "downside_continue_value": base_continue_value,
-            "downside_exit_value": 0.0,
-        }
-
-    # -----------------------------------------------------
-    # Year-1 downside scenario
-    # -----------------------------------------------------
-
-    downside_units = assumptions.units * (
-        1.0 - downside_volume_pct
-    )
-
-    downside_assumptions = _copy_assumptions_with(
-        assumptions,
-        units=downside_units,
-    )
-
-    downside_yearly_structs = build_investment_cash_flows(
-        downside_assumptions,
-        context,
-    )
-
-    downside_cash_flows = [
-        y.project_cash_flow
-        for y in downside_yearly_structs
-    ]
-
-    # -----------------------------------------------------
-    # Value if management continues under downside
-    # -----------------------------------------------------
-
-    downside_continue_value = calculate_npv(
-        downside_cash_flows,
-        wacc,
-    )
-
-    # -----------------------------------------------------
-    # Value if management exits after Year 1
-    # -----------------------------------------------------
-
-    year_1_cf = downside_cash_flows[1]
-
-    net_exit_value = (
-        assumptions.exit_value
-        - assumptions.exit_cost
-    )
-
-    exit_cash_flow_year_1 = (
-        year_1_cf
-        + net_exit_value
-    )
-
-    downside_exit_value = (
-        downside_cash_flows[0]
-        + exit_cash_flow_year_1 / (1 + wacc)
-    )
-
-    # -----------------------------------------------------
-    # Value of flexibility under downside
-    # -----------------------------------------------------
-
-    value_with_exit_option = max(
-        downside_continue_value,
-        downside_exit_value,
-    )
-
-    value_of_flexibility = max(
-        0.0,
-        downside_exit_value - downside_continue_value,
-    )
-
-    return {
-        "continue_value": base_continue_value,
-        "exit_value": downside_exit_value,
-        "value_with_exit_option": value_with_exit_option,
-        "value_of_flexibility": value_of_flexibility,
-        "downside_continue_value": downside_continue_value,
-        "downside_exit_value": downside_exit_value,
-    }
-
-
+# ---------------------------------------------------------------------------
+# 8. Evaluation Entrypoint
+# ---------------------------------------------------------------------------
 def evaluate_investment(
     assumptions: InvestmentAssumptions,
-    context: CompanyStateContext
+    context: CompanyStateContext,
 ) -> InvestmentResult:
     """
-    Ενιαίος Evaluator: Παράγει τις ροές και υπολογίζει NPV, IRR, Payback.
+    Κύρια συνάρτηση αξιολόγησης επένδυσης.
     """
     yearly_structs = build_investment_cash_flows(assumptions, context)
     cfs = [y.project_cash_flow for y in yearly_structs]
+
     wacc = assumptions.get_effective_wacc(context)
 
     npv_val = calculate_npv(cfs, wacc)
@@ -372,611 +455,49 @@ def evaluate_investment(
     payback_val = calculate_payback(cfs)
     total_cf = sum(cfs)
 
+    year_1_impact = build_investment_year1_impact(assumptions, context)
+
     return InvestmentResult(
         npv=npv_val,
         irr=irr_val,
         payback_years=payback_val,
         initial_investment=assumptions.initial_investment,
         total_project_cash_flow=total_cf,
-        yearly_cash_flows=yearly_structs
+        yearly_cash_flows=yearly_structs,
+        year_1_impact=year_1_impact,
     )
-
-# ---------------------------------------------------------------------------
-# 5. Decision Drivers Engine (Tornado Sensitivity)
-# ---------------------------------------------------------------------------
-@dataclass
-class TornadoDriver:
-    driver_name: str
-    base_npv: float
-    low_npv: float
-    high_npv: float
-    range_span: float
-
-
-def calculate_tornado_sensitivity(
-    assumptions: InvestmentAssumptions,
-    context: CompanyStateContext,
-    variation_pct: float = 0.10
-) -> List[TornadoDriver]:
-    base_result = evaluate_investment(assumptions, context)
-    base_npv = base_result.npv
-
-    drivers_to_test = [
-        "price",
-        "units",
-        "override_variable_cost_per_unit",
-        "initial_investment",
-        "fixed_costs",
-        "override_wacc"
-    ]
-
-    tornado_results: List[TornadoDriver] = []
-
-    for driver in drivers_to_test:
-        val = getattr(assumptions, driver)
-        if val is None:
-            if driver == "override_variable_cost_per_unit":
-                val = context.variable_cost_per_unit
-            elif driver == "override_wacc":
-                val = context.wacc
-            elif driver == "price":
-                val = context.price
-
-        if val == 0 or val is None:
-            continue
-
-        low_val = val * (1 - variation_pct)
-        high_val = val * (1 + variation_pct)
-
-        kwargs_low = {driver: low_val}
-        assump_low = _copy_assumptions_with(assumptions, **kwargs_low)
-        npv_low = evaluate_investment(assump_low, context).npv
-
-        kwargs_high = {driver: high_val}
-        assump_high = _copy_assumptions_with(assumptions, **kwargs_high)
-        npv_high = evaluate_investment(assump_high, context).npv
-
-        span = abs(npv_high - npv_low)
-        display_name = driver.replace("override_", "").replace("_", " ").title()
-
-        tornado_results.append(
-            TornadoDriver(
-                driver_name=display_name,
-                base_npv=base_npv,
-                low_npv=min(npv_low, npv_high),
-                high_npv=max(npv_low, npv_high),
-                range_span=span
-            )
-        )
-
-    tornado_results.sort(key=lambda x: x.range_span, reverse=True)
-    return tornado_results
-
-
-def _copy_assumptions_with(assumptions: InvestmentAssumptions, **kwargs) -> InvestmentAssumptions:
-    """Helper για εύκολο mutation των frozen dataclasses."""
-    d = {k: getattr(assumptions, k) for k in assumptions.__dataclass_fields__}
-    d.update(kwargs)
-    return InvestmentAssumptions(**d)
 
 
 # ---------------------------------------------------------------------------
-# 6. Streamlit UI
+# 9. Company Integration Adapter Layer
 # ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class InvestmentCompanyImpact:
+    """
+    Company-level changes generated by an accepted investment proposal.
+    Περιλαμβάνει revenue_delta & variable_cost_delta για να χειρίζεται
+    σωστά τα price/variable_cost overrides χωρίς να αλλοιώνει το baseline.
+    """
+    volume_delta: float
+    revenue_delta: float
+    variable_cost_delta: float
+    fixed_opex_delta: float
+    fixed_assets_delta: float
+    depreciation_delta: float
 
-def render_investment_decision_lab(
-    baseline_state=None,
-):
-    st.title("📊 Investment Decision Lab")
 
-    st.markdown(
-        "Evaluate a proposed investment using NPV, IRR, "
-        "Payback and decision-driver sensitivity."
+def build_investment_company_impact(
+    impact: InvestmentYear1Impact,
+) -> InvestmentCompanyImpact:
+    """
+    Adapter που μετατρέπει το InvestmentYear1Impact στο καθαρό boundary
+    που χρειάζεται ο DecisionEvaluator / FinancialEngine της εταιρείας.
+    """
+    return InvestmentCompanyImpact(
+        volume_delta=impact.incremental_units,
+        revenue_delta=impact.incremental_revenue,
+        variable_cost_delta=impact.incremental_variable_cost,
+        fixed_opex_delta=impact.incremental_fixed_costs,
+        fixed_assets_delta=impact.initial_capex,
+        depreciation_delta=impact.incremental_depreciation,
     )
-
-    st.divider()
-
-    # ---------------------------------------------------------
-    # BASELINE DEFAULTS
-    # ---------------------------------------------------------
-
-    baseline_price = (
-        baseline_state.drivers.price
-        if baseline_state is not None
-        else 0.0
-    )
-
-    baseline_variable_cost = (
-        baseline_state.drivers.variable_cost_per_unit
-        if baseline_state is not None
-        else 0.0
-    )
-
-    baseline_tax_rate = (
-        baseline_state.capital_structure.tax_rate
-        if baseline_state is not None
-        else 0.0
-    )
-
-    baseline_wacc = (
-        baseline_state.capital_structure.wacc
-        if baseline_state is not None
-        else 0.0
-    )
-
-    # ---------------------------------------------------------
-    # INVESTMENT INPUTS
-    # ---------------------------------------------------------
-
-    st.subheader("Investment Assumptions")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        initial_investment = st.number_input(
-            "Initial Investment",
-            min_value=0.0,
-            value=0.0,
-            step=1000.0,
-        )
-
-        project_years = st.number_input(
-            "Project Years",
-            min_value=1,
-            value=5,
-            step=1,
-        )
-
-        units = st.number_input(
-            "Annual Units",
-            min_value=0.0,
-            value=0.0,
-            step=1000.0,
-        )
-
-    with col2:
-
-        fixed_costs = st.number_input(
-            "Annual Fixed Costs",
-            min_value=0.0,
-            value=0.0,
-            step=1000.0,
-        )
-
-        working_capital = st.number_input(
-            "Initial Working Capital",
-            min_value=0.0,
-            value=0.0,
-            step=1000.0,
-        )
-
-        salvage_value = st.number_input(
-            "Salvage Value",
-            min_value=0.0,
-            value=0.0,
-            step=1000.0,
-        )
-
-    # ---------------------------------------------------------
-    # PROJECT GROWTH
-    # ---------------------------------------------------------
-
-    st.subheader("Project Growth Assumptions")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        volume_growth = st.number_input(
-            "Annual Volume Growth %",
-            value=0.0,
-            step=1.0,
-        ) / 100
-
-    with col2:
-        price_growth = st.number_input(
-            "Annual Price Growth %",
-            value=0.0,
-            step=1.0,
-        ) / 100
-
-    with col3:
-        variable_cost_growth = st.number_input(
-            "Annual Variable Cost Growth %",
-            value=0.0,
-            step=1.0,
-        ) / 100
-
-    with col4:
-        fixed_cost_growth = st.number_input(
-            "Annual Fixed Cost Growth %",
-            value=0.0,
-            step=1.0,
-        ) / 100
-
-    # ---------------------------------------------------------
-    # COMPANY DEFAULTS
-    # ---------------------------------------------------------
-
-    st.subheader("Company Baseline Defaults")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "Baseline Price",
-            f"€{baseline_price:,.2f}",
-        )
-
-    with col2:
-        st.metric(
-            "Baseline Variable Cost",
-            f"€{baseline_variable_cost:,.2f}",
-        )
-
-    with col3:
-        st.metric(
-            "Baseline Tax Rate",
-            f"{baseline_tax_rate * 100:.1f}%",
-        )
-
-    with col4:
-        st.metric(
-            "Baseline WACC",
-            f"{baseline_wacc * 100:.1f}%",
-        )
-    
-    # ---------------------------------------------------------
-    # OPTIONAL OVERRIDES
-    # ---------------------------------------------------------
-
-    st.subheader("Project Overrides")
-
-    use_price_override = st.checkbox(
-        "Override Selling Price / Unit"
-    )
-
-    price = None
-
-    if use_price_override:
-
-        price = st.number_input(
-            "Project Selling Price / Unit",
-            min_value=0.0,
-            value=float(baseline_price),
-            step=0.10,
-        )
-
-    use_vc_override = st.checkbox(
-        "Override Variable Cost / Unit"
-    )
-
-    override_vc = None
-
-    if use_vc_override:
-
-        override_vc = st.number_input(
-            "Project Variable Cost / Unit",
-            min_value=0.0,
-            value=float(baseline_variable_cost),
-            step=0.10,
-        )
-
-    use_tax_override = st.checkbox(
-        "Override Tax Rate"
-    )
-
-    override_tax = None
-
-    if use_tax_override:
-
-        override_tax = st.number_input(
-            "Project Tax Rate %",
-            min_value=0.0,
-            max_value=100.0,
-            value=float(baseline_tax_rate * 100),
-            step=1.0,
-        ) / 100
-
-    use_wacc_override = st.checkbox(
-        "Override WACC"
-    )
-
-    override_wacc = None
-
-    if use_wacc_override:
-
-        override_wacc = st.number_input(
-            "Project WACC %",
-            min_value=0.0,
-            max_value=100.0,
-            value=float(baseline_wacc * 100),
-            step=0.5,
-        ) / 100
-
-    # ---------------------------------------------------------
-    # PROJECT FLEXIBILITY
-    # ---------------------------------------------------------
-
-    st.subheader("Project Flexibility")
-
-    allow_exit = st.checkbox(
-        "Allow Exit after Year 1",
-        help=(
-            "Test whether management could limit downside "
-            "by stopping the project after the first year."
-        ),
-    )
-
-    exit_value = 0.0
-    exit_cost = 0.0
-    downside_volume_pct = 0.0
-
-    if allow_exit:
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            exit_value = st.number_input(
-                "Recoverable Exit Value",
-                min_value=0.0,
-                value=0.0,
-                step=1000.0,
-                help=(
-                    "Estimated cash value recoverable if the "
-                    "project is stopped after Year 1."
-                ),
-            )
-
-        with col2:
-            exit_cost = st.number_input(
-                "Exit / Shutdown Cost",
-                min_value=0.0,
-                value=0.0,
-                step=1000.0,
-                help=(
-                    "Costs incurred when terminating the project."
-                ),
-            )
-
-        with col3:
-            downside_volume_pct = st.number_input(
-                "Year-1 Volume Downside %",
-                min_value=0.0,
-                max_value=100.0,
-                value=20.0,
-                step=5.0,
-                help=(
-                    "Tests the project if Year-1 volume is below "
-                    "plan by this percentage."
-                ),
-            ) / 100
-
-    # ---------------------------------------------------------
-    # EVALUATION
-    # ---------------------------------------------------------
-
-    if st.button(
-        "▶ Evaluate Investment",
-        type="primary",
-        use_container_width=True,
-    ):
-
-        context = CompanyStateContext(
-            variable_cost_per_unit=baseline_variable_cost,
-            tax_rate=baseline_tax_rate,
-            wacc=baseline_wacc,
-            price=baseline_price,
-            fixed_costs=(
-                baseline_state.drivers.fixed_opex
-                if baseline_state is not None
-                else 0.0
-            ),
-        )
-
-        assumptions = InvestmentAssumptions(
-            initial_investment=initial_investment,
-            project_years=int(project_years),
-            units=units,
-            annual_volume_growth=volume_growth,
-            annual_price_growth=price_growth,
-            annual_variable_cost_growth=variable_cost_growth,
-            annual_fixed_cost_growth=fixed_cost_growth,
-            working_capital=working_capital,
-            salvage_value=salvage_value,
-            fixed_costs=fixed_costs,
-            price=price,
-            override_variable_cost_per_unit=override_vc,
-            override_tax_rate=override_tax,
-            override_wacc=override_wacc,
-            allow_exit_after_year_1=allow_exit,
-            exit_value=exit_value,
-            exit_cost=exit_cost,
-        )
-
-        result = evaluate_investment(
-            assumptions,
-            context,
-        )
-
-        exit_analysis = calculate_exit_option(
-            assumptions,
-            context,
-            downside_volume_pct=downside_volume_pct,
-        )
-
-        # -----------------------------------------------------
-        # RESULTS
-        # -----------------------------------------------------
-
-        st.divider()
-
-        st.subheader("Investment Decision")
-
-        c1, c2, c3 = st.columns(3)
-
-        with c1:
-            st.metric(
-                "NPV",
-                f"€{result.npv:,.0f}",
-            )
-
-        with c2:
-            st.metric(
-                "IRR",
-                f"{result.irr * 100:.1f}%",
-            )
-
-        with c3:
-
-            if np.isinf(result.payback_years):
-
-                payback_text = "Not recovered"
-
-            else:
-
-                payback_text = (
-                    f"{result.payback_years:.2f} years"
-                )
-
-            st.metric(
-                "Payback",
-                payback_text,
-            )
-
-        # -----------------------------------------------------
-        # DECISION SIGNAL
-        # -----------------------------------------------------
-
-        if result.npv > 0:
-
-            st.success(
-                "🟢 Positive NPV — the project creates "
-                "value at the selected discount rate."
-            )
-
-        elif result.npv < 0:
-
-            st.error(
-                "🔴 Negative NPV — the project destroys "
-                "value at the selected discount rate."
-            )
-
-        else:
-
-            st.warning(
-                "🟡 NPV is approximately zero — the project "
-                "is at the value-neutral threshold."
-            )
-
-        # -----------------------------------------------------
-        # PROJECT FLEXIBILITY
-        # -----------------------------------------------------
-
-        if allow_exit:
-
-            st.divider()
-
-            st.subheader("Project Flexibility")
-
-            st.caption(
-                f"Downside test: Year-1 volume "
-                f"{downside_volume_pct * 100:.0f}% below plan"
-            )
-
-            f1, f2, f3 = st.columns(3)
-
-            with f1:
-                st.metric(
-                    "Continue Value",
-                    f"€{exit_analysis['downside_continue_value']:,.0f}",
-                )
-
-            with f2:
-                st.metric(
-                    "Exit Value",
-                    f"€{exit_analysis['downside_exit_value']:,.0f}",
-                )
-
-            with f3:
-                st.metric(
-                    "Value of Flexibility",
-                    f"€{exit_analysis['value_of_flexibility']:,.0f}",
-                )
-
-            if exit_analysis["value_of_flexibility"] > 0:
-
-                st.success(
-                    "💡 Under the downside scenario, the ability "
-                    "to exit after Year 1 has economic value."
-                )
-
-            else:
-
-                st.caption(
-                    "Even under the downside scenario, continuing "
-                    "the project has higher value than exiting."
-                )
-
-        # -----------------------------------------------------
-        # YEARLY CASH FLOWS
-        # -----------------------------------------------------
-
-        st.subheader("Project Cash Flow")
-
-        rows = []
-
-        for year in result.yearly_cash_flows:
-
-            rows.append(
-                {
-                    "Year": year.year,
-                    "Units": year.units,
-                    "Price": year.price,
-                    "Revenue": year.revenue,
-                    "Variable Cost": year.variable_cost_total,
-                    "Fixed Costs": year.fixed_costs,
-                    "EBIT": year.operating_profit,
-                    "Tax": year.tax,
-                    "Operating Cash Flow": year.operating_cash_flow,
-                    "Working Capital": year.working_capital_change,
-                    "Salvage": year.salvage_value,
-                    "Project Cash Flow": year.project_cash_flow,
-                }
-            )
-
-        st.dataframe(
-            rows,
-            use_container_width=True,
-        )
-
-        # -----------------------------------------------------
-        # TORNADO ANALYSIS
-        # -----------------------------------------------------
-
-        st.subheader(
-            "Decision Drivers — NPV Sensitivity"
-        )
-
-        tornado = calculate_tornado_sensitivity(
-            assumptions,
-            context,
-        )
-
-        if tornado:
-
-            tornado_rows = [
-                {
-                    "Driver": t.driver_name,
-                    "Low NPV": t.low_npv,
-                    "Base NPV": t.base_npv,
-                    "High NPV": t.high_npv,
-                    "Impact Range": t.range_span,
-                }
-                for t in tornado
-            ]
-
-            st.dataframe(
-                tornado_rows,
-                use_container_width=True,
-            )
