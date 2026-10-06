@@ -1220,6 +1220,7 @@ if current_page == "🧠 QSPM Strategic Evaluation":
         baseline_state=baseline,
         decision_plan=decision_plan,
     )
+    st.stop()
 
     if current_page == "🔄 Replacement Analysis":
     render_replacement_analysis(
