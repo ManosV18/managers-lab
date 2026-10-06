@@ -12,7 +12,7 @@ from tools.replacement_analysis import (
 # REPLACEMENT ANALYSIS
 # ============================================================================
 
-def render_replacement_analysis(
+def render_replacement_analysis_lab(
     baseline_state=None,
 ):
 
