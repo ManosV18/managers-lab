@@ -1,4 +1,5 @@
-import numpy as np
+import math
+
 import streamlit as st
 
 from tools.investment_decision import (
@@ -460,7 +461,7 @@ def render_investment_decision_lab(
 
         with r3:
 
-            if np.isinf(result.payback_years):
+            if math.isinf(result.payback_years):
                 payback_text = "Not recovered"
             else:
                 payback_text = (
@@ -499,7 +500,7 @@ def render_investment_decision_lab(
 
         # ====================================================================
         # YEAR-1 COMPANY IMPACT
-        # ====================================================================
+        # ========================================================================
 
         if result.year_1_impact is not None:
 
@@ -558,7 +559,7 @@ def render_investment_decision_lab(
 
             with i7:
                 st.metric(
-                    "NWC Δ",
+                    "Incremental NWC Requirement",
                     f"€{impact.incremental_nwc:,.0f}",
                 )
 
@@ -580,7 +581,7 @@ def render_investment_decision_lab(
 
             with f2:
                 st.metric(
-                    "Incremental NWC Requirement",
+                    "Initial NWC Requirement",
                     f"€{impact.initial_nwc_requirement:,.0f}",
                 )
 
@@ -592,7 +593,7 @@ def render_investment_decision_lab(
 
         # ====================================================================
         # PROJECT FLEXIBILITY
-        # ====================================================================
+        # ========================================================================
 
         if allow_exit:
 
@@ -646,8 +647,8 @@ def render_investment_decision_lab(
                 )
 
         # ====================================================================
-        # YEARLY CASH FLOWS
-        # ====================================================================
+        # PROJECT CASH FLOW
+        # ========================================================================
 
         st.divider()
 
@@ -660,31 +661,56 @@ def render_investment_decision_lab(
             rows.append(
                 {
                     "Year": year.year,
-                    "Units": year.units,
-                    "Price": year.price,
-                    "Revenue": year.revenue,
-                    "Variable Cost": year.variable_cost_total,
-                    "Incremental Fixed Costs": (
-                        year.incremental_fixed_costs
+                    "Units": round(year.units, 0),
+                    "Price": round(year.price, 2),
+                    "Revenue": round(year.revenue, 0),
+                    "Variable Cost": round(
+                        year.variable_cost_total,
+                        0,
                     ),
-                    "Depreciation": year.depreciation,
-                    "EBIT": year.operating_profit,
-                    "Tax": year.tax,
-                    "Operating Cash Flow": (
-                        year.operating_cash_flow
+                    "Incremental Fixed Costs": round(
+                        year.incremental_fixed_costs,
+                        0,
                     ),
-                    "Incremental NWC": year.incremental_nwc,
-                    "Working Capital Cash Flow": (
-                        year.working_capital_cash_flow
+                    "Depreciation": round(
+                        year.depreciation,
+                        0,
                     ),
-                    "Salvage": year.salvage_value,
-                    "Project Cash Flow": year.project_cash_flow,
+                    "EBIT": round(
+                        year.operating_profit,
+                        0,
+                    ),
+                    "Tax": round(
+                        year.tax,
+                        0,
+                    ),
+                    "Operating Cash Flow": round(
+                        year.operating_cash_flow,
+                        0,
+                    ),
+                    "Incremental NWC": round(
+                        year.incremental_nwc,
+                        0,
+                    ),
+                    "NWC Cash Flow": round(
+                        year.working_capital_cash_flow,
+                        0,
+                    ),
+                    "Salvage": round(
+                        year.salvage_value,
+                        0,
+                    ),
+                    "Project Cash Flow": round(
+                        year.project_cash_flow,
+                        0,
+                    ),
                 }
             )
 
         st.dataframe(
             rows,
             use_container_width=True,
+            hide_index=True,
         )
 
         # ====================================================================
@@ -697,6 +723,11 @@ def render_investment_decision_lab(
             "Decision Drivers — NPV Sensitivity"
         )
 
+        st.caption(
+            "Shows how much the project's NPV changes when each "
+            "key decision driver moves ±10% from the base case."
+        )
+
         tornado = calculate_tornado_sensitivity(
             assumptions,
             context,
@@ -707,10 +738,10 @@ def render_investment_decision_lab(
             tornado_rows = [
                 {
                     "Driver": t.driver_name,
-                    "Low NPV": t.low_npv,
-                    "Base NPV": t.base_npv,
-                    "High NPV": t.high_npv,
-                    "Impact Range": t.range_span,
+                    "Low NPV": f"€{t.low_npv:,.0f}",
+                    "Base NPV": f"€{t.base_npv:,.0f}",
+                    "High NPV": f"€{t.high_npv:,.0f}",
+                    "Impact Range": f"€{t.range_span:,.0f}",
                 }
                 for t in tornado
             ]
@@ -718,6 +749,13 @@ def render_investment_decision_lab(
             st.dataframe(
                 tornado_rows,
                 use_container_width=True,
+                hide_index=True,
+            )
+
+            st.caption(
+                "Drivers are ranked by the size of their NPV impact. "
+                "A larger Impact Range indicates a more influential "
+                "decision driver."
             )
 
         else:
