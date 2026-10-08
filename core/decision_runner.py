@@ -283,32 +283,10 @@ class DecisionRunner:
             # InvestmentCompanyImpact.
             # -----------------------------------------------------
 
-            (
-                investment_projected_state,
-                projection_impacts,
-            ) = InvestmentProjection.project(
+            investment_projected_state = InvestmentProjection.project(
                 state,
-                investment_decisions,
+                investment_impacts,
             )
-
-            # -----------------------------------------------------
-            # Safety check.
-            #
-            # InvestmentProjection must return the same explicit
-            # impacts that were evaluated above.
-            #
-            # The FinancialEngine must consume the actual
-            # InvestmentCompanyImpact objects produced by the
-            # integration layer.
-            # -----------------------------------------------------
-
-            if len(projection_impacts) != len(
-                investment_impacts
-            ):
-                raise ValueError(
-                    "InvestmentProjection returned a different "
-                    "number of impacts than InvestmentIntegration."
-                )
 
         # ---------------------------------------------------------
         # FINAL COMPANY STATE
