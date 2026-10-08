@@ -1,4 +1,3 @@
-from dataclasses import replace
 from typing import Dict, Any, Sequence, Tuple
 
 from core.models import CompanyState
@@ -6,7 +5,6 @@ from core.decision import Decision
 from core.investment_decision import InvestmentDecision
 from core.decision_engine import DecisionEngine
 from core.investment_integration import InvestmentIntegration
-from core.investment_projection import InvestmentProjection
 
 
 DecisionItem = Decision | InvestmentDecision
@@ -32,7 +30,10 @@ class DecisionRunner:
                       ↓
               Same-Baseline Evaluation
                       ↓
-              Integrated Projection
+        ┌───────────────────────────────┐
+        │ CompanyState projection       │
+        │ InvestmentCompanyImpact(s)    │
+        └───────────────────────────────┘
 
     Direct Decisions
     ----------------
@@ -48,13 +49,38 @@ class DecisionRunner:
     They are evaluated independently against the SAME locked
     baseline through InvestmentIntegration.
 
-    Their Year-1 impacts are kept separately and are later
-    consumed by the FinancialEngine.
+    Their Year-1 impacts are kept separately as canonical
+    InvestmentCompanyImpact objects.
 
-    InvestmentProjection is used only to expose the
-    unambiguous CompanyState-level effects of the investment
-    (for example incremental fixed operating costs,
-    fixed assets and depreciation).
+    IMPORTANT ARCHITECTURAL RULE
+    ----------------------------
+    Investment economics are NOT written into CompanyState.
+
+    In particular, investment:
+
+        - revenue
+        - variable cost
+        - fixed opex
+        - depreciation
+        - project NWC
+        - CAPEX
+        - operating cash flow
+
+    remain represented by InvestmentCompanyImpact and are
+    integrated by FinancialEngine.
+
+    This prevents the same investment effect from being
+    represented both inside CompanyState and again inside
+    InvestmentCompanyImpact.
+
+    CompanyState therefore represents:
+
+        baseline company
+        +
+        direct Decision effects
+
+    while investment economics remain a separate incremental
+    layer.
 
     IMPORTANT
     ---------
@@ -93,7 +119,6 @@ class DecisionRunner:
 
         Investment Decisions:
             InvestmentIntegration
-            InvestmentProjection
 
         Returns:
             projected CompanyState
@@ -102,6 +127,13 @@ class DecisionRunner:
         The execution report contains the explicit
         InvestmentCompanyImpact objects required by the
         FinancialEngine integration layer.
+
+        Important
+        ---------
+        Investment Decisions do NOT modify CompanyState.
+
+        Their Year-1 financial effects remain in
+        InvestmentCompanyImpact.
         """
 
         if not isinstance(state, CompanyState):
@@ -232,17 +264,21 @@ class DecisionRunner:
         # locked baseline.
         #
         # Never use direct_projected_state here.
+        #
+        # IMPORTANT:
+        # Investment results are NOT projected into CompanyState.
+        #
+        # The canonical investment representation is:
+        #
+        #     InvestmentCompanyImpact
+        #
+        # FinancialEngine consumes those objects separately.
         # ---------------------------------------------------------
 
-        investment_projected_state = state
         investment_impacts = ()
         investment_traces = []
 
         if investment_decisions:
-
-            # -----------------------------------------------------
-            # Evaluate each investment independently.
-            # -----------------------------------------------------
 
             evaluated_impacts = []
 
@@ -272,66 +308,47 @@ class DecisionRunner:
                 evaluated_impacts
             )
 
-            # -----------------------------------------------------
-            # Build the investment-only CompanyState projection.
-            #
-            # This is NOT the financial projection.
-            #
-            # It only exposes safe CompanyState-level effects.
-            # Project-specific revenue, price, variable cost,
-            # project NWC and project cash remain in
-            # InvestmentCompanyImpact.
-            # -----------------------------------------------------
-
-            investment_projected_state = InvestmentProjection.project(
-                state,
-                investment_impacts,
-            )
-
         # ---------------------------------------------------------
         # FINAL COMPANY STATE
         # ---------------------------------------------------------
         #
-        # IMPORTANT:
-        #
-        # We do NOT do:
+        # CompanyState contains ONLY:
         #
         #     baseline
-        #        ↓
-        #     investment
-        #        ↓
-        #     direct
+        #       +
+        #     direct Decision effects
         #
-        # That would be sequential stacking.
+        # Investment effects are NOT merged into CompanyState.
         #
-        # Instead:
+        # This is intentional because the investment impact is
+        # passed separately to FinancialEngine.
         #
-        #     baseline
-        #        ├── direct changes
-        #        └── investment state-level changes
+        # Therefore:
         #
-        # and then merge the independent effects.
+        #     CompanyState
+        #             +
+        #     InvestmentCompanyImpact
+        #
+        # are two complementary layers, not two representations
+        # of the same effect.
         # ---------------------------------------------------------
 
-        if direct_decisions and investment_decisions:
-
-            projected_state = cls._merge_company_state_effects(
-                baseline_state=state,
-                direct_state=direct_projected_state,
-                investment_state=investment_projected_state,
+        if direct_decisions:
+            projected_state = direct_projected_state
+            projection_mode = (
+                "direct_plus_investment_impacts"
+                if investment_decisions
+                else "direct_only"
             )
 
-            projection_mode = "combined"
-
-        elif direct_decisions:
-
-            projected_state = direct_projected_state
-            projection_mode = "direct_only"
+        elif investment_decisions:
+            projected_state = state
+            projection_mode = "investment_impacts_only"
 
         else:
-
-            projected_state = investment_projected_state
-            projection_mode = "investment_only"
+            # Defensive fallback.
+            projected_state = state
+            projection_mode = "baseline"
 
         # ---------------------------------------------------------
         # REPORT
@@ -358,112 +375,19 @@ class DecisionRunner:
             ],
 
             # IMPORTANT:
-            # Kept as actual objects for DecisionEvaluator /
-            # FinancialEngine integration.
+            # Kept as actual immutable objects for
+            # DecisionEvaluator / FinancialEngine integration.
             "investment_impact_objects": investment_impacts,
 
             "message": (
                 "All items were evaluated against the same "
                 "locked baseline. Direct Decisions were "
                 "combined and evaluated once. Investment "
-                "Decisions were evaluated independently and "
-                "their Year-1 impacts were kept separately "
-                "for financial integration."
+                "Decisions were evaluated independently. "
+                "Investment Year-1 impacts remain separate "
+                "from CompanyState and are available to the "
+                "financial integration layer."
             ),
         }
 
         return projected_state, report
-
-    # ------------------------------------------------------------------
-    # COMPANY STATE MERGE
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _merge_company_state_effects(
-        baseline_state: CompanyState,
-        direct_state: CompanyState,
-        investment_state: CompanyState,
-    ) -> CompanyState:
-        """
-        Merge independent direct and investment effects
-        starting from the SAME baseline.
-
-        Only unambiguous CompanyState-level investment effects
-        are merged here.
-
-        Investment-specific:
-            - revenue
-            - project price
-            - project variable cost
-            - project NWC
-            - project cash flow
-            - CAPEX funding
-
-        are NOT represented through CompanyState and therefore
-        are deliberately excluded.
-
-        Investment effects represented in CompanyState:
-            - fixed_opex
-            - fixed_assets
-            - depreciation
-
-        Direct Decisions remain responsible for their own
-        CompanyState driver changes.
-
-        No sequential application occurs.
-        """
-
-        # ---------------------------------------------------------
-        # Extract the investment deltas relative to the baseline.
-        # ---------------------------------------------------------
-
-        investment_fixed_opex_delta = (
-            investment_state.drivers.fixed_opex
-            - baseline_state.drivers.fixed_opex
-        )
-
-        investment_fixed_assets_delta = (
-            investment_state.drivers.fixed_assets
-            - baseline_state.drivers.fixed_assets
-        )
-
-        investment_depreciation_delta = (
-            investment_state.drivers.depreciation
-            - baseline_state.drivers.depreciation
-        )
-
-        # ---------------------------------------------------------
-        # Apply those deltas to the DIRECT projected state.
-        #
-        # This is an additive merge of two independent branches,
-        # not execution of one branch on the other.
-        # ---------------------------------------------------------
-
-        merged_drivers = replace(
-            direct_state.drivers,
-            fixed_opex=(
-                direct_state.drivers.fixed_opex
-                + investment_fixed_opex_delta
-            ),
-            fixed_assets=(
-                direct_state.drivers.fixed_assets
-                + investment_fixed_assets_delta
-            ),
-            depreciation=(
-                direct_state.drivers.depreciation
-                + investment_depreciation_delta
-            ),
-        )
-
-        # ---------------------------------------------------------
-        # Version
-        #
-        # The projected state represents one combined projection
-        # from the baseline, so it receives one new version.
-        # ---------------------------------------------------------
-
-        return replace(
-            direct_state,
-            version=baseline_state.version + 1,
-            drivers=merged_drivers,
-        )
