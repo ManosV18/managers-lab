@@ -1,6 +1,7 @@
 import streamlit as st
 from core.decision import Decision
 from core.decision_plan import DecisionPlan
+from core.investment_decision import InvestmentDecision
 
 
 # =========================================================
@@ -106,7 +107,7 @@ def _get_available_decisions():
         [],
     ):
 
-        if isinstance(decision, Decision):
+        if isinstance(decision, (Decision, InvestmentDecision)):
             available.append(
                 ("Decision Lab", decision)
             )
@@ -143,9 +144,17 @@ def _find_conflicting_driver(
         (driver_name, existing_decision_name)
     """
 
+    # Εάν η νέα απόφαση είναι InvestmentDecision, δεν έχει driver changes
+    if not isinstance(decision, Decision):
+        return None
+
     existing_drivers = {}
 
     for existing in plan.decisions:
+
+        # Παραλείπουμε επενδύσεις καθώς δεν περιέχουν απλά driver changes
+        if not isinstance(existing, Decision):
+            continue
 
         for driver in existing.changes:
 
@@ -166,7 +175,7 @@ def _find_conflicting_driver(
 
 
 def _source_for_decision(
-    decision: Decision,
+    decision,
     wc_candidates,
 ) -> str:
 
@@ -252,7 +261,11 @@ def render_decision_view() -> None:
                 {
                     "Order": position,
                     "Decision": decision.name,
-                    "Category": decision.category,
+                    "Category": (
+                        decision.category
+                        if isinstance(decision, Decision)
+                        else "Investment"
+                    ),
                     "Source": _source_for_decision(
                         decision,
                         wc_candidates,
@@ -283,15 +296,30 @@ def render_decision_view() -> None:
 
         for decision in current_plan.decisions:
 
-            for driver, value in (
-                decision.changes.items()
+            if isinstance(decision, Decision):
+
+                for driver, value in (
+                    decision.changes.items()
+                ):
+
+                    change_rows.append(
+                        {
+                            "Decision": decision.name,
+                            "Driver": driver,
+                            "Value": value,
+                        }
+                    )
+
+            elif isinstance(
+                decision,
+                InvestmentDecision,
             ):
 
                 change_rows.append(
                     {
                         "Decision": decision.name,
-                        "Driver": driver,
-                        "Value": value,
+                        "Driver": "Investment",
+                        "Value": "Project-level investment decision",
                     }
                 )
 
@@ -431,7 +459,11 @@ def render_decision_view() -> None:
                 preview_rows.append(
                     {
                         "Decision": decision.name,
-                        "Category": decision.category,
+                        "Category": (
+                            decision.category
+                            if isinstance(decision, Decision)
+                            else "Investment"
+                        ),
                         "Source": source,
                     }
                 )
