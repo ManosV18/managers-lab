@@ -1103,17 +1103,25 @@ if current_page == "📈 Growth & Funding Lab":
 
 if current_page == "📊 Investment Decision Lab":
 
+    decision_plan = st.session_state.get(
+        "decision_plan"
+    )
+
+    if not isinstance(
+        decision_plan,
+        DecisionPlan,
+    ):
+
+        decision_plan = DecisionPlan.create(
+            plan_id="main_plan",
+            name="Current Decision Plan",
+        )
+
+        st.session_state.decision_plan = decision_plan
+
     render_investment_decision_lab(
         baseline_state=baseline,
         decision_plan=decision_plan,
-    )
-
-    st.stop()
-
-if current_page == "👥 Customer Value":
-
-    render_customer_cash_economics_lab(
-        baseline_state=baseline
     )
 
     st.stop()
