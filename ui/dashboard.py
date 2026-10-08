@@ -647,7 +647,7 @@ def _render_executive_decision(
         financial_impact.fcfe_delta
     )
 
-        wc_cash_impact = float(
+    wc_cash_impact = float(
         financial_impact.nwc_cash_impact_delta
     )
 
@@ -674,7 +674,6 @@ def _render_executive_decision(
             0.0,
         )
     )
-
 
     # -----------------------------------------------------
     # CASH TIMING RESULT
@@ -715,7 +714,31 @@ def _render_executive_decision(
         f"🎯 {decision_plan.name}"
     )
 
-    if (
+    if is_investment:
+        if net_profit_delta > 0:
+            st.success(
+                f"🟢 **The investment creates incremental profit.** "
+                f"Net Profit increases by "
+                f"**{_fmt_signed_eur(net_profit_delta)}**."
+            )
+
+            if investment_initial_funding > 0:
+                st.warning(
+                    f"🟠 **Additional funding is required.** "
+                    f"The investment requires initial funding of "
+                    f"**{_fmt_eur(investment_initial_funding)}**, "
+                    f"including "
+                    f"**{_fmt_eur(investment_initial_nwc)}** "
+                    f"of incremental working capital."
+                )
+        else:
+            st.warning(
+                f"🟠 **The investment reduces incremental profit.** "
+                f"Net Profit changes by "
+                f"**{_fmt_signed_eur(net_profit_delta)}**."
+            )
+
+    elif (
         net_profit_delta > 0
         and fcfe_delta < 0
         and wc_cash_impact < 0
@@ -725,7 +748,8 @@ def _render_executive_decision(
                 f"🟠 **More profit — more pressure on cash.** "
                 f"The decision increases Net Profit by "
                 f"**{_fmt_signed_eur(net_profit_delta)}**, "
-                f"but ties up **{_fmt_eur(abs(wc_cash_impact))}** "
+                f"but ties up "
+                f"**{_fmt_eur(abs(wc_cash_impact))}** "
                 f"in working capital. "
                 f"Projected cash also falls below the minimum reserve."
             )
@@ -734,7 +758,8 @@ def _render_executive_decision(
                 f"🟠 **More profit — more pressure on cash.** "
                 f"The decision increases Net Profit by "
                 f"**{_fmt_signed_eur(net_profit_delta)}**, "
-                f"but ties up **{_fmt_eur(abs(wc_cash_impact))}** "
+                f"but ties up "
+                f"**{_fmt_eur(abs(wc_cash_impact))}** "
                 f"in working capital. "
                 f"Cash remains above the minimum reserve, "
                 f"but the liquidity cushion is tighter."
@@ -983,6 +1008,7 @@ def _render_profitability_snapshot(
         c3.caption(
             "Margin unchanged"
         )
+
 
 # =========================================================
 # WORKING CAPITAL — EXECUTIVE VIEW
@@ -1995,7 +2021,7 @@ def render_dashboard(
         financial_impact=financial_impact,
         projected_fin=projected_fin,
     )
-    
+
     st.divider()
 
     # =====================================================
