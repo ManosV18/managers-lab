@@ -93,8 +93,6 @@ def render_investment_decision_lab(
     # INVESTMENT INPUTS
     # ========================================================================
 
-    st.subheader("Investment Proposal")
-
     col1, col2 = st.columns(2)
 
     with col1:
