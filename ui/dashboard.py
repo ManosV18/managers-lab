@@ -1,6 +1,8 @@
 import streamlit as st
 
 from core.decision_plan import DecisionPlan
+from core.decision import Decision
+from core.investment_decision import InvestmentDecision
 
 # Domain / diagnostics layer
 from diagnostics.cash_fragility import calculate_cash_fragility
@@ -67,6 +69,285 @@ def _get_decision_plan():
             return plan
 
     return None
+
+
+# =========================================================
+# COMPANY STATE / CONTROL TOWER INFORMATION
+# =========================================================
+
+def _render_company_state(
+    baseline_state,
+    projected_state,
+):
+    st.subheader("🏢 Company State")
+
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric(
+        "Baseline Version",
+        str(baseline_state.version),
+    )
+
+    c2.metric(
+        "Baseline",
+        str(baseline_state.label),
+    )
+
+    if projected_state is not None:
+        c3.metric(
+            "Projected Version",
+            str(projected_state.version),
+        )
+    else:
+        c3.metric(
+            "Projected Version",
+            "—",
+        )
+
+
+def _render_decision_plan_summary(
+    decision_plan,
+):
+    if decision_plan is None:
+        st.info(
+            "No Decision Plan selected. "
+            "Control Tower is showing the locked baseline."
+        )
+        return
+
+    st.subheader("🎯 Decision Plan")
+
+    st.write(
+        f"**{decision_plan.name}**"
+    )
+
+    st.caption(
+        f"{decision_plan.decision_count} "
+        "decision(s) evaluated together against "
+        "the locked baseline."
+    )
+
+    rows = []
+
+    for decision in decision_plan.decisions:
+
+        if isinstance(decision, Decision):
+            rows.append(
+                {
+                    "Decision": decision.name,
+                    "Category": decision.category,
+                    "Description": decision.description,
+                }
+            )
+
+        elif isinstance(
+            decision,
+            InvestmentDecision,
+        ):
+            rows.append(
+                {
+                    "Decision": decision.name,
+                    "Category": "Investment",
+                    "Description": decision.description,
+                }
+            )
+
+        else:
+            rows.append(
+                {
+                    "Decision": getattr(
+                        decision,
+                        "name",
+                        "Unnamed Decision",
+                    ),
+                    "Category": getattr(
+                        decision,
+                        "category",
+                        "Unknown",
+                    ),
+                    "Description": getattr(
+                        decision,
+                        "description",
+                        "",
+                    ),
+                }
+            )
+
+    if rows:
+        st.dataframe(
+            rows,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
+def _render_driver_comparison(
+    baseline_state,
+    projected_state,
+):
+    if (
+        baseline_state is None
+        or projected_state is None
+    ):
+        return
+
+    baseline_drivers = getattr(
+        baseline_state,
+        "drivers",
+        None,
+    )
+
+    projected_drivers = getattr(
+        projected_state,
+        "drivers",
+        None,
+    )
+
+    if (
+        baseline_drivers is None
+        or projected_drivers is None
+    ):
+        return
+
+    rows = []
+
+    try:
+        driver_names = list(
+            baseline_drivers.__dataclass_fields__.keys()
+        )
+    except AttributeError:
+        return
+
+    for driver in driver_names:
+
+        if not hasattr(
+            projected_drivers,
+            driver,
+        ):
+            continue
+
+        baseline_value = getattr(
+            baseline_drivers,
+            driver,
+        )
+
+        projected_value = getattr(
+            projected_drivers,
+            driver,
+        )
+
+        if not isinstance(
+            baseline_value,
+            (int, float),
+        ):
+            continue
+
+        if not isinstance(
+            projected_value,
+            (int, float),
+        ):
+            continue
+
+        delta = (
+            float(projected_value)
+            - float(baseline_value)
+        )
+
+        if abs(delta) < 1e-12:
+            continue
+
+        rows.append(
+            {
+                "Driver": driver,
+                "Baseline": baseline_value,
+                "Projected": projected_value,
+                "Delta": delta,
+            }
+        )
+
+    if not rows:
+        return
+
+    st.subheader(
+        "📊 Baseline vs Projected"
+    )
+
+    st.dataframe(
+        rows,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+def _render_execution_trace(
+    trace,
+):
+    if not trace:
+        return
+
+    with st.expander(
+        "🔍 Decision Execution Trace",
+        expanded=False,
+    ):
+        st.json(trace)
+
+
+def _render_financial_impact_detail(
+    financial_impact,
+):
+    if financial_impact is None:
+        return
+
+    st.subheader(
+        "💰 Financial Impact Detail"
+    )
+
+    rows = []
+
+    try:
+        fields = (
+            financial_impact.__dataclass_fields__.keys()
+        )
+
+        for field_name in fields:
+            value = getattr(
+                financial_impact,
+                field_name,
+            )
+
+            rows.append(
+                {
+                    "Metric": field_name,
+                    "Value": value,
+                }
+            )
+
+    except AttributeError:
+        try:
+            values = vars(
+                financial_impact
+            )
+
+            for key, value in values.items():
+                rows.append(
+                    {
+                        "Metric": key,
+                        "Value": value,
+                    }
+                )
+
+        except TypeError:
+            st.write(
+                financial_impact
+            )
+            return
+
+    if rows:
+        st.dataframe(
+            rows,
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 # =========================================================
@@ -1529,6 +1810,27 @@ def render_dashboard(
     decision_plan = _get_decision_plan()
 
     # =====================================================
+    # CONTROL TOWER — COMPANY STATE
+    # =====================================================
+
+    _render_company_state(
+        baseline_state=baseline_state,
+        projected_state=projected_state,
+    )
+
+    st.divider()
+
+    # =====================================================
+    # CONTROL TOWER — DECISION PLAN
+    # =====================================================
+
+    _render_decision_plan_summary(
+        decision_plan=decision_plan,
+    )
+
+    st.divider()
+
+    # =====================================================
     # BASELINE VIEW — NO DECISION PLAN
     # =====================================================
 
@@ -1623,6 +1925,12 @@ def render_dashboard(
 
         _render_cash_management_summary(
             baseline_state=baseline_state,
+        )
+
+        st.divider()
+
+        _render_execution_trace(
+            trace=trace,
         )
 
         return
@@ -1743,3 +2051,26 @@ def render_dashboard(
             financial_impact=financial_impact,
             decision_plan=decision_plan,
         )
+
+    # =====================================================
+    # 7. CONTROL TOWER DETAIL
+    # =====================================================
+
+    st.divider()
+
+    _render_driver_comparison(
+        baseline_state=baseline_state,
+        projected_state=projected_state,
+    )
+
+    st.divider()
+
+    _render_financial_impact_detail(
+        financial_impact=financial_impact,
+    )
+
+    st.divider()
+
+    _render_execution_trace(
+        trace=trace,
+    )
