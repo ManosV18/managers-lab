@@ -727,10 +727,10 @@ class FinancialEngine:
             )
 
             modelled_net_profit_delta = (
-                projected_fin.income_statement.net_profit
-                - baseline_state.net_profit
+                projected_is.net_profit
+                - baseline_fin.income_statement.net_profit
             )
-            
+
             reconciled_net_profit = (
                 baseline_state.net_profit
                 + modelled_net_profit_delta
@@ -760,20 +760,11 @@ class FinancialEngine:
             )
 
             projected_fin = FinancialStatements(
-                income_statement=(
-                    reconciled_income_statement
-                ),
-                working_capital=(
-                    projected_company_fin
-                    .working_capital
-                ),
-                principal_payments=(
-                    projected_company_fin
-                    .principal_payments
-                ),
+                income_statement=reconciled_income_statement,
+                working_capital=projected_company_fin.working_capital,
+                principal_payments=projected_company_fin.principal_payments,
                 fcfe=reconciled_fcfe,
             )
-
         # --------------------------------------------------------------
         # INVESTMENT-INTEGRATED PROJECTION
         # --------------------------------------------------------------
