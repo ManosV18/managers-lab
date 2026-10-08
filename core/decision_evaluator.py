@@ -31,6 +31,8 @@ class DecisionEvaluation:
         DecisionRunner
              ↓
         Projected CompanyState
+             +
+        Investment Year-1 Impacts
              ↓
         FinancialEngine
              ↓
@@ -68,6 +70,7 @@ class DecisionEvaluator:
         - accept a locked baseline
         - accept a DecisionPlan
         - execute the plan through DecisionRunner
+        - collect Year-1 investment impacts
         - calculate financial results through FinancialEngine
         - return one immutable DecisionEvaluation
 
@@ -79,6 +82,7 @@ class DecisionEvaluator:
         - manage Streamlit state
         - resolve business conflicts
         - stack scenarios
+        - calculate investment economics
     """
 
     # =====================================================
@@ -95,6 +99,9 @@ class DecisionEvaluator:
         Evaluate one DecisionPlan against one locked baseline.
 
         The original baseline_state is never modified.
+
+        Direct Decisions and Investment Decisions are both
+        evaluated from the same locked baseline.
 
         Returns:
             DecisionEvaluation
@@ -120,8 +127,15 @@ class DecisionEvaluator:
                 "base_version": baseline_state.version,
                 "final_version": baseline_state.version,
                 "decision_count": 0,
+                "direct_decision_count": 0,
+                "investment_count": 0,
                 "decisions": [],
+                "investments": [],
                 "projection_mode": "baseline",
+                "combined_changes": {},
+                "engine_trace": None,
+                "investment_impacts": [],
+                "investment_impact_objects": (),
                 "message": (
                     "Empty DecisionPlan. "
                     "Projection equals locked baseline."
@@ -137,9 +151,28 @@ class DecisionEvaluator:
             projected_state, execution_report = (
                 DecisionRunner.run_many(
                     baseline_state,
-                    list(plan.decisions),
+                    plan.decisions,
                 )
             )
+
+        # =================================================
+        # INVESTMENT IMPACTS
+        # =================================================
+        #
+        # DecisionRunner keeps the actual
+        # InvestmentCompanyImpact objects separately.
+        #
+        # They must be passed to FinancialEngine as objects,
+        # not reconstructed from the report summaries.
+        # =================================================
+
+        investment_impacts = execution_report.get(
+            "investment_impact_objects",
+            (),
+        )
+
+        if investment_impacts is None:
+            investment_impacts = ()
 
         # =================================================
         # FINANCIAL PROJECTION
@@ -147,8 +180,9 @@ class DecisionEvaluator:
 
         financial_projection = (
             FinancialEngine.build_projection(
-                baseline_state,
-                projected_state,
+                baseline_state=baseline_state,
+                projected_state=projected_state,
+                investment_impacts=investment_impacts,
             )
         )
 
