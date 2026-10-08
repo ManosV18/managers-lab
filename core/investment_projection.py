@@ -1,16 +1,14 @@
 from dataclasses import replace
-from typing import Sequence, Tuple
+from typing import Sequence
 
 from core.models import CompanyState
-from core.investment_decision import InvestmentDecision
 from core.investment_company_impact import InvestmentCompanyImpact
-from core.investment_integration import InvestmentIntegration
 
 
 class InvestmentProjection:
     """
     Builds the integrated CompanyState at the end of Year 1
-    after accepting one or more investment decisions.
+    from already evaluated investment impacts.
 
     Architecture:
 
@@ -22,12 +20,18 @@ class InvestmentProjection:
                 ↓
         InvestmentCompanyImpact(s)
                 ↓
+        InvestmentProjection
+                ↓
         Aggregate Year-1 Impact
                 ↓
         Integrated CompanyState
 
     IMPORTANT
     ---------
+    Investment evaluation happens ONLY in InvestmentIntegration.
+
+    This class does NOT evaluate investments again.
+
     The investment may be multi-year.
 
     CompanyState is projected ONLY at the end of Year 1.
@@ -67,40 +71,50 @@ class InvestmentProjection:
         - apply direct Decisions
         - project CompanyState year by year
         - calculate company-level FinancialProjection
+        - re-evaluate InvestmentDecisions
     """
 
     @classmethod
     def project(
         cls,
         state: CompanyState,
-        investments: Sequence[InvestmentDecision],
-    ) -> Tuple[
-        CompanyState,
-        Tuple[InvestmentCompanyImpact, ...],
-    ]:
+        impacts: Sequence[InvestmentCompanyImpact],
+    ) -> CompanyState:
         """
-        Evaluate all investments against the SAME locked baseline
-        and build ONE integrated CompanyState at the end of Year 1.
+        Build ONE integrated CompanyState at the end of Year 1
+        from already evaluated investment impacts.
+
+        All impacts must have been generated independently
+        against the SAME locked baseline by InvestmentIntegration.
 
         Multiple investments are additive.
 
         They are NOT evaluated sequentially against each other.
 
-        Returns
-        -------
-        projected_state:
-            CompanyState containing the Year-1 company-level state
-            changes that can safely be represented by the current
-            CompanyState model.
+        Parameters
+        ----------
+        state:
+            Locked baseline CompanyState.
 
         impacts:
-            Individual Year-1 investment impacts.
+            Already evaluated Year-1 InvestmentCompanyImpact
+            objects produced by InvestmentIntegration.
+
+        Returns
+        -------
+        CompanyState
+            CompanyState containing the Year-1 company-level
+            state changes that can safely be represented by the
+            current CompanyState model.
 
         Important
         ---------
-        The returned impacts remain necessary because the current
-        CompanyState model does not contain separate project-level
-        revenue, variable cost, working capital or cash-flow fields.
+        This method consumes canonical InvestmentCompanyImpact
+        objects. It never evaluates InvestmentDecision objects.
+
+        The detailed incremental financial effects remain available
+        through InvestmentCompanyImpact and are intended to be
+        consumed by the financial integration layer.
         """
 
         if not isinstance(state, CompanyState):
@@ -108,34 +122,25 @@ class InvestmentProjection:
                 "InvestmentProjection expects a CompanyState."
             )
 
-        for investment in investments:
+        impacts = tuple(impacts)
+
+        for impact in impacts:
             if not isinstance(
-                investment,
-                InvestmentDecision,
+                impact,
+                InvestmentCompanyImpact,
             ):
                 raise TypeError(
-                    "Every item in investments must be "
-                    "an InvestmentDecision."
+                    "Every item in impacts must be an "
+                    "InvestmentCompanyImpact."
                 )
 
-        if not investments:
-            return state, ()
+        if not impacts:
+            return state
 
-        impacts = []
-
-        for investment in investments:
-            _, impact = InvestmentIntegration.evaluate(
-                state,
-                investment,
-            )
-            impacts.append(impact)
-
-        projected_state = cls._apply_aggregate_impact(
+        return cls._apply_aggregate_impact(
             state,
             impacts,
         )
-
-        return projected_state, tuple(impacts)
 
     @staticmethod
     def _apply_aggregate_impact(
