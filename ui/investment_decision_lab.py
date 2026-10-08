@@ -798,7 +798,7 @@ def render_investment_decision_lab(
                 assumptions=assumptions,
             )
 
-            decision_plan.add_decision(
+            st.session_state.decision_plan = decision_plan.add(
                 investment_decision
             )
 
