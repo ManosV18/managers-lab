@@ -5,6 +5,7 @@ from core.decision import Decision
 from core.investment_decision import InvestmentDecision
 from core.decision_engine import DecisionEngine
 from core.investment_integration import InvestmentIntegration
+from core.investment_projection import InvestmentProjection
 
 
 DecisionItem = Decision | InvestmentDecision
@@ -23,19 +24,21 @@ class DecisionRunner:
               ↓
         DecisionRunner
               ↓
-        Combined Projection
-              ↓
-        Projected CompanyState
-
-    Direct Decisions and Investment Decisions are different
-    decision types and therefore follow different execution paths.
+        ┌───────────────────────────┐
+        │ Direct Decisions          │
+        │ Investment Decisions      │
+        └─────────────┬─────────────┘
+                      ↓
+             Combined Projection
+                      ↓
+             Projected CompanyState
 
     Direct Decisions
     ----------------
     Direct Decisions modify canonical CompanyState drivers.
 
-    They are combined and applied ONCE against the same
-    locked baseline.
+    They are combined and applied ONCE against the locked
+    baseline.
 
     Investment Decisions
     --------------------
@@ -44,15 +47,15 @@ class DecisionRunner:
     They are evaluated independently against the SAME locked
     baseline through InvestmentIntegration.
 
-    The investment's multi-year economics are evaluated, but
-    CompanyState integration is limited to the Year-1 impact.
+    Their Year-1 impacts are then integrated through
+    InvestmentProjection.
 
     IMPORTANT
     ---------
-    Multiple Decisions are evaluated together against the
-    SAME locked baseline.
+    All decisions are evaluated from the SAME locked baseline.
 
-    They are NOT sequentially stacked.
+    They are NOT evaluated sequentially against the result of
+    another decision.
 
     The original CompanyState is never modified.
 
@@ -63,11 +66,11 @@ class DecisionRunner:
         - modify the original CompanyState
         - create DecisionPlans
         - manage UI state
-        - calculate company-level FinancialProjection
-        - resolve business conflicts
+        - calculate NPV / IRR itself
+        - calculate investment economics itself
 
-    It is responsible for converting a collection of Decisions
-    and Investment Decisions into execution results.
+    It coordinates the execution services that own those
+    responsibilities.
     """
 
     @classmethod
@@ -76,6 +79,23 @@ class DecisionRunner:
         state: CompanyState,
         decisions: Sequence[DecisionItem],
     ) -> Tuple[CompanyState, Dict[str, Any]]:
+        """
+        Execute a collection of direct and investment decisions.
+
+        All items are evaluated against the same locked baseline.
+
+        Direct Decisions:
+            DecisionEngine
+
+        Investment Decisions:
+            InvestmentIntegration
+            InvestmentProjection
+
+        Returns:
+            projected CompanyState
+            execution report
+        """
+
         if not isinstance(state, CompanyState):
             raise TypeError(
                 "DecisionRunner expects a CompanyState."
@@ -90,6 +110,10 @@ class DecisionRunner:
                     "Every item in decisions must be a "
                     "Decision or InvestmentDecision."
                 )
+
+        # ---------------------------------------------------------
+        # EMPTY PLAN
+        # ---------------------------------------------------------
 
         if not decisions:
             report = {
@@ -109,6 +133,10 @@ class DecisionRunner:
 
             return state, report
 
+        # ---------------------------------------------------------
+        # SPLIT DECISION TYPES
+        # ---------------------------------------------------------
+
         direct_decisions = [
             decision
             for decision in decisions
@@ -124,8 +152,6 @@ class DecisionRunner:
         # ---------------------------------------------------------
         # DIRECT DECISIONS
         # ---------------------------------------------------------
-
-        projected_state = state
 
         combined_changes: Dict[str, Any] = {}
         decision_traces = []
@@ -153,6 +179,7 @@ class DecisionRunner:
                 }
             )
 
+        direct_projected_state = state
         engine_trace = None
 
         if direct_decisions:
@@ -168,7 +195,7 @@ class DecisionRunner:
                 changes=combined_changes,
             )
 
-            projected_state, engine_trace = (
+            direct_projected_state, engine_trace = (
                 DecisionEngine.apply(
                     state,
                     combined_decision,
@@ -178,28 +205,88 @@ class DecisionRunner:
         # ---------------------------------------------------------
         # INVESTMENT DECISIONS
         # ---------------------------------------------------------
+        #
+        # IMPORTANT:
+        # Investments are evaluated against `state`,
+        # NOT `direct_projected_state`.
+        #
+        # This preserves the same-baseline architecture.
+        # ---------------------------------------------------------
 
+        investment_projected_state = state
+        investment_impacts = ()
         investment_traces = []
 
-        for investment in investment_decisions:
-            result, impact = InvestmentIntegration.evaluate(
-                state,
-                investment,
+        if investment_decisions:
+
+            # First evaluate each investment independently.
+            for investment in investment_decisions:
+                result, impact = InvestmentIntegration.evaluate(
+                    state,
+                    investment,
+                )
+
+                investment_traces.append(
+                    {
+                        "investment_id": investment.id,
+                        "investment_name": investment.name,
+                        "description": investment.description,
+                        "decision_type": "investment",
+                        "status": "evaluated",
+                        "npv": result.npv,
+                        "irr": result.irr,
+                        "payback_years": result.payback_years,
+                        "year_1_impact": impact.summary(),
+                    }
+                )
+
+            # Then integrate all Year-1 investment impacts
+            # against the SAME locked baseline.
+            investment_projected_state, investment_impacts = (
+                InvestmentProjection.project(
+                    state,
+                    investment_decisions,
+                )
             )
 
-            investment_traces.append(
-                {
-                    "investment_id": investment.id,
-                    "investment_name": investment.name,
-                    "description": investment.description,
-                    "decision_type": "investment",
-                    "status": "evaluated",
-                    "npv": result.npv,
-                    "irr": result.irr,
-                    "payback_years": result.payback_years,
-                    "year_1_impact": impact.summary(),
-                }
+        # ---------------------------------------------------------
+        # FINAL PROJECTION
+        # ---------------------------------------------------------
+        #
+        # Cases:
+        #
+        # 1. Direct only
+        #       → direct_projected_state
+        #
+        # 2. Investment only
+        #       → investment_projected_state
+        #
+        # 3. Both
+        #       → direct decisions are applied to the
+        #         integrated investment state.
+        #
+        # The investment itself was still evaluated against
+        # the original locked baseline.
+        # ---------------------------------------------------------
+
+        if direct_decisions and investment_decisions:
+
+            projected_state, _ = DecisionEngine.apply(
+                investment_projected_state,
+                combined_decision,
             )
+
+            projection_mode = "combined"
+
+        elif direct_decisions:
+
+            projected_state = direct_projected_state
+            projection_mode = "direct_only"
+
+        else:
+
+            projected_state = investment_projected_state
+            projection_mode = "investment_only"
 
         # ---------------------------------------------------------
         # REPORT
@@ -211,21 +298,22 @@ class DecisionRunner:
             "decision_count": len(decisions),
             "direct_decision_count": len(direct_decisions),
             "investment_count": len(investment_decisions),
-            "projection_mode": (
-                "combined"
-                if direct_decisions
-                else "investment_only"
-            ),
+            "projection_mode": projection_mode,
             "decisions": decision_traces,
             "investments": investment_traces,
             "combined_changes": combined_changes,
             "engine_trace": engine_trace,
+            "investment_impacts": [
+                impact.summary()
+                for impact in investment_impacts
+            ],
             "message": (
-                "All items were evaluated against "
-                "the same locked baseline. Direct Decisions "
-                "were combined and applied once. Investment "
+                "All items were evaluated against the same "
+                "locked baseline. Direct Decisions were "
+                "combined and applied once. Investment "
                 "Decisions were evaluated independently and "
-                "their Year-1 impacts were captured."
+                "their Year-1 impacts were integrated into "
+                "the projected CompanyState."
             ),
         }
 
