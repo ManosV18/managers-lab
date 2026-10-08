@@ -441,368 +441,445 @@ if st.button(
         context,
     )
 
-    # ====================================================================
-    # ADD INVESTMENT TO SHARED DECISION PLAN
-    # ====================================================================
+    # Store the latest evaluated investment.
+    # Evaluation and decision-plan selection are deliberately separate.
+    st.session_state["investment_lab_context"] = context
+    st.session_state["investment_lab_assumptions"] = assumptions
+    st.session_state["investment_lab_result"] = result
 
-    investment_decision = InvestmentDecision.create(
-        decision_id="investment_decision",
-        name="Current Investment",
-        description=(
-            "Investment evaluated in the Investment Decision Lab "
-            "and added to the current Decision Plan."
-        ),
-        assumptions=assumptions,
-        metadata={
-            "source": "investment_decision_lab",
-        },
+    # A fresh evaluation is not automatically considered a selected
+    # management decision.
+    st.session_state["investment_lab_added"] = False
+
+# ========================================================================
+# LAST EVALUATED INVESTMENT
+# ========================================================================
+
+result = st.session_state.get(
+    "investment_lab_result"
+)
+
+assumptions = st.session_state.get(
+    "investment_lab_assumptions"
+)
+
+context = st.session_state.get(
+    "investment_lab_context"
+)
+
+if result is None or assumptions is None or context is None:
+    return
+
+# ========================================================================
+# RESULTS
+# ========================================================================
+
+st.divider()
+
+st.subheader("Investment Decision")
+
+r1, r2, r3 = st.columns(3)
+
+with r1:
+    st.metric(
+        "NPV",
+        f"€{result.npv:,.0f}",
     )
 
-    decision_plan = st.session_state.get("decision_plan")
+with r2:
+    st.metric(
+        "IRR",
+        f"{result.irr * 100:.1f}%",
+    )
 
-    if decision_plan is not None:
+with r3:
 
-        if decision_plan.contains(
-            investment_decision.id
-        ):
-            decision_plan = decision_plan.remove(
-                investment_decision.id
-            )
-
-        decision_plan = decision_plan.add(
-            investment_decision
-        )
-
-        st.session_state.decision_plan = decision_plan
-
-        st.success(
-            "Investment added to the Current Decision Plan. "
-            "The Control Tower will include it in the integrated projection."
-        )
-
-    # ====================================================================
-    # RESULTS
-    # ====================================================================
-
-    st.divider()
-
-    st.subheader("Investment Decision")
-
-    r1, r2, r3 = st.columns(3)
-
-    with r1:
-        st.metric(
-            "NPV",
-            f"€{result.npv:,.0f}",
-        )
-
-    with r2:
-        st.metric(
-            "IRR",
-            f"{result.irr * 100:.1f}%",
-        )
-
-    with r3:
-
-        if math.isinf(result.payback_years):
-            payback_text = "Not recovered"
-        else:
-            payback_text = (
-                f"{result.payback_years:.2f} years"
-            )
-
-        st.metric(
-            "Payback",
-            payback_text,
-        )
-
-    # ====================================================================
-    # DECISION SIGNAL
-    # ====================================================================
-
-    if result.npv > 0:
-
-        st.success(
-            "🟢 Positive NPV — the project creates "
-            "value at the selected discount rate."
-        )
-
-    elif result.npv < 0:
-
-        st.error(
-            "🔴 Negative NPV — the project destroys "
-            "value at the selected discount rate."
-        )
-
+    if math.isinf(result.payback_years):
+        payback_text = "Not recovered"
     else:
-
-        st.warning(
-            "🟡 NPV is approximately zero — the project "
-            "is value-neutral at the selected discount rate."
+        payback_text = (
+            f"{result.payback_years:.2f} years"
         )
 
-    # ====================================================================
-    # YEAR-1 COMPANY IMPACT
-    # ========================================================================
+    st.metric(
+        "Payback",
+        payback_text,
+    )
 
-    if result.year_1_impact is not None:
+# ========================================================================
+# DECISION SIGNAL
+# ========================================================================
 
-        impact = result.year_1_impact
+if result.npv > 0:
 
-        st.divider()
+    st.success(
+        "🟢 Positive NPV — the project creates "
+        "value at the selected discount rate."
+    )
 
-        st.subheader(
-            "Year-1 Impact on Existing Company"
+elif result.npv < 0:
+
+    st.error(
+        "🔴 Negative NPV — the project destroys "
+        "value at the selected discount rate."
+    )
+
+else:
+
+    st.warning(
+        "🟡 NPV is approximately zero — the project "
+        "is value-neutral at the selected discount rate."
+    )
+
+# ========================================================================
+# ADD TO DECISION PLAN
+# ========================================================================
+
+st.divider()
+
+investment_plan = st.session_state.get(
+    "decision_plan"
+)
+
+investment_already_added = (
+    investment_plan is not None
+    and investment_plan.contains("investment_decision")
+)
+
+if investment_already_added:
+
+    st.success(
+        "✅ This investment is currently included "
+        "in the Current Decision Plan."
+    )
+
+    st.caption(
+        "The Control Tower will evaluate it together "
+        "with the other decisions in the plan."
+    )
+
+else:
+
+    st.subheader("Management Decision")
+
+    st.caption(
+        "Evaluation does not automatically select the investment. "
+        "Add it to the Decision Plan only if you want it included "
+        "in the integrated company projection."
+    )
+
+    if st.button(
+        "➕ Add Investment to Decision Plan",
+        type="secondary",
+        use_container_width=True,
+    ):
+
+        investment_decision = InvestmentDecision.create(
+            decision_id="investment_decision",
+            name="Current Investment",
+            description=(
+                "Investment selected from the Investment Decision Lab "
+                "for inclusion in the current Decision Plan."
+            ),
+            assumptions=assumptions,
+            metadata={
+                "source": "investment_decision_lab",
+            },
         )
 
-        st.caption(
-            "Incremental effect if the investment is accepted. "
-            "This is not a separate company state."
+        decision_plan = st.session_state.get(
+            "decision_plan"
         )
 
-        i1, i2, i3, i4 = st.columns(4)
+        if decision_plan is None:
+            st.error(
+                "No active Decision Plan is available."
+            )
+        else:
 
-        with i1:
-            st.metric(
-                "Revenue Δ",
-                f"€{impact.incremental_revenue:,.0f}",
+            if decision_plan.contains(
+                investment_decision.id
+            ):
+                decision_plan = decision_plan.remove(
+                    investment_decision.id
+                )
+
+            decision_plan = decision_plan.add(
+                investment_decision
             )
 
-        with i2:
-            st.metric(
-                "Variable Cost Δ",
-                f"€{impact.incremental_variable_cost:,.0f}",
-            )
-
-        with i3:
-            st.metric(
-                "Fixed Opex Δ",
-                f"€{impact.incremental_fixed_costs:,.0f}",
-            )
-
-        with i4:
-            st.metric(
-                "EBIT Δ",
-                f"€{impact.incremental_ebit:,.0f}",
-            )
-
-        i5, i6, i7, i8 = st.columns(4)
-
-        with i5:
-            st.metric(
-                "Depreciation Δ",
-                f"€{impact.incremental_depreciation:,.0f}",
-            )
-
-        with i6:
-            st.metric(
-                "Net Profit Δ",
-                f"€{impact.incremental_net_profit:,.0f}",
-            )
-
-        with i7:
-            st.metric(
-                "Incremental NWC Requirement",
-                f"€{impact.incremental_nwc:,.0f}",
-            )
-
-        with i8:
-            st.metric(
-                "Operating CF Δ",
-                f"€{impact.incremental_operating_cash_flow:,.0f}",
-            )
-
-        st.subheader("Funding Requirement")
-
-        f1, f2, f3 = st.columns(3)
-
-        with f1:
-            st.metric(
-                "Initial CAPEX",
-                f"€{impact.initial_capex:,.0f}",
-            )
-
-        with f2:
-            st.metric(
-                "Initial NWC Requirement",
-                f"€{impact.initial_nwc_requirement:,.0f}",
-            )
-
-        with f3:
-            st.metric(
-                "Initial Funding Requirement",
-                f"€{impact.initial_funding_requirement:,.0f}",
-            )
-
-    # ====================================================================
-    # PROJECT FLEXIBILITY
-    # ========================================================================
-
-    if allow_exit:
-
-        exit_analysis = calculate_exit_option(
-            assumptions,
-            context,
-            downside_volume_pct=downside_volume_pct,
-        )
-
-        st.divider()
-
-        st.subheader("Project Flexibility")
-
-        st.caption(
-            f"Downside test: Year-1 volume "
-            f"{downside_volume_pct * 100:.0f}% below plan."
-        )
-
-        x1, x2, x3 = st.columns(3)
-
-        with x1:
-            st.metric(
-                "Continue Value",
-                f"€{exit_analysis['downside_continue_value']:,.0f}",
-            )
-
-        with x2:
-            st.metric(
-                "Exit Value",
-                f"€{exit_analysis['downside_exit_value']:,.0f}",
-            )
-
-        with x3:
-            st.metric(
-                "Value of Flexibility",
-                f"€{exit_analysis['value_of_flexibility']:,.0f}",
-            )
-
-        if exit_analysis["value_of_flexibility"] > 0:
+            st.session_state.decision_plan = decision_plan
+            st.session_state["investment_lab_added"] = True
 
             st.success(
-                "💡 Under the downside scenario, "
-                "the ability to exit after Year 1 has economic value."
+                "✅ Investment added to the Current Decision Plan. "
+                "It will now be included in the integrated projection."
             )
 
-        else:
+            st.rerun()
 
-            st.caption(
-                "Under this downside scenario, continuing "
-                "the project has at least as much value as exiting."
-            )
+# ========================================================================
+# YEAR-1 COMPANY IMPACT
+# ========================================================================
 
-    # ====================================================================
-    # PROJECT CASH FLOW
-    # ====================================================================
+if result.year_1_impact is not None:
 
-    st.divider()
-
-    st.subheader("Project Cash Flow")
-
-    rows = []
-
-    for year in result.yearly_cash_flows:
-
-        rows.append(
-            {
-                "Year": year.year,
-                "Units": round(year.units, 0),
-                "Price": round(year.price, 2),
-                "Revenue": round(year.revenue, 0),
-                "Variable Cost": round(
-                    year.variable_cost_total,
-                    0,
-                ),
-                "Incremental Fixed Costs": round(
-                    year.incremental_fixed_costs,
-                    0,
-                ),
-                "Depreciation": round(
-                    year.depreciation,
-                    0,
-                ),
-                "EBIT": round(
-                    year.operating_profit,
-                    0,
-                ),
-                "Tax": round(
-                    year.tax,
-                    0,
-                ),
-                "Operating Cash Flow": round(
-                    year.operating_cash_flow,
-                    0,
-                ),
-                "Incremental NWC": round(
-                    year.incremental_nwc,
-                    0,
-                ),
-                "NWC Cash Flow": round(
-                    year.working_capital_cash_flow,
-                    0,
-                ),
-                "Salvage": round(
-                    year.salvage_value,
-                    0,
-                ),
-                "Project Cash Flow": round(
-                    year.project_cash_flow,
-                    0,
-                ),
-            }
-        )
-
-    st.dataframe(
-        rows,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    # ====================================================================
-    # TORNADO
-    # ====================================================================
+    impact = result.year_1_impact
 
     st.divider()
 
     st.subheader(
-        "Decision Drivers — NPV Sensitivity"
+        "Year-1 Impact on Existing Company"
     )
 
     st.caption(
-        "Shows how much the project's NPV changes when each "
-        "key decision driver moves ±10% from the base case."
+        "Incremental effect if the investment is accepted. "
+        "This is not a separate company state."
     )
 
-    tornado = calculate_tornado_sensitivity(
-        assumptions,
-        context,
-    )
+    i1, i2, i3, i4 = st.columns(4)
 
-    if tornado:
-
-        tornado_rows = [
-            {
-                "Driver": t.driver_name,
-                "Low NPV": f"€{t.low_npv:,.0f}",
-                "Base NPV": f"€{t.base_npv:,.0f}",
-                "High NPV": f"€{t.high_npv:,.0f}",
-                "Impact Range": f"€{t.range_span:,.0f}",
-            }
-            for t in tornado
-        ]
-
-        st.dataframe(
-            tornado_rows,
-            use_container_width=True,
-            hide_index=True,
+    with i1:
+        st.metric(
+            "Revenue Δ",
+            f"€{impact.incremental_revenue:,.0f}",
         )
 
-        st.caption(
-            "Drivers are ranked by the size of their NPV impact. "
-            "A larger Impact Range indicates a more influential "
-            "decision driver."
+    with i2:
+        st.metric(
+            "Variable Cost Δ",
+            f"€{impact.incremental_variable_cost:,.0f}",
+        )
+
+    with i3:
+        st.metric(
+            "Fixed Opex Δ",
+            f"€{impact.incremental_fixed_costs:,.0f}",
+        )
+
+    with i4:
+        st.metric(
+            "EBIT Δ",
+            f"€{impact.incremental_ebit:,.0f}",
+        )
+
+    i5, i6, i7, i8 = st.columns(4)
+
+    with i5:
+        st.metric(
+            "Depreciation Δ",
+            f"€{impact.incremental_depreciation:,.0f}",
+        )
+
+    with i6:
+        st.metric(
+            "Net Profit Δ",
+            f"€{impact.incremental_net_profit:,.0f}",
+        )
+
+    with i7:
+        st.metric(
+            "Incremental NWC Requirement",
+            f"€{impact.incremental_nwc:,.0f}",
+        )
+
+    with i8:
+        st.metric(
+            "Operating CF Δ",
+            f"€{impact.incremental_operating_cash_flow:,.0f}",
+        )
+
+    st.subheader("Funding Requirement")
+
+    f1, f2, f3 = st.columns(3)
+
+    with f1:
+        st.metric(
+            "Initial CAPEX",
+            f"€{impact.initial_capex:,.0f}",
+        )
+
+    with f2:
+        st.metric(
+            "Initial NWC Requirement",
+            f"€{impact.initial_nwc_requirement:,.0f}",
+        )
+
+    with f3:
+        st.metric(
+            "Initial Funding Requirement",
+            f"€{impact.initial_funding_requirement:,.0f}",
+        )
+
+# ========================================================================
+# PROJECT FLEXIBILITY
+# ========================================================================
+
+if allow_exit:
+
+    exit_analysis = calculate_exit_option(
+        assumptions,
+        context,
+        downside_volume_pct=downside_volume_pct,
+    )
+
+    st.divider()
+
+    st.subheader("Project Flexibility")
+
+    st.caption(
+        f"Downside test: Year-1 volume "
+        f"{downside_volume_pct * 100:.0f}% below plan."
+    )
+
+    x1, x2, x3 = st.columns(3)
+
+    with x1:
+        st.metric(
+            "Continue Value",
+            f"€{exit_analysis['downside_continue_value']:,.0f}",
+        )
+
+    with x2:
+        st.metric(
+            "Exit Value",
+            f"€{exit_analysis['downside_exit_value']:,.0f}",
+        )
+
+    with x3:
+        st.metric(
+            "Value of Flexibility",
+            f"€{exit_analysis['value_of_flexibility']:,.0f}",
+        )
+
+    if exit_analysis["value_of_flexibility"] > 0:
+
+        st.success(
+            "💡 Under the downside scenario, "
+            "the ability to exit after Year 1 has economic value."
         )
 
     else:
 
         st.caption(
-            "No non-zero drivers available for sensitivity analysis."
+            "Under this downside scenario, continuing "
+            "the project has at least as much value as exiting."
         )
+
+# ========================================================================
+# PROJECT CASH FLOW
+# ========================================================================
+
+st.divider()
+
+st.subheader("Project Cash Flow")
+
+rows = []
+
+for year in result.yearly_cash_flows:
+
+    rows.append(
+        {
+            "Year": year.year,
+            "Units": round(year.units, 0),
+            "Price": round(year.price, 2),
+            "Revenue": round(year.revenue, 0),
+            "Variable Cost": round(
+                year.variable_cost_total,
+                0,
+            ),
+            "Incremental Fixed Costs": round(
+                year.incremental_fixed_costs,
+                0,
+            ),
+            "Depreciation": round(
+                year.depreciation,
+                0,
+            ),
+            "EBIT": round(
+                year.operating_profit,
+                0,
+            ),
+            "Tax": round(
+                year.tax,
+                0,
+            ),
+            "Operating Cash Flow": round(
+                year.operating_cash_flow,
+                0,
+            ),
+            "Incremental NWC": round(
+                year.incremental_nwc,
+                0,
+            ),
+            "NWC Cash Flow": round(
+                year.working_capital_cash_flow,
+                0,
+            ),
+            "Salvage": round(
+                year.salvage_value,
+                0,
+            ),
+            "Project Cash Flow": round(
+                year.project_cash_flow,
+                0,
+            ),
+        }
+    )
+
+st.dataframe(
+    rows,
+    use_container_width=True,
+    hide_index=True,
+)
+
+# ========================================================================
+# TORNADO
+# ========================================================================
+
+st.divider()
+
+st.subheader(
+    "Decision Drivers — NPV Sensitivity"
+)
+
+st.caption(
+    "Shows how much the project's NPV changes when each "
+    "key decision driver moves ±10% from the base case."
+)
+
+tornado = calculate_tornado_sensitivity(
+    assumptions,
+    context,
+)
+
+if tornado:
+
+    tornado_rows = [
+        {
+            "Driver": t.driver_name,
+            "Low NPV": f"€{t.low_npv:,.0f}",
+            "Base NPV": f"€{t.base_npv:,.0f}",
+            "High NPV": f"€{t.high_npv:,.0f}",
+            "Impact Range": f"€{t.range_span:,.0f}",
+        }
+        for t in tornado
+    ]
+
+    st.dataframe(
+        tornado_rows,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.caption(
+        "Drivers are ranked by the size of their NPV impact. "
+        "A larger Impact Range indicates a more influential "
+        "decision driver."
+    )
+
+else:
+
+    st.caption(
+        "No non-zero drivers available for sensitivity analysis."
+    )
