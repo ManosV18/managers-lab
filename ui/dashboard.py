@@ -647,9 +647,34 @@ def _render_executive_decision(
         financial_impact.fcfe_delta
     )
 
-    wc_cash_impact = float(
+        wc_cash_impact = float(
         financial_impact.nwc_cash_impact_delta
     )
+
+    is_investment = any(
+        isinstance(
+            decision,
+            InvestmentDecision,
+        )
+        for decision in decision_plan.decisions
+    )
+
+    investment_initial_funding = float(
+        getattr(
+            financial_impact,
+            "investment_initial_funding_requirement",
+            0.0,
+        )
+    )
+
+    investment_initial_nwc = float(
+        getattr(
+            financial_impact,
+            "investment_initial_nwc_requirement",
+            0.0,
+        )
+    )
+
 
     # -----------------------------------------------------
     # CASH TIMING RESULT
@@ -913,9 +938,8 @@ def _render_profitability_snapshot(
         projected_revenue,
     )
 
-    net_profit_change = (
-        p.net_profit
-        - baseline_fin.income_statement.net_profit
+    net_profit_change = float(
+        financial_impact.net_profit_delta
     )
 
     margin_change = (
@@ -929,6 +953,7 @@ def _render_profitability_snapshot(
         "Net Profit",
         _fmt_eur(p.net_profit),
     )
+
     c1.caption(
         f"Change vs baseline: "
         f"{_fmt_signed_eur(net_profit_change)}"
@@ -958,7 +983,6 @@ def _render_profitability_snapshot(
         c3.caption(
             "Margin unchanged"
         )
-
 
 # =========================================================
 # WORKING CAPITAL — EXECUTIVE VIEW
@@ -1968,10 +1992,10 @@ def render_dashboard(
     _render_profitability_snapshot(
         baseline_state=baseline_state,
         projected_state=projected_state,
-        baseline_fin=baseline_fin,
+        financial_impact=financial_impact,
         projected_fin=projected_fin,
     )
-
+    
     st.divider()
 
     # =====================================================
