@@ -822,10 +822,7 @@ class FinancialEngine:
         )
 
         # Company-level FCFE delta.
-        fcfe_delta = (
-            projected_fin.fcfe
-            - baseline_fin.fcfe
-        )
+        fcfe_delta = projected_fin.fcfe - baseline_fin.fcfe
 
         investment_cash_impact = (
             aggregated["project_cash_impact"]
