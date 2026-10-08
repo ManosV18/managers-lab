@@ -4,6 +4,7 @@ from core.models import CompanyState
 from core.decision import Decision
 from core.investment_decision import InvestmentDecision
 from core.decision_engine import DecisionEngine
+from core.investment_integration import InvestmentIntegration
 
 
 DecisionItem = Decision | InvestmentDecision
@@ -22,51 +23,52 @@ class DecisionRunner:
               ↓
         DecisionRunner
               ↓
-        ┌───────────────┐
-        │               │
-        ↓               ↓
-    Direct Decisions   Investments
-        │               │
-        ↓               ↓
-    DecisionEngine   Investment Engine
-        │               │
-        └───────┬───────┘
-                ↓
-        Year-1 Integration
-                ↓
+        Combined Projection
+              ↓
         Projected CompanyState
+
+    Direct Decisions and Investment Decisions are different
+    decision types and therefore follow different execution paths.
+
+    Direct Decisions
+    ----------------
+    Direct Decisions modify canonical CompanyState drivers.
+
+    They are combined and applied ONCE against the same
+    locked baseline.
+
+    Investment Decisions
+    --------------------
+    Investments are composite project decisions.
+
+    They are evaluated independently against the SAME locked
+    baseline through InvestmentIntegration.
+
+    The investment's multi-year economics are evaluated, but
+    CompanyState integration is limited to the Year-1 impact.
 
     IMPORTANT
     ---------
-    All items are evaluated against the SAME locked baseline.
+    Multiple Decisions are evaluated together against the
+    SAME locked baseline.
 
-    Direct Decisions are combined and applied once.
-
-    Investment Decisions are NOT converted into
-    Decision.changes and are NOT sequentially stacked
-    onto the CompanyState.
+    They are NOT sequentially stacked.
 
     The original CompanyState is never modified.
 
     DecisionRunner does NOT:
 
         - create Decisions
-        - create InvestmentDecisions
-        - modify decision objects
+        - modify Decision objects
         - modify the original CompanyState
         - create DecisionPlans
         - manage UI state
-        - calculate financial impact
-        - perform investment calculations
-        - sequentially stack decisions
+        - calculate company-level FinancialProjection
+        - resolve business conflicts
 
-    Its responsibility is to orchestrate the execution
-    of the items contained in a DecisionPlan.
+    It is responsible for converting a collection of Decisions
+    and Investment Decisions into execution results.
     """
-
-    # =========================================================
-    # CANONICAL EXECUTION PATH
-    # =========================================================
 
     @classmethod
     def run_many(
@@ -74,69 +76,22 @@ class DecisionRunner:
         state: CompanyState,
         decisions: Sequence[DecisionItem],
     ) -> Tuple[CompanyState, Dict[str, Any]]:
-        """
-        Execute multiple Decisions and Investment Decisions
-        as ONE Combined Plan.
-
-        All items are evaluated against the SAME
-        starting CompanyState.
-
-        Direct Decisions:
-            - combined into one set of driver changes
-            - applied once through DecisionEngine
-
-        Investment Decisions:
-            - remain separate investment objects
-            - are evaluated through the investment layer
-            - their Year-1 impacts are later integrated
-              into the projected CompanyState
-
-        Parameters
-        ----------
-        state:
-            Locked baseline CompanyState.
-
-        decisions:
-            Sequence containing Decision and/or InvestmentDecision.
-
-        Returns
-        -------
-        projected_state:
-            Projected CompanyState.
-
-        execution_report:
-            Transparent execution trace.
-        """
-
-        # =====================================================
-        # VALIDATION
-        # =====================================================
-
-        if not isinstance(
-            state,
-            CompanyState,
-        ):
+        if not isinstance(state, CompanyState):
             raise TypeError(
                 "DecisionRunner expects a CompanyState."
             )
 
         for decision in decisions:
-
             if not isinstance(
                 decision,
                 (Decision, InvestmentDecision),
             ):
                 raise TypeError(
-                    "Every item in decisions must be "
-                    "a Decision or InvestmentDecision."
+                    "Every item in decisions must be a "
+                    "Decision or InvestmentDecision."
                 )
 
-        # =====================================================
-        # EMPTY PLAN
-        # =====================================================
-
         if not decisions:
-
             report = {
                 "base_version": state.version,
                 "final_version": state.version,
@@ -152,14 +107,7 @@ class DecisionRunner:
                 ),
             }
 
-            return (
-                state,
-                report,
-            )
-
-        # =====================================================
-        # SEPARATE DECISION TYPES
-        # =====================================================
+            return state, report
 
         direct_decisions = [
             decision
@@ -173,17 +121,9 @@ class DecisionRunner:
             if isinstance(decision, InvestmentDecision)
         ]
 
-        # =====================================================
+        # ---------------------------------------------------------
         # DIRECT DECISIONS
-        # =====================================================
-        #
-        # Direct Decisions retain their existing execution
-        # architecture.
-        #
-        # They are combined against the ORIGINAL baseline
-        # and applied exactly once.
-        #
-        # =====================================================
+        # ---------------------------------------------------------
 
         projected_state = state
 
@@ -191,19 +131,10 @@ class DecisionRunner:
         decision_traces = []
 
         for decision in direct_decisions:
-
-            changes = dict(
-                decision.changes
-            )
-
-            # ---------------------------------------------
-            # Detect duplicate drivers
-            # ---------------------------------------------
+            changes = dict(decision.changes)
 
             for key, value in changes.items():
-
                 if key in combined_changes:
-
                     raise ValueError(
                         f"Conflicting Decisions detected: "
                         f"driver '{key}' is changed by "
@@ -222,14 +153,9 @@ class DecisionRunner:
                 }
             )
 
-        # =====================================================
-        # APPLY DIRECT DECISIONS
-        # =====================================================
-
         engine_trace = None
 
         if direct_decisions:
-
             combined_decision = Decision(
                 id="combined_plan",
                 name="Combined Decision Plan",
@@ -249,29 +175,17 @@ class DecisionRunner:
                 )
             )
 
-        # =====================================================
+        # ---------------------------------------------------------
         # INVESTMENT DECISIONS
-        # =====================================================
-        #
-        # IMPORTANT:
-        #
-        # Investments are NOT converted into changes such as:
-        #
-        #     price = ...
-        #     volume = ...
-        #     fixed_opex = ...
-        #
-        # They have their own project economics and will
-        # produce a Year-1 InvestmentCompanyImpact.
-        #
-        # The actual investment evaluation/integration layer
-        # is deliberately kept outside DecisionEngine.
-        #
-        # =====================================================
+        # ---------------------------------------------------------
 
         investment_traces = []
 
         for investment in investment_decisions:
+            result, impact = InvestmentIntegration.evaluate(
+                state,
+                investment,
+            )
 
             investment_traces.append(
                 {
@@ -279,24 +193,24 @@ class DecisionRunner:
                     "investment_name": investment.name,
                     "description": investment.description,
                     "decision_type": "investment",
-                    "status": "pending_year_1_integration",
+                    "status": "evaluated",
+                    "npv": result.npv,
+                    "irr": result.irr,
+                    "payback_years": result.payback_years,
+                    "year_1_impact": impact.summary(),
                 }
             )
 
-        # =====================================================
-        # EXECUTION REPORT
-        # =====================================================
+        # ---------------------------------------------------------
+        # REPORT
+        # ---------------------------------------------------------
 
         report = {
             "base_version": state.version,
             "final_version": projected_state.version,
             "decision_count": len(decisions),
-            "direct_decision_count": len(
-                direct_decisions
-            ),
-            "investment_count": len(
-                investment_decisions
-            ),
+            "direct_decision_count": len(direct_decisions),
+            "investment_count": len(investment_decisions),
             "projection_mode": (
                 "combined"
                 if direct_decisions
@@ -310,12 +224,9 @@ class DecisionRunner:
                 "All items were evaluated against "
                 "the same locked baseline. Direct Decisions "
                 "were combined and applied once. Investment "
-                "Decisions remain separate project decisions "
-                "for Year-1 integration."
+                "Decisions were evaluated independently and "
+                "their Year-1 impacts were captured."
             ),
         }
 
-        return (
-            projected_state,
-            report,
-        )
+        return projected_state, report
