@@ -824,11 +824,7 @@ class FinancialEngine:
         # Company-level FCFE delta.
         fcfe_delta = (
             projected_fin.fcfe
-            - (
-                baseline_state.net_profit
-                + baseline_fin.income_statement.depreciation
-                - baseline_fin.principal_payments
-            )
+            - baseline_fin.fcfe
         )
 
         investment_cash_impact = (
