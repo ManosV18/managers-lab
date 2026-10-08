@@ -15,7 +15,7 @@ from tools.investment_decision import (
 # INVESTMENT LAB
 # ============================================================================
 
-def render_investment_lab(
+def render_investment_decision_lab(
     baseline_state,
     decision_plan,
 ):
