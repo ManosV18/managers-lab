@@ -97,12 +97,6 @@ def render_investment_decision_lab(
 
     with col1:
 
-        project_name = st.text_input(
-            "Investment Name",
-            value="New Investment",
-            key="investment_project_name",
-        )
-
         initial_investment = st.number_input(
             "Initial CAPEX",
             min_value=0.0,
@@ -434,7 +428,6 @@ def render_investment_decision_lab(
         st.session_state["investment_result"] = result
         st.session_state["investment_assumptions"] = assumptions
         st.session_state["investment_context"] = context
-        st.session_state["investment_project_name"] = project_name
 
     # ========================================================================
     # STORED RESULT
@@ -453,11 +446,6 @@ def render_investment_decision_lab(
 
     context = st.session_state.get(
         "investment_context"
-    )
-
-    project_name = st.session_state.get(
-        "investment_project_name",
-        project_name,
     )
 
     # ========================================================================
@@ -802,7 +790,7 @@ def render_investment_decision_lab(
 
             investment_decision = InvestmentDecision.create(
                 decision_id="investment_1",
-                name=project_name,
+                name="New Investment",
                 description=(
                     "Investment project evaluated against the locked "
                     "company baseline."
@@ -815,7 +803,7 @@ def render_investment_decision_lab(
             )
 
             st.success(
-                f"Investment '{project_name}' was added to the Decision Plan."
+                "Investment was added to the Decision Plan."
             )
 
     else:
