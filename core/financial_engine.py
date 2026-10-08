@@ -727,10 +727,10 @@ class FinancialEngine:
             )
 
             modelled_net_profit_delta = (
-                projected_is.net_profit
-                - baseline_fin.income_statement.net_profit
+                projected_fin.income_statement.net_profit
+                - baseline_state.net_profit
             )
-
+            
             reconciled_net_profit = (
                 baseline_state.net_profit
                 + modelled_net_profit_delta
