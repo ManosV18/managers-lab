@@ -9,7 +9,8 @@ from core.investment_integration import InvestmentIntegration
 
 class InvestmentProjection:
     """
-    Builds the end-of-Year-1 CompanyState impact of investments.
+    Builds the integrated CompanyState at the end of Year 1
+    after accepting one or more investment decisions.
 
     Architecture:
 
@@ -23,31 +24,49 @@ class InvestmentProjection:
                 ↓
         Aggregate Year-1 Impact
                 ↓
-        Projected CompanyState
+        Integrated CompanyState
 
     IMPORTANT
     ---------
-    The investment itself may be multi-year.
+    The investment may be multi-year.
 
-    CompanyState is NOT projected year by year.
+    CompanyState is projected ONLY at the end of Year 1.
 
-    Only the end-of-Year-1 impact is integrated into the
-    existing company state.
+    The project remains a separate economic object during
+    investment evaluation.
+
+    This class integrates only those Year-1 effects that can
+    be represented directly and unambiguously by the existing
+    CompanyState model.
+
+    Project-specific financial economics such as:
+
+        - project revenue
+        - project variable cost
+        - project volume
+        - project NWC
+        - project CAPEX
+        - project operating cash flow
+
+    remain in InvestmentCompanyImpact.
+
+    They are NOT forced into the existing Company's:
+
+        - price
+        - variable_cost_per_unit
+        - opening_cash
+
+    This is intentional.
 
     This class does NOT:
         - calculate NPV
         - calculate IRR
-        - calculate payback
+        - calculate Payback
         - evaluate project economics
         - modify the locked baseline
         - apply direct Decisions
-        - model future CompanyState values
-
-    Investment economics remain the responsibility of the
-    investment engine.
-
-    This class is only the bridge from project economics to
-    the company's Year-1 projected state.
+        - project CompanyState year by year
+        - calculate company-level FinancialProjection
     """
 
     @classmethod
@@ -60,12 +79,28 @@ class InvestmentProjection:
         Tuple[InvestmentCompanyImpact, ...],
     ]:
         """
-        Evaluate investments against the same locked baseline
-        and build one projected CompanyState at the end of Year 1.
+        Evaluate all investments against the SAME locked baseline
+        and build ONE integrated CompanyState at the end of Year 1.
 
-        Multiple investments are additive at Year 1.
+        Multiple investments are additive.
 
-        They are NOT evaluated sequentially against one another.
+        They are NOT evaluated sequentially against each other.
+
+        Returns
+        -------
+        projected_state:
+            CompanyState containing the Year-1 company-level state
+            changes that can safely be represented by the current
+            CompanyState model.
+
+        impacts:
+            Individual Year-1 investment impacts.
+
+        Important
+        ---------
+        The returned impacts remain necessary because the current
+        CompanyState model does not contain separate project-level
+        revenue, variable cost, working capital or cash-flow fields.
         """
 
         if not isinstance(state, CompanyState):
@@ -74,7 +109,10 @@ class InvestmentProjection:
             )
 
         for investment in investments:
-            if not isinstance(investment, InvestmentDecision):
+            if not isinstance(
+                investment,
+                InvestmentDecision,
+            ):
                 raise TypeError(
                     "Every item in investments must be "
                     "an InvestmentDecision."
@@ -105,28 +143,36 @@ class InvestmentProjection:
         impacts: Sequence[InvestmentCompanyImpact],
     ) -> CompanyState:
         """
-        Apply the aggregate Year-1 investment impact to the
-        existing CompanyState.
+        Apply aggregate Year-1 investment effects to CompanyState.
 
-        The investment remains incremental.
+        Only effects that have an unambiguous representation in the
+        current CompanyState are integrated here:
 
-        Existing company drivers are not replaced by project
-        economics such as project selling price or project
-        variable cost per unit.
+            fixed_opex
+            fixed_assets
+            depreciation
 
-        Only aggregate company-level effects are added.
+        Project-specific revenue, variable cost and volume are NOT
+        converted into blended company drivers.
+
+        Likewise, investment cash impact is NOT written into
+        opening_cash because opening_cash represents the beginning
+        cash position of the CompanyState, not end-of-Year-1 cash.
+
+        The detailed incremental financial effects remain available
+        through InvestmentCompanyImpact and are intended to be
+        consumed by the financial integration layer.
         """
 
         if not impacts:
             return state
 
-        total_volume_delta = sum(
-            impact.volume_delta
-            for impact in impacts
-        )
+        # ---------------------------------------------------------
+        # 1. AGGREGATE REPRESENTABLE COMPANY-LEVEL IMPACTS
+        # ---------------------------------------------------------
 
-        total_fixed_assets_delta = sum(
-            impact.fixed_assets_delta
+        total_fixed_opex_delta = sum(
+            impact.fixed_opex_delta
             for impact in impacts
         )
 
@@ -135,46 +181,48 @@ class InvestmentProjection:
             for impact in impacts
         )
 
-        total_fixed_opex_delta = sum(
-            impact.fixed_opex_delta
+        total_fixed_assets_delta = sum(
+            impact.fixed_assets_delta
             for impact in impacts
         )
 
-        total_nwc_delta = sum(
-            impact.nwc_delta
-            for impact in impacts
+        # ---------------------------------------------------------
+        # 2. UPDATE COMPANY-LEVEL DRIVERS
+        # ---------------------------------------------------------
+
+        projected_fixed_opex = (
+            state.drivers.fixed_opex
+            + total_fixed_opex_delta
         )
 
-        total_cash_impact = sum(
-            impact.project_cash_impact
-            for impact in impacts
+        projected_fixed_assets = (
+            state.drivers.fixed_assets
+            + total_fixed_assets_delta
         )
+
+        projected_depreciation = (
+            state.drivers.depreciation
+            + total_depreciation_delta
+        )
+
+        # ---------------------------------------------------------
+        # 3. BUILD PROJECTED DRIVERS
+        # ---------------------------------------------------------
 
         drivers = replace(
             state.drivers,
-            volume=(
-                state.drivers.volume
-                + total_volume_delta
-            ),
-            fixed_opex=(
-                state.drivers.fixed_opex
-                + total_fixed_opex_delta
-            ),
-            fixed_assets=(
-                state.drivers.fixed_assets
-                + total_fixed_assets_delta
-            ),
-            depreciation=(
-                state.drivers.depreciation
-                + total_depreciation_delta
-            ),
+            fixed_opex=projected_fixed_opex,
+            fixed_assets=projected_fixed_assets,
+            depreciation=projected_depreciation,
         )
 
-        projected_state = replace(
+        # ---------------------------------------------------------
+        # 4. BUILD PROJECTED COMPANY STATE
+        # ---------------------------------------------------------
+
+        return replace(
             state,
             version=state.version + 1,
             label=f"{state.label} + Investment Year 1",
             drivers=drivers,
         )
-
-        return projected_state
