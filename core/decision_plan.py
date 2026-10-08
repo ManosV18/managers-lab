@@ -2,6 +2,14 @@ from dataclasses import dataclass
 from typing import Tuple
 
 from core.decision import Decision
+from core.investment_decision import InvestmentDecision
+
+
+# =========================================================
+# DECISION ITEM
+# =========================================================
+
+DecisionItem = Decision | InvestmentDecision
 
 
 # =========================================================
@@ -11,7 +19,7 @@ from core.decision import Decision
 @dataclass(frozen=True)
 class DecisionPlan:
     """
-    Immutable collection of business Decisions
+    Immutable collection of business Decisions and Investment Decisions
     evaluated together as one management choice.
 
     A DecisionPlan does NOT:
@@ -30,7 +38,7 @@ class DecisionPlan:
              \
         Decision  ---> DecisionPlan
              /
-        Decision
+        InvestmentDecision
              ↓
         DecisionRunner.run_many()
              ↓
@@ -39,7 +47,7 @@ class DecisionPlan:
 
     id: str
     name: str
-    decisions: Tuple[Decision, ...]
+    decisions: Tuple[DecisionItem, ...]
 
     # =====================================================
     # VALIDATION
@@ -79,11 +87,11 @@ class DecisionPlan:
 
             if not isinstance(
                 decision,
-                Decision,
+                (Decision, InvestmentDecision),
             ):
                 raise TypeError(
                     "DecisionPlan can contain only "
-                    "Decision objects."
+                    "Decision or InvestmentDecision objects."
                 )
 
         ids = [
@@ -107,7 +115,7 @@ class DecisionPlan:
         *,
         plan_id: str,
         name: str,
-        decisions: Tuple[Decision, ...] = (),
+        decisions: Tuple[DecisionItem, ...] = (),
     ) -> "DecisionPlan":
         """
         Create a DecisionPlan.
@@ -135,22 +143,22 @@ class DecisionPlan:
 
     def add(
         self,
-        decision: Decision,
+        decision: DecisionItem,
     ) -> "DecisionPlan":
         """
         Return a NEW DecisionPlan containing the
-        supplied Decision.
+        supplied Decision or InvestmentDecision.
 
         The existing plan remains unchanged.
         """
 
         if not isinstance(
             decision,
-            Decision,
+            (Decision, InvestmentDecision),
         ):
             raise TypeError(
-                "Only Decision objects can be "
-                "added to a DecisionPlan."
+                "Only Decision or InvestmentDecision objects "
+                "can be added to a DecisionPlan."
             )
 
         if self.contains(decision.id):
@@ -177,7 +185,7 @@ class DecisionPlan:
     ) -> "DecisionPlan":
         """
         Return a NEW DecisionPlan without the
-        specified Decision.
+        specified Decision or InvestmentDecision.
         """
 
         if not isinstance(
@@ -217,8 +225,8 @@ class DecisionPlan:
         decision_id: str,
     ) -> bool:
         """
-        Check whether a Decision with the supplied
-        ID belongs to this plan.
+        Check whether a Decision or InvestmentDecision
+        with the supplied ID belongs to this plan.
         """
 
         return any(
@@ -233,7 +241,8 @@ class DecisionPlan:
     @property
     def decision_count(self) -> int:
         """
-        Number of Decisions contained in the plan.
+        Number of Decisions and Investment Decisions
+        contained in the plan.
         """
 
         return len(self.decisions)
@@ -245,7 +254,7 @@ class DecisionPlan:
     @property
     def is_empty(self) -> bool:
         """
-        True when the plan contains no Decisions.
+        True when the plan contains no decisions.
         """
 
         return not self.decisions
