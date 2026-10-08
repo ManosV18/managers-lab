@@ -1104,11 +1104,11 @@ if current_page == "📈 Growth & Funding Lab":
 if current_page == "📊 Investment Decision Lab":
 
     render_investment_decision_lab(
-        baseline_state=baseline
+        baseline_state=baseline,
+        decision_plan=decision_plan,
     )
 
     st.stop()
-
 
 if current_page == "👥 Customer Value":
 
