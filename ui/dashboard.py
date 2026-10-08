@@ -887,6 +887,7 @@ def _render_revenue_bridge(financial_impact):
 def _render_profitability_snapshot(
     baseline_state,
     projected_state,
+    baseline_fin,
     projected_fin,
 ):
     p = projected_fin.income_statement
@@ -914,7 +915,7 @@ def _render_profitability_snapshot(
 
     net_profit_change = (
         p.net_profit
-        - baseline_state.net_profit
+        - baseline_fin.income_statement.net_profit
     )
 
     margin_change = (
@@ -1967,6 +1968,7 @@ def render_dashboard(
     _render_profitability_snapshot(
         baseline_state=baseline_state,
         projected_state=projected_state,
+        baseline_fin=baseline_fin,
         projected_fin=projected_fin,
     )
 
