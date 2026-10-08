@@ -887,7 +887,7 @@ def _render_revenue_bridge(financial_impact):
 def _render_profitability_snapshot(
     baseline_state,
     projected_state,
-    baseline_fin,
+    financial_impact,
     projected_fin,
 ):
     p = projected_fin.income_statement
