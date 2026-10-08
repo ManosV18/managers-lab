@@ -157,7 +157,7 @@ class InvestmentIntegration:
             fixed_opex_delta=(
                 year_1.incremental_fixed_costs
             ),
-            depreciation_delta=year_1.depreciation,
+            depreciation_delta=year_1.incremental_depreciation,
             fixed_assets_delta=(
                 year_1.incremental_fixed_assets
             ),
