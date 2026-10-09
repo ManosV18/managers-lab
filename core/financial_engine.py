@@ -675,7 +675,6 @@ class FinancialEngine:
             baseline_state
         )
 
-        
         baseline_is_modelled = (
             baseline_modelled_fin.income_statement
         )
@@ -711,7 +710,7 @@ class FinancialEngine:
             ),
             fcfe=baseline_fcfe,
         )
-        
+
         # -------------------------------------------------
         # PROJECTED COMPANY
         # -------------------------------------------------
@@ -845,7 +844,7 @@ class FinancialEngine:
 
         modelled_net_profit_delta = (
             projected_is.net_profit
-            - baseline_is.net_profit
+            - baseline_state.net_profit
         )
 
         nwc_cash_impact_delta = (
