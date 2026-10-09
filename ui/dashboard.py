@@ -831,7 +831,10 @@ def _render_executive_decision(
     c3.metric(
         "💶 Cash Generation",
         _fmt_eur(projected_fin.fcfe),
+        delta=_fmt_signed_eur(fcfe_delta),
+        delta_color="normal",
     )
+    
     c3.caption(
         f"Change vs baseline: "
         f"{_fmt_signed_eur(fcfe_delta)}"
