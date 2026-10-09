@@ -111,25 +111,6 @@ class FinancialEngine:
         Year-1 investment impacts
                 ↓
         Integrated projected financial statements
-
-    Important distinction
-    ---------------------
-    CompanyState.net_profit is the reported/imported baseline result.
-
-    FinancialEngine separately calculates a MODELLED financial statement
-    from the operating and financing drivers.
-
-    Therefore:
-
-        baseline reported NP
-            !=
-        baseline modelled NP
-
-    unless the underlying company data happen to reconcile.
-
-    For an integrated projection containing investments, the projected
-    net profit is calculated from the integrated economics rather than
-    using CompanyState.net_profit as an anchor.
     """
 
     # =====================================================
@@ -317,16 +298,6 @@ class FinancialEngine:
             - baseline_is.revenue
         )
 
-        # Sequential price/volume decomposition:
-        #
-        # Price effect:
-        #   V0 × (P1 - P0)
-        #
-        # Volume effect:
-        #   (V1 - V0) × P1
-        #
-        # Together:
-        #   V1P1 - V0P0
         price_effect = (
             baseline_state.drivers.volume
             * (
@@ -501,6 +472,7 @@ class FinancialEngine:
         cls,
         projected_company_fin: FinancialStatements,
         baseline_company_fin: FinancialStatements,
+        baseline_state: CompanyState,
         projected_state: CompanyState,
         investment_impacts: Sequence[
             InvestmentCompanyImpact
@@ -510,18 +482,10 @@ class FinancialEngine:
         Build the integrated company + investment Year-1 statement.
 
         The investment contributes incremental:
+            Revenue, Variable cost, Fixed opex, Depreciation, Working capital
 
-            Revenue
-            Variable cost
-            Fixed opex
-            Depreciation
-            Working capital
-
-        The resulting integrated EBIT/EBT/tax/NP is calculated again
-        from the combined economics.
-
-        This is deliberately independent from the reported
-        CompanyState.net_profit.
+        Reconciles the integrated Net Profit against baseline_state.net_profit
+        using the modelled net profit delta.
         """
 
         aggregated = (
@@ -535,7 +499,7 @@ class FinancialEngine:
         )
 
         # -------------------------------------------------
-        # Revenue
+        # Income Statement Calculations
         # -------------------------------------------------
 
         integrated_revenue = (
@@ -543,84 +507,44 @@ class FinancialEngine:
             + aggregated["revenue_delta"]
         )
 
-        # -------------------------------------------------
-        # COGS
-        # -------------------------------------------------
-
         integrated_cogs = (
             company_is.cogs
             + aggregated["variable_cost_delta"]
         )
-
-        # -------------------------------------------------
-        # Gross profit
-        # -------------------------------------------------
 
         integrated_gross_profit = (
             integrated_revenue
             - integrated_cogs
         )
 
-        # -------------------------------------------------
-        # Fixed Opex
-        # -------------------------------------------------
-
         integrated_fixed_opex = (
             company_is.fixed_opex
             + aggregated["fixed_opex_delta"]
         )
-
-        # -------------------------------------------------
-        # EBITDA
-        # -------------------------------------------------
 
         integrated_ebitda = (
             integrated_gross_profit
             - integrated_fixed_opex
         )
 
-        # -------------------------------------------------
-        # Depreciation
-        # -------------------------------------------------
-
         integrated_depreciation = (
             company_is.depreciation
             + aggregated["depreciation_delta"]
         )
-
-        # -------------------------------------------------
-        # EBIT
-        # -------------------------------------------------
 
         integrated_ebit = (
             integrated_ebitda
             - integrated_depreciation
         )
 
-        # -------------------------------------------------
-        # Interest
-        #
-        # Investment impact does not introduce debt
-        # interest here. Financing of the investment is
-        # handled separately.
-        # -------------------------------------------------
-
         integrated_interest = (
             company_is.interest_expense
         )
-
-        # -------------------------------------------------
-        # EBT
-        # -------------------------------------------------
 
         integrated_ebt = (
             integrated_ebit
             - integrated_interest
         )
-
-        # -------------------------------------------------
-        # Tax
-        # -------------------------------------------------
 
         integrated_tax = max(
             0.0,
@@ -628,24 +552,23 @@ class FinancialEngine:
             * projected_state.capital_structure.tax_rate,
         )
 
-        # -------------------------------------------------
-        # NET PROFIT
-        #
-        # IMPORTANT:
-        #
-        # Do NOT use:
-        #
-        #     projected_state.net_profit
-        #
-        # here.
-        #
-        # The integrated statement is modelled from the
-        # operating economics.
-        # -------------------------------------------------
-
-        integrated_net_profit = (
+        modelled_integrated_net_profit = (
             integrated_ebt
             - integrated_tax
+        )
+
+        # -------------------------------------------------
+        # NET PROFIT RECONCILIATION
+        # -------------------------------------------------
+
+        modelled_net_profit_delta = (
+            modelled_integrated_net_profit
+            - baseline_company_fin.income_statement.net_profit
+        )
+
+        reconciled_net_profit = (
+            baseline_state.net_profit
+            + modelled_net_profit_delta
         )
 
         # -------------------------------------------------
@@ -685,15 +608,15 @@ class FinancialEngine:
         )
 
         # -------------------------------------------------
-        # FCFE
+        # FCFE RECONCILIATION
         # -------------------------------------------------
 
         integrated_principal = (
             projected_company_fin.principal_payments
         )
 
-        integrated_fcfe = (
-            integrated_net_profit
+        reconciled_fcfe = (
+            reconciled_net_profit
             + integrated_depreciation
             - integrated_principal
             + integrated_wc_cash_impact
@@ -711,7 +634,7 @@ class FinancialEngine:
                 interest_expense=integrated_interest,
                 ebt=integrated_ebt,
                 tax=integrated_tax,
-                net_profit=integrated_net_profit,
+                net_profit=reconciled_net_profit,
             ),
 
             working_capital=WorkingCapitalMetrics(
@@ -723,7 +646,7 @@ class FinancialEngine:
             ),
 
             principal_payments=integrated_principal,
-            fcfe=integrated_fcfe,
+            fcfe=reconciled_fcfe,
         )
 
     # =====================================================
@@ -748,20 +671,19 @@ class FinancialEngine:
         # BASELINE
         # -------------------------------------------------
 
-        baseline_fin = cls.calculate_statements(
+        baseline_modelled_fin = cls.calculate_statements(
             baseline_state
         )
 
+        baseline_fin = baseline_modelled_fin
+
         # -------------------------------------------------
         # PROJECTED COMPANY
-        #
-        # This contains direct company decisions only.
-        # Investment impacts are integrated afterwards.
         # -------------------------------------------------
 
         projected_company_fin = cls.calculate_statements(
             projected_state,
-            prior_nwc=baseline_fin.working_capital.nwc,
+            prior_nwc=baseline_modelled_fin.working_capital.nwc,
         )
 
         # =================================================
@@ -778,26 +700,10 @@ class FinancialEngine:
                 projected_company_fin.working_capital
             )
 
-            # ---------------------------------------------
-            # Modelled direct-company NP delta
-            # ---------------------------------------------
-
             modelled_net_profit_delta = (
                 projected_is.net_profit
-                - baseline_fin.income_statement.net_profit
+                - baseline_modelled_fin.income_statement.net_profit
             )
-
-            # ---------------------------------------------
-            # Existing reconciliation rule for direct
-            # company decisions:
-            #
-            # Reported baseline NP
-            # +
-            # Modelled decision delta
-            #
-            # This preserves the reported baseline when
-            # there is no investment integration.
-            # ---------------------------------------------
 
             reconciled_net_profit = (
                 baseline_state.net_profit
@@ -844,7 +750,8 @@ class FinancialEngine:
             projected_fin = (
                 cls._build_integrated_statements(
                     projected_company_fin=projected_company_fin,
-                    baseline_company_fin=baseline_fin,
+                    baseline_company_fin=baseline_modelled_fin,
+                    baseline_state=baseline_state,
                     projected_state=projected_state,
                     investment_impacts=investment_impacts,
                 )
@@ -900,16 +807,6 @@ class FinancialEngine:
             projected_is.ebitda
             - baseline_is.ebitda
         )
-
-        # -------------------------------------------------
-        # IMPORTANT:
-        #
-        # This is the modelled integrated NP delta:
-        #
-        # projected integrated NP
-        # -
-        # baseline modelled NP
-        # -------------------------------------------------
 
         modelled_net_profit_delta = (
             projected_is.net_profit
