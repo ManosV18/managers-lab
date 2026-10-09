@@ -675,8 +675,43 @@ class FinancialEngine:
             baseline_state
         )
 
-        baseline_fin = baseline_modelled_fin
+        
+        baseline_is_modelled = (
+            baseline_modelled_fin.income_statement
+        )
 
+        baseline_wc = (
+            baseline_modelled_fin.working_capital
+        )
+
+        baseline_fcfe = (
+            baseline_state.net_profit
+            + baseline_is_modelled.depreciation
+            - baseline_modelled_fin.principal_payments
+            + baseline_wc.wc_cash_impact
+        )
+
+        baseline_fin = FinancialStatements(
+            income_statement=IncomeStatement(
+                revenue=baseline_is_modelled.revenue,
+                cogs=baseline_is_modelled.cogs,
+                gross_profit=baseline_is_modelled.gross_profit,
+                fixed_opex=baseline_is_modelled.fixed_opex,
+                ebitda=baseline_is_modelled.ebitda,
+                depreciation=baseline_is_modelled.depreciation,
+                ebit=baseline_is_modelled.ebit,
+                interest_expense=baseline_is_modelled.interest_expense,
+                ebt=baseline_is_modelled.ebt,
+                tax=baseline_is_modelled.tax,
+                net_profit=baseline_state.net_profit,
+            ),
+            working_capital=baseline_wc,
+            principal_payments=(
+                baseline_modelled_fin.principal_payments
+            ),
+            fcfe=baseline_fcfe,
+        )
+        
         # -------------------------------------------------
         # PROJECTED COMPANY
         # -------------------------------------------------
