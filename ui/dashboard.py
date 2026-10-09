@@ -884,7 +884,6 @@ def _render_executive_decision(
             "💧 Working capital has no incremental cash impact."
         )
 
-
 # =========================================================
 # REVENUE BRIDGE
 # =========================================================
@@ -902,11 +901,19 @@ def _render_revenue_bridge(financial_impact):
         financial_impact.volume_effect
     )
 
+    investment_revenue_delta = float(
+        getattr(
+            financial_impact,
+            "investment_revenue_delta",
+            0.0,
+        )
+    )
+
     revenue_delta = float(
         financial_impact.revenue_delta
     )
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
 
     c1.metric(
         "Price Change Impact",
@@ -923,12 +930,18 @@ def _render_revenue_bridge(financial_impact):
     )
 
     c3.metric(
+        "Investment Revenue",
+        _fmt_signed_eur(
+            investment_revenue_delta
+        ),
+    )
+
+    c4.metric(
         "Total Revenue Change",
         _fmt_signed_eur(
             revenue_delta
         ),
     )
-
 
 # =========================================================
 # PROFITABILITY
