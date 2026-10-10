@@ -284,7 +284,7 @@ class DecisionRunner:
 
             for investment in investment_decisions:
                 result, impact = InvestmentIntegration.evaluate(
-                    direct_projected_state,
+                    state,
                     investment,
                 )
                 

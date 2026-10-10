@@ -605,7 +605,7 @@ class FinancialEngine:
             baseline_company_fin
             .working_capital
             .nwc
-            - company_wc.nwc
+            - integrated_nwc
         )
 
         # -------------------------------------------------
@@ -621,6 +621,7 @@ class FinancialEngine:
             + integrated_depreciation
             - integrated_principal
             + integrated_wc_cash_impact
+            - aggregated["initial_capex"]
         )
 
         return FinancialStatements(

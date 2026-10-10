@@ -19,6 +19,7 @@ from tools.investment_decision import (
 def render_investment_decision_lab(
     baseline_state=None,
     decision_plan=None,
+    financial_projection=None,
 ):
 
     st.title("📊 Investment Decision Lab")
@@ -810,4 +811,85 @@ def render_investment_decision_lab(
 
         st.info(
             "Decision Plan is not available in the current app context."
+        )
+
+
+def render_integrated_company_projection(financial_projection=None):
+    # ========================================================================
+    # INTEGRATED COMPANY PROJECTION
+    # ========================================================================
+
+    st.divider()
+    st.subheader("Integrated Company Projection")
+
+    st.caption(
+        "Company-wide results from the current Decision Plan. "
+        "Investment CAPEX is included in projected FCFE; "
+        "working capital is integrated once."
+    )
+
+    if financial_projection is not None:
+        baseline_fin = financial_projection.baseline
+        projected_fin = financial_projection.projected
+        impact = financial_projection.impact
+
+        base_is = baseline_fin.income_statement
+        projected_is = projected_fin.income_statement
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "Revenue",
+            f"€{projected_is.revenue:,.0f}",
+            delta=f"€{projected_is.revenue - base_is.revenue:,.0f}",
+        )
+
+        c2.metric(
+            "Net Profit",
+            f"€{projected_is.net_profit:,.0f}",
+            delta=f"€{projected_is.net_profit - base_is.net_profit:,.0f}",
+        )
+
+        c3.metric(
+            "FCFE",
+            f"€{projected_fin.fcfe:,.0f}",
+            delta=f"€{projected_fin.fcfe - baseline_fin.fcfe:,.0f}",
+        )
+
+        c4.metric(
+            "Net Working Capital",
+            f"€{projected_fin.working_capital.nwc:,.0f}",
+            delta=(
+                f"€{projected_fin.working_capital.nwc - baseline_fin.working_capital.nwc:,.0f}"
+            ),
+            delta_color="inverse",
+        )
+
+        st.markdown("**Investment cash requirements**")
+
+        capex, nwc, funding = st.columns(3)
+
+        capex.metric(
+            "Initial CAPEX",
+            f"€{impact.investment_initial_capex:,.0f}",
+        )
+
+        nwc.metric(
+            "Investment NWC Delta",
+            f"€{impact.investment_nwc_delta:,.0f}",
+        )
+
+        funding.metric(
+            "Initial Funding Requirement",
+            f"€{impact.investment_initial_funding_requirement:,.0f}",
+        )
+
+        st.caption(
+            "Initial funding requirement is an investment requirement, "
+            "not a debt-financing calculation. Financing logic remains "
+            "outside this integration."
+        )
+    else:
+        st.info(
+            "The integrated projection is not available for this run."
         )
