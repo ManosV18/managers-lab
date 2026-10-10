@@ -79,7 +79,10 @@ from ui.customer_cash_economics_lab import render_customer_cash_economics_lab
 from ui.inventory_ordering_lab import render_inventory_ordering_lab
 from ui.salesperson_value_lab import render_salesperson_value_lab
 from ui.growth_funding_lab import render_growth_funding_lab
-from ui.investment_decision_lab import render_investment_decision_lab render_integrated_company_projection
+from ui.investment_decision_lab import (
+    render_investment_decision_lab,
+    render_integrated_company_projection,
+)
 from ui.working_capital_data_analyzer import render_working_capital_data_analyzer
 from ui.cash_management_lab import render_cash_management_lab
 from ui.qspm_lab import render_qspm_lab
