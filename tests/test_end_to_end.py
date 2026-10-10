@@ -20,6 +20,9 @@ def main():
         version=1,
         created_at="2026-01-01T00:00:00",
         label="Test Company",
+        profit_before_tax=75000.0,
+        tax=16500.0,
+        net_profit=58500.0,
 
         drivers=OperationalDrivers(
             price=150.0,
