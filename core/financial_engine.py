@@ -600,11 +600,12 @@ class FinancialEngine:
             - integrated_ap
         )
 
+        
         integrated_wc_cash_impact = (
             baseline_company_fin
             .working_capital
             .nwc
-            - integrated_nwc
+            - company_wc.nwc
         )
 
         # -------------------------------------------------
