@@ -79,7 +79,10 @@ from ui.customer_cash_economics_lab import render_customer_cash_economics_lab
 from ui.inventory_ordering_lab import render_inventory_ordering_lab
 from ui.salesperson_value_lab import render_salesperson_value_lab
 from ui.growth_funding_lab import render_growth_funding_lab
-from ui.investment_decision_lab import render_investment_decision_lab, render_integrated_company_projection
+from ui.investment_decision_lab import (
+    render_investment_decision_lab,
+    render_integrated_company_projection,
+)
 from ui.working_capital_data_analyzer import render_working_capital_data_analyzer
 from ui.cash_management_lab import render_cash_management_lab
 from ui.qspm_lab import render_qspm_lab
@@ -1101,6 +1104,7 @@ if current_page == "📈 Growth & Funding Lab":
 
     st.stop()
 
+
 if current_page == "📊 Investment Decision Lab":
 
     decision_plan = st.session_state.get(
@@ -1111,12 +1115,10 @@ if current_page == "📊 Investment Decision Lab":
         decision_plan,
         DecisionPlan,
     ):
-
         decision_plan = DecisionPlan.create(
             plan_id="main_plan",
             name="Current Decision Plan",
         )
-
         st.session_state.decision_plan = decision_plan
 
     _, _, financial_projection, _ = build_projection()
@@ -1126,10 +1128,11 @@ if current_page == "📊 Investment Decision Lab":
         decision_plan=decision_plan,
         financial_projection=financial_projection,
     )
-    st.warning("DEBUG: calling integrated projection")
+
     render_integrated_company_projection(financial_projection)
 
     st.stop()
+
 
 if current_page == "💼 Customer Profit & Cash":
 
