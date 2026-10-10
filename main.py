@@ -1116,6 +1116,10 @@ if current_page == "📊 Investment Decision Lab":
             plan_id="main_plan",
             name="Current Decision Plan",
         )
+        
+        st.warning("DEBUG: calling integrated projection")
+        render_integrated_company_projection(financial_projection)
+
 
         st.session_state.decision_plan = decision_plan
 
