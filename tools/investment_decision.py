@@ -77,6 +77,11 @@ class InvestmentAssumptions:
     exit_value: float = 0.0
     exit_cost: float = 0.0
 
+    exit_equipment_recovery_pct: float = 0.50
+    exit_ar_recovery_pct: float = 0.90
+    exit_inventory_recovery_pct: float = 0.50
+    exit_other_cost: float = 0.0
+
     def get_effective_price(
         self,
         context: CompanyStateContext,
@@ -461,7 +466,6 @@ def build_investment_cash_flows(
 
     tax_rate = context.tax_rate
 
-    # Initial Year-1 NWC requirement
     year_1_revenue = curr_units * curr_price
 
     year_1_vc_total = (
@@ -481,7 +485,6 @@ def build_investment_cash_flows(
         + initial_nwc
     )
 
-    # Year 0
     yearly_flows.append(
         InvestmentYear(
             year=0,
@@ -507,7 +510,6 @@ def build_investment_cash_flows(
 
     prev_nwc = initial_nwc
 
-    # Years 1...N
     for y in range(
         1,
         assumptions.project_years + 1,
@@ -573,7 +575,6 @@ def build_investment_cash_flows(
 
         if y == assumptions.project_years:
 
-            # Release project NWC at the end of the project.
             wc_change = curr_nwc
             salvage = assumptions.salvage_value
 
@@ -773,10 +774,6 @@ def calculate_tornado_sensitivity(
         if value is None or value == 0:
             continue
 
-        # ---------------------------------------------------------------
-        # Company-level WACC sensitivity
-        # ---------------------------------------------------------------
-
         if field_name == "wacc":
 
             low_wacc = max(
@@ -807,10 +804,6 @@ def calculate_tornado_sensitivity(
                 assumptions,
                 high_context,
             ).npv
-
-        # ---------------------------------------------------------------
-        # Investment operating economics
-        # ---------------------------------------------------------------
 
         else:
 
@@ -906,10 +899,17 @@ def calculate_exit_option(
     downside_volume_pct: float = 0.0,
 ) -> Dict[str, float]:
     """
-    Evaluate the value of the ability to exit the investment
-    after Year 1 under a downside volume scenario.
+    Evaluate continuing versus exiting after Year 1.
 
-    Tax rate and WACC remain those of the company context.
+    The investment's initial outlay remains based on the original plan.
+    The downside scenario applies to Year-1 operations and subsequent
+    projections, using the company's locked working-capital policies.
+
+    Exit recovery is estimated from:
+    - Equipment book value after Year-1 depreciation
+    - Year-1 receivables and inventory
+    - Year-1 supplier payables
+    - Shutdown and other exit costs
     """
 
     base_result = evaluate_investment(
@@ -965,7 +965,7 @@ def calculate_exit_option(
         wacc,
     )
 
-    if len(downside_cash_flows) < 2:
+    if len(downside_result.yearly_cash_flows) < 2:
 
         return {
             "continue_value": base_continue_value,
@@ -976,15 +976,55 @@ def calculate_exit_option(
             "downside_exit_value": 0.0,
         }
 
-    year_1_cf = downside_cash_flows[1]
+    year_1_data = downside_result.yearly_cash_flows[1]
 
-    net_exit_value = (
-        assumptions.exit_value
-        - assumptions.exit_cost
+    initial_book_value = assumptions.initial_investment
+    year_1_depreciation = year_1_data.depreciation
+    equipment_book_value_y1 = max(
+        0.0,
+        initial_book_value - year_1_depreciation,
     )
 
+    recovered_equipment = (
+        equipment_book_value_y1
+        * assumptions.exit_equipment_recovery_pct
+    )
+
+    recovered_ar = (
+        year_1_data.incremental_ar
+        * assumptions.exit_ar_recovery_pct
+    )
+
+    recovered_inventory = (
+        year_1_data.incremental_inventory
+        * assumptions.exit_inventory_recovery_pct
+    )
+
+    recovered_ap = year_1_data.incremental_ap
+
+    net_working_capital_recovery = (
+        recovered_ar
+        + recovered_inventory
+        - recovered_ap
+    )
+
+    total_gross_recovery = (
+        recovered_equipment
+        + net_working_capital_recovery
+    )
+
+    net_exit_recovery = max(
+        0.0,
+        total_gross_recovery
+        - assumptions.exit_cost
+        - assumptions.exit_other_cost,
+    )
+
+    year_1_cf_downside = downside_cash_flows[1]
+
     exit_cash_flow_year_1 = (
-        year_1_cf + net_exit_value
+        year_1_cf_downside
+        + net_exit_recovery
     )
 
     downside_exit_value = (
