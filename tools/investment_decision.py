@@ -1013,13 +1013,12 @@ def calculate_exit_option(
         + net_working_capital_recovery
     )
 
-    net_exit_recovery = max(
-        0.0,
+    net_exit_recovery = (
         total_gross_recovery
         - assumptions.exit_cost
-        - assumptions.exit_other_cost,
-    )
-
+        - assumptions.exit_other_cost
+    )    
+    
     year_1_cf_downside = downside_cash_flows[1]
 
     exit_cash_flow_year_1 = (
