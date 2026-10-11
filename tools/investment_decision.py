@@ -575,7 +575,7 @@ def build_investment_cash_flows(
 
         if y == assumptions.project_years:
 
-            wc_change = curr_nwc
+            wc_change = prev_nwc
             salvage = assumptions.salvage_value
 
         else:
@@ -960,6 +960,21 @@ def calculate_exit_option(
         for year in downside_result.yearly_cash_flows
     ]
 
+    # Preserve the original Year-0 investment and working capital.
+    base_initial_nwc = (
+        base_result.yearly_cash_flows[0].incremental_nwc
+    )
+    downside_initial_nwc = (
+        downside_result.yearly_cash_flows[0].incremental_nwc
+    )
+    downside_cash_flows[0] = base_cash_flows[0]
+
+    # Reflect the working-capital release in Year 1
+    # when downside volume is lower than originally planned.
+    downside_cash_flows[1] += (
+        base_initial_nwc - downside_initial_nwc
+    )
+
     downside_continue_value = calculate_npv(
         downside_cash_flows,
         wacc,
@@ -1017,8 +1032,8 @@ def calculate_exit_option(
         total_gross_recovery
         - assumptions.exit_cost
         - assumptions.exit_other_cost
-    )    
-    
+    )
+
     year_1_cf_downside = downside_cash_flows[1]
 
     exit_cash_flow_year_1 = (
