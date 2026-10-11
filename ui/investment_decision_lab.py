@@ -823,9 +823,9 @@ def render_integrated_company_projection(financial_projection=None):
     st.subheader("Integrated Company Projection")
 
     st.caption(
-        "Company-wide results from the current Decision Plan. "
-        "Investment CAPEX is included in projected FCFE; "
-        "working capital is integrated once."
+        "Company-wide Year-1 projection. FCFE includes the initial "
+        "investment CAPEX and the incremental working-capital requirement. "
+        "Project NPV evaluates the full multi-year cash flows separately."    
     )
 
     if financial_projection is not None:
@@ -850,6 +850,16 @@ def render_integrated_company_projection(financial_projection=None):
             delta=f"€{projected_is.net_profit - base_is.net_profit:,.0f}",
         )
 
+        c3.metric(
+            "Year-1 FCFE after initial investment",
+            f"€{projected_fin.fcfe:,.0f}",
+            delta=f"€{projected_fin.fcfe - baseline_fin.fcfe:,.0f}",
+            help=(
+                "Year-1 company FCFE after the initial investment CAPEX "
+                "and incremental working-capital requirement. "
+                "This is not the project's NPV."
+            ),
+        )
         c3.metric(
             "FCFE",
             f"€{projected_fin.fcfe:,.0f}",
