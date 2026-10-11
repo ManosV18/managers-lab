@@ -317,10 +317,6 @@ def render_investment_decision_lab(
             key="investment_variable_cost_override",
         )
 
-    # IMPORTANT:
-    # Tax rate and WACC overrides intentionally do not exist here.
-    # Both are inherited from the locked company baseline.
-
     # ========================================================================
     # FLEXIBILITY
     # ========================================================================
@@ -425,7 +421,6 @@ def render_investment_decision_lab(
             context,
         )
 
-        # Store the latest evaluation so it survives Streamlit reruns.
         st.session_state["investment_result"] = result
         st.session_state["investment_assumptions"] = assumptions
         st.session_state["investment_context"] = context
@@ -859,11 +854,6 @@ def render_integrated_company_projection(financial_projection=None):
                 "and incremental working-capital requirement. "
                 "This is not the project's NPV."
             ),
-        )
-        c3.metric(
-            "FCFE",
-            f"€{projected_fin.fcfe:,.0f}",
-            delta=f"€{projected_fin.fcfe - baseline_fin.fcfe:,.0f}",
         )
 
         c4.metric(
