@@ -1121,18 +1121,49 @@ if current_page == "📊 Investment Decision Lab":
         )
         st.session_state.decision_plan = decision_plan
 
-    _, _, financial_projection, _ = build_projection()
+    baseline_for_projection, projected_for_projection, financial_projection, _ = build_projection()
 
+    # Evaluate and store the current Investment Lab assumptions first.
     render_investment_decision_lab(
         baseline_state=baseline,
         decision_plan=decision_plan,
         financial_projection=financial_projection,
     )
 
+    # Integrate the latest Investment Lab result into a temporary
+    # company projection without changing the official Decision Plan.
+    from core.financial_engine import FinancialEngine
+    from core.investment_integration import InvestmentIntegration
+
+    lab_result = st.session_state.get("investment_result")
+
+    if lab_result is not None and lab_result.year_1_impact is not None:
+        lab_impact = InvestmentIntegration._build_company_impact(lab_result)
+
+        existing_impacts = tuple(
+            getattr(financial_projection, "investment_impacts", ()) or ()
+        )
+
+        st.write("DEBUG — Investment result exists:", True)
+        st.write("DEBUG — Year 1 impact exists:", True)
+        st.write("DEBUG — Existing investment impacts:", len(existing_impacts))
+        st.write("DEBUG — New investment impact:", lab_impact)
+
+        financial_projection = FinancialEngine.build_projection(
+            baseline_state=baseline_for_projection,
+            projected_state=projected_for_projection,
+            investment_impacts=existing_impacts + (lab_impact,),
+        )
+    else:
+        st.write("DEBUG — Investment result exists:", lab_result is not None)
+        st.write(
+            "DEBUG — Year 1 impact exists:",
+            lab_result is not None and lab_result.year_1_impact is not None,
+        )
+
     render_integrated_company_projection(financial_projection)
 
     st.stop()
-
 
 if current_page == "💼 Customer Profit & Cash":
 
