@@ -1144,11 +1144,6 @@ if current_page == "📊 Investment Decision Lab":
             getattr(financial_projection, "investment_impacts", ()) or ()
         )
 
-        st.write("DEBUG — Investment result exists:", True)
-        st.write("DEBUG — Year 1 impact exists:", True)
-        st.write("DEBUG — Existing investment impacts:", len(existing_impacts))
-        st.write("DEBUG — New investment impact:", lab_impact)
-
         financial_projection = FinancialEngine.build_projection(
             baseline_state=baseline_for_projection,
             projected_state=projected_for_projection,
