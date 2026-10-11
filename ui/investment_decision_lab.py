@@ -59,6 +59,10 @@ def render_investment_decision_lab(
             "investment_exit_value",
             "investment_exit_cost",
             "investment_downside_volume",
+            "investment_exit_equipment_recovery",
+            "investment_exit_ar_recovery",
+            "investment_exit_inventory_recovery",
+            "investment_exit_other_cost",
         ]
         for widget_key in investment_widget_keys:
             st.session_state.pop(widget_key, None)
@@ -365,42 +369,26 @@ def render_investment_decision_lab(
     allow_exit = st.checkbox(
         "Allow Exit after Year 1",
         help=(
-            "Tests whether management can limit downside "
-            "by stopping the investment after Year 1."
+            "Open the exit analysis to estimate recoverable assets, "
+            "working capital and shutdown costs if the project "
+            "performs below plan."
         ),
         key="investment_allow_exit",
     )
 
-    exit_value = 0.0
-    exit_cost = 0.0
     downside_volume_pct = 0.0
+    exit_cost = 0.0
+    exit_other_cost = 0.0
+    equipment_recovery_pct = 0.50
+    ar_recovery_pct = 0.90
+    inventory_recovery_pct = 0.50
 
     if allow_exit:
-
-        e1, e2, e3 = st.columns(3)
-
-        with e1:
-
-            exit_value = st.number_input(
-                "Recoverable Exit Value",
-                min_value=0.0,
-                value=0.0,
-                step=1000.0,
-                key="investment_exit_value",
-            )
-
-        with e2:
-
-            exit_cost = st.number_input(
-                "Exit / Shutdown Cost",
-                min_value=0.0,
-                value=0.0,
-                step=1000.0,
-                key="investment_exit_cost",
-            )
-
-        with e3:
-
+        with st.expander(
+            "Configure Exit Option",
+            expanded=True,
+        ):
+            st.markdown("**1. Downside scenario**")
             downside_volume_pct = (
                 st.number_input(
                     "Year-1 Volume Downside %",
@@ -413,9 +401,99 @@ def render_investment_decision_lab(
                 / 100.0
             )
 
+            st.markdown("**2. Recovery assumptions**")
+            r_col1, r_col2 = st.columns(2)
+
+            with r_col1:
+                equipment_recovery_pct = (
+                    st.number_input(
+                        "Equipment Book Value Recovery %",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=50.0,
+                        step=5.0,
+                        key="investment_exit_equipment_recovery",
+                    )
+                    / 100.0
+                )
+                ar_recovery_pct = (
+                    st.number_input(
+                        "AR Recovery %",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=90.0,
+                        step=5.0,
+                        key="investment_exit_ar_recovery",
+                    )
+                    / 100.0
+                )
+
+            with r_col2:
+                inventory_recovery_pct = (
+                    st.number_input(
+                        "Inventory Recovery %",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=50.0,
+                        step=5.0,
+                        key="investment_exit_inventory_recovery",
+                    )
+                    / 100.0
+                )
+                exit_cost = st.number_input(
+                    "Exit / Shutdown Cost (€)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1000.0,
+                    key="investment_exit_cost",
+                )
+
+            exit_other_cost = st.number_input(
+                "Other Exit Expenses (€)",
+                min_value=0.0,
+                value=0.0,
+                step=1000.0,
+                key="investment_exit_other_cost",
+            )
+
     # ========================================================================
     # EVALUATE
     # ========================================================================
+
+    context = CompanyStateContext(
+        price=baseline_price,
+        variable_cost_per_unit=baseline_variable_cost,
+        fixed_costs=baseline_fixed_opex,
+        tax_rate=baseline_tax_rate,
+        wacc=baseline_wacc,
+        ar_days=baseline_ar_days,
+        inventory_days=baseline_inventory_days,
+        ap_days=baseline_ap_days,
+        fixed_assets=baseline_fixed_assets,
+        depreciation=baseline_depreciation,
+    )
+
+    assumptions = InvestmentAssumptions(
+        initial_investment=initial_investment,
+        project_years=int(project_years),
+        units=units,
+        depreciation_years=int(depreciation_years),
+        incremental_fixed_costs=incremental_fixed_costs,
+        annual_volume_growth=volume_growth,
+        annual_price_growth=price_growth,
+        annual_variable_cost_growth=variable_cost_growth,
+        annual_fixed_cost_growth=fixed_cost_growth,
+        salvage_value=salvage_value,
+        price_override=price_override,
+        variable_cost_override=variable_cost_override,
+        allow_exit_after_year_1=allow_exit,
+        exit_value=0.0,
+        exit_cost=exit_cost,
+        exit_equipment_recovery_pct=equipment_recovery_pct,
+        exit_ar_recovery_pct=ar_recovery_pct,
+        exit_inventory_recovery_pct=inventory_recovery_pct,
+        exit_other_cost=exit_other_cost,
+    )
 
     if st.button(
         "▶ Evaluate Investment",
@@ -423,37 +501,6 @@ def render_investment_decision_lab(
         use_container_width=True,
         key="evaluate_investment_button",
     ):
-
-        context = CompanyStateContext(
-            price=baseline_price,
-            variable_cost_per_unit=baseline_variable_cost,
-            fixed_costs=baseline_fixed_opex,
-            tax_rate=baseline_tax_rate,
-            wacc=baseline_wacc,
-            ar_days=baseline_ar_days,
-            inventory_days=baseline_inventory_days,
-            ap_days=baseline_ap_days,
-            fixed_assets=baseline_fixed_assets,
-            depreciation=baseline_depreciation,
-        )
-
-        assumptions = InvestmentAssumptions(
-            initial_investment=initial_investment,
-            project_years=int(project_years),
-            units=units,
-            depreciation_years=int(depreciation_years),
-            incremental_fixed_costs=incremental_fixed_costs,
-            annual_volume_growth=volume_growth,
-            annual_price_growth=price_growth,
-            annual_variable_cost_growth=variable_cost_growth,
-            annual_fixed_cost_growth=fixed_cost_growth,
-            salvage_value=salvage_value,
-            price_override=price_override,
-            variable_cost_override=variable_cost_override,
-            allow_exit_after_year_1=allow_exit,
-            exit_value=exit_value,
-            exit_cost=exit_cost,
-        )
 
         result = evaluate_investment(
             assumptions,
