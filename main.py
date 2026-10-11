@@ -1149,13 +1149,7 @@ if current_page == "📊 Investment Decision Lab":
             projected_state=projected_for_projection,
             investment_impacts=existing_impacts + (lab_impact,),
         )
-    else:
-        st.write("DEBUG — Investment result exists:", lab_result is not None)
-        st.write(
-            "DEBUG — Year 1 impact exists:",
-            lab_result is not None and lab_result.year_1_impact is not None,
-        )
-
+    
     render_integrated_company_projection(financial_projection)
 
     st.stop()
