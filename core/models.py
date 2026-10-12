@@ -108,3 +108,5 @@ class CompanyState:
     profit_before_tax: float = 0.0
     tax: float = 0.0
     net_profit: float = 0.0
+    minimum_cash_reserve: float = 0.0
+
