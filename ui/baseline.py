@@ -36,6 +36,7 @@ def _sync_imported_data_to_baseline():
         "depreciation": "baseline_depreciation",
         "target_profit_goal": "baseline_target_profit_goal",
         "opening_cash": "baseline_opening_cash",
+        "minimum_cash_reserve": "baseline_minimum_cash_reserve",
 
         # -----------------------------------------------------
         # CAPITAL STRUCTURE
@@ -289,6 +290,21 @@ def render_baseline_setup():
             step=10000.0,
             key="baseline_opening_cash",
         )
+
+    st.number_input(
+        "Minimum Cash Reserve (€)",
+        min_value=0.0,
+        value=_get_float(
+            "baseline_minimum_cash_reserve",
+            30000.0,
+        ),
+        step=5000.0,
+        key="baseline_minimum_cash_reserve",
+        help=(
+            "Minimum cash balance to preserve when allocating "
+            "internal cash to investment requirements."
+        ),
+    )
 
     # =========================================================
     # REPORTED FINANCIAL RESULTS
@@ -638,6 +654,9 @@ def render_baseline_setup():
         profit_before_tax=float(profit_before_tax),
         tax=float(tax),
         net_profit=float(net_profit),
+        minimum_cash_reserve=float(
+            st.session_state["baseline_minimum_cash_reserve"]
+        ),
     )
 
     # =========================================================
