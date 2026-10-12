@@ -64,6 +64,7 @@ class StateBuilder:
             profit_before_tax=150000.0,
             tax=33000.0,
             net_profit=117000.0,
+            minimum_cash_reserve=30000.0,
         )
 
     # =====================================================
