@@ -259,6 +259,7 @@ def render_baseline_setup():
             key="baseline_depreciation",
         )
 
+    
     # =========================================================
     # ADDITIONAL OPERATING DATA
     # =========================================================
@@ -266,7 +267,6 @@ def render_baseline_setup():
     col1, col2 = st.columns(2)
 
     with col1:
-
         target_profit_goal = st.number_input(
             "Target Profit Goal (€)",
             min_value=0.0,
@@ -279,7 +279,6 @@ def render_baseline_setup():
         )
 
     with col2:
-
         opening_cash = st.number_input(
             "Opening Cash (€)",
             min_value=0.0,
@@ -291,7 +290,7 @@ def render_baseline_setup():
             key="baseline_opening_cash",
         )
 
-    st.number_input(
+    minimum_cash_reserve = st.number_input(
         "Minimum Cash Reserve (€)",
         min_value=0.0,
         value=_get_float(
@@ -638,6 +637,7 @@ def render_baseline_setup():
         ap_days=float(ap_days),
     )
 
+   
     # =========================================================
     # CREATE IMMUTABLE COMPANY STATE
     # =========================================================
