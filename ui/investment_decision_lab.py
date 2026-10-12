@@ -2,6 +2,7 @@ import numpy as np
 import streamlit as st
 
 from core.investment_decision import InvestmentDecision
+from core.investment_funding import InvestmentFundingAllocator
 
 from tools.investment_decision import (
     CompanyStateContext,
@@ -895,7 +896,10 @@ def render_investment_decision_lab(
         )
 
 
-def render_integrated_company_projection(financial_projection=None):
+def render_integrated_company_projection(
+    financial_projection=None,
+    baseline_state=None,
+):
     # ========================================================================
     # INTEGRATED COMPANY PROJECTION
     # ========================================================================
@@ -969,6 +973,83 @@ def render_integrated_company_projection(financial_projection=None):
             "Initial Funding Requirement",
             f"€{impact.investment_initial_funding_requirement:,.0f}",
         )
+
+        st.divider()
+        st.subheader("Investment Funding Allocation")
+
+        investment_impacts = tuple(
+            getattr(
+                financial_projection,
+                "investment_impacts",
+                (),
+            ) or ()
+        )
+
+        if baseline_state is None:
+            st.warning(
+                "Baseline state is unavailable. "
+                "Funding allocation cannot be calculated."
+            )
+        elif not investment_impacts:
+            st.info(
+                "No investment impacts are available "
+                "for funding allocation."
+            )
+        else:
+            allocation = InvestmentFundingAllocator.allocate(
+                state=baseline_state,
+                impacts=investment_impacts,
+            )
+
+            st.caption(
+                "Internal cash is allocated to incremental "
+                "working capital first, then CAPEX. The minimum "
+                "cash reserve is excluded from available cash."
+            )
+
+            a1, a2, a3 = st.columns(3)
+            a1.metric(
+                "Opening Cash",
+                f"€{allocation.opening_cash:,.0f}",
+            )
+            a2.metric(
+                "Minimum Cash Reserve",
+                f"€{allocation.minimum_cash_reserve:,.0f}",
+            )
+            a3.metric(
+                "Available Internal Cash",
+                f"€{allocation.available_internal_cash:,.0f}",
+            )
+
+            b1, b2, b3 = st.columns(3)
+            b1.metric(
+                "Internal Cash to Working Capital",
+                f"€{allocation.internal_cash_to_working_capital:,.0f}",
+            )
+            b2.metric(
+                "Internal Cash to CAPEX",
+                f"€{allocation.internal_cash_to_capex:,.0f}",
+            )
+            b3.metric(
+                "Total External Funding Required",
+                f"€{allocation.total_external_funding_required:,.0f}",
+            )
+
+            c1, c2 = st.columns(2)
+            c1.metric(
+                "External Funding for Working Capital",
+                f"€{allocation.external_working_capital_required:,.0f}",
+            )
+            c2.metric(
+                "External Funding for CAPEX",
+                f"€{allocation.external_capex_required:,.0f}",
+            )
+
+            st.caption(
+                "This is a funding-gap estimate, not a debt or "
+                "leasing recommendation. It assumes portfolio-level "
+                "netting of incremental working-capital requirements."
+            )
 
         st.caption(
             "Initial funding requirement is an investment requirement, "
