@@ -56,6 +56,22 @@ class DecisionEvaluation:
         """
         return self.financial_projection.impact
 
+    @property
+    def funding_allocation(self):
+        from core.investment_funding import (
+            InvestmentFundingAllocator,
+        )
+
+        impacts = self.financial_projection.investment_impacts
+
+        if not impacts:
+            return None
+
+        return InvestmentFundingAllocator.allocate(
+            state=self.baseline_state,
+            impacts=impacts,
+        )
+
 
 # =========================================================
 # DECISION EVALUATOR
