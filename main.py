@@ -1150,7 +1150,10 @@ if current_page == "📊 Investment Decision Lab":
             investment_impacts=existing_impacts + (lab_impact,),
         )
     
-    render_integrated_company_projection(financial_projection)
+    render_integrated_company_projection(     
+        financial_projection,     
+        baseline_state=baseline_for_projection, 
+    )
 
     st.stop()
 
