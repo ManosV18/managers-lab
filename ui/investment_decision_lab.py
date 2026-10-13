@@ -71,6 +71,7 @@ def render_investment_decision_lab(
             "investment_result",
             "investment_assumptions",
             "investment_context",
+            "investment_implementation_confirmed",
         ]:
             st.session_state.pop(result_key, None)
         st.rerun()
