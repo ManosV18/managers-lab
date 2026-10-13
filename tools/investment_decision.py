@@ -1034,7 +1034,9 @@ def calculate_exit_option(
         - assumptions.exit_other_cost
     )
 
-    year_1_cf_downside = downside_cash_flows[1]
+    # Use Year-1 operating cash flow only. Exit recoveries below replace 
+    # the normal terminal working-capital release and salvage value. 
+    year_1_cf_downside = year_1_data.operating_cash_flow
 
     exit_cash_flow_year_1 = (
         year_1_cf_downside
