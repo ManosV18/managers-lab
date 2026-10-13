@@ -850,52 +850,31 @@ def render_investment_decision_lab(
         )
 
     # ========================================================================
-    # ADD TO DECISION PLAN
+    # IMPLEMENTATION CONFIRMATION
     # ========================================================================
 
     st.divider()
 
-    st.subheader("Decision Plan")
+    st.subheader("Implementation Decision")
 
     st.caption(
-        "Evaluation does not automatically add the investment to "
-        "the Decision Plan. Add it explicitly when you want the "
-        "investment to become part of the company decision scenario."
+        "Evaluating the project does not implement it or consolidate "
+        "its results into company-level financials. Confirm implementation "
+        "only when you decide to proceed with this specific investment."
     )
 
-    if decision_plan is not None:
+    if st.button(
+        "✅ Confirm Implementation",
+        type="primary",
+        use_container_width=True,
+        key="confirm_investment_implementation_button",
+    ):
+        st.session_state["investment_implementation_confirmed"] = True
 
-        if st.button(
-            "➕ Add Investment to Decision Plan",
-            type="secondary",
-            use_container_width=True,
-            key="add_investment_to_plan_button",
-        ):
-
-            investment_decision = InvestmentDecision.create(
-                decision_id="investment_1",
-                name="New Investment",
-                description=(
-                    "Investment project evaluated against the locked "
-                    "company baseline."
-                ),
-                assumptions=assumptions,
-            )
-
-            st.session_state.decision_plan = decision_plan.add(
-                investment_decision
-            )
-
-            st.success(
-                "Investment was added to the Decision Plan."
-            )
-
-    else:
-
-        st.info(
-            "Decision Plan is not available in the current app context."
+        st.success(
+            "Implementation confirmed. The investment can now be "
+            "included in the company-level projection."
         )
-
 
 def render_integrated_company_projection(
     financial_projection=None,
