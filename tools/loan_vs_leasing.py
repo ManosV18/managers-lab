@@ -143,7 +143,7 @@ def calculate_final_burden(
 
     depreciation_lease = (
         acquisition_cost_lease
-        / duration_years
+        / depreciation_years
         * duration_years
     ) + residual_value_leasing
 
@@ -178,7 +178,7 @@ def calculate_final_burden(
 
     return (
         round(final_loan),
-        round(final_lease),
+        round(final_leasing),
         total_monthly_loan,
         total_monthly_lease,
     )
@@ -215,6 +215,29 @@ def render_loan_vs_leasing_lab(
         The locked baseline is not changed.
         """
     )
+
+    # Link the financing analysis to the current investment project.
+    investment_result = st.session_state.get("investment_result")
+    investment_assumptions = st.session_state.get(
+        "investment_assumptions"
+    )
+    project_available = (
+        investment_result is not None
+        and investment_assumptions is not None
+    )
+
+    if project_available:
+        st.info(
+            "Η χρηματοδότηση εξετάζεται για την επένδυση "
+            "που έχει αξιολογηθεί στο Investment Decision Lab. "
+            "Η επιλογή Loan/Leasing δεν αλλάζει τα NPV, IRR ή Payback."
+        )
+    else:
+        st.warning(
+            "Δεν υπάρχει διαθέσιμη αξιολογημένη επένδυση. "
+            "Μπορείς να συγκρίνεις Loan και Leasing, αλλά η επιλογή "
+            "δεν θα συνδεθεί με συγκεκριμένο επενδυτικό έργο."
+        )
 
     # =====================================================
     # BASELINE
@@ -588,6 +611,18 @@ def render_loan_vs_leasing_lab(
         "year_1_cash_after_decision": cash_after,
 
         "baseline_version": baseline_state.version,
+
+        "financing_scope": (
+            "investment_project"
+            if project_available
+            else "unlinked_comparison"
+        ),
+
+        "linked_investment_assumptions": (
+            investment_assumptions
+            if project_available
+            else None
+        ),
 
         "financing_inputs": {
             "loan_rate": loan_rate,
