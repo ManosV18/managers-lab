@@ -511,6 +511,7 @@ def render_investment_decision_lab(
         st.session_state["investment_result"] = result
         st.session_state["investment_assumptions"] = assumptions
         st.session_state["investment_context"] = context
+        st.session_state["investment_implementation_confirmed"] = False
 
     # ========================================================================
     # STORED RESULT
