@@ -1130,31 +1130,6 @@ if current_page == "📊 Investment Decision Lab":
         financial_projection=financial_projection,
     )
 
-    # Integrate the latest Investment Lab result into a temporary
-    # company projection without changing the official Decision Plan.
-    from core.financial_engine import FinancialEngine
-    from core.investment_integration import InvestmentIntegration
-
-    lab_result = st.session_state.get("investment_result")
-
-    if lab_result is not None and lab_result.year_1_impact is not None:
-        lab_impact = InvestmentIntegration._build_company_impact(lab_result)
-
-        existing_impacts = tuple(
-            getattr(financial_projection, "investment_impacts", ()) or ()
-        )
-
-        financial_projection = FinancialEngine.build_projection(
-            baseline_state=baseline_for_projection,
-            projected_state=projected_for_projection,
-            investment_impacts=existing_impacts + (lab_impact,),
-        )
-    
-    render_integrated_company_projection(     
-        financial_projection,     
-        baseline_state=baseline_for_projection, 
-    )
-
     st.stop()
 
 if current_page == "💼 Customer Profit & Cash":
