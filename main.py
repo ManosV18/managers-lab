@@ -1123,12 +1123,41 @@ if current_page == "📊 Investment Decision Lab":
 
     baseline_for_projection, projected_for_projection, financial_projection, _ = build_projection()
 
-    # Evaluate and store the current Investment Lab assumptions first.
+    # Evaluate the investment independently.
     render_investment_decision_lab(
         baseline_state=baseline,
         decision_plan=decision_plan,
         financial_projection=financial_projection,
     )
+
+    # Consolidate into company-level figures ONLY after the user
+    # explicitly confirms implementation in the Investment Decision Lab.
+    if st.session_state.get("investment_implementation_confirmed", False):
+        from core.financial_engine import FinancialEngine
+        from core.investment_integration import InvestmentIntegration
+
+        lab_result = st.session_state.get("investment_result")
+
+        if lab_result is not None and lab_result.year_1_impact is not None:
+            lab_impact = InvestmentIntegration._build_company_impact(lab_result)
+            existing_impacts = tuple(
+                getattr(financial_projection, "investment_impacts", ()) or ()
+            )
+            financial_projection = FinancialEngine.build_projection(
+                baseline_state=baseline_for_projection,
+                projected_state=projected_for_projection,
+                investment_impacts=existing_impacts + (lab_impact,),
+            )
+
+            render_integrated_company_projection(
+                financial_projection,
+                baseline_state=baseline_for_projection,
+            )
+        else:
+            st.warning(
+                "Implementation was confirmed, but no valid investment result "
+                "is available for company-level integration. Re-evaluate the project."
+            )
 
     st.stop()
 
