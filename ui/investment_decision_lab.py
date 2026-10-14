@@ -3,6 +3,7 @@ import streamlit as st
 
 from core.investment_decision import InvestmentDecision
 from core.investment_funding import InvestmentFundingAllocator
+from core.decision_plan import DecisionPlan
 
 from tools.investment_decision import (
     CompanyStateContext,
@@ -870,12 +871,66 @@ def render_investment_decision_lab(
         use_container_width=True,
         key="confirm_investment_implementation_button",
     ):
-        st.session_state["investment_implementation_confirmed"] = True
-
-        st.success(
-            "Implementation confirmed. The investment can now be "
-            "included in the company-level projection."
+        current_plan = st.session_state.get("decision_plan")
+        if not isinstance(current_plan, DecisionPlan):
+            current_plan = DecisionPlan.create(
+                plan_id="main_plan",
+                name="Current Decision Plan",
+            )
+        project_id = st.session_state.get(
+            "investment_decision_id",
+            "investment_project",
         )
+        existing_project = next(
+            (
+                item
+                for item in current_plan.decisions
+                if isinstance(item, InvestmentDecision)
+                and item.id == project_id
+            ),
+            None,
+        )
+        metadata = (
+            dict(existing_project.metadata)
+            if existing_project is not None
+            else {}
+        )
+        project = InvestmentDecision.create(
+            decision_id=project_id,
+            name=(
+                existing_project.name
+                if existing_project is not None
+                else "Investment Project"
+            ),
+            description=(
+                existing_project.description
+                if existing_project is not None
+                else "Investment project with attached financing."
+            ),
+            assumptions=assumptions,
+            metadata=metadata,
+        )
+        if existing_project is None:
+            current_plan = current_plan.add(project)
+        else:
+            updated_decisions = tuple(
+                project if item.id == project_id else item
+                for item in current_plan.decisions
+            )
+            current_plan = DecisionPlan(
+                id=current_plan.id,
+                name=current_plan.name,
+                decisions=updated_decisions,
+            )
+        st.session_state["decision_plan"] = current_plan
+        st.session_state["investment_assumptions"] = assumptions
+        st.session_state["investment_implementation_confirmed"] = True
+        st.success(
+            "Implementation confirmed. The investment has been "
+            "registered in the Decision Plan."
+        )
+        st.rerun()
+
 
 def render_integrated_company_projection(
     financial_projection=None,
