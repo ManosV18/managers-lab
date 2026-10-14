@@ -329,14 +329,14 @@ def render_loan_vs_leasing_lab(
     )
 
     # =====================================================
-    # INPUTS
+    # INPUTS (ALIGNED COLUMNS)
     # =====================================================
-
-    st.subheader("Financing Terms")
 
     col1, col2 = st.columns(2)
 
     with col1:
+
+        st.subheader("Financing Terms")
 
         loan_rate = (
             st.number_input(
