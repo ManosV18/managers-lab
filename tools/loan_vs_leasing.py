@@ -74,7 +74,6 @@ def calculate_final_burden(
     lease_principal = property_value * leasing_financing_percent
 
     # 2. Self-funded down payments / unfinanced acquisition expenses
-    # For a loan, any gap plus acquisition expenses require funding/working capital
     unfinanced_loan_capex = max(0.0, property_value - loan_principal) + add_expenses_loan
     unfinanced_lease_capex = max(0.0, property_value - lease_principal) + add_expenses_leasing
 
@@ -94,24 +93,16 @@ def calculate_final_burden(
     total_nominal_lease = total_monthly_lease * n_months + unfinanced_lease_capex + residual_value_leasing
 
     # 5. Acquisition bases and Tax Shields (Depreciation & Interest)
-    # Total asset acquisition cost including expenses
     acquisition_cost_loan = property_value + add_expenses_loan
-    acquisition_cost_lease = property_value + add_expenses_leasing
 
     # Annual depreciation (Straight-line over depreciation_years, scaled to duration)
     annual_depr_loan = acquisition_cost_loan / max(1.0, float(depreciation_years))
     total_depr_loan = annual_depr_loan * duration_years
 
-    # For leasing, lease payments are generally tax-deductible operating expenses (or depreciation + interest equivalent).
-    # We estimate tax deductions: total lease payments plus any capitalized expenses depreciation / residual adjustments.
     total_interest_equivalent_loan = (monthly_payment_loan * n_months) - loan_principal
-    total_interest_equivalent_lease = (monthly_payment_lease * n_months) - lease_principal
 
     # Tax deductible expenses base over the duration:
-    # Loan: Interest paid + Depreciation of total acquisition cost
     deductible_loan = total_interest_equivalent_loan + total_depr_loan
-
-    # Leasing: Lease installments paid (operating lease expense model) + residual adjustments if applicable
     deductible_lease = (monthly_payment_lease * n_months) + (monthly_wc_service_lease * n_months)
 
     tax_benefit_loan = deductible_loan * tax_rate
@@ -354,7 +345,7 @@ def render_loan_vs_leasing_lab(baseline_state):
             "Leasing Residual Value (€)",
             min_value=0.0,
             value=3530.0,
-            step500=100.0 if "step500" in globals() else 500.0,
+            step=100.0,
         )
 
         depreciation_years = st.number_input(
