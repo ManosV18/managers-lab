@@ -326,7 +326,7 @@ class DecisionRunner:
         # Therefore:
         #
         #     CompanyState
-        #             +
+        #                +
         #     InvestmentCompanyImpact
         #
         # are two complementary layers, not two representations
