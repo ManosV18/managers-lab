@@ -4,6 +4,8 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from core.financial_engine import FinancialEngine
+from core.decision_plan import DecisionPlan
+from core.investment_decision import InvestmentDecision
 
 
 # =========================================================
@@ -178,7 +180,7 @@ def calculate_final_burden(
 
     return (
         round(final_loan),
-        round(final_leasing),
+        round(final_lease),
         total_monthly_loan,
         total_monthly_lease,
     )
@@ -195,6 +197,71 @@ def get_baseline_financials(
     return FinancialEngine.calculate_statements(
         baseline_state
     )
+
+
+# =========================================================
+# HELPER FOR FINANCING TRANSFER
+# =========================================================
+
+def _transfer_financing_to_investment(
+    investment_assumptions,
+    financing_preview,
+):
+    """
+    Attach the selected financing option to the investment project
+    and save the project in the Current Decision Plan.
+    """
+    plan = st.session_state.get("decision_plan")
+    if not isinstance(plan, DecisionPlan):
+        plan = DecisionPlan.create(
+            plan_id="main_plan",
+            name="Current Decision Plan",
+        )
+    project_id = st.session_state.get(
+        "investment_decision_id",
+        "investment_project",
+    )
+    existing_project = next(
+        (
+            item
+            for item in plan.decisions
+            if (
+                isinstance(item, InvestmentDecision)
+                and item.id == project_id
+            )
+        ),
+        None,
+    )
+    metadata = (
+        dict(existing_project.metadata)
+        if existing_project is not None
+        else {}
+    )
+    metadata["financing_decision"] = {
+        "selected_option": financing_preview["selected_option"],
+        "annual_payment": financing_preview["annual_payment"],
+        "final_burden": financing_preview["final_burden"],
+        "financing_inputs": dict(
+            financing_preview.get("financing_inputs", {})
+        ),
+        "source": "loan_vs_leasing",
+    }
+    project = InvestmentDecision.create(
+        decision_id=project_id,
+        name=(
+            existing_project.name
+            if existing_project is not None
+            else "Investment Project"
+        ),
+        description=(
+            existing_project.description
+            if existing_project is not None
+            else "Investment project with attached financing."
+        ),
+        assumptions=investment_assumptions,
+        metadata=metadata,
+    )
+    st.session_state.decision_plan = plan.add(project)
 
 
 # =========================================================
@@ -648,3 +715,45 @@ def render_loan_vs_leasing_lab(
         Decision Manager / Control Tower integration.
         """
     )
+
+    # =====================================================
+    # TRANSFER BUTTON TO INVESTMENT PROJECT
+    # =====================================================
+
+    st.divider()
+    st.subheader("Transfer Financing to Investment Project")
+
+    if project_available:
+        st.caption(
+            "Transfer the selected Loan or Leasing option "
+            "to the investment project. This does not create "
+            "a separate company decision."
+        )
+    else:
+        st.warning(
+            "Δεν υπάρχει ενεργό έργο επένδυσης για να συνδεθεί η χρηματοδότηση."
+        )
+
+    if st.button(
+        "Transfer Selected Financing to Investment Project",
+        use_container_width=True,
+        type="primary",
+        disabled=(
+            not project_available
+            or selected_option == "No financing decision"
+        ),
+        key="transfer_financing_to_investment",
+    ):
+        try:
+            _transfer_financing_to_investment(
+                investment_assumptions=investment_assumptions,
+                financing_preview=(
+                    st.session_state.loan_leasing_decision_preview
+                ),
+            )
+            st.success(
+                "Financing attached to the investment project "
+                "and saved in the Current Decision Plan."
+            )
+        except Exception as exc:
+            st.error(f"Σφάλμα κατά τη μεταφορά της χρηματοδότησης: {exc}")
