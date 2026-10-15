@@ -171,14 +171,11 @@ class FinancialEngine:
             "annual_payment": annual_payment,
         }
 
-    @classmethod
+    @staticmethod
     def _calculate_financing_impact(
-        cls,
-        financing_decisions: Sequence[Dict[str, Any]],
+        financing_decisions,
     ) -> Dict[str, float]:
-        """
-        Aggregate year-1 interest, principal, and debt creation from financing decisions.
-        """
+
         result = {
             "new_debt": 0.0,
             "interest_expense": 0.0,
@@ -189,83 +186,128 @@ class FinancialEngine:
         for decision in financing_decisions:
             if not isinstance(decision, dict):
                 continue
+
             option = decision.get("selected_option")
+
             if option not in ("Loan", "Leasing"):
                 continue
 
+            funding = decision.get("funding_allocation")
+
+            if not isinstance(funding, dict):
+                raise ValueError(
+                    "Missing funding allocation for financing "
+                    "decision. Transfer the financing decision "
+                    "again from the investment financing screen."
+                )
+
             inputs = decision.get("financing_inputs", {})
-            funding_base = max(
+
+            if not isinstance(inputs, dict):
+                inputs = {}
+
+            # Actual uncovered needs calculated by the allocator.
+            capex_required = max(
                 0.0,
-                float(inputs.get("property_value", 0.0)),
+                float(
+                    funding.get("external_capex_required", 0.0)
+                ),
             )
-            duration = max(
-                1.0,
-                float(inputs.get("duration_years", 1)),
+
+            wc_required = max(
+                0.0,
+                float(
+                    funding.get(
+                        "external_working_capital_required", 0.0
+                    )
+                ),
             )
-            loan_rate = max(
+
+            total_required = max(
+                0.0,
+                float(
+                    funding.get("total_external_funding_required", 0.0)
+                ),
+            )    
+
+            # Consistency check: the two funding components must
+            # reconcile to the allocator's total.
+            components_total = capex_required + wc_required
+
+            if abs(components_total - total_required) > 0.01:
+                raise ValueError(
+                    "Funding allocation mismatch: CAPEX and "
+                    "working-capital requirements do not reconcile "
+                    "to total external funding."
+                )
+
+            asset_rate = max(
                 0.0,
                 float(inputs.get("loan_rate", 0.0)),
             )
+
             wc_rate = max(
                 0.0,
                 float(inputs.get("wc_rate", 0.0)),
             )
+
+            duration = max(
+                1,
+                int(inputs.get("duration_years", 1)),
+            )
+
             pay_when = int(inputs.get("pay_when", 0))
+            pay_when = 1 if pay_when == 1 else 0
 
-            if option == "Loan":
-                percentage = float(
-                    inputs.get("loan_financing_percent", 1.0)
-                )
-                extra_expenses = float(
-                    inputs.get("add_expenses_loan", 0.0)
-                )
-            else:
-                percentage = float(
-                    inputs.get("leasing_financing_percent", 1.0)
-                )
-                extra_expenses = float(
-                    inputs.get("add_expenses_leasing", 0.0)
-                )
+            # Loan:
+            #   CAPEX is financed by the asset loan.
+            #   Working capital is financed separately.
+            #
+            # Leasing:
+            #   CAPEX is financed through the lease.
+            #   Any uncovered working-capital need is modelled
+            #   separately as a loan.
+            #
+            # This simplified model uses loan_rate as the lease
+            # financing rate because no separate lease rate exists
+            # in the current financing inputs.
 
-            percentage = min(1.0, max(0.0, percentage))
-            extra_expenses = max(0.0, extra_expenses)
-
-            asset_principal = funding_base * percentage
-            working_capital_principal = (
-                funding_base - asset_principal + extra_expenses
+            asset_schedule = (
+                FinancialEngine._year_one_financing_schedule(
+                    principal=capex_required,
+                    annual_rate=asset_rate,
+                    duration_years=duration,
+                    pay_when=pay_when,
+                )
             )
 
-            asset_schedule = cls._year_one_financing_schedule(
-                principal=asset_principal,
-                annual_rate=loan_rate,
-                duration_years=duration,
-                pay_when=pay_when,
-            )
-            wc_schedule = cls._year_one_financing_schedule(
-                principal=working_capital_principal,
-                annual_rate=wc_rate,
-                duration_years=duration,
-                pay_when=pay_when,
+            wc_schedule = (
+                FinancialEngine._year_one_financing_schedule(
+                    principal=wc_required,
+                    annual_rate=wc_rate,
+                    duration_years=duration,
+                    pay_when=pay_when,
+                )
             )
 
-            result["new_debt"] += (
-                asset_principal + working_capital_principal
-            )
+            result["new_debt"] += total_required
+
             result["interest_expense"] += (
-                asset_schedule["interest"]
-                + wc_schedule["interest"]
+                asset_schedule["interest_expense"]
+                + wc_schedule["interest_expense"]
             )
+
             result["principal_repaid"] += (
                 asset_schedule["principal_repaid"]
                 + wc_schedule["principal_repaid"]
             )
+
             result["annual_payment"] += (
                 asset_schedule["annual_payment"]
                 + wc_schedule["annual_payment"]
             )
 
         return result
-
     # =====================================================
     # BASIC FINANCIAL STATEMENTS
     # =====================================================
