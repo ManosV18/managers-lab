@@ -1010,6 +1010,38 @@ def render_integrated_company_projection(
             f"€{impact.investment_initial_funding_requirement:,.0f}",
         )
 
+        financing = (
+            getattr(financial_projection, "financing_impact", None)
+            or {}
+        )
+
+        if financing.get("new_debt", 0.0) > 0:
+
+            st.subheader("Investment Financing Impact")
+
+            f1, f2, f3 = st.columns(3)
+
+            f1.metric(
+                "Additional Financing Liability",
+                f"€{financing['new_debt']:,.0f}",
+            )
+
+            f2.metric(
+                "Year-1 Interest Expense",
+                f"€{financing['interest_expense']:,.0f}",
+            )
+
+            f3.metric(
+                "Year-1 Principal Repaid",
+                f"€{financing['principal_repaid']:,.0f}",
+            )
+
+            st.caption(
+                "Interest affects profit and tax. Principal repayment "
+                "affects FCFE, not operating profit. Investment NPV, "
+                "IRR and Payback remain unchanged."
+            )
+
         st.divider()
         st.subheader("Investment Funding Allocation")
 
