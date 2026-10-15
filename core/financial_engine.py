@@ -58,11 +58,9 @@ class VarianceImpact:
     revenue_delta: float
     price_effect: float
     volume_effect: float
-
     gross_profit_delta: float
     ebitda_delta: float
     net_profit_delta: float
-
     nwc_cash_impact_delta: float
     fcfe_delta: float
 
@@ -72,11 +70,9 @@ class VarianceImpact:
     investment_fixed_opex_delta: float
     investment_depreciation_delta: float
     investment_nwc_delta: float
-
     investment_initial_capex: float
     investment_initial_nwc_requirement: float
     investment_initial_funding_requirement: float
-
     investment_operating_cash_flow_delta: float
     investment_cash_impact: float
 
@@ -90,7 +86,6 @@ class FinancialProjection:
     baseline: FinancialStatements
     projected: FinancialStatements
     impact: VarianceImpact
-
     investment_impacts: tuple = ()
     financing_impact: Optional[Dict[str, Any]] = None
 
@@ -100,21 +95,7 @@ class FinancialProjection:
 # =========================================================
 
 class FinancialEngine:
-    """
-    Canonical financial integration layer.
-
-    The engine combines:
-
-        Locked CompanyState baseline
-                +
-        Direct company decisions
-                +
-        Year-1 investment impacts
-                +
-        Attached financing impacts
-                ↓
-        Integrated projected financial statements
-    """
+    """Integrate the company baseline, investment impacts, and attached financing."""
 
     @staticmethod
     def _year_one_financing_schedule(
@@ -123,59 +104,79 @@ class FinancialEngine:
         duration_years: float,
         pay_when: int = 0,
     ) -> Dict[str, float]:
+        """Return first-year interest, principal repaid, and total payments.
+
+        `pay_when=0` means payments at the end of each month. `pay_when=1`
+        means payments at the beginning of each month (annuity due).
         """
-        Calculate year-1 interest, principal repayment, and annual payment
-        for a standard amortizing loan or financial lease.
-        """
+        principal = max(0.0, float(principal))
+        annual_rate = max(0.0, float(annual_rate))
+        duration_years = float(duration_years)
+
         if principal <= 0 or duration_years <= 0:
             return {
-                "interest": 0.0,
+                "interest_expense": 0.0,
                 "principal_repaid": 0.0,
                 "annual_payment": 0.0,
             }
 
-        months = 12
-        n_months = int(duration_years * months)
-        monthly_rate = annual_rate / months
+        months_per_year = 12
+        n_months = max(1, int(round(duration_years * months_per_year)))
+        monthly_rate = annual_rate / months_per_year
+        pay_when = 1 if pay_when == 1 else 0
 
         if monthly_rate == 0:
             monthly_payment = principal / n_months
         else:
-            factor = (1 + monthly_rate) ** n_months
+            factor = (1.0 + monthly_rate) ** n_months
+            ordinary_payment = principal * monthly_rate * factor / (factor - 1.0)
             monthly_payment = (
-                principal * monthly_rate * factor
-            ) / (factor - 1)
-            if pay_when == 1:
-                monthly_payment = monthly_payment / (1 + monthly_rate)
+                ordinary_payment / (1.0 + monthly_rate)
+                if pay_when == 1
+                else ordinary_payment
+            )
 
-        annual_payment = monthly_payment * months
-        remaining_balance = principal
-        total_interest_year = 0.0
-        total_principal_year = 0.0
+        balance = principal
+        total_interest = 0.0
+        total_principal = 0.0
+        total_payments = 0.0
 
-        for _ in range(months):
+        for _ in range(months_per_year):
             if pay_when == 1:
-                interest_month = remaining_balance * monthly_rate
-                principal_month = monthly_payment - interest_month
+                # The payment occurs first, so the remaining balance accrues interest.
+                payment_principal = min(balance, monthly_payment)
+                balance -= payment_principal
+                interest_this_month = balance * monthly_rate
+                total_principal += payment_principal
+                total_interest += interest_this_month
+                total_payments += payment_principal
             else:
-                interest_month = remaining_balance * monthly_rate
-                principal_month = monthly_payment - interest_month
-
-            total_interest_year += interest_month
-            total_principal_year += principal_month
-            remaining_balance -= principal_month
+                interest_this_month = balance * monthly_rate
+                payment_principal = min(
+                    balance, max(0.0, monthly_payment - interest_this_month)
+                )
+                balance -= payment_principal
+                total_principal += payment_principal
+                total_interest += interest_this_month
+                total_payments += interest_this_month + payment_principal
 
         return {
-            "interest": total_interest_year,
-            "principal_repaid": total_principal_year,
-            "annual_payment": annual_payment,
+            "interest_expense": total_interest,
+            "principal_repaid": total_principal,
+            "annual_payment": total_payments,
         }
 
     @staticmethod
     def _calculate_financing_impact(
-        financing_decisions,
+        financing_decisions: Sequence[Dict[str, Any]],
     ) -> Dict[str, float]:
+        """Calculate financing from the investment allocator's uncovered need.
 
+        The amount financed is not inferred from the separate illustrative
+        property-value inputs in the Loan-vs-Leasing screen. It is based on the
+        actual uncovered CAPEX and initial working-capital requirement saved
+        with the investment decision.
+        """
         result = {
             "new_debt": 0.0,
             "interest_expense": 0.0,
@@ -183,131 +184,82 @@ class FinancialEngine:
             "annual_payment": 0.0,
         }
 
-        for decision in financing_decisions:
+        for decision in financing_decisions or ():
             if not isinstance(decision, dict):
                 continue
 
             option = decision.get("selected_option")
-
             if option not in ("Loan", "Leasing"):
                 continue
 
             funding = decision.get("funding_allocation")
-
             if not isinstance(funding, dict):
                 raise ValueError(
-                    "Missing funding allocation for financing "
-                    "decision. Transfer the financing decision "
-                    "again from the investment financing screen."
+                    "Missing funding allocation for financing decision. "
+                    "Return to Loan vs Leasing Lab and transfer the financing decision again."
                 )
 
             inputs = decision.get("financing_inputs", {})
-
             if not isinstance(inputs, dict):
                 inputs = {}
 
-            # Actual uncovered needs calculated by the allocator.
             capex_required = max(
-                0.0,
-                float(
-                    funding.get("external_capex_required", 0.0)
-                ),
+                0.0, float(funding.get("external_capex_required", 0.0))
             )
-
             wc_required = max(
                 0.0,
-                float(
-                    funding.get(
-                        "external_working_capital_required", 0.0
-                    )
-                ),
+                float(funding.get("external_working_capital_required", 0.0)),
             )
-
             total_required = max(
                 0.0,
-                float(
-                    funding.get("total_external_funding_required", 0.0)
-                ),
-            )    
+                float(funding.get("total_external_funding_required", 0.0)),
+            )
 
-            # Consistency check: the two funding components must
-            # reconcile to the allocator's total.
             components_total = capex_required + wc_required
-
             if abs(components_total - total_required) > 0.01:
                 raise ValueError(
-                    "Funding allocation mismatch: CAPEX and "
-                    "working-capital requirements do not reconcile "
-                    "to total external funding."
+                    "Funding allocation mismatch: external CAPEX and working-capital "
+                    "requirements do not reconcile to total external funding."
                 )
 
-            asset_rate = max(
-                0.0,
-                float(inputs.get("loan_rate", 0.0)),
+            asset_rate = max(0.0, float(inputs.get("loan_rate", 0.0)))
+            wc_rate = max(0.0, float(inputs.get("wc_rate", 0.0)))
+            duration = max(1.0, float(inputs.get("duration_years", 1)))
+            pay_when = 1 if int(inputs.get("pay_when", 0)) == 1 else 0
+
+            # For both options, uncovered CAPEX is financed by the selected
+            # asset-financing product. Any uncovered initial working capital
+            # is modelled separately as a working-capital loan. The current UI
+            # has no separate lease rate, so loan_rate is used as its proxy.
+            asset_schedule = FinancialEngine._year_one_financing_schedule(
+                principal=capex_required,
+                annual_rate=asset_rate,
+                duration_years=duration,
+                pay_when=pay_when,
             )
-
-            wc_rate = max(
-                0.0,
-                float(inputs.get("wc_rate", 0.0)),
-            )
-
-            duration = max(
-                1,
-                int(inputs.get("duration_years", 1)),
-            )
-
-            pay_when = int(inputs.get("pay_when", 0))
-            pay_when = 1 if pay_when == 1 else 0
-
-            # Loan:
-            #   CAPEX is financed by the asset loan.
-            #   Working capital is financed separately.
-            #
-            # Leasing:
-            #   CAPEX is financed through the lease.
-            #   Any uncovered working-capital need is modelled
-            #   separately as a loan.
-            #
-            # This simplified model uses loan_rate as the lease
-            # financing rate because no separate lease rate exists
-            # in the current financing inputs.
-
-            asset_schedule = (
-                FinancialEngine._year_one_financing_schedule(
-                    principal=capex_required,
-                    annual_rate=asset_rate,
-                    duration_years=duration,
-                    pay_when=pay_when,
-                )
-            )
-
-            wc_schedule = (
-                FinancialEngine._year_one_financing_schedule(
-                    principal=wc_required,
-                    annual_rate=wc_rate,
-                    duration_years=duration,
-                    pay_when=pay_when,
-                )
+            wc_schedule = FinancialEngine._year_one_financing_schedule(
+                principal=wc_required,
+                annual_rate=wc_rate,
+                duration_years=duration,
+                pay_when=pay_when,
             )
 
             result["new_debt"] += total_required
-
             result["interest_expense"] += (
                 asset_schedule["interest_expense"]
                 + wc_schedule["interest_expense"]
             )
-
             result["principal_repaid"] += (
                 asset_schedule["principal_repaid"]
                 + wc_schedule["principal_repaid"]
             )
-
             result["annual_payment"] += (
                 asset_schedule["annual_payment"]
                 + wc_schedule["annual_payment"]
             )
 
         return result
+
     # =====================================================
     # BASIC FINANCIAL STATEMENTS
     # =====================================================
@@ -317,119 +269,27 @@ class FinancialEngine:
         state: CompanyState,
         prior_nwc: Optional[float] = None,
     ) -> FinancialStatements:
-        """
-        Calculate the company's modelled financial statements.
+        """Calculate financial statements from CompanyState drivers."""
+        revenue = state.drivers.volume * state.drivers.price
+        cogs = state.drivers.volume * state.drivers.variable_cost_per_unit
+        gross_profit = revenue - cogs
+        fixed_opex = state.drivers.fixed_opex
+        ebitda = gross_profit - fixed_opex
+        depreciation = state.drivers.depreciation
+        ebit = ebitda - depreciation
 
-        This function uses the operational, capital-structure and
-        working-capital drivers contained inside CompanyState.
-        """
+        interest_expense = state.capital_structure.annual_cash_interest_paid
+        ebt = ebit - interest_expense
+        tax = max(0.0, ebt * state.capital_structure.tax_rate)
+        net_profit = ebt - tax
 
-        # -------------------------------------------------
-        # Operating drivers
-        # -------------------------------------------------
+        ar = state.working_capital.ar_days / 365.0 * revenue
+        inventory = state.working_capital.inventory_days / 365.0 * cogs
+        ap = state.working_capital.ap_days / 365.0 * cogs
+        nwc = ar + inventory - ap
+        wc_cash_impact = 0.0 if prior_nwc is None else prior_nwc - nwc
 
-        revenue = (
-            state.drivers.volume
-            * state.drivers.price
-        )
-
-        cogs = (
-            state.drivers.volume
-            * state.drivers.variable_cost_per_unit
-        )
-
-        gross_profit = (
-            revenue
-            - cogs
-        )
-
-        fixed_opex = (
-            state.drivers.fixed_opex
-        )
-
-        ebitda = (
-            gross_profit
-            - fixed_opex
-        )
-
-        depreciation = (
-            state.drivers.depreciation
-        )
-
-        ebit = (
-            ebitda
-            - depreciation
-        )
-
-        # -------------------------------------------------
-        # Financing
-        # -------------------------------------------------
-
-        interest_expense = (
-            state.capital_structure
-            .annual_cash_interest_paid
-        )
-
-        ebt = (
-            ebit
-            - interest_expense
-        )
-
-        tax = max(
-            0.0,
-            ebt * state.capital_structure.tax_rate,
-        )
-
-        net_profit = (
-            ebt
-            - tax
-        )
-
-        # -------------------------------------------------
-        # Working capital
-        # -------------------------------------------------
-
-        ar = (
-            state.working_capital.ar_days
-            / 365.0
-            * revenue
-        )
-
-        inventory = (
-            state.working_capital.inventory_days
-            / 365.0
-            * cogs
-        )
-
-        ap = (
-            state.working_capital.ap_days
-            / 365.0
-            * cogs
-        )
-
-        nwc = (
-            ar
-            + inventory
-            - ap
-        )
-
-        if prior_nwc is None:
-            wc_cash_impact = 0.0
-        else:
-            wc_cash_impact = (
-                prior_nwc
-                - nwc
-            )
-
-        # -------------------------------------------------
-        # FCFE
-        # -------------------------------------------------
-
-        principal_payments = (
-            state.capital_structure
-            .principal_payments
-        )
-
+        principal_payments = state.capital_structure.principal_payments
         fcfe = (
             net_profit
             + depreciation
@@ -472,67 +332,30 @@ class FinancialEngine:
         baseline_state: CompanyState,
         projected_state: CompanyState,
     ) -> VarianceImpact:
-
-        baseline = cls.calculate_statements(
-            baseline_state
-        )
-
+        baseline = cls.calculate_statements(baseline_state)
         projected = cls.calculate_statements(
             projected_state,
             prior_nwc=baseline.working_capital.nwc,
         )
-
         baseline_is = baseline.income_statement
         projected_is = projected.income_statement
-
         baseline_wc = baseline.working_capital
         projected_wc = projected.working_capital
 
-        revenue_delta = (
-            projected_is.revenue
-            - baseline_is.revenue
+        revenue_delta = projected_is.revenue - baseline_is.revenue
+        price_effect = baseline_state.drivers.volume * (
+            projected_state.drivers.price - baseline_state.drivers.price
         )
-
-        price_effect = (
-            baseline_state.drivers.volume
-            * (
-                projected_state.drivers.price
-                - baseline_state.drivers.price
-            )
-        )
-
         volume_effect = (
-            (
-                projected_state.drivers.volume
-                - baseline_state.drivers.volume
-            )
-            * projected_state.drivers.price
-        )
-
-        gross_profit_delta = (
-            projected_is.gross_profit
-            - baseline_is.gross_profit
-        )
-
-        ebitda_delta = (
-            projected_is.ebitda
-            - baseline_is.ebitda
-        )
-
-        net_profit_delta = (
-            projected_is.net_profit
-            - baseline_is.net_profit
-        )
-
+            projected_state.drivers.volume - baseline_state.drivers.volume
+        ) * projected_state.drivers.price
+        gross_profit_delta = projected_is.gross_profit - baseline_is.gross_profit
+        ebitda_delta = projected_is.ebitda - baseline_is.ebitda
+        net_profit_delta = projected_is.net_profit - baseline_is.net_profit
         nwc_cash_impact_delta = (
-            projected_wc.wc_cash_impact
-            - baseline_wc.wc_cash_impact
+            projected_wc.wc_cash_impact - baseline_wc.wc_cash_impact
         )
-
-        fcfe_delta = (
-            projected.fcfe
-            - baseline.fcfe
-        )
+        fcfe_delta = projected.fcfe - baseline.fcfe
 
         return VarianceImpact(
             revenue_delta=revenue_delta,
@@ -543,17 +366,14 @@ class FinancialEngine:
             net_profit_delta=net_profit_delta,
             nwc_cash_impact_delta=nwc_cash_impact_delta,
             fcfe_delta=fcfe_delta,
-
             investment_revenue_delta=0.0,
             investment_variable_cost_delta=0.0,
             investment_fixed_opex_delta=0.0,
             investment_depreciation_delta=0.0,
             investment_nwc_delta=0.0,
-
             investment_initial_capex=0.0,
             investment_initial_nwc_requirement=0.0,
             investment_initial_funding_requirement=0.0,
-
             investment_operating_cash_flow_delta=0.0,
             investment_cash_impact=0.0,
         )
@@ -564,20 +384,12 @@ class FinancialEngine:
 
     @staticmethod
     def _validate_investment_impacts(
-        investment_impacts: Sequence[
-            InvestmentCompanyImpact
-        ],
+        investment_impacts: Sequence[InvestmentCompanyImpact],
     ) -> None:
-
         for impact in investment_impacts:
-
-            if not isinstance(
-                impact,
-                InvestmentCompanyImpact,
-            ):
+            if not isinstance(impact, InvestmentCompanyImpact):
                 raise TypeError(
-                    "investment_impacts must contain "
-                    "InvestmentCompanyImpact objects."
+                    "investment_impacts must contain InvestmentCompanyImpact objects."
                 )
 
     # =====================================================
@@ -586,76 +398,28 @@ class FinancialEngine:
 
     @staticmethod
     def _aggregate_investment_impacts(
-        investment_impacts: Sequence[
-            InvestmentCompanyImpact
-        ],
+        investment_impacts: Sequence[InvestmentCompanyImpact],
     ) -> Dict[str, float]:
-
         return {
-            "revenue_delta": sum(
-                x.revenue_delta
-                for x in investment_impacts
-            ),
-
-            "variable_cost_delta": sum(
-                x.variable_cost_delta
-                for x in investment_impacts
-            ),
-
-            "fixed_opex_delta": sum(
-                x.fixed_opex_delta
-                for x in investment_impacts
-            ),
-
-            "depreciation_delta": sum(
-                x.depreciation_delta
-                for x in investment_impacts
-            ),
-
-            "ar_delta": sum(
-                x.ar_delta
-                for x in investment_impacts
-            ),
-
-            "inventory_delta": sum(
-                x.inventory_delta
-                for x in investment_impacts
-            ),
-
-            "ap_delta": sum(
-                x.ap_delta
-                for x in investment_impacts
-            ),
-
-            "nwc_delta": sum(
-                x.nwc_delta
-                for x in investment_impacts
-            ),
-
-            "initial_capex": sum(
-                x.initial_capex
-                for x in investment_impacts
-            ),
-
+            "revenue_delta": sum(x.revenue_delta for x in investment_impacts),
+            "variable_cost_delta": sum(x.variable_cost_delta for x in investment_impacts),
+            "fixed_opex_delta": sum(x.fixed_opex_delta for x in investment_impacts),
+            "depreciation_delta": sum(x.depreciation_delta for x in investment_impacts),
+            "ar_delta": sum(x.ar_delta for x in investment_impacts),
+            "inventory_delta": sum(x.inventory_delta for x in investment_impacts),
+            "ap_delta": sum(x.ap_delta for x in investment_impacts),
+            "nwc_delta": sum(x.nwc_delta for x in investment_impacts),
+            "initial_capex": sum(x.initial_capex for x in investment_impacts),
             "initial_nwc_requirement": sum(
-                x.initial_nwc_requirement
-                for x in investment_impacts
+                x.initial_nwc_requirement for x in investment_impacts
             ),
-
             "initial_funding_requirement": sum(
-                x.initial_funding_requirement
-                for x in investment_impacts
+                x.initial_funding_requirement for x in investment_impacts
             ),
-
             "operating_cash_flow_delta": sum(
-                x.operating_cash_flow_delta
-                for x in investment_impacts
+                x.operating_cash_flow_delta for x in investment_impacts
             ),
-
-            "project_cash_impact": sum(
-                x.project_cash_impact
-                for x in investment_impacts
-            ),
+            "project_cash_impact": sum(x.project_cash_impact for x in investment_impacts),
         }
 
     # =====================================================
@@ -669,153 +433,51 @@ class FinancialEngine:
         baseline_company_fin: FinancialStatements,
         baseline_state: CompanyState,
         projected_state: CompanyState,
-        investment_impacts: Sequence[
-            InvestmentCompanyImpact
-        ],
+        investment_impacts: Sequence[InvestmentCompanyImpact],
     ) -> FinancialStatements:
-        """
-        Build the integrated company + investment Year-1 statement.
+        """Build integrated company + investment Year-1 statements."""
+        aggregated = cls._aggregate_investment_impacts(investment_impacts)
+        company_is = projected_company_fin.income_statement
 
-        The investment contributes incremental:
-            Revenue, Variable cost, Fixed opex, Depreciation, Working capital
-
-        Reconciles the integrated Net Profit against baseline_state.net_profit
-        using the modelled net profit delta.
-        """
-
-        aggregated = (
-            cls._aggregate_investment_impacts(
-                investment_impacts
-            )
-        )
-
-        company_is = (
-            projected_company_fin.income_statement
-        )
-
-        # -------------------------------------------------
-        # Income Statement Calculations
-        # -------------------------------------------------
-
-        integrated_revenue = (
-            company_is.revenue
-            + aggregated["revenue_delta"]
-        )
-
-        integrated_cogs = (
-            company_is.cogs
-            + aggregated["variable_cost_delta"]
-        )
-
-        integrated_gross_profit = (
-            integrated_revenue
-            - integrated_cogs
-        )
-
-        integrated_fixed_opex = (
-            company_is.fixed_opex
-            + aggregated["fixed_opex_delta"]
-        )
-
-        integrated_ebitda = (
-            integrated_gross_profit
-            - integrated_fixed_opex
-        )
-
+        integrated_revenue = company_is.revenue + aggregated["revenue_delta"]
+        integrated_cogs = company_is.cogs + aggregated["variable_cost_delta"]
+        integrated_gross_profit = integrated_revenue - integrated_cogs
+        integrated_fixed_opex = company_is.fixed_opex + aggregated["fixed_opex_delta"]
+        integrated_ebitda = integrated_gross_profit - integrated_fixed_opex
         integrated_depreciation = (
-            company_is.depreciation
-            + aggregated["depreciation_delta"]
+            company_is.depreciation + aggregated["depreciation_delta"]
         )
-
-        integrated_ebit = (
-            integrated_ebitda
-            - integrated_depreciation
-        )
-
-        integrated_interest = (
-            company_is.interest_expense
-        )
-
-        integrated_ebt = (
-            integrated_ebit
-            - integrated_interest
-        )
-
+        integrated_ebit = integrated_ebitda - integrated_depreciation
+        integrated_interest = company_is.interest_expense
+        integrated_ebt = integrated_ebit - integrated_interest
         integrated_tax = max(
-            0.0,
-            integrated_ebt
-            * projected_state.capital_structure.tax_rate,
+            0.0, integrated_ebt * projected_state.capital_structure.tax_rate
         )
-
-        modelled_integrated_net_profit = (
-            integrated_ebt
-            - integrated_tax
-        )
-
-        # -------------------------------------------------
-        # NET PROFIT RECONCILIATION
-        # -------------------------------------------------
+        modelled_integrated_net_profit = integrated_ebt - integrated_tax
 
         modelled_net_profit_delta = (
             modelled_integrated_net_profit
             - baseline_company_fin.income_statement.net_profit
         )
+        reconciled_net_profit = baseline_state.net_profit + modelled_net_profit_delta
 
-        reconciled_net_profit = (
-            baseline_state.net_profit
-            + modelled_net_profit_delta
-        )
-
-        # -------------------------------------------------
-        # Working capital
-        # -------------------------------------------------
-
-        company_wc = (
-            projected_company_fin.working_capital
-        )
-
-        integrated_ar = (
-            company_wc.ar
-            + aggregated["ar_delta"]
-        )
-
-        integrated_inventory = (
-            company_wc.inventory
-            + aggregated["inventory_delta"]
-        )
-
-        integrated_ap = (
-            company_wc.ap
-            + aggregated["ap_delta"]
-        )
-
-        integrated_nwc = (
-            integrated_ar
-            + integrated_inventory
-            - integrated_ap
-        )
-
+        company_wc = projected_company_fin.working_capital
+        integrated_ar = company_wc.ar + aggregated["ar_delta"]
+        integrated_inventory = company_wc.inventory + aggregated["inventory_delta"]
+        integrated_ap = company_wc.ap + aggregated["ap_delta"]
+        integrated_nwc = integrated_ar + integrated_inventory - integrated_ap
         integrated_wc_cash_impact = (
-            baseline_company_fin
-            .working_capital
-            .nwc
-            - integrated_nwc
+            baseline_company_fin.working_capital.nwc - integrated_nwc
         )
 
-        # -------------------------------------------------
-        # FCFE RECONCILIATION
-        # -------------------------------------------------
-
-        integrated_principal = (
-            projected_company_fin.principal_payments
-        )
-
+        integrated_principal = projected_company_fin.principal_payments
         reconciled_fcfe = (
             reconciled_net_profit
             + integrated_depreciation
             - integrated_principal
             + integrated_wc_cash_impact
             - aggregated["initial_capex"]
+            - aggregated["initial_nwc_requirement"]
         )
 
         return FinancialStatements(
@@ -832,7 +494,6 @@ class FinancialEngine:
                 tax=integrated_tax,
                 net_profit=reconciled_net_profit,
             ),
-
             working_capital=WorkingCapitalMetrics(
                 ar=integrated_ar,
                 inventory=integrated_inventory,
@@ -840,7 +501,6 @@ class FinancialEngine:
                 nwc=integrated_nwc,
                 wc_cash_impact=integrated_wc_cash_impact,
             ),
-
             principal_payments=integrated_principal,
             fcfe=reconciled_fcfe,
         )
@@ -854,21 +514,11 @@ class FinancialEngine:
         cls,
         baseline_state: CompanyState,
         projected_state: CompanyState,
-        investment_impacts: Sequence[
-            InvestmentCompanyImpact
-        ] = (),
-        financing_decisions: Sequence[
-            Dict[str, Any]
-        ] = (),
+        investment_impacts: Sequence[InvestmentCompanyImpact] = (),
+        financing_decisions: Sequence[Dict[str, Any]] = (),
     ) -> FinancialProjection:
-
-        cls._validate_investment_impacts(
-            investment_impacts
-        )
-
-        financing_impact = cls._calculate_financing_impact(
-            financing_decisions
-        )
+        cls._validate_investment_impacts(investment_impacts)
+        financing_impact = cls._calculate_financing_impact(financing_decisions)
 
         if financing_impact["new_debt"] > 0:
             updated_capital_structure = replace(
@@ -891,33 +541,21 @@ class FinancialEngine:
                 ),
             )
             projected_state = replace(
-                projected_state,
-                capital_structure=updated_capital_structure,
+                projected_state, capital_structure=updated_capital_structure
             )
 
         # -------------------------------------------------
         # BASELINE
         # -------------------------------------------------
-
-        baseline_modelled_fin = cls.calculate_statements(
-            baseline_state
-        )
-
-        baseline_is_modelled = (
-            baseline_modelled_fin.income_statement
-        )
-
-        baseline_wc = (
-            baseline_modelled_fin.working_capital
-        )
-
+        baseline_modelled_fin = cls.calculate_statements(baseline_state)
+        baseline_is_modelled = baseline_modelled_fin.income_statement
+        baseline_wc_modelled = baseline_modelled_fin.working_capital
         baseline_fcfe = (
             baseline_state.net_profit
             + baseline_is_modelled.depreciation
             - baseline_modelled_fin.principal_payments
-            + baseline_wc.wc_cash_impact
+            + baseline_wc_modelled.wc_cash_impact
         )
-
         baseline_fin = FinancialStatements(
             income_statement=IncomeStatement(
                 revenue=baseline_is_modelled.revenue,
@@ -932,17 +570,14 @@ class FinancialEngine:
                 tax=baseline_is_modelled.tax,
                 net_profit=baseline_state.net_profit,
             ),
-            working_capital=baseline_wc,
-            principal_payments=(
-                baseline_modelled_fin.principal_payments
-            ),
+            working_capital=baseline_wc_modelled,
+            principal_payments=baseline_modelled_fin.principal_payments,
             fcfe=baseline_fcfe,
         )
 
         # -------------------------------------------------
         # PROJECTED COMPANY
         # -------------------------------------------------
-
         projected_company_fin = cls.calculate_statements(
             projected_state,
             prior_nwc=baseline_modelled_fin.working_capital.nwc,
@@ -951,34 +586,20 @@ class FinancialEngine:
         # =================================================
         # NO INVESTMENT
         # =================================================
-
         if not investment_impacts:
-
-            projected_is = (
-                projected_company_fin.income_statement
-            )
-
-            projected_wc = (
-                projected_company_fin.working_capital
-            )
-
+            projected_is = projected_company_fin.income_statement
+            projected_wc = projected_company_fin.working_capital
             modelled_net_profit_delta = (
                 projected_is.net_profit
                 - baseline_modelled_fin.income_statement.net_profit
             )
-
-            reconciled_net_profit = (
-                baseline_state.net_profit
-                + modelled_net_profit_delta
-            )
-
+            reconciled_net_profit = baseline_state.net_profit + modelled_net_profit_delta
             reconciled_fcfe = (
                 reconciled_net_profit
                 + projected_is.depreciation
                 - projected_company_fin.principal_payments
                 + projected_wc.wc_cash_impact
             )
-
             projected_fin = FinancialStatements(
                 income_statement=IncomeStatement(
                     revenue=projected_is.revenue,
@@ -993,112 +614,56 @@ class FinancialEngine:
                     tax=projected_is.tax,
                     net_profit=reconciled_net_profit,
                 ),
-
                 working_capital=projected_wc,
-
-                principal_payments=(
-                    projected_company_fin.principal_payments
-                ),
-
+                principal_payments=projected_company_fin.principal_payments,
                 fcfe=reconciled_fcfe,
             )
-
-        # =================================================
-        # WITH INVESTMENT
-        # =================================================
-
         else:
+            projected_fin = cls._build_integrated_statements(
+                projected_company_fin=projected_company_fin,
+                baseline_company_fin=baseline_modelled_fin,
+                baseline_state=baseline_state,
+                projected_state=projected_state,
+                investment_impacts=investment_impacts,
+            )
 
-            projected_fin = (
-                cls._build_integrated_statements(
-                    projected_company_fin=projected_company_fin,
-                    baseline_company_fin=baseline_modelled_fin,
-                    baseline_state=baseline_state,
-                    projected_state=projected_state,
-                    investment_impacts=investment_impacts,
-                )
+        # Financing proceeds are a cash inflow; principal repayments are already
+        # deducted above through projected_state.capital_structure.principal_payments.
+        if financing_impact["new_debt"] > 0:
+            projected_fin = replace(
+                projected_fin,
+                fcfe=projected_fin.fcfe + financing_impact["new_debt"],
             )
 
         # =================================================
         # TOTAL IMPACT
         # =================================================
+        baseline_is = baseline_fin.income_statement
+        projected_is = projected_fin.income_statement
+        baseline_wc = baseline_fin.working_capital
+        projected_wc = projected_fin.working_capital
 
-        baseline_is = (
-            baseline_fin.income_statement
+        revenue_delta = projected_is.revenue - baseline_is.revenue
+        price_effect = baseline_state.drivers.volume * (
+            projected_state.drivers.price - baseline_state.drivers.price
         )
-
-        projected_is = (
-            projected_fin.income_statement
-        )
-
-        baseline_wc = (
-            baseline_fin.working_capital
-        )
-
-        projected_wc = (
-            projected_fin.working_capital
-        )
-
-        revenue_delta = (
-            projected_is.revenue
-            - baseline_is.revenue
-        )
-
-        price_effect = (
-            baseline_state.drivers.volume
-            * (
-                projected_state.drivers.price
-                - baseline_state.drivers.price
-            )
-        )
-
         volume_effect = (
-            (
-                projected_state.drivers.volume
-                - baseline_state.drivers.volume
-            )
-            * projected_state.drivers.price
-        )
-
-        gross_profit_delta = (
-            projected_is.gross_profit
-            - baseline_is.gross_profit
-        )
-
-        ebitda_delta = (
-            projected_is.ebitda
-            - baseline_is.ebitda
-        )
-
-        modelled_net_profit_delta = (
-            projected_is.net_profit
-            - baseline_state.net_profit
-        )
-
+            projected_state.drivers.volume - baseline_state.drivers.volume
+        ) * projected_state.drivers.price
+        gross_profit_delta = projected_is.gross_profit - baseline_is.gross_profit
+        ebitda_delta = projected_is.ebitda - baseline_is.ebitda
+        modelled_net_profit_delta = projected_is.net_profit - baseline_state.net_profit
         nwc_cash_impact_delta = (
-            projected_wc.wc_cash_impact
-            - baseline_wc.wc_cash_impact
+            projected_wc.wc_cash_impact - baseline_wc.wc_cash_impact
         )
-
-        fcfe_delta = (
-            projected_fin.fcfe
-            - baseline_fin.fcfe
-        )
+        fcfe_delta = projected_fin.fcfe - baseline_fin.fcfe
 
         # =================================================
         # INVESTMENT BRIDGE
         # =================================================
-
         if investment_impacts:
-
-            aggregated = (
-                cls._aggregate_investment_impacts(
-                    investment_impacts
-                )
-            )
-
+            aggregated = cls._aggregate_investment_impacts(investment_impacts)
         else:
-
             aggregated = {
                 "revenue_delta": 0.0,
                 "variable_cost_delta": 0.0,
@@ -1112,78 +677,31 @@ class FinancialEngine:
                 "project_cash_impact": 0.0,
             }
 
-        # =================================================
-        # IMPACT OBJECT
-        # =================================================
-
         impact = VarianceImpact(
             revenue_delta=revenue_delta,
-
             price_effect=price_effect,
             volume_effect=volume_effect,
-
             gross_profit_delta=gross_profit_delta,
             ebitda_delta=ebitda_delta,
             net_profit_delta=modelled_net_profit_delta,
-
             nwc_cash_impact_delta=nwc_cash_impact_delta,
             fcfe_delta=fcfe_delta,
-
-            investment_revenue_delta=(
-                aggregated["revenue_delta"]
-            ),
-
-            investment_variable_cost_delta=(
-                aggregated["variable_cost_delta"]
-            ),
-
-            investment_fixed_opex_delta=(
-                aggregated["fixed_opex_delta"]
-            ),
-
-            investment_depreciation_delta=(
-                aggregated["depreciation_delta"]
-            ),
-
-            investment_nwc_delta=(
-                aggregated["nwc_delta"]
-            ),
-
-            investment_initial_capex=(
-                aggregated["initial_capex"]
-            ),
-
-            investment_initial_nwc_requirement=(
-                aggregated[
-                    "initial_nwc_requirement"
-                ]
-            ),
-
-            investment_initial_funding_requirement=(
-                aggregated[
-                    "initial_funding_requirement"
-                ]
-            ),
-
-            investment_operating_cash_flow_delta=(
-                aggregated[
-                    "operating_cash_flow_delta"
-                ]
-            ),
-
-            investment_cash_impact=(
-                aggregated[
-                    "project_cash_impact"
-                ]
-            ),
+            investment_revenue_delta=aggregated["revenue_delta"],
+            investment_variable_cost_delta=aggregated["variable_cost_delta"],
+            investment_fixed_opex_delta=aggregated["fixed_opex_delta"],
+            investment_depreciation_delta=aggregated["depreciation_delta"],
+            investment_nwc_delta=aggregated["nwc_delta"],
+            investment_initial_capex=aggregated["initial_capex"],
+            investment_initial_nwc_requirement=aggregated["initial_nwc_requirement"],
+            investment_initial_funding_requirement=aggregated["initial_funding_requirement"],
+            investment_operating_cash_flow_delta=aggregated["operating_cash_flow_delta"],
+            investment_cash_impact=aggregated["project_cash_impact"],
         )
 
         return FinancialProjection(
             baseline=baseline_fin,
             projected=projected_fin,
             impact=impact,
-            investment_impacts=tuple(
-                investment_impacts
-            ),
+            investment_impacts=tuple(investment_impacts),
             financing_impact=financing_impact,
         )
