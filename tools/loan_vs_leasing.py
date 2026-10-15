@@ -355,91 +355,171 @@ def render_loan_vs_leasing_lab(baseline_state):
     baseline_profit = baseline_is.net_profit
 
     # =====================================================
-    # INPUTS
+    # INVESTMENT FUNDING OVERVIEW — imported from the project
     # =====================================================
-    col1, col2 = st.columns(2)
+    funding_allocation = None
 
-    with col1:
-        st.subheader("Financing Terms")
-        loan_rate = st.number_input("Loan Interest Rate (%)", value=6.0) / 100
-        wc_rate = (
-            st.number_input("Working Capital Interest Rate (%)", value=8.0)
-            / 100
-        )
-        duration_years = st.number_input(
-            "Duration (Years)", value=15, min_value=1
-        )
-        pay_timing = st.radio(
-            "Payment Timing", ["Beginning of Month", "End of Month"]
-        )
-        pay_when = 1 if pay_timing == "Beginning of Month" else 0
-        tax_rate = (
-            st.number_input(
-                "Corporate Tax Rate (%)",
-                value=float(baseline_state.capital_structure.tax_rate * 100),
+    if project_available:
+        try:
+            funding_allocation = get_investment_funding_allocation(
+                baseline_state, investment_assumptions
             )
-            / 100
+        except Exception as exc:
+            st.error(f"Could not calculate the investment funding requirement: {exc}")
+
+    st.subheader("Investment Funding Overview")
+    if funding_allocation is not None:
+        st.caption(
+            "Automatically carried over from the Investment Decision Lab. "
+            "These figures determine the actual funding gap used in the integrated projection."
         )
 
-    with col2:
-        st.subheader("Investment Details")
-        funding_allocation = None
-
-        if project_available:
-            try:
-                funding_allocation = get_investment_funding_allocation(
-                    baseline_state, investment_assumptions
-                )
-            except Exception as exc:
-                st.error(f"Could not calculate the investment funding requirement: {exc}")
-
-        if funding_allocation is not None:
-            st.metric("Investment CAPEX", f"€{funding_allocation.total_capex:,.0f}")
+        capex_col, wc_col = st.columns(2)
+        with capex_col:
+            st.metric(
+                "Investment CAPEX",
+                f"€{funding_allocation.total_capex:,.0f}",
+            )
+        with wc_col:
             st.metric(
                 "Initial Working-Capital Need",
                 f"€{funding_allocation.working_capital_need:,.0f}",
             )
+
+        available_cash = funding_allocation.available_internal_cash
+        internal_allocated = (
+            funding_allocation.internal_cash_to_working_capital
+            + funding_allocation.internal_cash_to_capex
+        )
+        external_required = funding_allocation.total_external_funding_required
+
+        cash_col, allocated_col, external_col = st.columns(3)
+        with cash_col:
             st.metric(
                 "Internal Cash Available Above Reserve",
-                f"€{funding_allocation.available_internal_cash:,.0f}",
+                f"€{available_cash:,.0f}",
             )
+        with allocated_col:
             st.metric(
                 "Internal Cash Allocated",
-                f"€{(funding_allocation.internal_cash_to_working_capital + funding_allocation.internal_cash_to_capex):,.0f}",
+                f"€{internal_allocated:,.0f}",
             )
+        with external_col:
             st.metric(
                 "External Funding Required",
-                f"€{funding_allocation.total_external_funding_required:,.0f}",
+                f"€{external_required:,.0f}",
+                help="The uncovered amount to be financed externally.",
             )
+    else:
+        st.warning(
+            "Investment funding figures will appear here once an evaluated "
+            "investment project is available."
+        )
 
+    st.divider()
+
+    # =====================================================
+    # FINANCING INPUTS
+    # =====================================================
+    st.subheader("Financing Terms")
+    rate_col, wc_rate_col, duration_col, timing_col = st.columns(4)
+
+    with rate_col:
+        loan_rate = st.number_input(
+            "Loan Interest Rate (%)", value=6.0, key="ll_loan_rate"
+        ) / 100
+    with wc_rate_col:
+        wc_rate = st.number_input(
+            "Working Capital Interest Rate (%)", value=8.0, key="ll_wc_rate"
+        ) / 100
+    with duration_col:
+        duration_years = st.number_input(
+            "Duration (Years)", value=15, min_value=1, key="ll_duration_years"
+        )
+    with timing_col:
+        pay_timing = st.radio(
+            "Payment Timing",
+            ["Beginning of Month", "End of Month"],
+            key="ll_payment_timing",
+        )
+
+    pay_when = 1 if pay_timing == "Beginning of Month" else 0
+    tax_rate_col, _ = st.columns(2)
+    with tax_rate_col:
+        tax_rate = (
+            st.number_input(
+                "Corporate Tax Rate (%)",
+                value=float(baseline_state.capital_structure.tax_rate * 100),
+                key="ll_tax_rate",
+            )
+            / 100
+        )
+
+    # Keep the original property-based assumptions available for the
+    # illustrative comparison, but tuck them away so they do not compete
+    # visually with the actual investment funding figures.
+    with st.expander("Illustrative comparison assumptions"):
         st.caption(
-            "The following property-value assumptions are used only for the "
-            "illustrative Loan-versus-Leasing comparison. They do not determine "
-            "the debt amount transferred to the integrated company projection."
+            "These assumptions are used only for the illustrative Loan-versus-Leasing "
+            "comparison below. They do not determine the debt amount transferred to "
+            "the integrated company projection."
         )
         property_value = st.number_input(
-            "Property Commercial Value (€)", value=250000.0, min_value=0.0
+            "Property Commercial Value (€)",
+            value=250000.0,
+            min_value=0.0,
+            key="ll_property_value",
         )
         loan_financing = (
-            st.number_input("Loan Financing (%)", value=70.0, min_value=0.0, max_value=100.0)
+            st.number_input(
+                "Loan Financing (%)",
+                value=70.0,
+                min_value=0.0,
+                max_value=100.0,
+                key="ll_loan_financing",
+            )
             / 100
         )
         leasing_financing = (
-            st.number_input("Leasing Financing (%)", value=100.0, min_value=0.0, max_value=100.0)
+            st.number_input(
+                "Leasing Financing (%)",
+                value=100.0,
+                min_value=0.0,
+                max_value=100.0,
+                key="ll_leasing_financing",
+            )
             / 100
         )
-        add_expenses_loan = st.number_input(
-            "Acquisition Expenses — Loan (€)", value=35000.0, min_value=0.0
-        )
-        add_expenses_leasing = st.number_input(
-            "Acquisition Expenses — Leasing (€)", value=30000.0, min_value=0.0
-        )
-        residual_value = st.number_input(
-            "Leasing Residual Value (€)", value=3530.0, min_value=0.0
-        )
-        depreciation_years = st.number_input(
-            "Depreciation Period (Years)", value=30, min_value=1
-        )
+        expense_col_loan, expense_col_lease = st.columns(2)
+        with expense_col_loan:
+            add_expenses_loan = st.number_input(
+                "Acquisition Expenses — Loan (€)",
+                value=35000.0,
+                min_value=0.0,
+                key="ll_expenses_loan",
+            )
+        with expense_col_lease:
+            add_expenses_leasing = st.number_input(
+                "Acquisition Expenses — Leasing (€)",
+                value=30000.0,
+                min_value=0.0,
+                key="ll_expenses_leasing",
+            )
+        residual_col, depreciation_col = st.columns(2)
+        with residual_col:
+            residual_value = st.number_input(
+                "Leasing Residual Value (€)",
+                value=3530.0,
+                min_value=0.0,
+                key="ll_residual_value",
+            )
+        with depreciation_col:
+            depreciation_years = st.number_input(
+                "Depreciation Period (Years)",
+                value=30,
+                min_value=1,
+                key="ll_depreciation_years",
+            )
 
     st.divider()
 
@@ -508,55 +588,108 @@ def render_loan_vs_leasing_lab(baseline_state):
     # =====================================================
     # FINANCING COMPARISON
     # =====================================================
-    st.subheader("📊 Financing Comparison")
-    m1, m2 = st.columns(2)
-    m1.metric("Loan — Net Financing Burden", f"€{format_number_gr(final_loan)}")
-    m2.metric("Leasing — Net Financing Burden", f"€{format_number_gr(final_leasing)}")
+    st.subheader("Financing Comparison")
+    st.caption(
+        "Illustrative comparison based on the assumptions above. "
+        "The integrated projection uses the actual external funding requirement shown above."
+    )
+
+    burden_col_loan, burden_col_lease = st.columns(2)
+    with burden_col_loan:
+        st.markdown("#### 🏦 Loan")
+        st.metric(
+            "Net Financing Burden",
+            f"€{format_number_gr(final_loan)}",
+        )
+    with burden_col_lease:
+        st.markdown("#### 📄 Leasing")
+        st.metric(
+            "Net Financing Burden",
+            f"€{format_number_gr(final_leasing)}",
+        )
 
     fig = go.Figure(
         go.Bar(
             x=["Loan", "Leasing"],
             y=[final_loan, final_leasing],
-            text=[f"€{format_number_gr(final_loan)}", f"€{format_number_gr(final_leasing)}"],
+            text=[
+                f"€{format_number_gr(final_loan)}",
+                f"€{format_number_gr(final_leasing)}",
+            ],
             textposition="auto",
         )
     )
-    fig.update_layout(height=300, yaxis_title="Total Financing Burden (€)")
+    fig.update_layout(
+        height=280,
+        margin=dict(l=10, r=10, t=20, b=10),
+        yaxis_title="Total Financing Burden (€)",
+    )
     st.plotly_chart(fig, use_container_width=True)
 
     # =====================================================
-    # YEAR-1 CONSEQUENCE
+    # YEAR-1 CONSEQUENCE — aligned side-by-side rows
     # =====================================================
     st.divider()
-    st.subheader("📅 First-Year Economic Consequence")
-    c1, c2 = st.columns(2)
+    st.subheader("First-Year Economic Consequence")
 
-    with c1:
-        st.markdown("### 🏦 Loan")
-        st.metric("Total Annual Financing Payment", f"€{annual_payment_loan:,.0f}")
+    left_label, loan_header, lease_header = st.columns([1.35, 1, 1])
+    with left_label:
+        st.caption("MEASURE")
+    with loan_header:
+        st.markdown("**🏦 Loan**")
+    with lease_header:
+        st.markdown("**📄 Leasing**")
+
+    row_label, loan_value, lease_value = st.columns([1.35, 1, 1])
+    with row_label:
+        st.caption("Annual financing payment")
+    with loan_value:
         st.metric(
-            "Illustrative Net Profit",
+            " ",
+            f"€{annual_payment_loan:,.0f}",
+            label_visibility="collapsed",
+        )
+    with lease_value:
+        st.metric(
+            " ",
+            f"€{annual_payment_lease:,.0f}",
+            label_visibility="collapsed",
+        )
+
+    row_label, loan_value, lease_value = st.columns([1.35, 1, 1])
+    with row_label:
+        st.caption("Illustrative net profit")
+    with loan_value:
+        st.metric(
+            " ",
             f"€{loan_profit_impact:,.0f}",
             delta=f"€{loan_profit_impact - baseline_profit:,.0f}",
+            label_visibility="collapsed",
         )
+    with lease_value:
         st.metric(
-            "Illustrative Cash Flow (before project CAPEX)",
-            f"€{loan_cash_impact:,.0f}",
-            delta=f"€{loan_cash_impact - baseline_fcfe:,.0f}",
-        )
-
-    with c2:
-        st.markdown("### 📄 Leasing")
-        st.metric("Total Annual Leasing Payment", f"€{annual_payment_lease:,.0f}")
-        st.metric(
-            "Illustrative Net Profit",
+            " ",
             f"€{lease_profit_impact:,.0f}",
             delta=f"€{lease_profit_impact - baseline_profit:,.0f}",
+            label_visibility="collapsed",
         )
+
+    row_label, loan_value, lease_value = st.columns([1.35, 1, 1])
+    with row_label:
+        st.caption("Cash flow before project CAPEX")
+    with loan_value:
         st.metric(
-            "Illustrative Cash Flow (before project CAPEX)",
+            " ",
+            f"€{loan_cash_impact:,.0f}",
+            delta=f"€{loan_cash_impact - baseline_fcfe:,.0f}",
+            label_visibility="collapsed",
+        )
+    with lease_value:
+        st.metric(
+            " ",
             f"€{lease_cash_impact:,.0f}",
             delta=f"€{lease_cash_impact - baseline_fcfe:,.0f}",
+            label_visibility="collapsed",
         )
 
     # =====================================================
@@ -586,8 +719,13 @@ def render_loan_vs_leasing_lab(baseline_state):
         cash_after = lease_cash_impact
 
     st.success(f"Selected decision: **{selected_option}**")
-    st.metric("Total Annual Financing Payment", f"€{annual_payment:,.0f}")
-    st.metric("Total Financing Burden", f"€{final_burden:,.0f}")
+    selected_payment_col, selected_burden_col = st.columns(2)
+    selected_payment_col.metric(
+        "Total Annual Financing Payment", f"€{annual_payment:,.0f}"
+    )
+    selected_burden_col.metric(
+        "Total Financing Burden", f"€{final_burden:,.0f}"
+    )
 
     # =====================================================
     # DECISION PREVIEW
