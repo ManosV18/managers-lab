@@ -473,7 +473,7 @@ def render_loan_vs_leasing_lab(
             )
             st.metric(
                 "Internal Cash Allocated",
-                f"€{funding_allocation.internal_cash_allocated_to_investment:,.0f}",
+                f"€{(funding_allocation.internal_cash_to_working_capital + funding_allocation.internal_cash_to_capex):,.0f}",
             )
 
         property_value = st.number_input(
