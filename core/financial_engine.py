@@ -103,16 +103,17 @@ class FinancialEngine:
         annual_rate: float,
         duration_years: float,
         pay_when: int = 0,
+        future_value: float = 0.0,
     ) -> Dict[str, float]:
-        """Return first-year interest, principal repaid, and total payments.
+        """Return Year-1 interest, principal repaid, and cash payments.
 
-        `pay_when=0` means payments at the end of each month. `pay_when=1`
-        means payments at the beginning of each month (annuity due).
+        `pay_when=0` means end-of-month payments; `pay_when=1` means
+        beginning-of-month payments (annuity due). `future_value` is an
+        optional balloon/residual payment due at maturity.
         """
         principal = max(0.0, float(principal))
         annual_rate = max(0.0, float(annual_rate))
         duration_years = float(duration_years)
-
         if principal <= 0 or duration_years <= 0:
             return {
                 "interest_expense": 0.0,
@@ -124,46 +125,48 @@ class FinancialEngine:
         n_months = max(1, int(round(duration_years * months_per_year)))
         monthly_rate = annual_rate / months_per_year
         pay_when = 1 if pay_when == 1 else 0
+        balloon = min(principal, max(0.0, float(future_value)))
 
         if monthly_rate == 0:
-            monthly_payment = principal / n_months
+            monthly_payment = max(0.0, (principal - balloon) / n_months)
         else:
             factor = (1.0 + monthly_rate) ** n_months
-            ordinary_payment = principal * monthly_rate * factor / (factor - 1.0)
             monthly_payment = (
-                ordinary_payment / (1.0 + monthly_rate)
-                if pay_when == 1
-                else ordinary_payment
-            )
+                principal * monthly_rate * factor - balloon * monthly_rate
+            ) / (factor - 1.0)
+            if pay_when == 1:
+                monthly_payment /= 1.0 + monthly_rate
+        monthly_payment = max(0.0, monthly_payment)
 
         balance = principal
         total_interest = 0.0
-        total_principal = 0.0
-        total_payments = 0.0
-
-        for _ in range(months_per_year):
+        year_one_interest = 0.0
+        year_one_payments = 0.0
+        for month in range(1, min(months_per_year, n_months) + 1):
             if pay_when == 1:
-                # The payment occurs first, so the remaining balance accrues interest.
-                payment_principal = min(balance, monthly_payment)
-                balance -= payment_principal
+                balance = max(0.0, balance - monthly_payment)
                 interest_this_month = balance * monthly_rate
-                total_principal += payment_principal
-                total_interest += interest_this_month
-                total_payments += payment_principal
+                balance += interest_this_month
             else:
                 interest_this_month = balance * monthly_rate
-                payment_principal = min(
-                    balance, max(0.0, monthly_payment - interest_this_month)
-                )
-                balance -= payment_principal
-                total_principal += payment_principal
-                total_interest += interest_this_month
-                total_payments += interest_this_month + payment_principal
+                balance += interest_this_month
+                balance = max(0.0, balance - monthly_payment)
+            year_one_interest += interest_this_month
+            year_one_payments += monthly_payment
+
+        # Interest for months beyond Year 1 is not needed by the projection.
+        # Include the balloon in Year-1 cash payments only when it matures in Year 1.
+        if n_months <= months_per_year:
+            year_one_payments += balloon
+            balance = max(0.0, balance - balloon)
+            year_one_principal = principal
+        else:
+            year_one_principal = max(0.0, principal - balance)
 
         return {
-            "interest_expense": total_interest,
-            "principal_repaid": total_principal,
-            "annual_payment": total_payments,
+            "interest_expense": year_one_interest,
+            "principal_repaid": year_one_principal,
+            "annual_payment": year_one_payments,
         }
 
     @staticmethod
@@ -210,32 +213,48 @@ class FinancialEngine:
                 0.0,
                 float(funding.get("external_working_capital_required", 0.0)),
             )
+            financing_costs_required = max(
+                0.0, float(funding.get("external_financing_costs_required", 0.0))
+            )
             total_required = max(
                 0.0,
                 float(funding.get("total_external_funding_required", 0.0)),
             )
 
-            components_total = capex_required + wc_required
+            components_total = capex_required + wc_required + financing_costs_required
             if abs(components_total - total_required) > 0.01:
                 raise ValueError(
-                    "Funding allocation mismatch: external CAPEX and working-capital "
-                    "requirements do not reconcile to total external funding."
+                    "Funding allocation mismatch: external CAPEX, working capital, "
+                    "and financing costs do not reconcile to total external funding."
                 )
 
-            asset_rate = max(0.0, float(inputs.get("loan_rate", 0.0)))
+            option = decision.get("selected_option")
+            asset_principal = capex_required + financing_costs_required
+            if option == "Leasing":
+                asset_rate = max(
+                    0.0,
+                    float(inputs.get("leasing_rate", inputs.get("loan_rate", 0.0))),
+                )
+                residual_value = min(
+                    capex_required,
+                    max(0.0, float(inputs.get("leasing_residual_value", 0.0))),
+                )
+            else:
+                asset_rate = max(0.0, float(inputs.get("loan_rate", 0.0)))
+                residual_value = 0.0
             wc_rate = max(0.0, float(inputs.get("wc_rate", 0.0)))
             duration = max(1.0, float(inputs.get("duration_years", 1)))
             pay_when = 1 if int(inputs.get("pay_when", 0)) == 1 else 0
 
-            # For both options, uncovered CAPEX is financed by the selected
-            # asset-financing product. Any uncovered initial working capital
-            # is modelled separately as a working-capital loan. The current UI
-            # has no separate lease rate, so loan_rate is used as its proxy.
+            # CAPEX is financed by the selected loan/finance-lease product.
+            # Uncovered initial working capital is modelled separately as a
+            # working-capital loan. A leasing residual is a balloon at maturity.
             asset_schedule = FinancialEngine._year_one_financing_schedule(
-                principal=capex_required,
+                principal=asset_principal,
                 annual_rate=asset_rate,
                 duration_years=duration,
                 pay_when=pay_when,
+                future_value=residual_value,
             )
             wc_schedule = FinancialEngine._year_one_financing_schedule(
                 principal=wc_required,
