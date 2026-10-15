@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Dict, Optional, Sequence
+from dataclasses import dataclass, replace
+from typing import Any, Dict, Optional, Sequence
 
 from core.models import CompanyState
 from core.investment_company_impact import InvestmentCompanyImpact
@@ -92,6 +92,7 @@ class FinancialProjection:
     impact: VarianceImpact
 
     investment_impacts: tuple = ()
+    financing_impact: Optional[Dict[str, Any]] = None
 
 
 # =========================================================
@@ -109,9 +110,161 @@ class FinancialEngine:
         Direct company decisions
                 +
         Year-1 investment impacts
+                +
+        Attached financing impacts
                 ↓
         Integrated projected financial statements
     """
+
+    @staticmethod
+    def _year_one_financing_schedule(
+        principal: float,
+        annual_rate: float,
+        duration_years: float,
+        pay_when: int = 0,
+    ) -> Dict[str, float]:
+        """
+        Calculate year-1 interest, principal repayment, and annual payment
+        for a standard amortizing loan or financial lease.
+        """
+        if principal <= 0 or duration_years <= 0:
+            return {
+                "interest": 0.0,
+                "principal_repaid": 0.0,
+                "annual_payment": 0.0,
+            }
+
+        months = 12
+        n_months = int(duration_years * months)
+        monthly_rate = annual_rate / months
+
+        if monthly_rate == 0:
+            monthly_payment = principal / n_months
+        else:
+            factor = (1 + monthly_rate) ** n_months
+            monthly_payment = (
+                principal * monthly_rate * factor
+            ) / (factor - 1)
+            if pay_when == 1:
+                monthly_payment = monthly_payment / (1 + monthly_rate)
+
+        annual_payment = monthly_payment * months
+        remaining_balance = principal
+        total_interest_year = 0.0
+        total_principal_year = 0.0
+
+        for _ in range(months):
+            if pay_when == 1:
+                interest_month = remaining_balance * monthly_rate
+                principal_month = monthly_payment - interest_month
+            else:
+                interest_month = remaining_balance * monthly_rate
+                principal_month = monthly_payment - interest_month
+
+            total_interest_year += interest_month
+            total_principal_year += principal_month
+            remaining_balance -= principal_month
+
+        return {
+            "interest": total_interest_year,
+            "principal_repaid": total_principal_year,
+            "annual_payment": annual_payment,
+        }
+
+    @classmethod
+    def _calculate_financing_impact(
+        cls,
+        financing_decisions: Sequence[Dict[str, Any]],
+    ) -> Dict[str, float]:
+        """
+        Aggregate year-1 interest, principal, and debt creation from financing decisions.
+        """
+        result = {
+            "new_debt": 0.0,
+            "interest_expense": 0.0,
+            "principal_repaid": 0.0,
+            "annual_payment": 0.0,
+        }
+
+        for decision in financing_decisions:
+            if not isinstance(decision, dict):
+                continue
+            option = decision.get("selected_option")
+            if option not in ("Loan", "Leasing"):
+                continue
+
+            inputs = decision.get("financing_inputs", {})
+            funding_base = max(
+                0.0,
+                float(inputs.get("property_value", 0.0)),
+            )
+            duration = max(
+                1.0,
+                float(inputs.get("duration_years", 1)),
+            )
+            loan_rate = max(
+                0.0,
+                float(inputs.get("loan_rate", 0.0)),
+            )
+            wc_rate = max(
+                0.0,
+                float(inputs.get("wc_rate", 0.0)),
+            )
+            pay_when = int(inputs.get("pay_when", 0))
+
+            if option == "Loan":
+                percentage = float(
+                    inputs.get("loan_financing_percent", 1.0)
+                )
+                extra_expenses = float(
+                    inputs.get("add_expenses_loan", 0.0)
+                )
+            else:
+                percentage = float(
+                    inputs.get("leasing_financing_percent", 1.0)
+                )
+                extra_expenses = float(
+                    inputs.get("add_expenses_leasing", 0.0)
+                )
+
+            percentage = min(1.0, max(0.0, percentage))
+            extra_expenses = max(0.0, extra_expenses)
+
+            asset_principal = funding_base * percentage
+            working_capital_principal = (
+                funding_base - asset_principal + extra_expenses
+            )
+
+            asset_schedule = cls._year_one_financing_schedule(
+                principal=asset_principal,
+                annual_rate=loan_rate,
+                duration_years=duration,
+                pay_when=pay_when,
+            )
+            wc_schedule = cls._year_one_financing_schedule(
+                principal=working_capital_principal,
+                annual_rate=wc_rate,
+                duration_years=duration,
+                pay_when=pay_when,
+            )
+
+            result["new_debt"] += (
+                asset_principal + working_capital_principal
+            )
+            result["interest_expense"] += (
+                asset_schedule["interest"]
+                + wc_schedule["interest"]
+            )
+            result["principal_repaid"] += (
+                asset_schedule["principal_repaid"]
+                + wc_schedule["principal_repaid"]
+            )
+            result["annual_payment"] += (
+                asset_schedule["annual_payment"]
+                + wc_schedule["annual_payment"]
+            )
+
+        return result
 
     # =====================================================
     # BASIC FINANCIAL STATEMENTS
@@ -600,7 +753,6 @@ class FinancialEngine:
             - integrated_ap
         )
 
-        
         integrated_wc_cash_impact = (
             baseline_company_fin
             .working_capital
@@ -663,11 +815,43 @@ class FinancialEngine:
         investment_impacts: Sequence[
             InvestmentCompanyImpact
         ] = (),
+        financing_decisions: Sequence[
+            Dict[str, Any]
+        ] = (),
     ) -> FinancialProjection:
 
         cls._validate_investment_impacts(
             investment_impacts
         )
+
+        financing_impact = cls._calculate_financing_impact(
+            financing_decisions
+        )
+
+        if financing_impact["new_debt"] > 0:
+            updated_capital_structure = replace(
+                projected_state.capital_structure,
+                total_debt=(
+                    projected_state.capital_structure.total_debt
+                    + financing_impact["new_debt"]
+                ),
+                annual_cash_interest_paid=(
+                    projected_state.capital_structure.annual_cash_interest_paid
+                    + financing_impact["interest_expense"]
+                ),
+                annual_debt_service=(
+                    projected_state.capital_structure.annual_debt_service
+                    + financing_impact["annual_payment"]
+                ),
+                principal_payments=(
+                    projected_state.capital_structure.principal_payments
+                    + financing_impact["principal_repaid"]
+                ),
+            )
+            projected_state = replace(
+                projected_state,
+                capital_structure=updated_capital_structure,
+            )
 
         # -------------------------------------------------
         # BASELINE
@@ -959,4 +1143,5 @@ class FinancialEngine:
             investment_impacts=tuple(
                 investment_impacts
             ),
+            financing_impact=financing_impact,
         )
