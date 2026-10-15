@@ -6,6 +6,8 @@ import plotly.graph_objects as go
 from core.financial_engine import FinancialEngine
 from core.decision_plan import DecisionPlan
 from core.investment_decision import InvestmentDecision
+from core.investment_funding import InvestmentFundingAllocator
+from core.investment_integration import InvestmentIntegration
 
 
 # =========================================================
@@ -144,10 +146,13 @@ def calculate_final_burden(
     )
 
     depreciation_lease = (
-        acquisition_cost_lease
-        / depreciation_years
-        * duration_years
-    ) + residual_value_leasing
+        (
+            acquisition_cost_lease
+            / depreciation_years
+            * duration_years
+        )
+        + residual_value_leasing
+    )
 
     deductible_loan = (
         total_interest_loan
@@ -196,6 +201,57 @@ def get_baseline_financials(
 
     return FinancialEngine.calculate_statements(
         baseline_state
+    )
+
+
+def get_investment_funding_allocation(
+    baseline_state,
+    investment_assumptions,
+):
+    """Calculate the external funding required by the investment."""
+    project_id = st.session_state.get(
+        "investment_decision_id",
+        "investment_project",
+    )
+    plan = st.session_state.get("decision_plan")
+    existing_project = None
+    if isinstance(plan, DecisionPlan):
+        existing_project = next(
+            (
+                item
+                for item in plan.decisions
+                if (
+                    isinstance(item, InvestmentDecision)
+                    and item.id == project_id
+                )
+            ),
+            None,
+        )
+    metadata = (
+        dict(existing_project.metadata)
+        if existing_project is not None
+        else {}
+    )
+    project = InvestmentDecision.create(
+        decision_id=project_id,
+        name=(
+            existing_project.name
+            if existing_project is not None
+            else "Investment Project"
+        ),
+        description=(
+            existing_project.description
+            if existing_project is not None
+            else "Investment project with attached financing."
+        ),
+        assumptions=investment_assumptions,
+        metadata=metadata,
+    )
+    _, impact = InvestmentIntegration.evaluate(
+        baseline_state, project
+    )
+    return InvestmentFundingAllocator.allocate(
+        baseline_state, [impact]
     )
 
 
@@ -390,6 +446,35 @@ def render_loan_vs_leasing_lab(
     with col2:
 
         st.subheader("Investment Details")
+
+        funding_allocation = None
+        if project_available:
+            try:
+                funding_allocation = (
+                    get_investment_funding_allocation(
+                        baseline_state,
+                        investment_assumptions,
+                    )
+                )
+            except Exception as exc:
+                st.error(
+                    "Could not calculate the investment funding "
+                    f"requirement: {exc}"
+                )
+
+        if funding_allocation is not None:
+            st.metric(
+                "Investment CAPEX",
+                f"€{funding_allocation.total_capex:,.0f}",
+            )
+            st.metric(
+                "Internal Cash Available Above Reserve",
+                f"€{funding_allocation.available_internal_cash:,.0f}",
+            )
+            st.metric(
+                "Internal Cash Allocated",
+                f"€{funding_allocation.internal_cash_allocated_to_investment:,.0f}",
+            )
 
         property_value = st.number_input(
             "Property Commercial Value (€)",
