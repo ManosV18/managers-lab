@@ -4,6 +4,7 @@ from typing import Dict, Any
 from core.models import CompanyState
 from core.decision_plan import DecisionPlan
 from core.decision_runner import DecisionRunner
+from core.investment_decision import InvestmentDecision
 from core.financial_engine import (
     FinancialEngine,
     FinancialProjection,
@@ -87,6 +88,7 @@ class DecisionEvaluator:
         - accept a DecisionPlan
         - execute the plan through DecisionRunner
         - collect Year-1 investment impacts
+        - collect attached financing decisions
         - calculate financial results through FinancialEngine
         - return one immutable DecisionEvaluation
 
@@ -191,6 +193,26 @@ class DecisionEvaluator:
             investment_impacts = ()
 
         # =================================================
+        # FINANCING DECISIONS EXTRACTION
+        # =================================================
+
+        financing_decisions = tuple(
+            item.metadata["financing_decision"]
+            for item in plan.decisions
+            if (
+                isinstance(item, InvestmentDecision)
+                and isinstance(item.metadata, dict)
+                and isinstance(
+                    item.metadata.get("financing_decision"),
+                    dict,
+                )
+                and item.metadata["financing_decision"].get(
+                    "selected_option"
+                ) in ("Loan", "Leasing")
+            )
+        )
+
+        # =================================================
         # FINANCIAL PROJECTION
         # =================================================
 
@@ -199,6 +221,7 @@ class DecisionEvaluator:
                 baseline_state=baseline_state,
                 projected_state=projected_state,
                 investment_impacts=investment_impacts,
+                financing_decisions=financing_decisions,
             )
         )
 
