@@ -1132,24 +1132,28 @@ if current_page == "📊 Investment Decision Lab":
 
     # Consolidate into company-level figures ONLY after the user
     # explicitly confirms implementation in the Investment Decision Lab.
-    if st.session_state.get("investment_implementation_confirmed", False):
+    # Show the projection based on the currently confirmed DecisionPlan.
+    # A new, unconfirmed evaluation must not hide or replace an
+    # investment that was previously confirmed.
 
-        lab_result = st.session_state.get("investment_result")
+    investment_impacts = tuple(
+        getattr(financial_projection, "investment_impacts", ()) or ()
+    )
 
-        if lab_result is not None and lab_result.year_1_impact is not None:
+    if investment_impacts:
+        render_integrated_company_projection(
+            financial_projection,
+            baseline_state=baseline_for_projection,
+        )
 
-            # Use the projection already generated from the DecisionPlan.
-            # Do NOT append lab_impact or rebuild the projection here.
-            render_integrated_company_projection(
-                financial_projection,
-                baseline_state=baseline_for_projection,
-            )
-
-        else:
-            st.warning(
-                "Implementation was confirmed, but no valid investment result "
-                "is available for company-level integration. Re-evaluate the project."
-            )
+    elif st.session_state.get(
+        "investment_implementation_confirmed", False
+    ):
+        st.warning(
+            "Implementation was confirmed, but no investment impact "
+            "was found in the Decision Plan projection. "
+            "Please re-evaluate the application state."
+        )
 
     st.stop()
 
