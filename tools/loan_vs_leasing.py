@@ -2,6 +2,7 @@
 """Loan-vs-leasing decision lab linked to the active investment project."""
 
 import math
+from types import SimpleNamespace
 import streamlit as st
 import plotly.graph_objects as go
 
@@ -249,6 +250,32 @@ def _profit_after_financing_interest(baseline_profit, baseline_ebt, tax_rate, in
     return baseline_profit - interest + (tax_before - tax_after)
 
 
+def _apply_internal_cash_scenario(allocation, internal_cash_to_use):
+    """Return a scenario allocation without mutating the source allocator result.
+
+    Internal cash is applied to initial working capital first, then CAPEX. The
+    project and diagnosis remain untouched; only this financing scenario changes.
+    """
+    available = max(0.0, float(allocation.available_internal_cash))
+    capex = max(0.0, float(allocation.total_capex))
+    working_capital = max(0.0, float(allocation.working_capital_need))
+    cash_used = min(available, capex + working_capital, max(0.0, float(internal_cash_to_use)))
+    internal_wc = min(working_capital, cash_used)
+    internal_capex = min(capex, max(0.0, cash_used - internal_wc))
+    external_wc = max(0.0, working_capital - internal_wc)
+    external_capex = max(0.0, capex - internal_capex)
+    return SimpleNamespace(
+        total_capex=capex,
+        working_capital_need=working_capital,
+        available_internal_cash=available,
+        internal_cash_to_working_capital=internal_wc,
+        internal_cash_to_capex=internal_capex,
+        external_capex_required=external_capex,
+        external_working_capital_required=external_wc,
+        total_external_funding_required=external_capex + external_wc,
+    )
+
+
 def render_loan_vs_leasing_lab(baseline_state):
     st.header("🏦 Loan vs Leasing Lab")
     st.info(
@@ -276,99 +303,177 @@ def render_loan_vs_leasing_lab(baseline_state):
         except Exception as exc:
             allocation_error = str(exc)
 
+    # Establish defaults from the active project/diagnosis. The source objects are
+    # never modified by scenario controls.
+    default_tax_rate = float(baseline_state.capital_structure.tax_rate)
+    default_internal_cash = 0.0
+    if funding_allocation is not None:
+        default_internal_cash = min(
+            float(funding_allocation.available_internal_cash),
+            float(funding_allocation.total_capex) + float(funding_allocation.working_capital_need),
+        )
+        default_internal_cash = min(
+            default_internal_cash,
+            float(funding_allocation.internal_cash_to_working_capital)
+            + float(funding_allocation.internal_cash_to_capex),
+        )
+
+    reset_defaults = {
+        "ll_loan_rate_pct": 6.0,
+        "ll_leasing_rate_pct": 6.5,
+        "ll_wc_rate_pct": 8.0,
+        "ll_duration_years": 15,
+        "ll_payment_timing": "Beginning of Month",
+        "ll_depreciation_years": 30,
+        "ll_expenses_loan": 0.0,
+        "ll_expenses_leasing": 0.0,
+        "ll_residual_value": 0.0,
+        "ll_custom_internal_cash": float(default_internal_cash),
+        "ll_scenario_mode": "Basic scenario",
+    }
+    reset_col, mode_col = st.columns([1, 2])
+    with reset_col:
+        if st.button("↩ Reset to project values", key="ll_reset_project_values", use_container_width=True):
+            for state_key, default_value in reset_defaults.items():
+                st.session_state[state_key] = default_value
+            st.session_state["ll_scenario_mode"] = "Basic scenario"
+            st.rerun()
+    with mode_col:
+        scenario_mode = st.radio(
+            "Scenario mode",
+            ["Basic scenario", "Custom scenario"],
+            horizontal=True,
+            key="ll_scenario_mode",
+            help="Basic uses the diagnosis and project values. Custom lets you test financing alternatives without changing the source diagnosis or project.",
+        )
+
     st.subheader("Investment Funding Overview")
     if funding_allocation is None:
-        st.warning(
-            "An evaluated investment project is required to calculate the actual funding gap."
-        )
+        st.warning("An evaluated investment project is required to calculate the actual funding gap.")
         if allocation_error:
             st.error(f"Funding calculation failed: {allocation_error}")
-    else:
-        capex_col, wc_col = st.columns(2)
-        capex_col.metric("Total Investment CAPEX", f"€{funding_allocation.total_capex:,.0f}")
-        wc_col.metric(
-            "Initial Working-Capital Need",
-            f"€{funding_allocation.working_capital_need:,.0f}",
-        )
-        internal_allocated = (
-            funding_allocation.internal_cash_to_working_capital
-            + funding_allocation.internal_cash_to_capex
-        )
-        cash_col, allocated_col, gap_col = st.columns(3)
-        cash_col.metric(
-            "Internal Cash Available Above Reserve",
-            f"€{funding_allocation.available_internal_cash:,.0f}",
-        )
-        allocated_col.metric("Internal Cash Allocated", f"€{internal_allocated:,.0f}")
-        gap_col.metric(
-            "Actual External Funding Required",
-            f"€{funding_allocation.total_external_funding_required:,.0f}",
-        )
+        return
+
+    scenario_allocation = funding_allocation
+    if scenario_mode == "Custom scenario":
         st.caption(
-            "These values are recalculated from the baseline and investment assumptions. "
-            "Loan and Leasing are compared against the same external funding gap."
+            "Custom assumptions apply only to this financing scenario. The diagnosis and investment project's original assumptions are not changed."
         )
+        custom_cash = st.number_input(
+            "Internal cash to use for this project (€)",
+            min_value=0.0,
+            max_value=float(funding_allocation.available_internal_cash),
+            value=min(float(st.session_state.get("ll_custom_internal_cash", default_internal_cash)), float(funding_allocation.available_internal_cash)),
+            step=1000.0,
+            key="ll_custom_internal_cash",
+            help="Cash is allocated to initial working capital first, then to CAPEX. Any remaining requirement becomes external funding.",
+        )
+        scenario_allocation = _apply_internal_cash_scenario(funding_allocation, custom_cash)
+    else:
+        # Keep the custom value synchronized to the project-derived default when
+        # entering a fresh basic scenario, without overwriting a user's custom case.
+        if "ll_custom_internal_cash" not in st.session_state:
+            st.session_state["ll_custom_internal_cash"] = float(default_internal_cash)
+
+    capex_col, wc_col = st.columns(2)
+    capex_col.metric("Total Investment CAPEX", f"€{scenario_allocation.total_capex:,.0f}")
+    wc_col.metric("Initial Working-Capital Need", f"€{scenario_allocation.working_capital_need:,.0f}")
+    internal_allocated = (
+        scenario_allocation.internal_cash_to_working_capital
+        + scenario_allocation.internal_cash_to_capex
+    )
+    cash_col, allocated_col, gap_col = st.columns(3)
+    cash_col.metric("Internal Cash Available Above Reserve", f"€{scenario_allocation.available_internal_cash:,.0f}")
+    allocated_col.metric("Internal Cash Allocated", f"€{internal_allocated:,.0f}")
+    gap_col.metric("External Funding Required", f"€{scenario_allocation.total_external_funding_required:,.0f}")
+    st.caption(
+        "Basic scenario uses the funding allocator's project-derived values. In Custom scenario, only the selected internal cash use and financing terms change; the original company diagnosis and investment assumptions remain intact."
+    )
 
     st.divider()
     st.subheader("Financing Terms")
-    rate_col, lease_rate_col, wc_rate_col, duration_col, timing_col = st.columns(5)
-    with rate_col:
-        loan_rate = st.number_input(
-            "Loan Interest Rate (%)", min_value=0.0, max_value=100.0,
-            value=6.0, step=0.25, key="ll_loan_rate"
-        ) / 100
-    with lease_rate_col:
-        leasing_rate = st.number_input(
-            "Leasing Rate (%)", min_value=0.0, max_value=100.0,
-            value=6.5, step=0.25, key="ll_leasing_rate",
-            help="Rate used to model a finance lease liability."
-        ) / 100
-    with wc_rate_col:
-        wc_rate = st.number_input(
-            "Working-Capital Loan Rate (%)", min_value=0.0, max_value=100.0,
-            value=8.0, step=0.25, key="ll_wc_rate"
-        ) / 100
-    with duration_col:
-        duration_years = st.number_input(
-            "Duration (Years)", min_value=1, max_value=50,
-            value=15, key="ll_duration_years"
-        )
-    with timing_col:
-        pay_timing = st.radio(
-            "Payment Timing", ["Beginning of Month", "End of Month"],
-            key="ll_payment_timing"
-        )
-    pay_when = 1 if pay_timing == "Beginning of Month" else 0
-
-    tax_col, depreciation_col = st.columns(2)
-    tax_rate = float(baseline_state.capital_structure.tax_rate)
-    with tax_col:
-        st.metric("Corporate Tax Rate (from diagnosis)", f"{tax_rate * 100:.2f}%")
-    with depreciation_col:
-        depreciation_years = st.number_input(
-            "Asset Depreciation Period (Years)", min_value=1, max_value=100,
-            value=30, key="ll_depreciation_years",
-            help="Used for the illustrative tax shield; project depreciation remains in the project model."
-        )
-
-    with st.expander("Additional transaction assumptions"):
-        fees_col_loan, fees_col_lease = st.columns(2)
-        with fees_col_loan:
-            loan_fees = st.number_input(
-                "Loan Transaction / Acquisition Costs (€)", min_value=0.0,
-                value=0.0, step=1000.0, key="ll_expenses_loan"
+    if scenario_mode == "Basic scenario":
+        # These are transparent default assumptions, not values read from the
+        # company's diagnosis. Project amounts and tax rate are auto-populated.
+        loan_rate = 0.06
+        leasing_rate = 0.065
+        wc_rate = 0.08
+        duration_years = 15
+        pay_when = 1
+        depreciation_years = 30
+        loan_fees = 0.0
+        leasing_fees = 0.0
+        residual_value = 0.0
+        term_cols = st.columns(5)
+        term_cols[0].metric("Loan Rate", "6.00%")
+        term_cols[1].metric("Leasing Rate", "6.50%")
+        term_cols[2].metric("Working-Capital Rate", "8.00%")
+        term_cols[3].metric("Duration", "15 years")
+        term_cols[4].metric("Payment Timing", "Beginning of month")
+        tax_col, depreciation_col = st.columns(2)
+        tax_col.metric("Corporate Tax Rate (from diagnosis)", f"{default_tax_rate * 100:.2f}%")
+        depreciation_col.metric("Asset Depreciation Period", "30 years")
+        st.caption("To change financing assumptions, switch to Custom scenario. The rates and term above are illustrative defaults; the tax rate is read from the diagnosis.")
+    else:
+        rate_col, lease_rate_col, wc_rate_col, duration_col, timing_col = st.columns(5)
+        with rate_col:
+            loan_rate = st.number_input(
+                "Loan Interest Rate (%)", min_value=0.0, max_value=100.0,
+                value=6.0, step=0.25, key="ll_loan_rate_pct"
+            ) / 100.0
+        with lease_rate_col:
+            leasing_rate = st.number_input(
+                "Leasing Rate (%)", min_value=0.0, max_value=100.0,
+                value=6.5, step=0.25, key="ll_leasing_rate_pct",
+                help="Rate used to model a finance lease liability."
+            ) / 100.0
+        with wc_rate_col:
+            wc_rate = st.number_input(
+                "Working-Capital Loan Rate (%)", min_value=0.0, max_value=100.0,
+                value=8.0, step=0.25, key="ll_wc_rate_pct"
+            ) / 100.0
+        with duration_col:
+            duration_years = st.number_input(
+                "Duration (Years)", min_value=1, max_value=50,
+                value=15, key="ll_duration_years"
             )
-        with fees_col_lease:
-            leasing_fees = st.number_input(
-                "Leasing Transaction / Acquisition Costs (€)", min_value=0.0,
-                value=0.0, step=1000.0, key="ll_expenses_leasing"
+        with timing_col:
+            pay_timing = st.radio(
+                "Payment Timing", ["Beginning of Month", "End of Month"],
+                key="ll_payment_timing"
             )
-        residual_value = st.number_input(
-            "Leasing Residual / Balloon Value (€)", min_value=0.0,
-            value=0.0, step=500.0, key="ll_residual_value",
-            help="Balloon payment at the end of the term; capped at the CAPEX actually financed."
-        )
+        pay_when = 1 if pay_timing == "Beginning of Month" else 0
 
+        tax_col, depreciation_col = st.columns(2)
+        tax_rate = default_tax_rate
+        with tax_col:
+            st.metric("Corporate Tax Rate (from diagnosis)", f"{tax_rate * 100:.2f}%")
+        with depreciation_col:
+            depreciation_years = st.number_input(
+                "Asset Depreciation Period (Years)", min_value=1, max_value=100,
+                value=30, key="ll_depreciation_years",
+                help="Used for the illustrative tax shield; project depreciation remains in the project model."
+            )
+
+        with st.expander("Additional transaction assumptions", expanded=True):
+            fees_col_loan, fees_col_lease = st.columns(2)
+            with fees_col_loan:
+                loan_fees = st.number_input(
+                    "Loan Transaction / Acquisition Costs (€)", min_value=0.0,
+                    value=0.0, step=1000.0, key="ll_expenses_loan"
+                )
+            with fees_col_lease:
+                leasing_fees = st.number_input(
+                    "Leasing Transaction / Acquisition Costs (€)", min_value=0.0,
+                    value=0.0, step=1000.0, key="ll_expenses_leasing"
+                )
+            residual_value = st.number_input(
+                "Leasing Residual / Balloon Value (€)", min_value=0.0,
+                value=0.0, step=500.0, key="ll_residual_value",
+                help="Balloon payment at the end of the term; capped at the CAPEX actually financed."
+            )
+
+    tax_rate = default_tax_rate
     inputs = {
         "loan_rate": loan_rate,
         "leasing_rate": leasing_rate,
@@ -380,6 +485,9 @@ def render_loan_vs_leasing_lab(baseline_state):
         "loan_fees": loan_fees,
         "leasing_fees": leasing_fees,
         "leasing_residual_value": residual_value,
+        "scenario_mode": scenario_mode,
+        "internal_cash_used": float(internal_allocated),
+        "project_default_internal_cash": float(default_internal_cash),
     }
 
     st.divider()
@@ -388,6 +496,7 @@ def render_loan_vs_leasing_lab(baseline_state):
         st.info("The comparison will be calculated when the investment project and funding gap are available.")
         return
 
+    funding_allocation = scenario_allocation
     capex_required = float(funding_allocation.external_capex_required)
     wc_required = float(funding_allocation.external_working_capital_required)
     total_required = float(funding_allocation.total_external_funding_required)
