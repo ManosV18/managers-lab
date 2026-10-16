@@ -356,16 +356,16 @@ def render_loan_vs_leasing_lab(baseline_state):
         with fees_col_loan:
             loan_fees = st.number_input(
                 "Loan Transaction / Acquisition Costs (€)", min_value=0.0,
-                value=35000.0, step=1000.0, key="ll_expenses_loan"
+                value=0.0, step=1000.0, key="ll_expenses_loan"
             )
         with fees_col_lease:
             leasing_fees = st.number_input(
                 "Leasing Transaction / Acquisition Costs (€)", min_value=0.0,
-                value=30000.0, step=1000.0, key="ll_expenses_leasing"
+                value=0.0, step=1000.0, key="ll_expenses_leasing"
             )
         residual_value = st.number_input(
             "Leasing Residual / Balloon Value (€)", min_value=0.0,
-            value=3530.0, step=500.0, key="ll_residual_value",
+            value=0.0, step=500.0, key="ll_residual_value",
             help="Balloon payment at the end of the term; capped at the CAPEX actually financed."
         )
 
@@ -401,8 +401,8 @@ def render_loan_vs_leasing_lab(baseline_state):
     col_loan, col_lease = st.columns(2)
     with col_loan:
         st.markdown("#### 🏦 Loan")
-        st.metric("Total Amount Financed", f"€{loan['financed_amount'] + wc_required:,.0f}")
-        st.caption(f"Project funding gap: €{total_required:,.0f}; loan costs financed: €{loan_fees:,.0f}")
+        st.metric("Total Amount Financed (including selected fees)", f"€{loan['financed_amount']:,.0f}")
+        st.caption(f"Project funding gap: €{total_required:,.0f}; additional loan costs financed: €{loan_fees:,.0f}")
         st.metric("Estimated Total Burden After Tax", f"€{loan['final_burden']:,.0f}")
         st.caption(
             f"Year-1 payment: €{loan['year1_payment']:,.0f} · "
@@ -410,8 +410,8 @@ def render_loan_vs_leasing_lab(baseline_state):
         )
     with col_lease:
         st.markdown("#### 📄 Leasing")
-        st.metric("Total Amount Financed", f"€{leasing['financed_amount'] + wc_required:,.0f}")
-        st.caption(f"Project funding gap: €{total_required:,.0f}; leasing costs financed: €{leasing_fees:,.0f}")
+        st.metric("Total Amount Financed (including selected fees)", f"€{leasing['financed_amount']:,.0f}")
+        st.caption(f"Project funding gap: €{total_required:,.0f}; additional leasing costs financed: €{leasing_fees:,.0f}")
         st.metric("Estimated Total Burden After Tax", f"€{leasing['final_burden']:,.0f}")
         st.caption(
             f"Year-1 payment: €{leasing['year1_payment']:,.0f} · "
