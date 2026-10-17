@@ -2,7 +2,6 @@
 """Loan-vs-leasing decision lab linked to the active investment project."""
 
 import math
-from types import SimpleNamespace
 import streamlit as st
 import plotly.graph_objects as go
 
@@ -250,20 +249,36 @@ def _profit_after_financing_interest(baseline_profit, baseline_ebt, tax_rate, in
     return baseline_profit - interest + (tax_before - tax_after)
 
 
-def _apply_internal_cash_scenario(allocation, internal_cash_to_use):
-    """Return a scenario allocation without mutating the source allocator result.
+def _parse_percent_input(raw_value, label):
+    """Parse a user-entered percentage; blank is intentionally not a rate."""
+    raw = str(raw_value).strip().replace("%", "").replace(",", ".")
+    if not raw:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        raise ValueError(f"{label}: enter a valid percentage, e.g. 6.5")
+    if value < 0 or value > 100:
+        raise ValueError(f"{label}: the percentage must be between 0 and 100.")
+    return value / 100.0
 
-    Internal cash is applied to initial working capital first, then CAPEX. The
-    project and diagnosis remain untouched; only this financing scenario changes.
-    """
-    available = max(0.0, float(allocation.available_internal_cash))
-    capex = max(0.0, float(allocation.total_capex))
-    working_capital = max(0.0, float(allocation.working_capital_need))
-    cash_used = min(available, capex + working_capital, max(0.0, float(internal_cash_to_use)))
-    internal_wc = min(working_capital, cash_used)
-    internal_capex = min(capex, max(0.0, cash_used - internal_wc))
+
+def _allocation_with_custom_internal_cash(base_allocation, internal_cash_to_use):
+    """Return a funding-allocation-like object without mutating project/source data."""
+    from types import SimpleNamespace
+
+    available = max(0.0, float(base_allocation.available_internal_cash))
+    capex = max(0.0, float(base_allocation.total_capex))
+    working_capital = max(0.0, float(base_allocation.working_capital_need))
+    total_need = capex + working_capital
+    internal_used = min(max(0.0, float(internal_cash_to_use)), available, total_need)
+
+    # Allocate internal cash to working capital first, then CAPEX, consistently.
+    internal_wc = min(working_capital, internal_used)
+    internal_capex = min(capex, max(0.0, internal_used - internal_wc))
     external_wc = max(0.0, working_capital - internal_wc)
     external_capex = max(0.0, capex - internal_capex)
+
     return SimpleNamespace(
         total_capex=capex,
         working_capital_need=working_capital,
@@ -278,10 +293,10 @@ def _apply_internal_cash_scenario(allocation, internal_cash_to_use):
 
 def render_loan_vs_leasing_lab(baseline_state):
     st.header("🏦 Loan vs Leasing Lab")
-    st.info(
-        "The funding amount comes from the active company diagnosis and investment project. "
-        "The comparison below uses the project's actual uncovered CAPEX and working-capital "
-        "need—not a separately entered property value."
+    st.write(
+        "Review the existing project and company figures, then change any financing "
+        "assumption you want to test. Changes in this screen are scenario inputs only; "
+        "they do not overwrite the original diagnosis or investment assumptions."
     )
 
     investment_result = st.session_state.get("investment_result")
@@ -292,188 +307,162 @@ def render_loan_vs_leasing_lab(baseline_state):
     baseline_is = baseline_financials.income_statement
     baseline_fcfe = baseline_financials.fcfe
     baseline_profit = baseline_is.net_profit
+    tax_rate = float(baseline_state.capital_structure.tax_rate)
 
-    funding_allocation = None
+    base_allocation = None
     allocation_error = None
     if project_available:
         try:
-            funding_allocation = get_investment_funding_allocation(
+            base_allocation = get_investment_funding_allocation(
                 baseline_state, investment_assumptions
             )
         except Exception as exc:
             allocation_error = str(exc)
 
-    # Establish defaults from the active project/diagnosis. The source objects are
-    # never modified by scenario controls.
-    default_tax_rate = float(baseline_state.capital_structure.tax_rate)
-    default_internal_cash = 0.0
-    if funding_allocation is not None:
-        default_internal_cash = min(
-            float(funding_allocation.available_internal_cash),
-            float(funding_allocation.total_capex) + float(funding_allocation.working_capital_need),
-        )
-        default_internal_cash = min(
-            default_internal_cash,
-            float(funding_allocation.internal_cash_to_working_capital)
-            + float(funding_allocation.internal_cash_to_capex),
-        )
-
-    reset_defaults = {
-        "ll_loan_rate_pct": 6.0,
-        "ll_leasing_rate_pct": 6.5,
-        "ll_wc_rate_pct": 8.0,
-        "ll_duration_years": 15,
-        "ll_payment_timing": "Beginning of Month",
-        "ll_depreciation_years": 30,
-        "ll_expenses_loan": 0.0,
-        "ll_expenses_leasing": 0.0,
-        "ll_residual_value": 0.0,
-        "ll_custom_internal_cash": float(default_internal_cash),
-        "ll_scenario_mode": "Basic scenario",
-    }
-    reset_col, mode_col = st.columns([1, 2])
-    with reset_col:
-        if st.button("↩ Reset to project values", key="ll_reset_project_values", use_container_width=True):
-            for state_key, default_value in reset_defaults.items():
-                st.session_state[state_key] = default_value
-            st.session_state["ll_scenario_mode"] = "Basic scenario"
-            st.rerun()
-    with mode_col:
-        scenario_mode = st.radio(
-            "Scenario mode",
-            ["Basic scenario", "Custom scenario"],
-            horizontal=True,
-            key="ll_scenario_mode",
-            help="Basic uses the diagnosis and project values. Custom lets you test financing alternatives without changing the source diagnosis or project.",
-        )
-
-    st.subheader("Investment Funding Overview")
-    if funding_allocation is None:
-        st.warning("An evaluated investment project is required to calculate the actual funding gap.")
+    if base_allocation is None:
+        st.warning("An evaluated investment project is required to calculate the funding gap.")
         if allocation_error:
             st.error(f"Funding calculation failed: {allocation_error}")
         return
 
-    scenario_allocation = funding_allocation
-    if scenario_mode == "Custom scenario":
-        st.caption(
-            "Custom assumptions apply only to this financing scenario. The diagnosis and investment project's original assumptions are not changed."
-        )
-        custom_cash = st.number_input(
-            "Internal cash to use for this project (€)",
-            min_value=0.0,
-            max_value=float(funding_allocation.available_internal_cash),
-            value=min(float(st.session_state.get("ll_custom_internal_cash", default_internal_cash)), float(funding_allocation.available_internal_cash)),
-            step=1000.0,
-            key="ll_custom_internal_cash",
-            help="Cash is allocated to initial working capital first, then to CAPEX. Any remaining requirement becomes external funding.",
-        )
-        scenario_allocation = _apply_internal_cash_scenario(funding_allocation, custom_cash)
-    else:
-        # Keep the custom value synchronized to the project-derived default when
-        # entering a fresh basic scenario, without overwriting a user's custom case.
-        if "ll_custom_internal_cash" not in st.session_state:
-            st.session_state["ll_custom_internal_cash"] = float(default_internal_cash)
-
-    capex_col, wc_col = st.columns(2)
-    capex_col.metric("Total Investment CAPEX", f"€{scenario_allocation.total_capex:,.0f}")
-    wc_col.metric("Initial Working-Capital Need", f"€{scenario_allocation.working_capital_need:,.0f}")
-    internal_allocated = (
-        scenario_allocation.internal_cash_to_working_capital
-        + scenario_allocation.internal_cash_to_capex
+    original_internal_cash = min(
+        float(base_allocation.available_internal_cash),
+        float(base_allocation.internal_cash_to_working_capital)
+        + float(base_allocation.internal_cash_to_capex),
     )
-    cash_col, allocated_col, gap_col = st.columns(3)
-    cash_col.metric("Internal Cash Available Above Reserve", f"€{scenario_allocation.available_internal_cash:,.0f}")
-    allocated_col.metric("Internal Cash Allocated", f"€{internal_allocated:,.0f}")
-    gap_col.metric("External Funding Required", f"€{scenario_allocation.total_external_funding_required:,.0f}")
+
+    # All editable assumptions live in this screen's own session-state keys.
+    defaults = {
+        "ll_loan_rate_text": "",
+        "ll_leasing_rate_text": "",
+        "ll_wc_rate_text": "",
+        "ll_internal_cash": float(original_internal_cash),
+        "ll_duration_years": 15,
+        "ll_payment_timing": "End of Month",
+        "ll_depreciation_years": 30,
+        "ll_expenses_loan": 0.0,
+        "ll_expenses_leasing": 0.0,
+        "ll_residual_value": 0.0,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+    if st.button("Επαναφορά στις τιμές του έργου", key="ll_reset_to_project"):
+        for key, value in defaults.items():
+            st.session_state[key] = (
+                float(original_internal_cash) if key == "ll_internal_cash" else value
+            )
+        st.rerun()
+
+    st.subheader("1. Στοιχεία από το έργο και τη διάγνωση")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("CAPEX έργου", f"€{float(base_allocation.total_capex):,.0f}")
+    c2.metric("Αρχικές ανάγκες κεφαλαίου κίνησης", f"€{float(base_allocation.working_capital_need):,.0f}")
+    c3.metric("Εσωτερικά κεφάλαια διαθέσιμα πάνω από το αποθεματικό", f"€{float(base_allocation.available_internal_cash):,.0f}")
     st.caption(
-        "Basic scenario uses the funding allocator's project-derived values. In Custom scenario, only the selected internal cash use and financing terms change; the original company diagnosis and investment assumptions remain intact."
+        "Τα παραπάνω προέρχονται από το έργο και τη διάγνωση. Δεν αλλάζουν από τις "
+        "παρακάτω δοκιμές χρηματοδότησης."
     )
 
-    st.divider()
-    st.subheader("Financing Terms")
-    if scenario_mode == "Basic scenario":
-        # These are transparent default assumptions, not values read from the
-        # company's diagnosis. Project amounts and tax rate are auto-populated.
-        loan_rate = 0.06
-        leasing_rate = 0.065
-        wc_rate = 0.08
-        duration_years = 15
-        pay_when = 1
-        depreciation_years = 30
-        loan_fees = 0.0
-        leasing_fees = 0.0
-        residual_value = 0.0
-        term_cols = st.columns(5)
-        term_cols[0].metric("Loan Rate", "6.00%")
-        term_cols[1].metric("Leasing Rate", "6.50%")
-        term_cols[2].metric("Working-Capital Rate", "8.00%")
-        term_cols[3].metric("Duration", "15 years")
-        term_cols[4].metric("Payment Timing", "Beginning of month")
-        tax_col, depreciation_col = st.columns(2)
-        tax_col.metric("Corporate Tax Rate (from diagnosis)", f"{default_tax_rate * 100:.2f}%")
-        depreciation_col.metric("Asset Depreciation Period", "30 years")
-        st.caption("To change financing assumptions, switch to Custom scenario. The rates and term above are illustrative defaults; the tax rate is read from the diagnosis.")
-    else:
-        rate_col, lease_rate_col, wc_rate_col, duration_col, timing_col = st.columns(5)
-        with rate_col:
-            loan_rate = st.number_input(
-                "Loan Interest Rate (%)", min_value=0.0, max_value=100.0,
-                value=6.0, step=0.25, key="ll_loan_rate_pct"
-            ) / 100.0
-        with lease_rate_col:
-            leasing_rate = st.number_input(
-                "Leasing Rate (%)", min_value=0.0, max_value=100.0,
-                value=6.5, step=0.25, key="ll_leasing_rate_pct",
-                help="Rate used to model a finance lease liability."
-            ) / 100.0
-        with wc_rate_col:
-            wc_rate = st.number_input(
-                "Working-Capital Loan Rate (%)", min_value=0.0, max_value=100.0,
-                value=8.0, step=0.25, key="ll_wc_rate_pct"
-            ) / 100.0
-        with duration_col:
-            duration_years = st.number_input(
-                "Duration (Years)", min_value=1, max_value=50,
-                value=15, key="ll_duration_years"
-            )
-        with timing_col:
-            pay_timing = st.radio(
-                "Payment Timing", ["Beginning of Month", "End of Month"],
-                key="ll_payment_timing"
-            )
-        pay_when = 1 if pay_timing == "Beginning of Month" else 0
+    st.subheader("2. Παράμετροι σεναρίου χρηματοδότησης")
+    st.caption(
+        "Συμπλήρωσε τα επιτόκια που σου έχουν προσφερθεί ή που θέλεις να εξετάσεις. "
+        "Δεν προεπιλέγονται επιτόκια, επειδή δεν είναι γνωστά εκ των προτέρων. "
+        "Μπορείς να κρατήσεις τις υπόλοιπες τιμές όπως εμφανίζονται ή να τις αλλάξεις."
+    )
+    rate_col1, rate_col2, rate_col3 = st.columns(3)
+    with rate_col1:
+        loan_rate_text = st.text_input(
+            "Επιτόκιο δανείου (%)", key="ll_loan_rate_text",
+            placeholder="π.χ. 6,5", help="Υποχρεωτικό για τη σύγκριση."
+        )
+    with rate_col2:
+        leasing_rate_text = st.text_input(
+            "Επιτόκιο / κόστος leasing (%)", key="ll_leasing_rate_text",
+            placeholder="π.χ. 7,0", help="Υποχρεωτικό για τη σύγκριση."
+        )
+    with rate_col3:
+        wc_rate_text = st.text_input(
+            "Επιτόκιο χρηματοδότησης κεφαλαίου κίνησης (%)", key="ll_wc_rate_text",
+            placeholder="π.χ. 8,0", help="Υποχρεωτικό για τη σύγκριση."
+        )
 
-        tax_col, depreciation_col = st.columns(2)
-        tax_rate = default_tax_rate
-        with tax_col:
-            st.metric("Corporate Tax Rate (from diagnosis)", f"{tax_rate * 100:.2f}%")
-        with depreciation_col:
-            depreciation_years = st.number_input(
-                "Asset Depreciation Period (Years)", min_value=1, max_value=100,
-                value=30, key="ll_depreciation_years",
-                help="Used for the illustrative tax shield; project depreciation remains in the project model."
-            )
+    internal_col, duration_col, timing_col = st.columns(3)
+    with internal_col:
+        internal_cash_to_use = st.number_input(
+            "Εσωτερικά κεφάλαια που θα χρησιμοποιηθούν (€)",
+            min_value=0.0,
+            max_value=float(base_allocation.available_internal_cash),
+            step=1000.0,
+            key="ll_internal_cash",
+            help="Αλλάζει μόνο το σενάριο και όχι το αρχικό ταμειακό υπόλοιπο ή το αποθεματικό της διάγνωσης.",
+        )
+    with duration_col:
+        duration_years = st.number_input(
+            "Διάρκεια χρηματοδότησης (έτη)", min_value=1, max_value=50,
+            key="ll_duration_years"
+        )
+    with timing_col:
+        pay_timing = st.radio(
+            "Χρόνος καταβολής δόσης", ["Beginning of Month", "End of Month"],
+            key="ll_payment_timing"
+        )
+    pay_when = 1 if pay_timing == "Beginning of Month" else 0
 
-        with st.expander("Additional transaction assumptions", expanded=True):
-            fees_col_loan, fees_col_lease = st.columns(2)
-            with fees_col_loan:
-                loan_fees = st.number_input(
-                    "Loan Transaction / Acquisition Costs (€)", min_value=0.0,
-                    value=0.0, step=1000.0, key="ll_expenses_loan"
-                )
-            with fees_col_lease:
-                leasing_fees = st.number_input(
-                    "Leasing Transaction / Acquisition Costs (€)", min_value=0.0,
-                    value=0.0, step=1000.0, key="ll_expenses_leasing"
-                )
-            residual_value = st.number_input(
-                "Leasing Residual / Balloon Value (€)", min_value=0.0,
-                value=0.0, step=500.0, key="ll_residual_value",
-                help="Balloon payment at the end of the term; capped at the CAPEX actually financed."
-            )
+    tax_col, depreciation_col = st.columns(2)
+    with tax_col:
+        st.metric("Φορολογικός συντελεστής (από τη διάγνωση)", f"{tax_rate * 100:.2f}%")
+    with depreciation_col:
+        depreciation_years = st.number_input(
+            "Περίοδος απόσβεσης παγίου (έτη)", min_value=1, max_value=100,
+            key="ll_depreciation_years",
+            help="Παραδοχή για την ενδεικτική φορολογική επίδραση· δεν αλλάζει τις παραδοχές του έργου."
+        )
 
-    tax_rate = default_tax_rate
+    with st.expander("Πρόσθετες παραδοχές συναλλαγής"):
+        fee_col1, fee_col2 = st.columns(2)
+        with fee_col1:
+            loan_fees = st.number_input(
+                "Έξοδα δανείου (€)", min_value=0.0, step=500.0,
+                key="ll_expenses_loan"
+            )
+        with fee_col2:
+            leasing_fees = st.number_input(
+                "Έξοδα leasing (€)", min_value=0.0, step=500.0,
+                key="ll_expenses_leasing"
+            )
+        residual_value = st.number_input(
+            "Υπολειμματική / τελική καταβολή leasing (€)",
+            min_value=0.0, step=500.0, key="ll_residual_value",
+            help="Τελική καταβολή στη λήξη· περιορίζεται στο CAPEX που χρηματοδοτείται."
+        )
+
+    effective_allocation = _allocation_with_custom_internal_cash(
+        base_allocation, internal_cash_to_use
+    )
+    internal_actual = (
+        effective_allocation.internal_cash_to_working_capital
+        + effective_allocation.internal_cash_to_capex
+    )
+    st.subheader("3. Χρηματοδοτικό κενό του σεναρίου")
+    gap_col1, gap_col2, gap_col3 = st.columns(3)
+    gap_col1.metric("Εσωτερικά κεφάλαια που χρησιμοποιούνται", f"€{internal_actual:,.0f}")
+    gap_col2.metric("Εξωτερική χρηματοδότηση CAPEX", f"€{effective_allocation.external_capex_required:,.0f}")
+    gap_col3.metric("Συνολικό εξωτερικό χρηματοδοτικό κενό", f"€{effective_allocation.total_external_funding_required:,.0f}")
+
+    try:
+        loan_rate = _parse_percent_input(loan_rate_text, "Επιτόκιο δανείου")
+        leasing_rate = _parse_percent_input(leasing_rate_text, "Επιτόκιο leasing")
+        wc_rate = _parse_percent_input(wc_rate_text, "Επιτόκιο κεφαλαίου κίνησης")
+    except ValueError as exc:
+        st.error(str(exc))
+        return
+
+    if loan_rate is None or leasing_rate is None or wc_rate is None:
+        st.info("Για να εμφανιστεί η σύγκριση Loan vs Leasing, συμπλήρωσε και τα τρία επιτόκια. Δεν χρησιμοποιούνται αυτόματες ή υποθετικές τιμές επιτοκίων.")
+        return
+
     inputs = {
         "loan_rate": loan_rate,
         "leasing_rate": leasing_rate,
@@ -482,26 +471,18 @@ def render_loan_vs_leasing_lab(baseline_state):
         "pay_when": pay_when,
         "tax_rate": tax_rate,
         "depreciation_years": int(depreciation_years),
-        "loan_fees": loan_fees,
-        "leasing_fees": leasing_fees,
-        "leasing_residual_value": residual_value,
-        "scenario_mode": scenario_mode,
-        "internal_cash_used": float(internal_allocated),
-        "project_default_internal_cash": float(default_internal_cash),
+        "loan_fees": float(loan_fees),
+        "leasing_fees": float(leasing_fees),
+        "leasing_residual_value": float(residual_value),
     }
 
     st.divider()
-    st.subheader("Loan vs Leasing — Actual Project Funding")
-    if funding_allocation is None:
-        st.info("The comparison will be calculated when the investment project and funding gap are available.")
-        return
-
-    funding_allocation = scenario_allocation
-    capex_required = float(funding_allocation.external_capex_required)
-    wc_required = float(funding_allocation.external_working_capital_required)
-    total_required = float(funding_allocation.total_external_funding_required)
+    st.subheader("Loan vs Leasing — σύγκριση με βάση το πραγματικό χρηματοδοτικό κενό")
+    capex_required = float(effective_allocation.external_capex_required)
+    wc_required = float(effective_allocation.external_working_capital_required)
+    total_required = float(effective_allocation.total_external_funding_required)
     if total_required <= 0:
-        st.success("The investment project has no external funding gap. Loan or Leasing is not required.")
+        st.success("Με την επιλεγμένη χρήση εσωτερικών κεφαλαίων, το έργο δεν έχει εξωτερικό χρηματοδοτικό κενό.")
         return
 
     loan = _option_schedule(capex_required, wc_required, inputs, "Loan")
@@ -509,95 +490,60 @@ def render_loan_vs_leasing_lab(baseline_state):
 
     col_loan, col_lease = st.columns(2)
     with col_loan:
-        st.markdown("#### 🏦 Loan")
-        st.metric("Total Amount Financed (including selected fees)", f"€{loan['financed_amount']:,.0f}")
-        st.caption(f"Project funding gap: €{total_required:,.0f}; additional loan costs financed: €{loan_fees:,.0f}")
-        st.metric("Estimated Total Burden After Tax", f"€{loan['final_burden']:,.0f}")
-        st.caption(
-            f"Year-1 payment: €{loan['year1_payment']:,.0f} · "
-            f"Year-1 interest: €{loan['year1_interest']:,.0f}"
-        )
+        st.markdown("#### 🏦 Δάνειο")
+        st.metric("Συνολικό ποσό χρηματοδότησης", f"€{loan['financed_amount']:,.0f}")
+        st.caption(f"Χρηματοδοτικό κενό: €{total_required:,.0f} · έξοδα δανείου που χρηματοδοτούνται: €{loan_fees:,.0f}")
+        st.metric("Εκτιμώμενο συνολικό κόστος μετά φόρων", f"€{loan['final_burden']:,.0f}")
+        st.caption(f"Πληρωμές 1ου έτους: €{loan['year1_payment']:,.0f} · τόκοι 1ου έτους: €{loan['year1_interest']:,.0f}")
     with col_lease:
         st.markdown("#### 📄 Leasing")
-        st.metric("Total Amount Financed (including selected fees)", f"€{leasing['financed_amount']:,.0f}")
-        st.caption(f"Project funding gap: €{total_required:,.0f}; additional leasing costs financed: €{leasing_fees:,.0f}")
-        st.metric("Estimated Total Burden After Tax", f"€{leasing['final_burden']:,.0f}")
-        st.caption(
-            f"Year-1 payment: €{leasing['year1_payment']:,.0f} · "
-            f"Year-1 interest: €{leasing['year1_interest']:,.0f}"
-        )
+        st.metric("Συνολικό ποσό χρηματοδότησης", f"€{leasing['financed_amount']:,.0f}")
+        st.caption(f"Χρηματοδοτικό κενό: €{total_required:,.0f} · έξοδα leasing που χρηματοδοτούνται: €{leasing_fees:,.0f}")
+        st.metric("Εκτιμώμενο συνολικό κόστος μετά φόρων", f"€{leasing['final_burden']:,.0f}")
+        st.caption(f"Πληρωμές 1ου έτους: €{leasing['year1_payment']:,.0f} · τόκοι 1ου έτους: €{leasing['year1_interest']:,.0f}")
 
-    fig = go.Figure(
-        go.Bar(
-            x=["Loan", "Leasing"],
-            y=[loan["final_burden"], leasing["final_burden"]],
-            text=[f"€{loan['final_burden']:,.0f}", f"€{leasing['final_burden']:,.0f}"],
-            textposition="auto",
-        )
-    )
-    fig.update_layout(
-        height=280, margin=dict(l=10, r=10, t=20, b=10),
-        yaxis_title="Estimated Total Burden After Tax (€)",
-    )
+    fig = go.Figure(go.Bar(
+        x=["Loan", "Leasing"],
+        y=[loan["final_burden"], leasing["final_burden"]],
+        text=[f"€{loan['final_burden']:,.0f}", f"€{leasing['final_burden']:,.0f}"],
+        textposition="auto",
+    ))
+    fig.update_layout(height=280, margin=dict(l=10, r=10, t=20, b=10), yaxis_title="Εκτιμώμενο συνολικό κόστος μετά φόρων (€)")
     st.plotly_chart(fig, use_container_width=True)
-
     st.caption(
-        "Comparison assumptions: amortising loan versus finance-lease liability; "
-        "working-capital need is financed separately at the working-capital rate. "
-        "Tax shields are simplified estimates, not tax or accounting advice. "
-        "The integrated projection uses the actual funding allocation and year-one "
-        "interest/principal schedule; the project NPV, IRR and Payback are not recalculated "
-        "by this financing comparison."
+        "Η σύγκριση είναι ενδεικτική: μοντελοποιεί αποπληρωτέο δάνειο έναντι υποχρέωσης "
+        "finance leasing και υπολογίζει απλοποιημένα τη φορολογική επίδραση. Οι όροι μιας "
+        "πραγματικής σύμβασης leasing μπορεί να διαφέρουν. Η χρηματοδότηση δεν μεταβάλλει "
+        "το NPV, IRR ή Payback του έργου."
     )
 
     st.divider()
-    st.subheader("First-Year Financing Consequence")
-    left, loan_col, lease_col = st.columns([1.45, 1, 1])
-    left.caption("MEASURE")
-    loan_col.markdown("**🏦 Loan**")
-    lease_col.markdown("**📄 Leasing**")
-
-    def metric_row(label, loan_value, lease_value, fmt="€{:,.0f}"):
-        c1, c2, c3 = st.columns([1.45, 1, 1])
+    st.subheader("Επίδραση κατά το πρώτο έτος")
+    loan_profit = _profit_after_financing_interest(baseline_profit, baseline_is.ebt, tax_rate, loan["year1_interest"])
+    lease_profit = _profit_after_financing_interest(baseline_profit, baseline_is.ebt, tax_rate, leasing["year1_interest"])
+    consequence_rows = [
+        ("Ετήσιες πληρωμές χρηματοδότησης", loan["year1_payment"], leasing["year1_payment"]),
+        ("Έξοδα τόκων", loan["year1_interest"], leasing["year1_interest"]),
+        ("Ενδεικτικά καθαρά κέρδη εταιρείας", loan_profit, lease_profit),
+        ("Ταμειακή ροή μετά την εξυπηρέτηση χρηματοδότησης", baseline_fcfe - loan["year1_payment"], baseline_fcfe - leasing["year1_payment"]),
+    ]
+    for label, loan_value, lease_value in consequence_rows:
+        c1, c2, c3 = st.columns([1.6, 1, 1])
         c1.caption(label)
-        c2.metric(" ", fmt.format(loan_value), label_visibility="collapsed")
-        c3.metric(" ", fmt.format(lease_value), label_visibility="collapsed")
-
-    metric_row("Annual financing payment", loan["year1_payment"], leasing["year1_payment"])
-    metric_row("Interest expense (year 1)", loan["year1_interest"], leasing["year1_interest"])
-    loan_profit = _profit_after_financing_interest(
-        baseline_profit, baseline_is.ebt, tax_rate, loan["year1_interest"]
-    )
-    lease_profit = _profit_after_financing_interest(
-        baseline_profit, baseline_is.ebt, tax_rate, leasing["year1_interest"]
-    )
-    metric_row("Illustrative company net profit*", loan_profit, lease_profit)
-    metric_row(
-        "Company cash flow after debt service*",
-        baseline_fcfe - loan["year1_payment"],
-        baseline_fcfe - leasing["year1_payment"],
-    )
-    st.caption(
-        "*Financing-only illustration against the baseline. The integrated projection "
-        "adds the investment's operating impacts and handles initial project funding."
-    )
+        c2.metric("Δάνειο", f"€{loan_value:,.0f}")
+        c3.metric("Leasing", f"€{lease_value:,.0f}")
 
     st.divider()
-    st.subheader("🎯 Select the Financing Decision")
+    st.subheader("Επιλογή χρηματοδότησης")
     selected_option = st.radio(
-        "Choose one option", ["No financing decision", "Loan", "Leasing"],
+        "Επίλεξε επιλογή", ["Καμία απόφαση", "Loan", "Leasing"],
         horizontal=True, key="ll_selected_option"
     )
-    if selected_option == "No financing decision":
-        st.caption("No financing decision will be attached to the investment project.")
+    if selected_option == "Καμία απόφαση":
+        st.caption("Δεν θα μεταφερθεί απόφαση χρηματοδότησης στο επενδυτικό έργο.")
         return
 
     chosen = loan if selected_option == "Loan" else leasing
-    st.success(f"Selected decision: **{selected_option}**")
-    selected_payment_col, selected_burden_col = st.columns(2)
-    selected_payment_col.metric("Year-1 Financing Payment", f"€{chosen['year1_payment']:,.0f}")
-    selected_burden_col.metric("Estimated Total Burden After Tax", f"€{chosen['final_burden']:,.0f}")
-
     financing_inputs = dict(inputs)
     financing_inputs["selected_option"] = selected_option
     st.session_state.loan_leasing_decision_preview = {
@@ -606,13 +552,9 @@ def render_loan_vs_leasing_lab(baseline_state):
         "annual_payment": chosen["year1_payment"],
         "final_burden": chosen["final_burden"],
         "year_1_profit_before_decision": baseline_profit,
-        "year_1_profit_after_decision": (
-            loan_profit if selected_option == "Loan" else lease_profit
-        ),
+        "year_1_profit_after_decision": loan_profit if selected_option == "Loan" else lease_profit,
         "year_1_cash_before_decision": baseline_fcfe,
-        "year_1_cash_after_decision": (
-            baseline_fcfe - chosen["year1_payment"]
-        ),
+        "year_1_cash_after_decision": baseline_fcfe - chosen["year1_payment"],
         "baseline_version": baseline_state.version,
         "financing_scope": "investment_project",
         "linked_investment_assumptions": investment_assumptions,
@@ -620,27 +562,20 @@ def render_loan_vs_leasing_lab(baseline_state):
     }
 
     st.divider()
-    st.subheader("Transfer Financing to Investment Project")
-    st.caption(
-        "The selected option is attached to the existing investment decision; "
-        "it is not added as a second, separate investment."
-    )
-    transfer_disabled = total_required <= 0 or not project_available
+    st.subheader("Μεταφορά χρηματοδότησης στο επενδυτικό έργο")
+    st.caption("Η επιλεγμένη χρηματοδότηση συνδέεται με το υπάρχον έργο· δεν προστίθεται δεύτερη επενδυτική απόφαση.")
     if st.button(
-        "Transfer Selected Financing to Investment Project",
-        use_container_width=True,
-        type="primary",
-        disabled=transfer_disabled,
+        "Μεταφορά επιλεγμένης χρηματοδότησης στο έργο",
+        use_container_width=True, type="primary",
+        disabled=not project_available,
         key="transfer_financing_to_investment",
     ):
         try:
             _transfer_financing_to_investment(
                 investment_assumptions=investment_assumptions,
                 financing_preview=st.session_state.loan_leasing_decision_preview,
-                funding_allocation=funding_allocation,
+                funding_allocation=effective_allocation,
             )
-            st.success(
-                "Financing attached to the investment project and saved in the Current Decision Plan."
-            )
+            st.success("Η χρηματοδότηση συνδέθηκε με το επενδυτικό έργο.")
         except Exception as exc:
-            st.error(f"Error transferring financing: {exc}")
+            st.error(f"Σφάλμα κατά τη μεταφορά χρηματοδότησης: {exc}")
