@@ -1,5 +1,8 @@
 import sys
 from pathlib import Path
+import json
+import uuid
+from urllib.request import Request, urlopen
 
 # =========================================================
 # APPLICATION ROOT
@@ -143,6 +146,76 @@ def initialize_app() -> None:
 
 
 initialize_app()
+
+# =========================================================
+# SUPABASE ANALYTICS
+# =========================================================
+
+def log_supabase_event(event_name, page_path, metadata=None):
+    """Send a minimal analytics event to Supabase."""
+
+    try:
+        supabase_url = st.secrets.get("SUPABASE_URL", "").rstrip("/")
+        supabase_key = st.secrets.get(
+            "SUPABASE_PUBLISHABLE_KEY", ""
+        )
+
+        if not supabase_url or not supabase_key:
+            return
+
+        if "analytics_session_id" not in st.session_state:
+            st.session_state.analytics_session_id = uuid.uuid4().hex
+
+        payload = {
+            "event_name": event_name,
+            "session_id": st.session_state.analytics_session_id,
+            "page_path": page_path,
+            "metadata": metadata or {},
+        }
+
+        request = Request(
+            f"{supabase_url}/rest/v1/app_events",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "apikey": supabase_key,
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            method="POST",
+        )
+
+        with urlopen(request, timeout=3):
+            pass
+
+    except Exception:
+        # Analytics must never interrupt the application.
+        pass
+
+
+# Record one session start and subsequent tool openings.
+if "analytics_started" not in st.session_state:
+    log_supabase_event(
+        "session_started",
+        st.session_state.current_page,
+    )
+    st.session_state.analytics_started = True
+    st.session_state.analytics_last_page = (
+        st.session_state.current_page
+    )
+
+elif (
+    st.session_state.analytics_last_page
+    != st.session_state.current_page
+):
+    page = st.session_state.current_page
+
+    if page != "main":
+        log_supabase_event(
+            "tool_opened",
+            page,
+        )
+
+    st.session_state.analytics_last_page = page
 
 
 # =========================================================
