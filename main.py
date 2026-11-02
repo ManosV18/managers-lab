@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import json
+import time
 import uuid
 from urllib.request import Request, urlopen
 
@@ -152,9 +153,14 @@ initialize_app()
 # =========================================================
 
 def log_supabase_event(event_name, page_path, metadata=None):
+    """Send a minimal analytics event to Supabase."""
+
     try:
         supabase_url = st.secrets.get("SUPABASE_URL", "").rstrip("/")
-        supabase_key = st.secrets.get("SUPABASE_PUBLISHABLE_KEY", "")
+        supabase_key = st.secrets.get(
+            "SUPABASE_PUBLISHABLE_KEY", ""
+        )
+
         if not supabase_url or not supabase_key:
             return
 
@@ -162,7 +168,9 @@ def log_supabase_event(event_name, page_path, metadata=None):
             st.session_state.analytics_session_id = uuid.uuid4().hex
 
         metadata = dict(metadata or {})
-        if st.session_state.get("is_dev"):      # νέο: τα δικά σου tests
+
+        # Your own tests: open the app with ?dev=1 at the end of the URL
+        if st.session_state.get("is_dev"):
             metadata["is_dev"] = True
 
         payload = {
@@ -171,42 +179,70 @@ def log_supabase_event(event_name, page_path, metadata=None):
             "page_path": page_path,
             "metadata": metadata,
         }
+
         request = Request(
             f"{supabase_url}/rest/v1/app_events",
             data=json.dumps(payload).encode("utf-8"),
-            headers={"apikey": supabase_key,
-                     "Content-Type": "application/json",
-                     "Prefer": "return=minimal"},
+            headers={
+                "apikey": supabase_key,
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
             method="POST",
         )
+
         with urlopen(request, timeout=3):
             pass
+
     except Exception:
+        # Analytics must never interrupt the application.
         pass
 
+
+# Record one session start and subsequent tool openings.
 if "analytics_started" not in st.session_state:
     st.session_state.is_dev = st.query_params.get("dev") == "1"
-    log_supabase_event("session_started", st.session_state.current_page)
+    log_supabase_event(
+        "session_started",
+        st.session_state.current_page,
+    )
     st.session_state.analytics_started = True
-    st.session_state.analytics_last_page = st.session_state.current_page
+    st.session_state.analytics_last_page = (
+        st.session_state.current_page
+    )
 
-elif st.session_state.analytics_last_page != st.session_state.current_page:
+elif (
+    st.session_state.analytics_last_page
+    != st.session_state.current_page
+):
     page = st.session_state.current_page
+
     if page != "main":
-        log_supabase_event("tool_opened", page)
+        log_supabase_event(
+            "tool_opened",
+            page,
+        )
+
     st.session_state.analytics_last_page = page
 
 else:
-    # ίδια σελίδα + rerun = ο χρήστης άγγιξε κάτι μέσα στο εργαλείο
-    if (st.session_state.current_page != "main"
-        and time.time() - st.session_state.get("analytics_last_interaction", 0.0) > 5):
+    # Same page, script reran = the user touched something inside the tool.
+    # Throttled to one event per 5 seconds (a slider drag counts once).
+    if (
+        st.session_state.current_page != "main"
+        and time.time() - st.session_state.get("analytics_last_interaction", 0.0) > 5
+    ):
         st.session_state.analytics_last_interaction = time.time()
-        log_supabase_event("tool_interaction", st.session_state.current_page)
+        log_supabase_event(
+            "tool_interaction",
+            st.session_state.current_page,
+        )
 
-# ο χρήστης κλείδωσε δικά του νούμερα (όχι το demo)
+# The user locked their own company data (not the demo company).
 if has_locked_baseline() and not st.session_state.get("analytics_baseline_logged"):
     log_supabase_event("baseline_locked", st.session_state.current_page)
     st.session_state.analytics_baseline_logged = True
+
 
 # =========================================================
 # NAVIGATION
